@@ -1,0 +1,69 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "js/token-sdk/**"
+      - "js/token-client/**"
+      - "js/token-idl/**"
+      - "pnpm-lock.yaml"
+  pull_request:
+    branches:
+      - "*"
+    paths:
+      - "js/token-sdk/**"
+      - "js/token-client/**"
+      - "js/token-idl/**"
+      - "pnpm-lock.yaml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: token-kit
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  token-kit-tests:
+    name: token-kit-tests
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build token-sdk
+        run: cd js/token-sdk && pnpm build
+
+      - name: Run token-sdk unit tests
+        run: just js test-token-sdk
+
+      - name: Run token-client unit tests
+        run: just js test-token-client
+
+      - name: Lint token-sdk
+        run: just js lint-token-kit
