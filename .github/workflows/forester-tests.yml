@@ -84,6 +84,26 @@ jobs:
       - name: Test
         run: just forester test
 
+      - name: Dump Photon Logs On Failure
+        if: failure()
+        shell: bash
+        run: |
+          if [ -f test-ledger/photon.log ]; then
+            echo "=== test-ledger/photon.log (tail -n 400) ==="
+            tail -n 400 test-ledger/photon.log
+            echo "=== end test-ledger/photon.log ==="
+          else
+            echo "test-ledger/photon.log not found"
+          fi
+
+      - name: Upload Forester Test Logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: forester-test-ledger
+          path: test-ledger
+          if-no-files-found: ignore
+
   compressible-tests:
     name: Forester compressible tests
     runs-on: ubuntu-latest
