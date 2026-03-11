@@ -17,7 +17,7 @@ use solana_sdk::{
     signature::Keypair, signer::Signer,
 };
 use tokio::sync::Mutex;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use super::{errors::V2Error, proof_worker::ProofJob};
 use crate::{
@@ -216,12 +216,20 @@ fn map_send_error(tree: Pubkey, error: SmartTransactionError) -> ForesterError {
             "V2 transaction execution failed"
         );
         V2Error::from_transaction_error(tree, &transaction_error).into()
-    } else if error.is_execution_failure() {
-        increment_transactions_failed("execution_failed", 1);
-        error!(
+    } else if error.is_confirmation_deadline_exceeded() {
+        increment_transactions_failed("deadline_exceeded", 1);
+        warn!(
             tree = %tree,
             error = ?error,
-            "V2 transaction failed after send while waiting for confirmation"
+            "V2 transaction missed the scheduled confirmation deadline"
+        );
+        ForesterError::from(error)
+    } else if error.is_confirmation_unknown() {
+        increment_transactions_failed("confirmation_timeout", 1);
+        warn!(
+            tree = %tree,
+            error = ?error,
+            "V2 transaction confirmation remained unknown after send"
         );
         ForesterError::from(error)
     } else {

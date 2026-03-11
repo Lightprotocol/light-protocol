@@ -35,7 +35,7 @@ use solana_program::{
 };
 use solana_sdk::{
     address_lookup_table::AddressLookupTableAccount,
-    signature::{Keypair, Signature, Signer},
+    signature::{Keypair, Signer},
     transaction::TransactionError,
 };
 use tokio::{
@@ -84,7 +84,7 @@ use crate::{
         send_smart_transaction, ComputeBudgetConfig, ConfirmationConfig,
         SendSmartTransactionConfig, TransactionPolicy,
     },
-    transaction_timing::scheduled_v1_batch_timeout,
+    transaction_timing::{scheduled_confirmation_deadline, scheduled_v1_batch_timeout},
     tree_data_sync::{fetch_protocol_group_authority, fetch_trees},
     ForesterConfig, ForesterEpochInfo, Result,
 };
@@ -1090,13 +1090,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     error = ?e,
                     "Failed to recover registration info"
                 );
-                match self
-                    .register_for_epoch_with_retry(epoch, 100, Duration::from_millis(1000))
-                    .await
-                {
-                    Ok(info) => info,
-                    Err(e) => return Err(e.into()),
-                }
+                return Err(e.into());
             }
         };
         debug!("Recovered registration info for epoch {}", epoch);
@@ -1211,6 +1205,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         }
 
         for attempt in 0..max_retries {
+            match self.recover_registration_info_if_exists(epoch).await {
+                Ok(Some(registration_info)) => return Ok(registration_info),
+                Ok(None) => {}
+                Err(e) => return Err(e),
+            }
+
             match self.register_for_epoch(epoch).await {
                 Ok(registration_info) => return Ok(registration_info),
                 Err(e) => {
@@ -1494,8 +1494,43 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let priority_fee = self
                     .resolve_epoch_priority_fee(&*rpc, epoch_info.epoch.epoch)
                     .await?;
-                self.send_configured_transaction(&mut *rpc, vec![ix], priority_fee)
-                    .await?;
+                let Some(confirmation_deadline) = scheduled_confirmation_deadline(
+                    epoch_info
+                        .epoch
+                        .phases
+                        .active
+                        .end
+                        .saturating_sub(current_slot),
+                ) else {
+                    info!(
+                        event = "skip_finalize_registration_confirmation_budget_exhausted",
+                        run_id = %self.run_id,
+                        epoch = epoch_info.epoch.epoch,
+                        current_slot,
+                        active_phase_end_slot = epoch_info.epoch.phases.active.end,
+                        "Skipping FinalizeRegistration because not enough active-phase time remains for confirmation"
+                    );
+                    return Ok(None);
+                };
+                let payer = self.config.payer_keypair.pubkey();
+                let signers = [&self.config.payer_keypair];
+                send_smart_transaction(
+                    &mut *rpc,
+                    SendSmartTransactionConfig {
+                        instructions: vec![ix],
+                        payer: &payer,
+                        signers: &signers,
+                        address_lookup_tables: &self.address_lookup_tables,
+                        compute_budget: ComputeBudgetConfig {
+                            compute_unit_price: priority_fee,
+                            compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+                        },
+                        confirmation: Some(self.confirmation_config()),
+                        confirmation_deadline: Some(confirmation_deadline),
+                    },
+                )
+                .await
+                .map_err(RpcError::from)?;
             }
         }
 
@@ -1873,9 +1908,40 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let priority_fee = self
                     .resolve_epoch_priority_fee(&*rpc, epoch_info.epoch)
                     .await?;
-                match self
-                    .send_configured_transaction(&mut *rpc, vec![ix], priority_fee)
-                    .await
+                let current_slot = rpc.get_slot().await?;
+                let Some(confirmation_deadline) = scheduled_confirmation_deadline(
+                    epoch_info.phases.active.end.saturating_sub(current_slot),
+                ) else {
+                    info!(
+                        event = "refinalize_registration_skipped_confirmation_budget_exhausted",
+                        run_id = %self.run_id,
+                        epoch = epoch_info.epoch,
+                        current_slot,
+                        active_phase_end_slot = epoch_info.phases.active.end,
+                        "Skipping re-finalization because not enough active-phase time remains for confirmation"
+                    );
+                    registration_tracker.complete_refinalize(cached_weight);
+                    return Ok(());
+                };
+                let payer = self.config.payer_keypair.pubkey();
+                let signers = [&self.config.payer_keypair];
+                match send_smart_transaction(
+                    &mut *rpc,
+                    SendSmartTransactionConfig {
+                        instructions: vec![ix],
+                        payer: &payer,
+                        signers: &signers,
+                        address_lookup_tables: &self.address_lookup_tables,
+                        compute_budget: ComputeBudgetConfig {
+                            compute_unit_price: priority_fee,
+                            compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+                        },
+                        confirmation: Some(self.confirmation_config()),
+                        confirmation_deadline: Some(confirmation_deadline),
+                    },
+                )
+                .await
+                .map_err(RpcError::from)
                 {
                     Ok(_) => {
                         // Re-fetch EpochPda after finalize to get authoritative
@@ -3109,34 +3175,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .await
     }
 
-    async fn send_configured_transaction<RpcT: Rpc>(
-        &self,
-        rpc: &mut RpcT,
-        instructions: Vec<solana_sdk::instruction::Instruction>,
-        compute_unit_price: Option<u64>,
-    ) -> std::result::Result<Signature, RpcError> {
-        let payer = self.config.payer_keypair.pubkey();
-        let signers = [&self.config.payer_keypair];
-
-        send_smart_transaction(
-            rpc,
-            SendSmartTransactionConfig {
-                instructions,
-                payer: &payer,
-                signers: &signers,
-                address_lookup_tables: &self.address_lookup_tables,
-                compute_budget: ComputeBudgetConfig {
-                    compute_unit_price,
-                    compute_unit_limit: Some(self.config.transaction_config.cu_limit),
-                },
-                confirmation: Some(self.confirmation_config()),
-                confirmation_deadline: None,
-            },
-        )
-        .await
-        .map_err(RpcError::from)
-    }
-
     async fn get_or_create_state_processor(
         &self,
         epoch_info: &Epoch,
@@ -3625,6 +3663,20 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             return Ok(None);
         }
 
+        let Some(confirmation_deadline) = scheduled_confirmation_deadline(
+            consecutive_eligibility_end.saturating_sub(current_slot),
+        ) else {
+            debug!(
+                event = "cached_proofs_skipped_confirmation_budget_exhausted",
+                run_id = %self.run_id,
+                tree = %tree_pubkey,
+                current_slot,
+                eligibility_end_slot = consecutive_eligibility_end,
+                "Skipping cached proofs because not enough eligible slots remain for confirmation"
+            );
+            return Ok(None);
+        };
+
         let cache = match self.proof_caches.get(&tree_pubkey) {
             Some(c) => c.clone(),
             None => return Ok(None),
@@ -3683,7 +3735,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         );
 
         let items_sent = self
-            .send_cached_proofs_as_transactions(epoch_info, tree_accounts, cached_proofs)
+            .send_cached_proofs_as_transactions(
+                epoch_info,
+                tree_accounts,
+                cached_proofs,
+                confirmation_deadline,
+            )
             .await?;
 
         Ok(Some(items_sent))
@@ -3722,6 +3779,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
         cached_proofs: Vec<crate::processor::v2::CachedProof>,
+        confirmation_deadline: Instant,
     ) -> Result<usize> {
         let mut total_items = 0;
         let authority = self.config.payer_keypair.pubkey();
@@ -3787,9 +3845,25 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     .resolve_tree_priority_fee(&*rpc, epoch_info.epoch, tree_accounts)
                     .await?;
                 let instruction_count = instructions.len();
-                match self
-                    .send_configured_transaction(&mut *rpc, instructions, priority_fee)
-                    .await
+                let payer = self.config.payer_keypair.pubkey();
+                let signers = [&self.config.payer_keypair];
+                match send_smart_transaction(
+                    &mut *rpc,
+                    SendSmartTransactionConfig {
+                        instructions,
+                        payer: &payer,
+                        signers: &signers,
+                        address_lookup_tables: &self.address_lookup_tables,
+                        compute_budget: ComputeBudgetConfig {
+                            compute_unit_price: priority_fee,
+                            compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+                        },
+                        confirmation: Some(self.confirmation_config()),
+                        confirmation_deadline: Some(confirmation_deadline),
+                    },
+                )
+                .await
+                .map_err(RpcError::from)
                 {
                     Ok(sig) => {
                         info!(
@@ -3946,9 +4020,25 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let priority_fee = self
             .resolve_epoch_priority_fee(&rpc, epoch_info.epoch.epoch)
             .await?;
-        match self
-            .send_configured_transaction(&mut rpc, vec![ix], priority_fee)
-            .await
+        let payer = self.config.payer_keypair.pubkey();
+        let signers = [&self.config.payer_keypair];
+        match send_smart_transaction(
+            &mut rpc,
+            SendSmartTransactionConfig {
+                instructions: vec![ix],
+                payer: &payer,
+                signers: &signers,
+                address_lookup_tables: &self.address_lookup_tables,
+                compute_budget: ComputeBudgetConfig {
+                    compute_unit_price: priority_fee,
+                    compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+                },
+                confirmation: Some(self.confirmation_config()),
+                confirmation_deadline: None,
+            },
+        )
+        .await
+        .map_err(RpcError::from)
         {
             Ok(_) => {
                 info!(

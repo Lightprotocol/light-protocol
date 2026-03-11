@@ -871,10 +871,13 @@ impl Rpc for LightClient {
         &self,
         signatures: &[Signature],
     ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
-        self.client
-            .get_signature_statuses(signatures)
-            .map(|response| response.value)
-            .map_err(RpcError::from)
+        self.retry(|| async {
+            self.client
+                .get_signature_statuses(signatures)
+                .map(|response| response.value)
+                .map_err(RpcError::from)
+        })
+        .await
     }
 
     async fn create_and_send_transaction_with_event<T>(

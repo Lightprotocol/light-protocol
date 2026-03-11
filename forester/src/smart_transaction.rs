@@ -113,6 +113,10 @@ pub enum SmartTransactionError {
 }
 
 impl SmartTransactionError {
+    pub fn has_transaction_error(&self) -> bool {
+        self.transaction_error().is_some()
+    }
+
     pub fn transaction_error(&self) -> Option<solana_sdk::transaction::TransactionError> {
         match self {
             SmartTransactionError::Rpc(RpcError::TransactionError(transaction_error)) => {
@@ -125,14 +129,20 @@ impl SmartTransactionError {
         }
     }
 
-    pub fn is_execution_failure(&self) -> bool {
-        self.transaction_error().is_some()
-            || matches!(
-                self,
-                SmartTransactionError::ConfirmationDeadlineExceeded { .. }
-                    | SmartTransactionError::BlockhashExpired { .. }
-                    | SmartTransactionError::ConfirmationTimedOut { .. }
-            )
+    pub fn is_confirmation_deadline_exceeded(&self) -> bool {
+        matches!(
+            self,
+            SmartTransactionError::ConfirmationDeadlineExceeded { .. }
+        )
+    }
+
+    pub fn is_confirmation_unknown(&self) -> bool {
+        matches!(
+            self,
+            SmartTransactionError::ConfirmationDeadlineExceeded { .. }
+                | SmartTransactionError::BlockhashExpired { .. }
+                | SmartTransactionError::ConfirmationTimedOut { .. }
+        )
     }
 }
 

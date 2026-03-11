@@ -56,6 +56,7 @@ enum TransactionSendResult {
     Success(Signature),
     SendFailure(ForesterError, Option<Signature>),
     ExecutionFailure(ForesterError, Option<Signature>),
+    ConfirmationUnknown(ForesterError, Option<Signature>),
     DeadlineExceeded(Signature),
     Cancelled,
     Timeout,
@@ -403,10 +404,16 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                                 TransactionSendResult::DeadlineExceeded(signature)
                             }
                             other => {
-                                let is_execution_failure = other.is_execution_failure();
+                                let is_execution_failure = other.has_transaction_error();
+                                let is_confirmation_unknown = other.is_confirmation_unknown();
                                 let error = ForesterError::from(other);
                                 if is_execution_failure {
                                     TransactionSendResult::ExecutionFailure(error, Some(tx_signature))
+                                } else if is_confirmation_unknown {
+                                    TransactionSendResult::ConfirmationUnknown(
+                                        error,
+                                        Some(tx_signature),
+                                    )
                                 } else {
                                     TransactionSendResult::SendFailure(error, Some(tx_signature))
                                 }
@@ -465,6 +472,21 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                     error!(
                         error = ?err,
                         "Transaction failed after send while waiting for confirmation"
+                    );
+                }
+            }
+            TransactionSendResult::ConfirmationUnknown(err, sig_opt) => {
+                increment_transactions_failed("confirmation_timeout", 1);
+                if let Some(sig) = sig_opt {
+                    warn!(
+                        tx.signature = %sig,
+                        error = ?err,
+                        "Transaction confirmation remained unknown after send"
+                    );
+                } else {
+                    warn!(
+                        error = ?err,
+                        "Transaction confirmation remained unknown after send"
                     );
                 }
             }
