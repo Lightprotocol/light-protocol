@@ -28,7 +28,10 @@ use super::{state::PdaAccountTracker, types::PdaAccountState};
 use crate::{
     compressible::{
         config::PdaProgramConfig,
-        traits::{send_and_confirm_with_tracking, Cancelled, CompressibleTracker},
+        traits::{
+            send_and_confirm_with_tracking, CompressibleTracker, CompressionOutcome,
+            CompressionOutcomes, CompressionTaskError,
+        },
     },
     smart_transaction::{
         collect_priority_fee_accounts, send_transaction_with_policy,
@@ -158,8 +161,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         cached_config: &CachedProgramConfig,
         max_concurrent: usize,
         cancelled: Arc<AtomicBool>,
-    ) -> Vec<std::result::Result<(Signature, PdaAccountState), (PdaAccountState, anyhow::Error)>>
-    {
+    ) -> CompressionOutcomes<PdaAccountState> {
         if account_states.is_empty() {
             return Vec::new();
         }
@@ -180,15 +182,24 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 if cancelled.load(Ordering::Relaxed) {
                     // Unmark since we won't process this account
                     compressor.tracker.unmark_pending(&[account_state.pubkey]);
-                    return Err((account_state, Cancelled.into()));
+                    return CompressionOutcome::Failed {
+                        state: account_state,
+                        error: CompressionTaskError::Cancelled,
+                    };
                 }
 
                 match compressor
                     .compress(&account_state, &program_config, &cached_config)
                     .await
                 {
-                    Ok(sig) => Ok((sig, account_state)),
-                    Err(e) => Err((account_state, e)),
+                    Ok(sig) => CompressionOutcome::Compressed {
+                        signature: sig,
+                        state: account_state,
+                    },
+                    Err(e) => CompressionOutcome::Failed {
+                        state: account_state,
+                        error: e.into(),
+                    },
                 }
             }
         });
@@ -202,11 +213,11 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         // Remove successfully compressed PDAs; unmark failed ones
         for result in &results {
             match result {
-                Ok((_, pda_state)) => {
-                    self.tracker.remove_compressed(&pda_state.pubkey);
+                CompressionOutcome::Compressed { state, .. } => {
+                    self.tracker.remove_compressed(&state.pubkey);
                 }
-                Err((pda_state, _)) => {
-                    self.tracker.unmark_pending(&[pda_state.pubkey]);
+                CompressionOutcome::Failed { state, .. } => {
+                    self.tracker.unmark_pending(&[state.pubkey]);
                 }
             }
         }
@@ -397,6 +408,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 address_lookup_tables: &[],
                 priority_fee_accounts,
                 policy: self.transaction_policy,
+                confirmation_deadline: None,
             },
         )
         .await

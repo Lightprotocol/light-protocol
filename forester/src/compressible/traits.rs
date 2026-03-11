@@ -14,6 +14,7 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
+use thiserror::Error;
 use tracing::info;
 
 use crate::{
@@ -35,6 +36,29 @@ impl fmt::Display for Cancelled {
 }
 
 impl std::error::Error for Cancelled {}
+
+#[derive(Debug, Error)]
+pub enum CompressionTaskError {
+    #[error(transparent)]
+    Failed(#[from] anyhow::Error),
+
+    #[error("Cancelled")]
+    Cancelled,
+}
+
+#[derive(Debug)]
+pub enum CompressionOutcome<S> {
+    Compressed {
+        signature: Signature,
+        state: S,
+    },
+    Failed {
+        state: S,
+        error: CompressionTaskError,
+    },
+}
+
+pub type CompressionOutcomes<S> = Vec<CompressionOutcome<S>>;
 
 pub trait CompressibleState: Clone + Send + Sync {
     fn pubkey(&self) -> &Pubkey;
@@ -206,6 +230,7 @@ pub async fn send_and_confirm_with_tracking<S: CompressibleState>(
             address_lookup_tables: &[],
             priority_fee_accounts: collect_priority_fee_accounts(payer_pubkey, instructions),
             policy: transaction_policy,
+            confirmation_deadline: None,
         },
     )
     .await

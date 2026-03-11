@@ -1,10 +1,6 @@
 // adapted from https://github.com/helius-labs/helius-rust-sdk/blob/dev/src/optimized_transaction.rs
 // optimized for forester client
-use std::{
-    collections::HashSet,
-    future::Future,
-    time::{Duration, Instant},
-};
+use std::{collections::HashSet, time::Duration};
 
 use forester_utils::rpc_pool::SolanaConnectionManager;
 use light_client::rpc::{Rpc, RpcError};
@@ -21,9 +17,10 @@ use solana_sdk::{
     transaction::{Transaction, VersionedTransaction},
 };
 use solana_transaction_status::TransactionConfirmationStatus;
-use tokio::time::sleep;
+use thiserror::Error;
+use tokio::time::{sleep, Instant};
 
-use crate::priority_fee::PriorityFeeConfig;
+use crate::{errors::rpc_is_already_processed, priority_fee::PriorityFeeConfig};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ComputeBudgetConfig {
@@ -79,6 +76,7 @@ pub struct SendSmartTransactionConfig<'a> {
     pub address_lookup_tables: &'a [AddressLookupTableAccount],
     pub compute_budget: ComputeBudgetConfig,
     pub confirmation: Option<ConfirmationConfig>,
+    pub confirmation_deadline: Option<Instant>,
 }
 
 pub struct SendTransactionWithPolicyConfig<'a> {
@@ -88,6 +86,63 @@ pub struct SendTransactionWithPolicyConfig<'a> {
     pub address_lookup_tables: &'a [AddressLookupTableAccount],
     pub priority_fee_accounts: Vec<Pubkey>,
     pub policy: TransactionPolicy,
+    pub confirmation_deadline: Option<Instant>,
+}
+
+#[derive(Debug, Error)]
+pub enum SmartTransactionError {
+    #[error(transparent)]
+    Rpc(#[from] RpcError),
+
+    #[error("Transaction {signature} confirmation timed out before the scheduled deadline")]
+    ConfirmationDeadlineExceeded { signature: Signature },
+
+    #[error(
+        "Transaction {signature} blockhash expired at block height {last_valid_block_height} before confirmation"
+    )]
+    BlockhashExpired {
+        signature: Signature,
+        last_valid_block_height: u64,
+    },
+
+    #[error("Transaction {signature} confirmation timed out after {max_attempts} attempts")]
+    ConfirmationTimedOut {
+        signature: Signature,
+        max_attempts: u32,
+    },
+}
+
+impl SmartTransactionError {
+    pub fn transaction_error(&self) -> Option<solana_sdk::transaction::TransactionError> {
+        match self {
+            SmartTransactionError::Rpc(RpcError::TransactionError(transaction_error)) => {
+                Some(transaction_error.clone())
+            }
+            SmartTransactionError::Rpc(RpcError::ClientError(client_error)) => {
+                client_error.kind.get_transaction_error()
+            }
+            _ => None,
+        }
+    }
+
+    pub fn is_execution_failure(&self) -> bool {
+        self.transaction_error().is_some()
+            || matches!(
+                self,
+                SmartTransactionError::ConfirmationDeadlineExceeded { .. }
+                    | SmartTransactionError::BlockhashExpired { .. }
+                    | SmartTransactionError::ConfirmationTimedOut { .. }
+            )
+    }
+}
+
+impl From<SmartTransactionError> for RpcError {
+    fn from(error: SmartTransactionError) -> Self {
+        match error {
+            SmartTransactionError::Rpc(error) => error,
+            other => RpcError::CustomError(other.to_string()),
+        }
+    }
 }
 
 pub fn collect_priority_fee_accounts(payer: Pubkey, instructions: &[Instruction]) -> Vec<Pubkey> {
@@ -247,7 +302,7 @@ pub async fn create_smart_transaction(
 pub async fn send_transaction_with_policy<R: Rpc>(
     rpc: &mut R,
     config: SendTransactionWithPolicyConfig<'_>,
-) -> Result<Signature, RpcError> {
+) -> Result<Signature, SmartTransactionError> {
     let compute_unit_price = config
         .policy
         .priority_fee_config
@@ -269,12 +324,13 @@ pub async fn send_transaction_with_policy<R: Rpc>(
                 compute_unit_limit: config.policy.compute_unit_limit,
             },
             confirmation: config.policy.confirmation,
+            confirmation_deadline: config.confirmation_deadline,
         },
     )
     .await
 }
 
-struct PreparedTransaction {
+pub(crate) struct PreparedTransaction {
     transaction: PreparedTransactionKind,
     last_valid_block_height: u64,
 }
@@ -285,6 +341,13 @@ enum PreparedTransactionKind {
 }
 
 impl PreparedTransaction {
+    pub(crate) fn legacy(transaction: Transaction, last_valid_block_height: u64) -> Self {
+        Self {
+            transaction: PreparedTransactionKind::Legacy(transaction),
+            last_valid_block_height,
+        }
+    }
+
     fn signature(&self) -> Option<Signature> {
         match &self.transaction {
             PreparedTransactionKind::Legacy(transaction) => transaction.signatures.first().copied(),
@@ -321,12 +384,21 @@ impl PreparedTransaction {
             }
         }
     }
+
+    pub(crate) async fn send<R: Rpc>(
+        &self,
+        rpc: &mut R,
+        confirmation: Option<ConfirmationConfig>,
+        confirmation_deadline: Option<Instant>,
+    ) -> Result<Signature, SmartTransactionError> {
+        send_prepared_transaction(rpc, self, confirmation, confirmation_deadline).await
+    }
 }
 
 pub async fn send_smart_transaction<R: Rpc>(
     rpc: &mut R,
     config: SendSmartTransactionConfig<'_>,
-) -> Result<Signature, RpcError> {
+) -> Result<Signature, SmartTransactionError> {
     let SendSmartTransactionConfig {
         instructions,
         payer,
@@ -334,6 +406,7 @@ pub async fn send_smart_transaction<R: Rpc>(
         address_lookup_tables,
         compute_budget,
         confirmation,
+        confirmation_deadline,
     } = config;
     let prepared = prepare_transaction(
         rpc,
@@ -345,7 +418,9 @@ pub async fn send_smart_transaction<R: Rpc>(
     )
     .await?;
 
-    send_prepared_transaction(rpc, &prepared, confirmation).await
+    prepared
+        .send(rpc, confirmation, confirmation_deadline)
+        .await
 }
 
 async fn prepare_transaction<R: Rpc>(
@@ -387,122 +462,112 @@ async fn send_prepared_transaction<R: Rpc>(
     rpc: &mut R,
     transaction: &PreparedTransaction,
     confirmation: Option<ConfirmationConfig>,
-) -> Result<Signature, RpcError> {
-    match confirmation {
-        Some(confirmation) => {
-            let signature = transaction.signature().ok_or_else(|| {
-                RpcError::CustomError("Prepared transaction missing signature".into())
-            })?;
-            let rpc = &*rpc;
-            resend_until_confirmed(
-                rpc,
-                signature,
-                transaction.last_valid_block_height(),
-                confirmation,
-                || transaction.send_with_confirmation_config(rpc),
-            )
-            .await
+    confirmation_deadline: Option<Instant>,
+) -> Result<Signature, SmartTransactionError> {
+    let Some(confirmation) = confirmation else {
+        return transaction.process(rpc).await.map_err(Into::into);
+    };
+
+    let signature = transaction
+        .signature()
+        .ok_or_else(|| RpcError::CustomError("Prepared transaction missing signature".into()))?;
+    let last_valid_block_height = transaction.last_valid_block_height();
+    let rpc = &*rpc;
+    let mut last_send_error = None;
+
+    for attempt in 0..confirmation.max_attempts {
+        if let Some(signature) = confirmed_signature_or_error(rpc, signature).await? {
+            return Ok(signature);
         }
-        None => transaction.process(rpc).await,
+
+        if confirmation_deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+            return Err(SmartTransactionError::ConfirmationDeadlineExceeded { signature });
+        }
+
+        if rpc.get_block_height().await? > last_valid_block_height {
+            return Err(SmartTransactionError::BlockhashExpired {
+                signature,
+                last_valid_block_height,
+            });
+        }
+
+        match transaction.send_with_confirmation_config(rpc).await {
+            Ok(_) => last_send_error = None,
+            Err(error) if rpc_is_already_processed(&error) => last_send_error = None,
+            Err(error) if rpc.should_retry(&error) => last_send_error = Some(error),
+            Err(error) => return Err(error.into()),
+        }
+
+        if let Some(signature) = confirmed_signature_or_error(rpc, signature).await? {
+            return Ok(signature);
+        }
+
+        if attempt + 1 < confirmation.max_attempts {
+            let sleep_duration = confirmation_deadline
+                .map(|deadline| {
+                    deadline
+                        .saturating_duration_since(Instant::now())
+                        .min(confirmation.poll_interval)
+                })
+                .unwrap_or(confirmation.poll_interval);
+            if !sleep_duration.is_zero() {
+                sleep(sleep_duration).await;
+            }
+        }
     }
+
+    if let Some(signature) = confirmed_signature_or_error(rpc, signature).await? {
+        return Ok(signature);
+    }
+
+    if rpc.get_block_height().await? > last_valid_block_height {
+        return Err(SmartTransactionError::BlockhashExpired {
+            signature,
+            last_valid_block_height,
+        });
+    }
+
+    if let Some(error) = last_send_error {
+        return Err(error.into());
+    }
+
+    if confirmation_deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+        return Err(SmartTransactionError::ConfirmationDeadlineExceeded { signature });
+    }
+
+    Err(SmartTransactionError::ConfirmationTimedOut {
+        signature,
+        max_attempts: confirmation.max_attempts,
+    })
 }
 
 fn confirmation_send_transaction_config() -> RpcSendTransactionConfig {
     RpcSendTransactionConfig {
         skip_preflight: true,
-        // Keep RPC-level retries disabled and drive resend timing from
-        // confirmation.max_attempts/poll_interval in resend_until_confirmed.
         max_retries: Some(0),
         ..Default::default()
     }
 }
 
-async fn resend_until_confirmed<R, F, Fut>(
+async fn confirmed_signature_or_error<R: Rpc>(
     rpc: &R,
     signature: Signature,
-    last_valid_block_height: u64,
-    confirmation: ConfirmationConfig,
-    mut send_transaction: F,
-) -> Result<Signature, RpcError>
-where
-    R: Rpc,
-    F: FnMut() -> Fut,
-    Fut: Future<Output = Result<Signature, RpcError>>,
-{
-    // Mirror send_and_confirm_transaction's resend-until-timeout behavior, but use
-    // confirmation.max_attempts and confirmation.poll_interval for caller-controlled timing.
-    let mut last_send_error = None;
-
-    for attempt in 0..confirmation.max_attempts {
-        if signature_is_confirmed(rpc, signature).await? {
-            return Ok(signature);
-        }
-
-        if blockhash_has_expired(rpc, last_valid_block_height).await? {
-            return Err(blockhash_expired_error(signature, last_valid_block_height));
-        }
-
-        match send_transaction().await {
-            Ok(_) => last_send_error = None,
-            Err(error) if rpc.should_retry(&error) => last_send_error = Some(error),
-            Err(error) => return Err(error),
-        }
-
-        if signature_is_confirmed(rpc, signature).await? {
-            return Ok(signature);
-        }
-
-        if attempt + 1 < confirmation.max_attempts {
-            sleep(confirmation.poll_interval).await;
-        }
-    }
-
-    if signature_is_confirmed(rpc, signature).await? {
-        return Ok(signature);
-    }
-
-    if blockhash_has_expired(rpc, last_valid_block_height).await? {
-        return Err(blockhash_expired_error(signature, last_valid_block_height));
-    }
-
-    if let Some(error) = last_send_error {
-        return Err(error);
-    }
-
-    Err(RpcError::CustomError(format!(
-        "Transaction {} confirmation timed out after {} attempts",
-        signature, confirmation.max_attempts
-    )))
-}
-
-async fn signature_is_confirmed<R: Rpc>(rpc: &R, signature: Signature) -> Result<bool, RpcError> {
+) -> Result<Option<Signature>, SmartTransactionError> {
     let statuses = rpc.get_signature_statuses(&[signature]).await?;
     if let Some(Some(status)) = statuses.first() {
         if let Some(err) = &status.err {
-            return Err(RpcError::TransactionError(err.clone()));
+            return Err(RpcError::TransactionError(err.clone()).into());
         }
 
-        return Ok(matches!(
+        if matches!(
             status.confirmation_status,
             Some(
                 TransactionConfirmationStatus::Confirmed | TransactionConfirmationStatus::Finalized
             )
-        ));
+        ) {
+            return Ok(Some(signature));
+        }
     }
 
-    Ok(false)
-}
-
-async fn blockhash_has_expired<R: Rpc>(
-    rpc: &R,
-    last_valid_block_height: u64,
-) -> Result<bool, RpcError> {
-    Ok(rpc.get_block_height().await? > last_valid_block_height)
-}
-
-fn blockhash_expired_error(signature: Signature, last_valid_block_height: u64) -> RpcError {
-    RpcError::CustomError(format!(
-        "Transaction {} blockhash expired at block height {} before confirmation",
-        signature, last_valid_block_height
-    ))
+    Ok(None)
 }

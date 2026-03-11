@@ -47,20 +47,18 @@ impl PriorityFeeConfig {
         match request_priority_fee_estimate(&url, account_keys).await {
             Ok(priority_fee) => Ok(Some(priority_fee)),
             Err(error) => {
-                if let Some(priority_fee_error) = error.downcast_ref::<PriorityFeeEstimateError>() {
-                    if priority_fee_error.is_fallbackable() {
-                        let fallback_fee = self.fallback_priority_fee();
-                        warn!(
-                            rpc_url = %rpc_url,
-                            fallback_fee,
-                            error = %priority_fee_error,
-                            "Priority fee estimation unsupported by RPC; falling back to configured/default CU price"
-                        );
-                        return Ok(Some(fallback_fee));
-                    }
+                if error.is_fallbackable() {
+                    let fallback_fee = self.fallback_priority_fee();
+                    warn!(
+                        rpc_url = %rpc_url,
+                        fallback_fee,
+                        error = %error,
+                        "Priority fee estimation unsupported by RPC; falling back to configured/default CU price"
+                    );
+                    return Ok(Some(fallback_fee));
                 }
 
-                Err(error)
+                Err(error.into())
             }
         }
     }
@@ -72,7 +70,7 @@ impl PriorityFeeConfig {
 }
 
 #[derive(Debug, Error)]
-enum PriorityFeeEstimateError {
+pub enum PriorityFeeEstimateError {
     #[error("priority fee estimate RPC error {code}: {message}")]
     Rpc { code: i64, message: String },
 
@@ -181,7 +179,7 @@ fn priority_fee_method_is_unsupported(code: i64, message: &str) -> bool {
 pub async fn request_priority_fee_estimate(
     url: &reqwest::Url,
     account_keys: Vec<Pubkey>,
-) -> Result<u64> {
+) -> std::result::Result<u64, PriorityFeeEstimateError> {
     let priority_fee_request = GetPriorityFeeEstimateRequest {
         transaction: None,
         account_keys: Some(
@@ -218,7 +216,7 @@ pub async fn request_priority_fee_estimate(
 
     let response_text = response.text().await?;
 
-    parse_priority_fee_estimate_response(&response_text).map_err(Into::into)
+    parse_priority_fee_estimate_response(&response_text)
 }
 
 #[cfg(test)]

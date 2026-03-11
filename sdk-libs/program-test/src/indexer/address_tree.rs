@@ -62,8 +62,18 @@ impl AddressMerkleTreeBundle {
             usize,
         >::new(height, canopy)
         .map_err(|_| IndexerError::InvalidResponseData)?;
-        merkle_tree.merkle_tree.root_history_array_len =
-            Some(DEFAULT_BATCH_ROOT_HISTORY_LEN as usize);
+        let root_history_array_len = {
+            #[cfg(feature = "devenv")]
+            {
+                usize::try_from(DEFAULT_BATCH_ROOT_HISTORY_LEN)
+                    .expect("DEFAULT_BATCH_ROOT_HISTORY_LEN must fit in usize")
+            }
+            #[cfg(not(feature = "devenv"))]
+            {
+                DEFAULT_BATCH_ROOT_HISTORY_LEN
+            }
+        };
+        merkle_tree.merkle_tree.root_history_array_len = Some(root_history_array_len);
         let merkle_tree = IndexedMerkleTreeVersion::V2(Box::new(merkle_tree));
 
         Ok(AddressMerkleTreeBundle {

@@ -8,7 +8,7 @@ use std::{
 
 use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool};
 pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
-use light_client::rpc::{Rpc, RpcError};
+use light_client::rpc::Rpc;
 use light_registry::{
     protocol_config::state::EpochState, utils::get_forester_epoch_pda_from_authority,
 };
@@ -26,12 +26,11 @@ use crate::{
     processor::tx_cache::ProcessedHashCache,
     slot_tracker::SlotTracker,
     smart_transaction::{
-        send_transaction_with_policy, SendTransactionWithPolicyConfig, TransactionPolicy,
+        send_transaction_with_policy, SendTransactionWithPolicyConfig, SmartTransactionError,
+        TransactionPolicy,
     },
-    Result,
+    transaction_timing::scheduled_confirmation_deadline,
 };
-
-const SLOTS_STOP_THRESHOLD: u64 = 3;
 
 #[derive(Debug)]
 pub struct WorkerPool {
@@ -133,7 +132,7 @@ impl<R: Rpc> Clone for BatchContext<R> {
 pub(crate) async fn send_transaction_batch<R: Rpc>(
     context: &BatchContext<R>,
     instructions: Vec<Instruction>,
-) -> Result<String> {
+) -> std::result::Result<String, ForesterError> {
     let current_slot = context.slot_tracker.estimated_current_slot();
     let current_phase_state = context.epoch_phases.get_current_epoch_state(current_slot);
 
@@ -142,7 +141,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
             "Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
             current_phase_state, current_slot
         );
-        return Err(ForesterError::NotInActivePhase.into());
+        return Err(ForesterError::NotInActivePhase);
     }
 
     let forester_end = context
@@ -154,13 +153,13 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         context.epoch_phases.active.end
     };
     let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
-    if slots_remaining < SLOTS_STOP_THRESHOLD {
+    let Some(confirmation_deadline) = scheduled_confirmation_deadline(slots_remaining) else {
         debug!(
             "Skipping transaction send: only {} slots remaining until eligibility ends",
             slots_remaining
         );
-        return Err(ForesterError::NotInActivePhase.into());
-    }
+        return Err(ForesterError::NotInActivePhase);
+    };
 
     info!(
         "Sending transaction with {} instructions for tree: {}...",
@@ -195,6 +194,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
                 context.merkle_tree,
             ],
             policy: context.transaction_policy,
+            confirmation_deadline: Some(confirmation_deadline),
         },
     )
     .await
@@ -207,8 +207,8 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     Ok(signature.to_string())
 }
 
-fn map_send_error(tree: Pubkey, error: RpcError) -> anyhow::Error {
-    if let Some(transaction_error) = extract_transaction_error(&error) {
+fn map_send_error(tree: Pubkey, error: SmartTransactionError) -> ForesterError {
+    if let Some(transaction_error) = error.transaction_error() {
         increment_transactions_failed("execution_failed", 1);
         error!(
             tree = %tree,
@@ -216,6 +216,14 @@ fn map_send_error(tree: Pubkey, error: RpcError) -> anyhow::Error {
             "V2 transaction execution failed"
         );
         V2Error::from_transaction_error(tree, &transaction_error).into()
+    } else if error.is_execution_failure() {
+        increment_transactions_failed("execution_failed", 1);
+        error!(
+            tree = %tree,
+            error = ?error,
+            "V2 transaction failed after send while waiting for confirmation"
+        );
+        ForesterError::from(error)
     } else {
         increment_transactions_failed("send_failed", 1);
         error!(
@@ -223,16 +231,6 @@ fn map_send_error(tree: Pubkey, error: RpcError) -> anyhow::Error {
             error = ?error,
             "V2 transaction send failed"
         );
-        error.into()
-    }
-}
-
-fn extract_transaction_error(
-    error: &RpcError,
-) -> Option<solana_sdk::transaction::TransactionError> {
-    match error {
-        RpcError::TransactionError(transaction_error) => Some(transaction_error.clone()),
-        RpcError::ClientError(client_error) => client_error.kind.get_transaction_error(),
-        _ => None,
+        ForesterError::from(error)
     }
 }

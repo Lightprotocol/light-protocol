@@ -38,7 +38,11 @@ pub enum V2Error {
     },
 
     #[error("transaction failed for tree {tree}: {message}")]
-    TransactionFailed { tree: Pubkey, message: String },
+    TransactionFailed {
+        tree: Pubkey,
+        code: Option<u32>,
+        message: String,
+    },
 
     #[error("transaction {signature} timed out: {context}")]
     TransactionTimeout { signature: String, context: String },
@@ -60,7 +64,20 @@ impl V2Error {
             };
         }
 
-        V2Error::TransactionFailed { tree, message }
+        V2Error::TransactionFailed {
+            tree,
+            code: custom_code,
+            message,
+        }
+    }
+
+    pub fn custom_error_code(&self) -> Option<u32> {
+        match self {
+            V2Error::CircuitConstraint { code, .. } | V2Error::TransactionFailed { code, .. } => {
+                *code
+            }
+            _ => None,
+        }
     }
 
     pub fn is_constraint(&self) -> bool {

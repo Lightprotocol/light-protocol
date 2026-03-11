@@ -20,6 +20,7 @@ pub mod rollover;
 pub mod slot_tracker;
 pub mod smart_transaction;
 pub mod telemetry;
+pub mod transaction_timing;
 pub mod tree_data_sync;
 pub mod utils;
 

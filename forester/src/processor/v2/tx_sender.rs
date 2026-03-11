@@ -72,6 +72,9 @@ pub struct TxSenderResult {
     pub tx_sending_duration: Duration,
 }
 
+type TxSenderTaskResult = std::result::Result<TxSenderResult, ForesterError>;
+pub(crate) type TxSenderTask = JoinHandle<TxSenderTaskResult>;
+
 #[derive(Debug, Clone)]
 pub enum BatchInstruction {
     Append(Vec<InstructionDataBatchAppendInputs>),
@@ -199,7 +202,7 @@ impl<R: Rpc> TxSender<R> {
         last_seen_root: [u8; 32],
         proof_cache: Option<Arc<SharedProofCache>>,
         initial_seq: u64,
-    ) -> JoinHandle<crate::Result<TxSenderResult>> {
+    ) -> TxSenderTask {
         let ixs_per_tx = if context.address_lookup_tables.is_empty() {
             V2_IXS_PER_TX_WITHOUT_LUT
         } else {
@@ -247,10 +250,7 @@ impl<R: Rpc> TxSender<R> {
         current_slot < self.eligibility_end_slot()
     }
 
-    async fn run(
-        mut self,
-        mut proof_rx: mpsc::Receiver<ProofJobResult>,
-    ) -> crate::Result<TxSenderResult> {
+    async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofJobResult>) -> TxSenderTaskResult {
         let (batch_tx, mut batch_rx) = mpsc::unbounded_channel::<(
             Vec<(BatchInstruction, u64, [u8; 32], [u8; 32])>,
             u64,
@@ -376,14 +376,9 @@ impl<R: Rpc> TxSender<R> {
                     Err(e) => {
                         total_tx_sending_duration += send_start.elapsed();
                         warn!("tx error {} epoch {}", e, sender_context.epoch);
-                        if let Some(ForesterError::NotInActivePhase) =
-                            e.downcast_ref::<ForesterError>()
-                        {
+                        if e.is_not_in_active_phase() {
                             warn!("Active phase ended while sending tx, stopping sender loop");
-                            return Ok::<_, anyhow::Error>((
-                                sender_processed,
-                                total_tx_sending_duration,
-                            ));
+                            return Ok((sender_processed, total_tx_sending_duration));
                         } else {
                             return Err(e);
                         }
@@ -406,9 +401,8 @@ impl<R: Rpc> TxSender<R> {
                     self.context.epoch, proofs_saved
                 );
                 drop(batch_tx);
-                let (items_processed, tx_sending_duration) = sender_handle
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
+                let (items_processed, tx_sending_duration) =
+                    sender_handle.await.map_err(ForesterError::from)??;
                 return Ok(TxSenderResult {
                     items_processed,
                     proof_timings: self.proof_timings,
@@ -432,9 +426,8 @@ impl<R: Rpc> TxSender<R> {
                     self.context.epoch, proofs_saved
                 );
                 drop(batch_tx);
-                let (items_processed, tx_sending_duration) = sender_handle
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
+                let (items_processed, tx_sending_duration) =
+                    sender_handle.await.map_err(ForesterError::from)??;
                 return Ok(TxSenderResult {
                     items_processed,
                     proof_timings: self.proof_timings,
@@ -464,12 +457,12 @@ impl<R: Rpc> TxSender<R> {
                 Ok(instr) => instr,
                 Err(e) => {
                     warn!("Proof failed seq={}: {}", result.seq, e);
-                    return Err(anyhow::anyhow!("Proof failed seq={}: {}", result.seq, e));
+                    return Err(anyhow::anyhow!("Proof failed seq={}: {}", result.seq, e).into());
                 }
             };
 
             if self.buffer.len() >= self.buffer.capacity() {
-                return Err(anyhow::anyhow!("Proof buffer overflow"));
+                return Err(anyhow::anyhow!("Proof buffer overflow").into());
             }
             if !self.buffer.insert(
                 result.seq,
@@ -524,9 +517,8 @@ impl<R: Rpc> TxSender<R> {
         }
 
         drop(batch_tx);
-        let (items_processed, tx_sending_duration) = sender_handle
-            .await
-            .map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
+        let (items_processed, tx_sending_duration) =
+            sender_handle.await.map_err(ForesterError::from)??;
 
         Ok(TxSenderResult {
             items_processed,

@@ -7,7 +7,6 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use anchor_lang::error::ERROR_CODE_OFFSET;
 use anyhow::{anyhow, Context};
 use borsh::BorshSerialize;
 use dashmap::DashMap;
@@ -26,7 +25,6 @@ use light_registry::{
         create_batch_append_instruction, create_batch_nullify_instruction,
         create_batch_update_address_tree_instruction,
     },
-    errors::RegistryError,
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
@@ -49,11 +47,12 @@ use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
 use crate::{
     compressible::{
-        traits::{Cancelled, CompressibleTracker},
+        traits::{Cancelled, CompressibleTracker, CompressionOutcome, CompressionTaskError},
         CTokenAccountTracker, CTokenCompressor,
     },
     errors::{
-        ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
+        rpc_is_already_processed, ChannelError, ForesterError, InitializationError,
+        RegistrationError, WorkReportError,
     },
     logging::{should_emit_rate_limited_warning, ServiceHeartbeat},
     metrics::{
@@ -70,7 +69,6 @@ use crate::{
             tx_builder::EpochManagerTransactions,
         },
         v2::{
-            errors::V2Error,
             strategy::{AddressTreeStrategy, StateTreeStrategy},
             BatchContext, BatchInstruction, ProcessingResult, ProverConfig, QueueProcessor,
             SharedProofCache,
@@ -86,65 +84,17 @@ use crate::{
         send_smart_transaction, ComputeBudgetConfig, ConfirmationConfig,
         SendSmartTransactionConfig, TransactionPolicy,
     },
+    transaction_timing::scheduled_v1_batch_timeout,
     tree_data_sync::{fetch_protocol_group_authority, fetch_trees},
     ForesterConfig, ForesterEpochInfo, Result,
 };
-
-fn is_v2_error(err: &anyhow::Error, predicate: impl FnOnce(&V2Error) -> bool) -> bool {
-    err.downcast_ref::<V2Error>().is_some_and(predicate)
-}
-
-const FORESTER_NOT_ELIGIBLE_ERROR_CODE: u32 =
-    ERROR_CODE_OFFSET + RegistryError::ForesterNotEligible as u32;
-
-fn rpc_custom_error_code(error: &RpcError) -> Option<u32> {
-    match error {
-        RpcError::TransactionError(TransactionError::InstructionError(
-            _,
-            InstructionError::Custom(error_code),
-        )) => Some(*error_code),
-        RpcError::ClientError(client_error) => {
-            client_error
-                .get_transaction_error()
-                .and_then(|transaction_error| match transaction_error {
-                    TransactionError::InstructionError(_, InstructionError::Custom(error_code)) => {
-                        Some(error_code)
-                    }
-                    _ => None,
-                })
-        }
-        _ => None,
-    }
-}
-
-fn is_forester_not_eligible_error(err: &anyhow::Error) -> bool {
-    if let Some(ForesterError::NotEligible) = err.downcast_ref::<ForesterError>() {
-        return true;
-    }
-
-    if let Some(ForesterError::Rpc(rpc_error)) = err.downcast_ref::<ForesterError>() {
-        return rpc_custom_error_code(rpc_error) == Some(FORESTER_NOT_ELIGIBLE_ERROR_CODE);
-    }
-
-    if let Some(v2_error) = err.downcast_ref::<V2Error>() {
-        match v2_error {
-            V2Error::TransactionFailed { message, .. }
-            | V2Error::CircuitConstraint { message, .. } => {
-                return message.contains("Custom(6004)")
-                    || message.contains("custom program error: 0x1774");
-            }
-            _ => return false,
-        }
-    }
-
-    false
-}
 
 type StateBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>)>>;
 type AddressBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>)>>;
 type ProcessorInitLockMap = Arc<DashMap<Pubkey, Arc<Mutex<()>>>>;
+type TreeProcessingTask = JoinHandle<Result<()>>;
 
 /// Coordinates re-finalization across parallel `process_queue` tasks when new
 /// foresters register mid-epoch. Only one task performs the on-chain
@@ -475,31 +425,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             let self_clone = Arc::clone(&self);
                             tokio::spawn(async move {
                                 if let Err(e) = self_clone.process_epoch(epoch).await {
-                                    if let Some(ForesterError::Registration(
-                                        RegistrationError::FinalizeRegistrationPhaseEnded {
-                                            epoch,
-                                            current_slot,
-                                            active_phase_end_slot,
-                                        },
-                                    )) = e.downcast_ref::<ForesterError>()
-                                    {
-                                        debug!(
-                                            event = "epoch_processing_skipped_finalize_registration_phase_ended",
-                                            run_id = %self_clone.run_id,
-                                            epoch = *epoch,
-                                            current_slot = *current_slot,
-                                            active_phase_end_slot = *active_phase_end_slot,
-                                            "Skipping epoch processing because FinalizeRegistration is no longer possible"
-                                        );
-                                    } else {
-                                        error!(
-                                            event = "epoch_processing_failed",
-                                            run_id = %self_clone.run_id,
-                                            epoch,
-                                            error = ?e,
-                                            "Error processing epoch"
-                                        );
-                                    }
+                                    error!(
+                                        event = "epoch_processing_failed",
+                                        run_id = %self_clone.run_id,
+                                        epoch,
+                                        error = ?e,
+                                        "Error processing epoch"
+                                    );
                                 }
                             });
                         }
@@ -749,8 +681,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 epoch = current_epoch,
                 "Recovering registration info for new tree"
             );
-            match self.recover_registration_info(current_epoch).await {
-                Ok(mut epoch_info) => {
+            match self
+                .recover_registration_info_if_exists(current_epoch)
+                .await
+            {
+                Ok(Some(mut epoch_info)) => {
                     info!(
                         event = "new_tree_recover_registration_succeeded",
                         run_id = %self.run_id,
@@ -813,23 +748,20 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         }
                     });
                 }
+                Ok(None) => {
+                    debug!(
+                        "Not registered for current epoch yet, new tree will be picked up during next registration"
+                    );
+                }
                 Err(e) => {
-                    // If not registered yet, just log debug (it's expected on first run)
-                    if matches!(
-                        e.downcast_ref::<RegistrationError>(),
-                        Some(RegistrationError::ForesterEpochPdaNotFound { .. })
-                    ) {
-                        debug!("Not registered for current epoch yet, new tree will be picked up during next registration");
-                    } else {
-                        warn!(
-                            event = "new_tree_recover_registration_failed",
-                            run_id = %self.run_id,
-                            tree = %new_tree.merkle_tree,
-                            epoch = current_epoch,
-                            error = ?e,
-                            "Failed to recover registration info for new tree"
-                        );
-                    }
+                    warn!(
+                        event = "new_tree_recover_registration_failed",
+                        run_id = %self.run_id,
+                        tree = %new_tree.merkle_tree,
+                        epoch = current_epoch,
+                        error = ?e,
+                        "Failed to recover registration info for new tree"
+                    );
                 }
             }
 
@@ -1042,7 +974,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         *metrics.entry(epoch).or_default() += new_metrics;
     }
 
-    async fn recover_registration_info(&self, epoch: u64) -> Result<ForesterEpochInfo> {
+    async fn recover_registration_info_if_exists(
+        &self,
+        epoch: u64,
+    ) -> std::result::Result<Option<ForesterEpochInfo>, ForesterError> {
         debug!("Recovering registration info for epoch {}", epoch);
 
         let forester_epoch_pda_pubkey =
@@ -1054,16 +989,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 .await?
         };
 
-        existing_pda
-            .map(|pda| async move {
-                self.recover_registration_info_internal(epoch, forester_epoch_pda_pubkey, pda)
-                    .await
-            })
-            .ok_or(RegistrationError::ForesterEpochPdaNotFound {
-                epoch,
-                pda_address: forester_epoch_pda_pubkey,
-            })?
-            .await
+        match existing_pda {
+            Some(pda) => self
+                .recover_registration_info_internal(epoch, forester_epoch_pda_pubkey, pda)
+                .await
+                .map(Some)
+                .map_err(ForesterError::from),
+            None => Ok(None),
+        }
     }
 
     async fn process_current_and_previous_epochs(&self, tx: Arc<mpsc::Sender<u64>>) -> Result<()> {
@@ -1134,28 +1067,29 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         // Attempt to recover registration info
         debug!("Recovering registration info for epoch {}", epoch);
-        let mut registration_info = match self.recover_registration_info(epoch).await {
-            Ok(info) => info,
-            Err(e) => {
-                // Check if it's the expected "not found" error
-                if matches!(
-                    e.downcast_ref::<RegistrationError>(),
-                    Some(RegistrationError::ForesterEpochPdaNotFound { .. })
-                ) {
-                    debug!(
-                        "No existing registration found for epoch {}, will register fresh",
-                        epoch
-                    );
-                } else {
-                    warn!(
-                        event = "recover_registration_info_failed",
-                        run_id = %self.run_id,
-                        epoch,
-                        error = ?e,
-                        "Failed to recover registration info"
-                    );
+        let mut registration_info = match self.recover_registration_info_if_exists(epoch).await {
+            Ok(Some(info)) => info,
+            Ok(None) => {
+                debug!(
+                    "No existing registration found for epoch {}, will register fresh",
+                    epoch
+                );
+                match self
+                    .register_for_epoch_with_retry(epoch, 100, Duration::from_millis(1000))
+                    .await
+                {
+                    Ok(info) => info,
+                    Err(e) => return Err(e.into()),
                 }
-                // Attempt to register
+            }
+            Err(e) => {
+                warn!(
+                    event = "recover_registration_info_failed",
+                    run_id = %self.run_id,
+                    epoch,
+                    error = ?e,
+                    "Failed to recover registration info"
+                );
                 match self
                     .register_for_epoch_with_retry(epoch, 100, Duration::from_millis(1000))
                     .await
@@ -1169,7 +1103,21 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         update_epoch_registered(epoch);
 
         // Wait for the active phase
-        registration_info = self.wait_for_active_phase(&registration_info).await?;
+        registration_info = match self.wait_for_active_phase(&registration_info).await? {
+            Some(info) => info,
+            None => {
+                let current_slot = self.slot_tracker.estimated_current_slot();
+                debug!(
+                    event = "epoch_processing_skipped_finalize_registration_phase_ended",
+                    run_id = %self.run_id,
+                    epoch,
+                    current_slot,
+                    active_phase_end_slot = registration_info.epoch.phases.active.end,
+                    "Skipping epoch processing because FinalizeRegistration is no longer possible"
+                );
+                return Ok(());
+            }
+        };
 
         // Perform work
         if self.sync_slot().await? < phases.active.end {
@@ -1478,7 +1426,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     async fn wait_for_active_phase(
         &self,
         epoch_info: &ForesterEpochInfo,
-    ) -> Result<ForesterEpochInfo> {
+    ) -> std::result::Result<Option<ForesterEpochInfo>, ForesterError> {
         let mut rpc = self.rpc_pool.get_connection().await?;
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
         let active_phase_end_slot = epoch_info.epoch.phases.active.end;
@@ -1534,12 +1482,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         active_phase_end_slot = epoch_info.epoch.phases.active.end,
                         "Skipping FinalizeRegistration because active phase ended"
                     );
-                    return Err(RegistrationError::FinalizeRegistrationPhaseEnded {
-                        epoch: epoch_info.epoch.epoch,
-                        current_slot,
-                        active_phase_end_slot: epoch_info.epoch.phases.active.end,
-                    }
-                    .into());
+                    return Ok(None);
                 }
 
                 // TODO: we can put this ix into every tx of the first batch of the current active phase
@@ -1589,7 +1532,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 slot,
                 &epoch_info.forester_epoch_pda,
                 &epoch_info.epoch_pda,
-            )?;
+            )
+            .map_err(anyhow::Error::from)?;
             epoch_info.trees.insert(0, tree_schedule);
             debug!("Added compression tree to epoch {}", epoch_info.epoch.epoch);
         }
@@ -1600,7 +1544,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             epoch = epoch_info.epoch.epoch,
             "Finished waiting for active phase"
         );
-        Ok(epoch_info)
+        Ok(Some(epoch_info))
     }
 
     // TODO: add receiver for new tree discovered -> spawn new task to process this tree derive schedule etc.
@@ -1657,7 +1601,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .value()
             .clone();
 
-        let mut handles: Vec<JoinHandle<Result<()>>> = Vec::with_capacity(trees_to_process.len());
+        let mut handles: Vec<TreeProcessingTask> = Vec::with_capacity(trees_to_process.len());
 
         for tree in trees_to_process {
             debug!(
@@ -1811,7 +1755,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         );
                     }
                     Err(e) => {
-                        force_refinalize = is_forester_not_eligible_error(&e);
+                        force_refinalize = e.is_forester_not_eligible();
                         if force_refinalize {
                             warn!(
                                 event = "light_slot_processing_stale_eligibility",
@@ -2016,7 +1960,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         epoch_pda: &ForesterEpochPda,
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), ForesterError> {
         debug!(
             event = "light_slot_processing_started",
             run_id = %self.run_id,
@@ -2087,7 +2031,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             {
                 Ok(count) => count,
                 Err(e) => {
-                    if is_forester_not_eligible_error(&e) {
+                    if e.is_forester_not_eligible() {
                         return Err(e);
                     }
                     error!(
@@ -2160,7 +2104,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
         consecutive_eligibility_end: u64,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), ForesterError> {
         debug!(
             event = "v2_light_slot_processing_started",
             run_id = %self.run_id,
@@ -2280,7 +2224,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                 }
                 Err(e) => {
-                    if is_forester_not_eligible_error(&e) {
+                    if e.is_forester_not_eligible() {
                         return Err(e);
                     }
                     error!(
@@ -2386,17 +2330,17 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         forester_slot_details: &ForesterSlot,
         consecutive_eligibility_end: u64,
         current_solana_slot: u64,
-    ) -> Result<usize> {
+    ) -> std::result::Result<usize, ForesterError> {
         match tree_accounts.tree_type {
-            TreeType::Unknown => {
-                self.dispatch_compression(
+            TreeType::Unknown => self
+                .dispatch_compression(
                     epoch_info,
                     epoch_pda,
                     forester_slot_details,
                     consecutive_eligibility_end,
                 )
                 .await
-            }
+                .map_err(ForesterError::from),
             TreeType::StateV1 | TreeType::AddressV1 => {
                 self.process_v1(
                     epoch_info,
@@ -2804,24 +2748,32 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             // Process results (tracker cleanup already done by compressor)
             for result in results {
                 match result {
-                    Ok((sig, account_state)) => {
+                    CompressionOutcome::Compressed {
+                        signature: sig,
+                        state: account_state,
+                    } => {
                         debug!(
                             "Compressed PDA {} for program {}: {}",
                             account_state.pubkey, program_config.program_id, sig
                         );
                         total_compressed += 1;
                     }
-                    Err((account_state, e)) => {
-                        if e.downcast_ref::<Cancelled>().is_none() {
-                            error!(
-                                event = "compression_pda_account_failed",
-                                run_id = %self.run_id,
-                                account = %account_state.pubkey,
-                                program = %program_config.program_id,
-                                error = ?e,
-                                "Failed to compress PDA account"
-                            );
-                        }
+                    CompressionOutcome::Failed {
+                        state: _account_state,
+                        error: CompressionTaskError::Cancelled,
+                    } => {}
+                    CompressionOutcome::Failed {
+                        state: account_state,
+                        error: CompressionTaskError::Failed(e),
+                    } => {
+                        error!(
+                            event = "compression_pda_account_failed",
+                            run_id = %self.run_id,
+                            account = %account_state.pubkey,
+                            program = %program_config.program_id,
+                            error = ?e,
+                            "Failed to compress PDA account"
+                        );
                     }
                 }
             }
@@ -2915,20 +2867,28 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let mut total_compressed = 0;
         for result in results {
             match result {
-                Ok((sig, mint_state)) => {
+                CompressionOutcome::Compressed {
+                    signature: sig,
+                    state: mint_state,
+                } => {
                     debug!("Compressed Mint {}: {}", mint_state.pubkey, sig);
                     total_compressed += 1;
                 }
-                Err((mint_state, e)) => {
-                    if e.downcast_ref::<Cancelled>().is_none() {
-                        error!(
-                            event = "compression_mint_account_failed",
-                            run_id = %self.run_id,
-                            mint = %mint_state.pubkey,
-                            error = ?e,
-                            "Failed to compress mint account"
-                        );
-                    }
+                CompressionOutcome::Failed {
+                    state: _mint_state,
+                    error: CompressionTaskError::Cancelled,
+                } => {}
+                CompressionOutcome::Failed {
+                    state: mint_state,
+                    error: CompressionTaskError::Failed(e),
+                } => {
+                    error!(
+                        event = "compression_mint_account_failed",
+                        run_id = %self.run_id,
+                        mint = %mint_state.pubkey,
+                        error = ?e,
+                        "Failed to compress mint account"
+                    );
                 }
             }
         }
@@ -2949,13 +2909,20 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
         current_solana_slot: u64,
-    ) -> Result<usize> {
-        let transaction_timeout_buffer = Duration::from_secs(2);
-        let remaining_time_timeout = calculate_remaining_time_or_default(
-            current_solana_slot,
-            forester_slot_details.end_solana_slot,
-            transaction_timeout_buffer,
-        );
+    ) -> std::result::Result<usize, ForesterError> {
+        let slots_remaining = forester_slot_details
+            .end_solana_slot
+            .saturating_sub(current_solana_slot);
+        let Some(remaining_time_timeout) = scheduled_v1_batch_timeout(slots_remaining) else {
+            debug!(
+                event = "v1_tree_skipped_low_slot_budget",
+                run_id = %self.run_id,
+                tree = %tree_accounts.merkle_tree,
+                slots_remaining,
+                "Skipping V1 tree: not enough scheduled slot budget left to confirm a transaction"
+            );
+            return Ok(0);
+        };
 
         let batched_tx_config = SendBatchedTransactionsConfig {
             num_batches: 1,
@@ -3016,7 +2983,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     error = ?e,
                     "Failed to rollover tree"
                 );
-                Err(e)
+                Err(e.into())
             }
         }
     }
@@ -3163,9 +3130,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     compute_unit_limit: Some(self.config.transaction_config.cu_limit),
                 },
                 confirmation: Some(self.confirmation_config()),
+                confirmation_deadline: None,
             },
         )
         .await
+        .map_err(RpcError::from)
     }
 
     async fn get_or_create_state_processor(
@@ -3285,7 +3254,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
         consecutive_eligibility_end: u64,
-    ) -> Result<ProcessingResult> {
+    ) -> std::result::Result<ProcessingResult, ForesterError> {
         match tree_accounts.tree_type {
             TreeType::StateV2 => {
                 let processor = self
@@ -3307,57 +3276,50 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let mut proc = processor.lock().await;
                 match proc.process().await {
                     Ok(res) => Ok(res),
-                    Err(e) => {
-                        if is_v2_error(&e, V2Error::is_constraint) {
+                    Err(error) if matches!(&error, ForesterError::V2(v2_error) if v2_error.is_constraint()) =>
+                    {
+                        warn!(
+                            event = "v2_state_constraint_error",
+                            run_id = %self.run_id,
+                            tree = %tree_accounts.merkle_tree,
+                            error = %error,
+                            "State processing hit constraint error. Dropping processor to flush cache."
+                        );
+                        drop(proc); // Release lock before removing
+                        self.state_processors.remove(&tree_accounts.merkle_tree);
+                        self.proof_caches.remove(&tree_accounts.merkle_tree);
+                        Err(error)
+                    }
+                    Err(ForesterError::V2(v2_error)) if v2_error.is_hashchain_mismatch() => {
+                        let warning_key =
+                            format!("v2_state_hashchain_mismatch:{}", tree_accounts.merkle_tree);
+                        if should_emit_rate_limited_warning(warning_key, Duration::from_secs(15)) {
                             warn!(
-                                event = "v2_state_constraint_error",
+                                event = "v2_state_hashchain_mismatch",
+                                run_id = %self.run_id,
+                                tree = %tree_accounts.merkle_tree,
+                                error = %v2_error,
+                                "State processing hit hashchain mismatch. Clearing cache and retrying."
+                            );
+                        }
+                        self.heartbeat.increment_v2_recoverable_error();
+                        proc.clear_cache().await;
+                        Ok(ProcessingResult::default())
+                    }
+                    Err(e) => {
+                        let warning_key =
+                            format!("v2_state_process_failed:{}", tree_accounts.merkle_tree);
+                        if should_emit_rate_limited_warning(warning_key, Duration::from_secs(10)) {
+                            warn!(
+                                event = "v2_state_process_failed_retrying",
                                 run_id = %self.run_id,
                                 tree = %tree_accounts.merkle_tree,
                                 error = %e,
-                                "State processing hit constraint error. Dropping processor to flush cache."
+                                "Failed to process state queue. Will retry next tick without dropping processor."
                             );
-                            drop(proc); // Release lock before removing
-                            self.state_processors.remove(&tree_accounts.merkle_tree);
-                            self.proof_caches.remove(&tree_accounts.merkle_tree);
-                            Err(e)
-                        } else if is_v2_error(&e, V2Error::is_hashchain_mismatch) {
-                            let warning_key = format!(
-                                "v2_state_hashchain_mismatch:{}",
-                                tree_accounts.merkle_tree
-                            );
-                            if should_emit_rate_limited_warning(
-                                warning_key,
-                                Duration::from_secs(15),
-                            ) {
-                                warn!(
-                                    event = "v2_state_hashchain_mismatch",
-                                    run_id = %self.run_id,
-                                    tree = %tree_accounts.merkle_tree,
-                                    error = %e,
-                                    "State processing hit hashchain mismatch. Clearing cache and retrying."
-                                );
-                            }
-                            self.heartbeat.increment_v2_recoverable_error();
-                            proc.clear_cache().await;
-                            Ok(ProcessingResult::default())
-                        } else {
-                            let warning_key =
-                                format!("v2_state_process_failed:{}", tree_accounts.merkle_tree);
-                            if should_emit_rate_limited_warning(
-                                warning_key,
-                                Duration::from_secs(10),
-                            ) {
-                                warn!(
-                                    event = "v2_state_process_failed_retrying",
-                                    run_id = %self.run_id,
-                                    tree = %tree_accounts.merkle_tree,
-                                    error = %e,
-                                    "Failed to process state queue. Will retry next tick without dropping processor."
-                                );
-                            }
-                            self.heartbeat.increment_v2_recoverable_error();
-                            Ok(ProcessingResult::default())
                         }
+                        self.heartbeat.increment_v2_recoverable_error();
+                        Ok(ProcessingResult::default())
                     }
                 }
             }
@@ -3381,57 +3343,52 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let mut proc = processor.lock().await;
                 match proc.process().await {
                     Ok(res) => Ok(res),
-                    Err(e) => {
-                        if is_v2_error(&e, V2Error::is_constraint) {
+                    Err(error) if matches!(&error, ForesterError::V2(v2_error) if v2_error.is_constraint()) =>
+                    {
+                        warn!(
+                            event = "v2_address_constraint_error",
+                            run_id = %self.run_id,
+                            tree = %tree_accounts.merkle_tree,
+                            error = %error,
+                            "Address processing hit constraint error. Dropping processor to flush cache."
+                        );
+                        drop(proc);
+                        self.address_processors.remove(&tree_accounts.merkle_tree);
+                        self.proof_caches.remove(&tree_accounts.merkle_tree);
+                        Err(error)
+                    }
+                    Err(ForesterError::V2(v2_error)) if v2_error.is_hashchain_mismatch() => {
+                        let warning_key = format!(
+                            "v2_address_hashchain_mismatch:{}",
+                            tree_accounts.merkle_tree
+                        );
+                        if should_emit_rate_limited_warning(warning_key, Duration::from_secs(15)) {
                             warn!(
-                                event = "v2_address_constraint_error",
+                                event = "v2_address_hashchain_mismatch",
+                                run_id = %self.run_id,
+                                tree = %tree_accounts.merkle_tree,
+                                error = %v2_error,
+                                "Address processing hit hashchain mismatch. Clearing cache and retrying."
+                            );
+                        }
+                        self.heartbeat.increment_v2_recoverable_error();
+                        proc.clear_cache().await;
+                        Ok(ProcessingResult::default())
+                    }
+                    Err(e) => {
+                        let warning_key =
+                            format!("v2_address_process_failed:{}", tree_accounts.merkle_tree);
+                        if should_emit_rate_limited_warning(warning_key, Duration::from_secs(10)) {
+                            warn!(
+                                event = "v2_address_process_failed_retrying",
                                 run_id = %self.run_id,
                                 tree = %tree_accounts.merkle_tree,
                                 error = %e,
-                                "Address processing hit constraint error. Dropping processor to flush cache."
+                                "Failed to process address queue. Will retry next tick without dropping processor."
                             );
-                            drop(proc);
-                            self.address_processors.remove(&tree_accounts.merkle_tree);
-                            self.proof_caches.remove(&tree_accounts.merkle_tree);
-                            Err(e)
-                        } else if is_v2_error(&e, V2Error::is_hashchain_mismatch) {
-                            let warning_key = format!(
-                                "v2_address_hashchain_mismatch:{}",
-                                tree_accounts.merkle_tree
-                            );
-                            if should_emit_rate_limited_warning(
-                                warning_key,
-                                Duration::from_secs(15),
-                            ) {
-                                warn!(
-                                    event = "v2_address_hashchain_mismatch",
-                                    run_id = %self.run_id,
-                                    tree = %tree_accounts.merkle_tree,
-                                    error = %e,
-                                    "Address processing hit hashchain mismatch. Clearing cache and retrying."
-                                );
-                            }
-                            self.heartbeat.increment_v2_recoverable_error();
-                            proc.clear_cache().await;
-                            Ok(ProcessingResult::default())
-                        } else {
-                            let warning_key =
-                                format!("v2_address_process_failed:{}", tree_accounts.merkle_tree);
-                            if should_emit_rate_limited_warning(
-                                warning_key,
-                                Duration::from_secs(10),
-                            ) {
-                                warn!(
-                                    event = "v2_address_process_failed_retrying",
-                                    run_id = %self.run_id,
-                                    tree = %tree_accounts.merkle_tree,
-                                    error = %e,
-                                    "Failed to process address queue. Will retry next tick without dropping processor."
-                                );
-                            }
-                            self.heartbeat.increment_v2_recoverable_error();
-                            Ok(ProcessingResult::default())
                         }
+                        self.heartbeat.increment_v2_recoverable_error();
+                        Ok(ProcessingResult::default())
                     }
                 }
             }
@@ -4002,7 +3959,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 );
             }
             Err(e) => {
-                if e.to_string().contains("already been processed") {
+                if rpc_is_already_processed(&e) {
                     info!(
                         event = "work_report_onchain_already_reported",
                         run_id = %self.run_id,
@@ -4104,23 +4061,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         }
         Ok(())
     }
-}
-
-fn calculate_remaining_time_or_default(
-    current_slot: u64,
-    end_slot: u64,
-    buffer_duration: Duration,
-) -> Duration {
-    if current_slot >= end_slot {
-        return Duration::ZERO;
-    }
-    let slots_remaining = end_slot - current_slot;
-    let base_remaining_duration = slot_duration()
-        .checked_mul(slots_remaining as u32)
-        .unwrap_or_default();
-    base_remaining_duration
-        .checked_sub(buffer_duration)
-        .unwrap_or(Duration::ZERO)
 }
 
 fn should_skip_tree(config: &ForesterConfig, tree_type: &TreeType) -> bool {

@@ -18,7 +18,10 @@ use tracing::{debug, info};
 
 use super::{state::MintAccountTracker, types::MintAccountState};
 use crate::{
-    compressible::traits::{send_and_confirm_with_tracking, Cancelled, CompressibleTracker},
+    compressible::traits::{
+        send_and_confirm_with_tracking, CompressibleTracker, CompressionOutcome,
+        CompressionOutcomes, CompressionTaskError,
+    },
     smart_transaction::TransactionPolicy,
     Result,
 };
@@ -133,8 +136,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         mint_states: &[MintAccountState],
         max_concurrent: usize,
         cancelled: Arc<AtomicBool>,
-    ) -> Vec<std::result::Result<(Signature, MintAccountState), (MintAccountState, anyhow::Error)>>
-    {
+    ) -> CompressionOutcomes<MintAccountState> {
         if mint_states.is_empty() {
             return Vec::new();
         }
@@ -144,7 +146,12 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             return mint_states
                 .iter()
                 .cloned()
-                .map(|mint_state| Err((mint_state, anyhow::anyhow!("max_concurrent must be > 0"))))
+                .map(|mint_state| CompressionOutcome::Failed {
+                    state: mint_state,
+                    error: CompressionTaskError::Failed(anyhow::anyhow!(
+                        "max_concurrent must be > 0"
+                    )),
+                })
                 .collect();
         }
 
@@ -160,12 +167,21 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
                 // Check cancellation before processing
                 if cancelled.load(Ordering::Relaxed) {
                     compressor.tracker.unmark_pending(&[mint_state.pubkey]);
-                    return Err((mint_state, Cancelled.into()));
+                    return CompressionOutcome::Failed {
+                        state: mint_state,
+                        error: CompressionTaskError::Cancelled,
+                    };
                 }
 
                 match compressor.compress(&mint_state).await {
-                    Ok(sig) => Ok((sig, mint_state)),
-                    Err(e) => Err((mint_state, e)),
+                    Ok(sig) => CompressionOutcome::Compressed {
+                        signature: sig,
+                        state: mint_state,
+                    },
+                    Err(e) => CompressionOutcome::Failed {
+                        state: mint_state,
+                        error: e.into(),
+                    },
                 }
             }
         });
@@ -179,11 +195,11 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         // Remove successfully compressed mints; unmark failed ones
         for result in &results {
             match result {
-                Ok((_, mint_state)) => {
-                    self.tracker.remove_compressed(&mint_state.pubkey);
+                CompressionOutcome::Compressed { state, .. } => {
+                    self.tracker.remove_compressed(&state.pubkey);
                 }
-                Err((mint_state, _)) => {
-                    self.tracker.unmark_pending(&[mint_state.pubkey]);
+                CompressionOutcome::Failed { state, .. } => {
+                    self.tracker.unmark_pending(&[state.pubkey]);
                 }
             }
         }
