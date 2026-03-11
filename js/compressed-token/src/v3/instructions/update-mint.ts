@@ -23,8 +23,6 @@ import {
 } from '../layout/layout-mint-action';
 
 interface EncodeUpdateMintInstructionParams {
-    splMint: PublicKey;
-    addressTree: PublicKey;
     leafIndex: number;
     proveByIndex: boolean;
     rootIndex: number;
@@ -139,8 +137,6 @@ export function createUpdateMintAuthorityInstruction(
 
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
-        splMint: mintInterface.mintContext.splMint,
-        addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         proveByIndex: true,
         rootIndex: validityProof?.rootIndices[0] ?? 0,
@@ -250,8 +246,6 @@ export function createUpdateFreezeAuthorityInstruction(
 
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
-        splMint: mintInterface.mintContext.splMint,
-        addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         proveByIndex: true,
         rootIndex: validityProof?.rootIndices[0] ?? 0,

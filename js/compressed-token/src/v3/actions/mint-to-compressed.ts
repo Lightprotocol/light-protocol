@@ -18,7 +18,10 @@ import {
 } from '@lightprotocol/stateless.js';
 import { createMintToCompressedInstruction } from '../instructions/mint-to-compressed';
 import { getMintInterface } from '../get-mint-interface';
-import { ERR_MINT_MISSING_MERKLE_CONTEXT } from '../errors';
+import {
+    ERR_MINT_MISSING_MERKLE_CONTEXT,
+    ERR_MINT_MISSING_MINT_CONTEXT,
+} from '../errors';
 
 /**
  * Mint light-tokens directly to compressed accounts.
@@ -56,6 +59,10 @@ export async function mintToCompressed(
     if (!mintInfo.merkleContext) {
         throw new Error(ERR_MINT_MISSING_MERKLE_CONTEXT);
     }
+    if (!mintInfo.mintContext) {
+        throw new Error(ERR_MINT_MISSING_MINT_CONTEXT);
+    }
+    const merkleContext = mintInfo.merkleContext;
 
     // Auto-fetch output state tree info if not provided
     if (!outputStateTreeInfo) {
@@ -66,10 +73,10 @@ export async function mintToCompressed(
     const validityProof = await rpc.getValidityProofV2(
         [
             {
-                hash: bn(mintInfo.merkleContext.hash),
-                leafIndex: mintInfo.merkleContext.leafIndex,
-                treeInfo: mintInfo.merkleContext.treeInfo,
-                proveByIndex: mintInfo.merkleContext.proveByIndex,
+                hash: bn(merkleContext.hash),
+                leafIndex: merkleContext.leafIndex,
+                treeInfo: merkleContext.treeInfo,
+                proveByIndex: merkleContext.proveByIndex,
             },
         ],
         [],
@@ -80,17 +87,17 @@ export async function mintToCompressed(
         authority.publicKey,
         payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
+        merkleContext,
         {
             supply: mintInfo.mint.supply,
             decimals: mintInfo.mint.decimals,
             mintAuthority: mintInfo.mint.mintAuthority,
             freezeAuthority: mintInfo.mint.freezeAuthority,
-            splMint: mintInfo.mintContext!.splMint,
-            cmintDecompressed: mintInfo.mintContext!.cmintDecompressed,
-            version: mintInfo.mintContext!.version,
-            mintSigner: mintInfo.mintContext!.mintSigner,
-            bump: mintInfo.mintContext!.bump,
+            splMint: mintInfo.mintContext.splMint,
+            cmintDecompressed: mintInfo.mintContext.cmintDecompressed,
+            version: mintInfo.mintContext.version,
+            mintSigner: mintInfo.mintContext.mintSigner,
+            bump: mintInfo.mintContext.bump,
             metadata: mintInfo.tokenMetadata
                 ? {
                       updateAuthority:

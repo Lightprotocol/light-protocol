@@ -12,8 +12,12 @@ import {
 import { Buffer } from 'buffer';
 import { bn } from '@lightprotocol/stateless.js';
 import { PublicKey } from '@solana/web3.js';
-import { CompressionInfo, RentConfig } from './layout-mint';
-import { AdditionalMetadata } from './layout-mint-action';
+import { CompressionInfo } from './layout-mint';
+import {
+    AdditionalMetadata,
+    CompressedProofLayout,
+    TokenMetadataInstructionDataLayout,
+} from './layout-mint-action';
 
 // Transfer2 discriminator = 101
 export const TRANSFER2_DISCRIMINATOR = Buffer.from([101]);
@@ -148,15 +152,6 @@ export interface Transfer2InstructionData {
 }
 
 // Borsh layouts for extension data
-const AdditionalMetadataLayout = struct([vec(u8(), 'key'), vec(u8(), 'value')]);
-
-const TokenMetadataInstructionDataLayout = struct([
-    option(array(u8(), 32), 'updateAuthority'),
-    vec(u8(), 'name'),
-    vec(u8(), 'symbol'),
-    vec(u8(), 'uri'),
-    option(vec(AdditionalMetadataLayout), 'additionalMetadata'),
-]);
 
 const CompressedOnlyExtensionInstructionDataLayout = struct([
     u64('delegatedAmount'),
@@ -166,12 +161,6 @@ const CompressedOnlyExtensionInstructionDataLayout = struct([
     bool('isAta'),
     u8('bump'),
     u8('ownerIndex'),
-]);
-
-const CompressToPubkeyLayout = struct([
-    u8('bump'),
-    array(u8(), 32, 'programId'),
-    vec(vec(u8()), 'seeds'),
 ]);
 
 const RentConfigLayout = struct([
@@ -210,16 +199,14 @@ function serializeExtensionInstructionData(
         buffer.writeUInt8(EXTENSION_DISCRIMINANT_TOKEN_METADATA, offset);
         offset += 1;
         const data = {
-            updateAuthority: ext.data.updateAuthority
-                ? Array.from(ext.data.updateAuthority.toBytes())
-                : null,
-            name: Array.from(ext.data.name),
-            symbol: Array.from(ext.data.symbol),
-            uri: Array.from(ext.data.uri),
+            updateAuthority: ext.data.updateAuthority,
+            name: ext.data.name,
+            symbol: ext.data.symbol,
+            uri: ext.data.uri,
             additionalMetadata: ext.data.additionalMetadata
                 ? ext.data.additionalMetadata.map(m => ({
-                      key: Array.from(m.key),
-                      value: Array.from(m.value),
+                      key: Buffer.from(m.key),
+                      value: Buffer.from(m.value),
                   }))
                 : null,
         };
@@ -344,12 +331,6 @@ const CompressedCpiContextLayout = struct([
     bool('setContext'),
     bool('firstSetContext'),
     u8('cpiContextAccountIndex'),
-]);
-
-const CompressedProofLayout = struct([
-    array(u8(), 32, 'a'),
-    array(u8(), 64, 'b'),
-    array(u8(), 32, 'c'),
 ]);
 
 // Layout without TLV fields - we'll serialize those manually

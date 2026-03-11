@@ -416,6 +416,7 @@ export async function unwrap(
         undefined, // maxTopUp - use default
         confirmOptions,
         decimals,
+        true, // wrap=true for unified
     );
 }
 

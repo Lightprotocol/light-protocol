@@ -5,3 +5,4 @@ export const ERR_MINT_MISSING_MERKLE_CONTEXT =
     'Mint does not have MerkleContext';
 export const ERR_MINT_MISSING_TOKEN_METADATA =
     'Mint does not have TokenMetadata extension';
+export const ERR_MINT_MISSING_MINT_CONTEXT = 'Mint does not have MintContext';
