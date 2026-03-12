@@ -1185,7 +1185,7 @@ async fn transfer<const V2: bool, R: Rpc>(
     counter: &mut u64,
     test_accounts: &TestAccounts,
 ) -> Signature {
-    println!("transfer V2: {} merkle_tree: {}", V2, merkle_tree_pubkey);
+    println!("transfer v2: {} merkle_tree: {}", V2, merkle_tree_pubkey);
     expect_indexer_caught_up(
         rpc,
         format!("transfer prefetch V2={} tree={}", V2, merkle_tree_pubkey),
