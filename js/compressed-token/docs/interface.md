@@ -4,17 +4,18 @@ Concise reference for the v3 interface surface: reads (`getAtaInterface`), loads
 
 ## 1. API Surface
 
-| Method                                | Path            | Purpose                                            |
-| ------------------------------------- | --------------- | -------------------------------------------------- |
-| `getAtaInterface`                     | v3, unified     | Aggregate balance from hot/cold/SPL/T22 sources    |
-| `getOrCreateAtaInterface`             | v3              | Create ATA if missing, return interface            |
-| `createLoadAtaInstructions`           | v3              | Instruction batches for loading cold/wrap into ATA |
-| `loadAta`                             | v3              | Action: execute load, return signature             |
-| `createTransferInterfaceInstructions` | v3              | Instruction builder for transfers                  |
-| `transferInterface`                   | v3              | Action: load + transfer, creates recipient ATA     |
-| `createLightTokenTransferInstruction` | v3/instructions | Raw c-token transfer ix (no load/wrap)             |
+| Method                                       | Path            | Purpose                                                    |
+| -------------------------------------------- | --------------- | ---------------------------------------------------------- |
+| `getAtaInterface`                            | v3, unified     | Aggregate balance from hot/cold/SPL/T22 sources            |
+| `getOrCreateAtaInterface`                    | v3              | Create ATA if missing, return interface                    |
+| `createLoadAtaInstructions`                  | v3              | Instruction batches for loading cold/wrap into ATA         |
+| `loadAta`                                    | v3              | Action: execute load, return signature                     |
+| `createTransferInterfaceInstructions`        | v3              | Instruction builder for transfers                          |
+| `transferInterface`                          | v3              | Action: load + transfer (destination must exist)           |
+| `createLightTokenTransferInstruction`        | v3/instructions | Raw c-token transfer ix (no load/wrap, no decimals)        |
+| `createLightTokenTransferCheckedInstruction` | v3/instructions | Light-token transfer with decimals (used by transfer flow) |
 
-Unified (`/unified`): `wrap=true` default, aggregates SPL/T22 into c-token ATA. Standard (`v3`): `wrap=false` default.
+Unified (`/unified`): `wrap=true` forced (not configurable; unified export omits wrap from options). Standard (`v3`): `wrap=false` default.
 
 ## 2. State Model (owner, mint)
 
@@ -29,12 +30,12 @@ Constraints: mint owned by one of SPL/T22 (never both). All four source types ca
 
 ## 3. Modes: Unified vs Standard
 
-|              | Unified (`wrap=true`)                 | Standard (`wrap=false`, default)                         |
-| ------------ | ------------------------------------- | -------------------------------------------------------- |
-| Balance read | ctoken-hot + ctoken-cold + SPL + T22  | depends on `programId`                                   |
-| Load         | Decompress cold + Wrap SPL/T22        | Decompress cold only                                     |
-| Target       | c-token ATA                           | determined by `programId` / ATA type                     |
-| Transfer ix  | `createLightTokenTransferInstruction` | dispatched by `programId` (Light or SPL transferChecked) |
+|              | Unified (`wrap=true`)                                                         | Standard (`wrap=false`, default)     |
+| ------------ | ----------------------------------------------------------------------------- | ------------------------------------ |
+| Balance read | ctoken-hot + ctoken-cold + SPL + T22                                          | depends on `programId`               |
+| Load         | Decompress cold + Wrap SPL/T22                                                | Decompress cold only                 |
+| Target       | c-token ATA                                                                   | determined by `programId` / ATA type |
+| Transfer ix  | `createLightTokenTransferCheckedInstruction` (Light) or SPL `transferChecked` | dispatched by `programId`            |
 
 ### Standard mode `getAtaInterface` behavior by `programId`
 
@@ -59,11 +60,11 @@ Note: compressed cold accounts always have `owner = LIGHT_TOKEN_PROGRAM_ID` rega
 
 `createTransferInterfaceInstructions` dispatches the transfer instruction based on `programId`:
 
-| `programId`              | Transfer instruction                     |
-| ------------------------ | ---------------------------------------- |
-| `LIGHT_TOKEN_PROGRAM_ID` | `createLightTokenTransferInstruction`    |
-| `TOKEN_PROGRAM_ID`       | `createTransferCheckedInstruction` (SPL) |
-| `TOKEN_2022_PROGRAM_ID`  | `createTransferCheckedInstruction` (T22) |
+| `programId`              | Transfer instruction                         |
+| ------------------------ | -------------------------------------------- |
+| `LIGHT_TOKEN_PROGRAM_ID` | `createLightTokenTransferCheckedInstruction` |
+| `TOKEN_PROGRAM_ID`       | `createTransferCheckedInstruction` (SPL)     |
+| `TOKEN_2022_PROGRAM_ID`  | `createTransferCheckedInstruction` (T22)     |
 
 For SPL/T22 with `wrap=false`: derives SPL/T22 ATAs, decompresses cold to SPL/T22 ATA via pool, then issues a standard SPL `transferChecked`. The flow is fully contained to SPL/T22 -- no Light token accounts involved.
 
@@ -72,7 +73,7 @@ For SPL/T22 with `wrap=false`: derives SPL/T22 ATAs, decompresses cold to SPL/T2
 ### getAtaInterface Dispatch
 
 ```
-getAtaInterface(rpc, ata, owner, mint, commit?, programId?, wrap?)
+getAtaInterface(rpc, ata, owner, mint, commitment?, programId?, wrap?, allowOwnerOffCurve?)
     |
     +- programId=undefined (default)
     |   +- wrap=true -> getUnifiedAccountInterface
@@ -80,7 +81,7 @@ getAtaInterface(rpc, ata, owner, mint, commit?, programId?, wrap?)
     |   +- wrap=false -> getUnifiedAccountInterface
     |           -> ctoken-hot + ctoken-cold only (SPL/T22 NOT fetched)
     |
-    +- programId=LIGHT_TOKEN -> getCTokenAccountInterface
+    +- programId=LIGHT_TOKEN -> getLightTokenAccountInterface
     |       -> ctoken-hot + ctoken-cold
     |
     +- programId=SPL|T22 -> getSplOrToken2022AccountInterface
@@ -90,20 +91,20 @@ getAtaInterface(rpc, ata, owner, mint, commit?, programId?, wrap?)
 ### Load Path (\_buildLoadBatches)
 
 ```
-_buildLoadBatches(senderInterface, wrap, targetAta)
+_buildLoadBatches(rpc, payer, ata, options?, wrap, targetAta, targetAmount?, authority?, decimals)
     |
-    +- Filter out frozen sources (SPL/T22/cold -- cannot wrap/decompress frozen)
-    +- spl/t22/cold unfrozen balance = 0 -> []
+    +- checkNotFrozen(ata) -> throw if any source frozen (no selective skip)
+    +- spl/t22/cold balance = 0 -> []
     |
     +- wrap=true
     |   +- Create c-token ATA (idempotent, if needed)
-    |   +- Wrap SPL (if unfrozen splBal>0)
-    |   +- Wrap T22 (if unfrozen t22Bal>0)
-    |   +- Chunk unfrozen cold by tree version (V1: {8,4,2,1}, V2: {8..1})
+    |   +- Wrap SPL (if splBal>0)
+    |   +- Wrap T22 (if t22Bal>0)
+    |   +- Chunk cold by tree version (V2 only; assertV2Only rejects V1)
     |
     +- wrap=false
     |   +- Create target ATA (ctoken/SPL/T22 per ataType, idempotent)
-    |   +- Chunk unfrozen cold by tree version
+    |   +- Chunk cold by tree version
     |
     +- For each chunk: fetch proof, build decompress ix
        assertUniqueInputHashes(chunks) <- hash uniqueness enforced
@@ -112,37 +113,35 @@ _buildLoadBatches(senderInterface, wrap, targetAta)
 ### Transfer Flow (createTransferInterfaceInstructions)
 
 ```
-createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, recipient, options?)
+createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, destination, decimals, options?)
     |
     +- amount <= 0 -> throw
-    +- derive ATAs using programId
+    +- destination: token account address (must exist; derive via getAssociatedTokenAddressInterface)
     +- getAtaInterface(sender, wrap, programId)
-    +- hot account frozen -> throw
-    +- unfrozen balance < amount -> throw (reports frozen balance separately)
+    +- checkNotFrozen(senderInterface) -> throw if any source frozen
+    +- balance < amount -> throw (Insufficient balance. Required: X, Available: Y)
     |
-    +- _buildLoadBatches(...) -> internalBatches (frozen sources excluded)
+    +- _buildLoadBatches(..., decimals) -> internalBatches
     |
-    +- programId = SPL|T22 && !wrap -> createTransferCheckedInstruction
-    +- else                         -> createLightTokenTransferInstruction
-    |
-    +- ensureRecipientAta (default: true)
-    |   -> prepend idempotent recipient ATA creation ix (no RPC fetch)
+    +- programId = SPL|T22 && !wrap -> createTransferCheckedInstruction (SPL)
+    +- else                         -> createLightTokenTransferCheckedInstruction (Light)
     |
     +- Returns TransactionInstruction[][]:
-    +- batches.length = 0 (hot) -> [[CU, ?ataIx, transferIx]]
-    +- batches.length = 1       -> [[CU, ?ataIx, ...batch0, transferIx]]
+    +- batches.length = 0 (hot) -> [[CU, transferIx]]
+    +- batches.length = 1       -> [[CU, ...batch0, transferIx]]
     +- batches.length > 1
-        -> [[CU, load0], [CU, load1], ..., [CU, ?ataIx, ...lastBatch, transferIx]]
+        -> [[CU, load0], [CU, load1], ..., [CU, ...lastBatch, transferIx]]
         -> send [0..n-2] in parallel, then [n-1] after all confirm
 ```
 
 ### transferInterface (action)
 
 ```
-transferInterface(rpc, payer, source, mint, destination, owner, amount, programId?, confirmOptions?, options?, wrap?)
+transferInterface(rpc, payer, source, mint, destination, owner, amount, programId?, confirmOptions?, options?, wrap?, decimals?)
     |
     +- Validate source == getAssociatedTokenAddressInterface(mint, owner, programId)
-    +- batches = createTransferInterfaceInstructions(..., ensureRecipientAta: true)
+    +- destination: token account address (must exist; derive via getAssociatedTokenAddressInterface)
+    +- batches = createTransferInterfaceInstructions(..., destination, decimals, { ...options, wrap, programId })
     +- { rest: loads, last: transferIxs } = sliceLast(batches)
     +- Send loads in parallel (if any)
     +- Send transferIxs
@@ -154,20 +153,20 @@ SPL Token behavior: `getAccount()` returns full balance + `isFrozen=true`. The o
 
 Light Token interface behavior:
 
-| Method                                | Frozen accounts behavior                                                                                                |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `getAtaInterface`                     | Shows full balance including frozen. `_anyFrozen=true`.                                                                 |
-| `_buildLoadBatches`                   | Skips frozen sources (cold/SPL/T22). Only decompresses unfrozen.                                                        |
-| `createTransferInterfaceInstructions` | If hot account is frozen: throw. Otherwise: uses unfrozen balance only. Reports frozen amount in error if insufficient. |
-| `transferInterface`                   | Same as above (delegates to `createTransferInterfaceInstructions`).                                                     |
+| Method                                | Frozen accounts behavior                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `getAtaInterface`                     | Shows full balance including frozen. `_anyFrozen=true`.                                                                        |
+| `_buildLoadBatches`                   | Throws via `checkNotFrozen(ata)` at entry if any source is frozen; no selective skip.                                          |
+| `createTransferInterfaceInstructions` | Throws via `checkNotFrozen(senderInterface)` if any source frozen. Insufficient balance error reports Required/Available only. |
+| `transferInterface`                   | Same as above (delegates to `createTransferInterfaceInstructions`).                                                            |
 
-Why pre-filter instead of letting on-chain fail: our multi-batch architecture means a frozen account in batch 2 of 3 would fail on-chain while batches 1 and 3 succeed, creating a messy partial-load state. Pre-filtering avoids this.
+Why throw instead of letting on-chain fail: a frozen account in a later batch would fail on-chain while earlier batches succeed, creating partial-load state. Early assert avoids this.
 
 ## 6. Delegate Handling
 
-Compressed `TokenData` has `delegate: Option<Pubkey>` but no `delegated_amount` field. When a delegate exists, it can act on the full account amount. `convertTokenDataToAccount` sets `delegatedAmount: BigInt(0)` -- this is correct for the compressed token layout.
+Compressed `TokenData` has `delegate: Option<Pubkey>` but no top-level `delegated_amount`; amount can come from TLV. `convertTokenDataToAccount` sets `delegatedAmount`: (1) from CompressedOnly extension TLV if present, (2) else if delegate set then full account amount, (3) else 0.
 
-`buildAccountInterfaceFromSources`: `_hasDelegate = sources.some(s => s.parsed.delegate !== null)`. The aggregated `parsed.delegate` comes from the primary source only (first by priority: ctoken-hot > ctoken-cold > SPL > T22). If a cold account has a delegate but the hot doesn't, `parsed.delegate` will be `null` while `_hasDelegate` is `true`.
+`buildAccountInterfaceFromSources`: `parsed.delegate` is the canonical delegate: if any hot source has a delegate, that delegate wins and delegated amount is summed across all sources for that delegate; else if only cold sources have delegates, the first cold delegate is canonical and amount is summed over cold. Multi-source canonicalDelegate logic, not "primary source only".
 
 For load/transfer: `_buildLoadBatches` iterates `_sources` directly. Each cold account retains its own delegate info through the decompress instruction (`createDecompressInterfaceInstruction` includes delegate pubkeys in `packedAccountIndices`).
 
@@ -182,17 +181,17 @@ Across concurrent calls for the same sender: not serialized. Both calls read the
 | Sender           | Recipient  | Status                            |
 | ---------------- | ---------- | --------------------------------- |
 | Hot only         | ATA exists | Works                             |
-| Hot only         | No ATA     | Works (transferInterface creates) |
+| Hot only         | No ATA     | Fails (destination must exist)    |
 | Cold <=8         | ATA exists | Works                             |
 | Cold >8          | ATA exists | Works (parallel loads + transfer) |
-| Cold             | No ATA     | Works (transferInterface creates) |
+| Cold             | No ATA     | Fails (destination must exist)    |
 | Hot + Cold       | Any        | Works                             |
 | SPL hot only     | Any        | Works (wrap)                      |
 | SPL + Cold       | Any        | Works                             |
 | Hot + SPL + Cold | Any        | Works                             |
 | Nothing          | Any        | Throw: insufficient               |
-| All frozen       | Any        | Throw: frozen / insufficient      |
-| Partial frozen   | Any        | Works with unfrozen portion       |
+| All frozen       | Any        | Throw: frozen                     |
+| Partial frozen   | Any        | Throw: frozen (any source frozen) |
 | amount=0         | Any        | Throw: zero amount                |
 | Delegated cold   | Any        | Works                             |
 

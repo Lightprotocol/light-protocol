@@ -29,7 +29,7 @@ describe('createMintInterface', () => {
         payer = await newAccountWithLamports(rpc, 10e9);
     });
 
-    describe('CToken (compressed) - default programId', () => {
+    describe('LightToken (compressed) - default programId', () => {
         it('should create compressed mint with default programId', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
@@ -365,16 +365,18 @@ describe('createMintInterface', () => {
         it('should create different mint addresses for different programs', async () => {
             const mintAuthority = Keypair.generate();
 
-            // CToken mint
-            const ctokenMintSigner = Keypair.generate();
-            const [ctokenMintPda] = findMintAddress(ctokenMintSigner.publicKey);
-            const { mint: ctokenMint } = await createMintInterface(
+            // LightToken mint
+            const lightTokenMintSigner = Keypair.generate();
+            const [lightTokenMintPda] = findMintAddress(
+                lightTokenMintSigner.publicKey,
+            );
+            const { mint: lightTokenMint } = await createMintInterface(
                 rpc,
                 payer,
                 mintAuthority,
                 null,
                 9,
-                ctokenMintSigner,
+                lightTokenMintSigner,
             );
 
             // SPL mint
@@ -404,12 +406,14 @@ describe('createMintInterface', () => {
             );
 
             // All mints should be different
-            expect(ctokenMint.toBase58()).not.toBe(splMint.toBase58());
+            expect(lightTokenMint.toBase58()).not.toBe(splMint.toBase58());
             expect(splMint.toBase58()).not.toBe(t22Mint.toBase58());
-            expect(ctokenMint.toBase58()).not.toBe(t22Mint.toBase58());
+            expect(lightTokenMint.toBase58()).not.toBe(t22Mint.toBase58());
 
-            // CToken mint should be PDA
-            expect(ctokenMint.toBase58()).toBe(ctokenMintPda.toBase58());
+            // LightToken mint should be PDA
+            expect(lightTokenMint.toBase58()).toBe(
+                lightTokenMintPda.toBase58(),
+            );
 
             // SPL/T22 mints should be keypair pubkeys
             expect(splMint.toBase58()).toBe(

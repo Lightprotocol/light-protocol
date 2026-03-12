@@ -197,6 +197,7 @@ describe('Multi-Cold-Inputs', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 5 inputs < 8: single batch
@@ -269,6 +270,7 @@ describe('Multi-Cold-Inputs', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 8 inputs = exactly MAX_INPUT_ACCOUNTS: single batch
@@ -349,6 +351,7 @@ describe('Multi-Cold-Inputs', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 12 inputs = 8+4 for V2 = 2 batches
@@ -633,13 +636,16 @@ describe('Multi-Cold-Inputs', () => {
                 owner.publicKey,
             );
 
-            // Transfer should auto-load all cold accounts
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const signature = await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
                 mint,
-                recipient.publicKey,
+                recipientAta,
                 owner,
                 totalAmount,
             );
@@ -677,13 +683,22 @@ describe('Multi-Cold-Inputs', () => {
                 mint,
                 owner.publicKey,
             );
-
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const signature = await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
                 mint,
-                recipient.publicKey,
+                recipientAta,
                 owner,
                 totalAmount,
             );
@@ -720,13 +735,22 @@ describe('Multi-Cold-Inputs', () => {
                 mint,
                 owner.publicKey,
             );
-
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const signature = await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
                 mint,
-                recipient.publicKey,
+                recipientAta,
                 owner,
                 totalAmount,
             );
@@ -783,7 +807,7 @@ describe('Multi-Cold-Inputs', () => {
             const sources = ataInterface._sources ?? [];
             const coldSources = sources.filter(
                 s =>
-                    s.type === 'ctoken-cold' ||
+                    s.type === 'light-token-cold' ||
                     s.type === 'spl-cold' ||
                     s.type === 'token2022-cold',
             );

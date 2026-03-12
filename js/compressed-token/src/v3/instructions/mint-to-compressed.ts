@@ -23,7 +23,6 @@ import {
 import { MAX_TOP_UP, TokenDataVersion } from '../../constants';
 
 interface EncodeCompressedMintToInstructionParams {
-    addressTree: PublicKey;
     leafIndex: number;
     rootIndex: number;
     proof: { a: number[]; b: number[]; c: number[] } | null;
@@ -33,6 +32,7 @@ interface EncodeCompressedMintToInstructionParams {
     maxTopUp?: number;
 }
 
+/** @internal */
 function encodeCompressedMintToInstructionData(
     params: EncodeCompressedMintToInstructionParams,
 ): Buffer {
@@ -131,7 +131,6 @@ export function createMintToCompressedInstruction(
     const isDecompressed = mintData.cmintDecompressed;
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeCompressedMintToInstructionData({
-        addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         rootIndex: validityProof.rootIndices[0],
         proof: validityProof.compressedProof,

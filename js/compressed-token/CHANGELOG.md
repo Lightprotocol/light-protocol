@@ -1,3 +1,38 @@
+## [Unreleased]
+
+### Breaking Changes
+
+- **`transferInterface` and `createTransferInterfaceInstructions`**: `destination` is now the token account address (SPL-style), not the recipient wallet. `ensureRecipientAta` removed; caller must create the destination ATA before transfer via `getOrCreateAtaInterface` or `createAssociatedTokenAccountInterfaceIdempotentInstruction`.
+    - **Action:** `transferInterface(rpc, payer, source, mint, destination, owner, amount, ...)` — `destination` is the token account (e.g. `getAssociatedTokenAddressInterface(mint, recipient.publicKey)`).
+    - **Instruction builder:** `createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, destination, decimals, options?)` — same `destination` semantics.
+    - **`decimals` is now required** on `createTransferInterfaceInstructions` (instruction-level API). Fetch with `getMintInterface(rpc, mint).mint.decimals` if you were not already threading mint decimals.
+
+- **Root export removed:** `createLoadAtaInstructionsFromInterface` is no longer exported from the package root. Use `createLoadAtaInstructions` (public API) and pass ATA/owner/mint directly.
+
+- **Interface RPC error semantics are now strict (no silent downgrade to not-found).**
+    - `getAccountInterface` / `getAtaInterface`: unexpected RPC failures (on-chain fetch, compressed fetch, parsing) now throw immediately instead of being silently ignored when another source produced data.
+    - `getAccountInterface` light-token mode and SPL/T22 mode now surface `TokenInvalidAccountOwnerError` when an on-chain account exists at the queried address but is owned by a different program.
+    - `getMintInterface` (decompressed light-mint branch) now validates the on-chain mint owner and throws `TokenInvalidAccountOwnerError` on mismatch; it also forwards the provided `commitment` to on-chain `getAccountInfo`.
+    - **Migration impact:** callers that previously interpreted these paths as empty/not-found must now handle thrown errors explicitly (retry/backoff or surfacing RPC health).
+
+## [0.23.0-beta.10]
+
+### Breaking Changes
+
+- **`decompressInterface` removed.** Use `loadAta` (action) or `createLoadAtaInstructions` (instruction builder) instead. `decompressInterface` did not support >8 compressed inputs and has been fully removed.
+    - **Action (send transaction):** Replace `decompressInterface(rpc, payer, owner, mint, amount?, destinationAta?, destinationOwner?, splInterfaceInfo?, confirmOptions?)` with `loadAta(rpc, ata, owner, mint, payer?, confirmOptions?, interfaceOptions?, wrap?)`. Derive the target ATA with `getAssociatedTokenAddressInterface(mint, owner)` for light-token, or pass the SPL/T22 ATA to decompress to that program. `loadAta` loads all cold balance into the given ATA (no partial amount); it supports >8 inputs via batched transactions and creates the ATA if needed.
+    - **Instruction-level:** Use `createLoadAtaInstructions(rpc, ata, owner, mint, payer?, interfaceOptions?, wrap?)` to get `TransactionInstruction[][]` and send batches yourself. The single-instruction primitive is no longer exported; use the batched API only.
+
+- **CToken → LightToken renames.** Instruction and type names updated for consistency: `createAssociatedCTokenAccountInstruction` → `createAssociatedLightTokenAccountInstruction`, `CTokenConfig` → `LightTokenConfig`, `parseCTokenHot` → `parseLightTokenHot`, `parseCTokenCold` → `parseLightTokenCold`, `mintToCToken` → `mintToLightToken` (and related), `CTOKEN_PROGRAM_ID` → `LIGHT_TOKEN_PROGRAM_ID`. Use the new LightToken names in all call sites.
+
+- **Removed exports.** `createLoadAccountsParams`, `calculateCompressibleLoadComputeUnits`, and associated types are no longer exported. Use the batched `createLoadAtaInstructions` API and `calculateLoadBatchComputeUnits` where applicable.
+
+- **New freeze/thaw instructions.** `createLightTokenFreezeAccountInstruction` and `createLightTokenThawAccountInstruction` are available for native freeze/thaw of decompressed light-token accounts (discriminators 10 and 11).
+
+- **Synthetic delegate selection semantics updated.** In `getAtaInterface` / `getAccountInterface` synthetic account views:
+    - If a hot source has a delegate, that hot delegate is always canonical. Cold delegates only contribute to `delegatedAmount` when they match the hot delegate.
+    - If there is no hot delegate, canonical delegate is chosen from the most recent delegated cold source (source-order first), and `delegatedAmount` is the sum of all cold inputs for that delegate.
+
 ## [0.23.0-beta.9]
 
 ### Fixed

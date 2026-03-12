@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import {
     TOKEN_PROGRAM_ID,
@@ -10,6 +10,18 @@ import {
     featureFlags,
 } from '@lightprotocol/stateless.js';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
+
+vi.mock('../../src/v3/get-mint-interface', async () => {
+    const { LIGHT_TOKEN_PROGRAM_ID } = await import(
+        '@lightprotocol/stateless.js'
+    );
+    return {
+        getMintInterface: vi.fn().mockResolvedValue({
+            mint: { decimals: 9 },
+            programId: LIGHT_TOKEN_PROGRAM_ID,
+        }),
+    };
+});
 
 import {
     getAssociatedTokenAddressInterface as unifiedGetAssociatedTokenAddressInterface,

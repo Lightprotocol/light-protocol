@@ -27,6 +27,7 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 import { createUnwrapInstruction } from '../../src/v3/instructions/unwrap';
 import { unwrap, createUnwrapInstructions } from '../../src/v3/actions/unwrap';
+import { createLightTokenFreezeAccountInstruction } from '../../src/v3/instructions/freeze-thaw';
 import { getAssociatedTokenAddressInterface } from '../../src';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
@@ -35,7 +36,10 @@ featureFlags.version = VERSION.V2;
 
 const TEST_TOKEN_DECIMALS = 9;
 
-async function getCTokenBalance(rpc: Rpc, address: PublicKey): Promise<bigint> {
+async function getLightTokenBalance(
+    rpc: Rpc,
+    address: PublicKey,
+): Promise<bigint> {
     const accountInfo = await rpc.getAccountInfo(address);
     if (!accountInfo) {
         return BigInt(0);
@@ -196,6 +200,7 @@ describe('createUnwrapInstructions', () => {
             splAta,
             owner.publicKey,
             mint,
+            TEST_TOKEN_DECIMALS,
             BigInt(500),
             payer.publicKey,
         );
@@ -218,20 +223,23 @@ describe('createUnwrapInstructions', () => {
         const splBalance = await getAccount(rpc, splAta);
         expect(splBalance.amount).toBe(BigInt(500));
 
-        // Verify remaining c-token balance
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // Verify remaining light-token balance
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalance).toBe(BigInt(500));
+        const lightTokenBalance = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalance).toBe(BigInt(500));
     }, 60_000);
 
     it('should return single batch when balance is already hot', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
-        // Create c-token ATA and mint to hot
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // Create light-token ATA and mint to hot
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -251,7 +259,7 @@ describe('createUnwrapInstructions', () => {
 
         // Load to hot first
         const { loadAta } = await import('../../src/v3/actions/load-ata');
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
         // Create destination SPL ATA
         const splAta = await createAssociatedTokenAccount(
@@ -268,6 +276,7 @@ describe('createUnwrapInstructions', () => {
             splAta,
             owner.publicKey,
             mint,
+            TEST_TOKEN_DECIMALS,
             BigInt(300),
             payer.publicKey,
         );
@@ -311,6 +320,7 @@ describe('createUnwrapInstructions', () => {
                 splAta,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 BigInt(50),
                 payer.publicKey,
             ),
@@ -346,11 +356,106 @@ describe('createUnwrapInstructions', () => {
                 splAta,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 BigInt(99999),
                 payer.publicKey,
             ),
         ).rejects.toThrow(/Insufficient/);
     }, 60_000);
+
+    it('should throw when all light-token balance is frozen', async () => {
+        // This test needs a mint with a freeze authority set.
+        const freezeAuthority = Keypair.generate();
+        const mintWithFreezeKeypair = Keypair.generate();
+        const { mint: freezableMint } = await createMint(
+            rpc,
+            payer,
+            mintAuthority.publicKey,
+            TEST_TOKEN_DECIMALS,
+            mintWithFreezeKeypair,
+            undefined,
+            TOKEN_PROGRAM_ID,
+            freezeAuthority.publicKey,
+        );
+        const freezableMintPoolInfos = await getTokenPoolInfos(
+            rpc,
+            freezableMint,
+        );
+
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        await mintTo(
+            rpc,
+            payer,
+            freezableMint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(freezableMintPoolInfos),
+        );
+
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            freezableMint,
+            owner.publicKey,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
+
+        const lightTokenAta = getAssociatedTokenAddressInterface(
+            freezableMint,
+            owner.publicKey,
+        );
+        const { loadAta } = await import('../../src/v3/actions/load-ata');
+        await loadAta(rpc, lightTokenAta, owner, freezableMint, payer);
+
+        // Freeze the hot light-token ATA
+        const freezeIx = createLightTokenFreezeAccountInstruction(
+            lightTokenAta,
+            freezableMint,
+            freezeAuthority.publicKey,
+        );
+        const { blockhash: fh } = await rpc.getLatestBlockhash();
+        const freezeTx = buildAndSignTx([freezeIx], payer, fh, [
+            freezeAuthority,
+        ]);
+        await sendAndConfirmTx(rpc, freezeTx);
+
+        // Verify account is frozen (state byte 108 == 2)
+        const accountInfo = await rpc.getAccountInfo(lightTokenAta);
+        expect(accountInfo).not.toBeNull();
+        expect(accountInfo!.data[108]).toBe(2);
+
+        await expect(
+            createUnwrapInstructions(
+                rpc,
+                splAta,
+                owner.publicKey,
+                freezableMint,
+                TEST_TOKEN_DECIMALS,
+                undefined,
+                payer.publicKey,
+            ),
+        ).rejects.toThrow(/Account is frozen|unwrap is not allowed/);
+
+        await expect(
+            createUnwrapInstructions(
+                rpc,
+                splAta,
+                owner.publicKey,
+                freezableMint,
+                TEST_TOKEN_DECIMALS,
+                undefined,
+                payer.publicKey,
+                undefined,
+                undefined,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|unwrap is not allowed/);
+    }, 90_000);
 });
 
 describe('unwrap action', () => {
@@ -381,7 +486,7 @@ describe('unwrap action', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    it('should unwrap c-tokens to SPL ATA (from cold)', async () => {
+    it('should unwrap light-tokens to SPL ATA (from cold)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         // Mint compressed tokens (cold)
@@ -422,20 +527,23 @@ describe('unwrap action', () => {
         const splBalance = await getAccount(rpc, splAta);
         expect(splBalance.amount).toBe(BigInt(500));
 
-        // Check remaining c-token balance
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // Check remaining light-token balance
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalance).toBe(BigInt(500));
+        const lightTokenBalance = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalance).toBe(BigInt(500));
     }, 60_000);
 
-    it('should unwrap c-tokens to SPL ATA (from hot)', async () => {
+    it('should unwrap light-tokens to SPL ATA (from hot)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
-        // Create c-token ATA and mint to hot
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // Create light-token ATA and mint to hot
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -455,10 +563,10 @@ describe('unwrap action', () => {
 
         // Load to hot first
         const { loadAta } = await import('../../src/v3/actions/load-ata');
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
         // Verify hot balance
-        const hotBalanceBefore = await getCTokenBalance(rpc, ctokenAta);
+        const hotBalanceBefore = await getLightTokenBalance(rpc, lightTokenAta);
         expect(hotBalanceBefore).toBe(BigInt(800));
 
         // Create destination SPL ATA first (SPL pattern)
@@ -487,9 +595,12 @@ describe('unwrap action', () => {
         const splBalance = await getAccount(rpc, splAta);
         expect(splBalance.amount).toBe(BigInt(300));
 
-        // Check remaining c-token balance
-        const ctokenBalanceAfter = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalanceAfter).toBe(BigInt(500));
+        // Check remaining light-token balance
+        const lightTokenBalanceAfter = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalanceAfter).toBe(BigInt(500));
     }, 60_000);
 
     it('should unwrap full balance when amount not specified', async () => {
@@ -526,13 +637,16 @@ describe('unwrap action', () => {
         const splBalance = await getAccount(rpc, splAta);
         expect(splBalance.amount).toBe(BigInt(600));
 
-        // c-token should be empty
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // light-token should be empty
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalance).toBe(BigInt(0));
+        const lightTokenBalance = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalance).toBe(BigInt(0));
     }, 60_000);
 
     it('should auto-fetch SPL interface info when not provided', async () => {
@@ -690,7 +804,7 @@ describe('unwrap Token-2022', () => {
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     }, 60_000);
 
-    it('should unwrap c-tokens to Token-2022 ATA', async () => {
+    it('should unwrap light-tokens to Token-2022 ATA', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const mintAuthority = Keypair.generate();
 

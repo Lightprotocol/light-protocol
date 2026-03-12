@@ -22,30 +22,13 @@ export * from './program';
 export { CompressedTokenProgram as LightTokenProgram } from './program';
 export * from './types';
 import {
-    createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
     createLoadAtaInstructions as _createLoadAtaInstructions,
     loadAta as _loadAta,
-    calculateCompressibleLoadComputeUnits,
     selectInputsForAmount,
-    CompressibleAccountInput,
-    ParsedAccountInfoInterface,
-    CompressibleLoadParams,
-    PackedCompressedAccount,
-    LoadResult,
 } from './v3/actions/load-ata';
+import { getMintInterface } from './v3/get-mint-interface';
 
-export {
-    createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
-    calculateCompressibleLoadComputeUnits,
-    selectInputsForAmount,
-    CompressibleAccountInput,
-    ParsedAccountInfoInterface,
-    CompressibleLoadParams,
-    PackedCompressedAccount,
-    LoadResult,
-};
+export { selectInputsForAmount };
 
 export {
     estimateTransactionSize,
@@ -59,8 +42,8 @@ export {
     // Instructions
     createMintInstruction,
     createTokenMetadata,
-    createAssociatedCTokenAccountInstruction,
-    createAssociatedCTokenAccountIdempotentInstruction,
+    createAssociatedLightTokenAccountInstruction,
+    createAssociatedLightTokenAccountIdempotentInstruction,
     createAssociatedTokenAccountInterfaceInstruction,
     createAssociatedTokenAccountInterfaceIdempotentInstruction,
     createAtaInterfaceIdempotentInstruction,
@@ -75,13 +58,15 @@ export {
     createWrapInstruction,
     createUnwrapInstruction,
     createUnwrapInstructions,
-    createDecompressInterfaceInstruction,
+    createLightTokenFreezeAccountInstruction,
+    createLightTokenThawAccountInstruction,
     createLightTokenTransferInstruction,
+    createLightTokenTransferCheckedInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
-    CTokenConfig,
-    CreateAssociatedCTokenAccountParams,
+    LightTokenConfig,
+    CreateAssociatedLightTokenAccountParams,
     // Constants for rent sponsor
     DEFAULT_COMPRESSIBLE_CONFIG,
     // Actions
@@ -93,9 +78,8 @@ export {
     transferInterface,
     createTransferInterfaceInstructions,
     sliceLast,
-    decompressInterface,
     wrap,
-    mintTo as mintToCToken,
+    mintTo as mintToLightToken,
     mintToCompressed,
     mintToInterface,
     updateMintAuthority,
@@ -114,8 +98,8 @@ export {
     Account,
     AccountState,
     ParsedTokenAccount as ParsedTokenAccountInterface,
-    parseCTokenHot,
-    parseCTokenCold,
+    parseLightTokenHot,
+    parseLightTokenCold,
     toAccountInfo,
     convertTokenDataToAccount,
     // Types
@@ -181,11 +165,13 @@ export async function createLoadAtaInstructions(
     payer?: PublicKey,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
     return _createLoadAtaInstructions(
         rpc,
         ata,
         owner,
         mint,
+        mintInterface.mint.decimals,
         payer,
         options,
         false,
@@ -193,7 +179,7 @@ export async function createLoadAtaInstructions(
 }
 
 /**
- * Load token balances into a c-token ATA.
+ * Load token balances into a light-token ATA.
  *
  * @param rpc               RPC connection
  * @param ata               Associated token address
@@ -212,6 +198,7 @@ export async function loadAta(
     payer?: Signer,
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
+    decimals?: number,
 ): Promise<TransactionSignature | null> {
     return _loadAta(
         rpc,
@@ -222,5 +209,6 @@ export async function loadAta(
         confirmOptions,
         interfaceOptions,
         false,
+        decimals,
     );
 }

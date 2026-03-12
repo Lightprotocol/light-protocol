@@ -2,7 +2,7 @@
  * Borsh layouts for MintAction instruction data
  *
  * These layouts match the Rust structs in:
- * program-libs/ctoken-types/src/instructions/mint_action/
+ * program-libs/light-token-types/src/instructions/mint_action/
  *
  * @module mint-action-layout
  */
@@ -37,7 +37,7 @@ export const UpdateAuthorityLayout = struct([
     option(publicKey(), 'newAuthority'),
 ]);
 
-export const MintToCTokenActionLayout = struct([
+export const MintToLightTokenActionLayout = struct([
     u8('accountIndex'),
     u64('amount'),
 ]);
@@ -71,7 +71,7 @@ export const ActionLayout = rustEnum([
     MintToCompressedActionLayout.replicate('mintToCompressed'),
     UpdateAuthorityLayout.replicate('updateMintAuthority'),
     UpdateAuthorityLayout.replicate('updateFreezeAuthority'),
-    MintToCTokenActionLayout.replicate('mintToCToken'),
+    MintToLightTokenActionLayout.replicate('mintToLightToken'),
     UpdateMetadataFieldActionLayout.replicate('updateMetadataField'),
     UpdateMetadataAuthorityActionLayout.replicate('updateMetadataAuthority'),
     RemoveMetadataKeyActionLayout.replicate('removeMetadataKey'),
@@ -186,7 +186,7 @@ export interface UpdateAuthority {
     newAuthority: PublicKey | null;
 }
 
-export interface MintToCTokenAction {
+export interface MintToLightTokenAction {
     accountIndex: number;
     amount: bigint;
 }
@@ -222,7 +222,7 @@ export type Action =
     | { mintToCompressed: MintToCompressedAction }
     | { updateMintAuthority: UpdateAuthority }
     | { updateFreezeAuthority: UpdateAuthority }
-    | { mintToCToken: MintToCTokenAction }
+    | { mintToLightToken: MintToLightTokenAction }
     | { updateMetadataField: UpdateMetadataFieldAction }
     | { updateMetadataAuthority: UpdateMetadataAuthorityAction }
     | { removeMetadataKey: RemoveMetadataKeyAction }
@@ -297,6 +297,7 @@ export interface MintActionCompressedInstructionData {
  *
  * @param data - The instruction data to encode
  * @returns Encoded buffer with discriminator prepended
+ * @internal
  */
 export function encodeMintActionInstructionData(
     data: MintActionCompressedInstructionData,
@@ -314,11 +315,11 @@ export function encodeMintActionInstructionData(
                 },
             };
         }
-        if ('mintToCToken' in action && action.mintToCToken) {
+        if ('mintToLightToken' in action && action.mintToLightToken) {
             return {
-                mintToCToken: {
-                    ...action.mintToCToken,
-                    amount: bn(action.mintToCToken.amount.toString()),
+                mintToLightToken: {
+                    ...action.mintToLightToken,
+                    amount: bn(action.mintToLightToken.amount.toString()),
                 },
             };
         }
@@ -350,6 +351,7 @@ export function encodeMintActionInstructionData(
  *
  * @param buffer - The buffer to decode (including discriminator)
  * @returns Decoded instruction data
+ * @internal
  */
 export function decodeMintActionInstructionData(
     buffer: Buffer,

@@ -4,6 +4,7 @@ import {
     TOKEN_2022_PROGRAM_ID,
     unpackAccount as unpackAccountSPL,
     TokenAccountNotFoundError,
+    TokenInvalidAccountOwnerError,
     getAssociatedTokenAddressSync,
     AccountState,
     Account,
@@ -13,14 +14,12 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     MerkleContext,
     CompressedAccountWithMerkleContext,
-    deriveAddressV2,
-    bn,
-    getDefaultAddressTreeInfo,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { Buffer } from 'buffer';
 import BN from 'bn.js';
 import { getAtaProgramId, checkAtaAddress } from './ata-utils';
+import { ERR_FETCH_BY_OWNER_REQUIRED } from './errors';
 export { Account, AccountState } from '@solana/spl-token';
 export { ParsedTokenAccount } from '@lightprotocol/stateless.js';
 
@@ -29,12 +28,24 @@ export const TokenAccountSourceType = {
     Token2022: 'token2022',
     SplCold: 'spl-cold',
     Token2022Cold: 'token2022-cold',
-    CTokenHot: 'ctoken-hot',
-    CTokenCold: 'ctoken-cold',
+    LightTokenHot: 'light-token-hot',
+    LightTokenCold: 'light-token-cold',
 } as const;
 
 export type TokenAccountSourceTypeValue =
     (typeof TokenAccountSourceType)[keyof typeof TokenAccountSourceType];
+
+/** Cold (compressed) source types. Used for load/decompress and isCold. */
+export const COLD_SOURCE_TYPES: ReadonlySet<TokenAccountSourceTypeValue> =
+    new Set([
+        TokenAccountSourceType.LightTokenCold,
+        TokenAccountSourceType.SplCold,
+        TokenAccountSourceType.Token2022Cold,
+    ]);
+
+function isColdSourceType(type: TokenAccountSourceTypeValue): boolean {
+    return COLD_SOURCE_TYPES.has(type);
+}
 
 /** @internal */
 export interface TokenAccountSource {
@@ -61,6 +72,37 @@ export interface AccountInterface {
     _owner?: PublicKey;
     /** Associated token account mint - set by getAtaInterface */
     _mint?: PublicKey;
+}
+
+function toErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    return String(error);
+}
+
+function throwRpcFetchFailure(context: string, error: unknown): never {
+    throw new Error(`${context}: ${toErrorMessage(error)}`);
+}
+
+function throwIfUnexpectedRpcErrors(
+    context: string,
+    unexpectedErrors: unknown[],
+): void {
+    if (unexpectedErrors.length > 0) {
+        throwRpcFetchFailure(context, unexpectedErrors[0]);
+    }
+}
+
+export type FrozenOperation = 'load' | 'transfer' | 'unwrap';
+
+export function checkNotFrozen(
+    iface: AccountInterface,
+    operation: FrozenOperation,
+): void {
+    if (iface._anyFrozen) {
+        throw new Error(
+            `Account is frozen. One or more sources (hot or cold) are frozen; ${operation} is not allowed.`,
+        );
+    }
 }
 
 /** @internal */
@@ -252,7 +294,7 @@ export function toAccountInfo(
 }
 
 /** @internal */
-export function parseCTokenHot(
+export function parseLightTokenHot(
     address: PublicKey,
     accountInfo: AccountInfo<Buffer>,
 ): {
@@ -278,7 +320,7 @@ export function parseCTokenHot(
 }
 
 /** @internal */
-export function parseCTokenCold(
+export function parseLightTokenCold(
     address: PublicKey,
     compressedAccount: CompressedAccountWithMerkleContext,
 ): {
@@ -358,7 +400,7 @@ export async function getAtaInterface(
         allowOwnerOffCurve,
     );
 
-    if (wrap && validation.type !== 'ctoken') {
+    if (wrap && validation.type !== 'light-token') {
         throw new Error(
             `For wrap=true, ata must be the light-token ATA. Got ${validation.type} ATA instead.`,
         );
@@ -396,10 +438,13 @@ async function _tryFetchSpl(
     parsed: Account;
     isCold: false;
     loadContext: undefined;
-}> {
+} | null> {
     const info = await rpc.getAccountInfo(address, commitment);
-    if (!info || !info.owner.equals(TOKEN_PROGRAM_ID)) {
-        throw new Error('Not a TOKEN_PROGRAM_ID account');
+    if (!info) {
+        return null;
+    }
+    if (!info.owner.equals(TOKEN_PROGRAM_ID)) {
+        throw new TokenInvalidAccountOwnerError();
     }
     const account = unpackAccountSPL(address, info, TOKEN_PROGRAM_ID);
     return {
@@ -422,10 +467,13 @@ async function _tryFetchToken2022(
     parsed: Account;
     isCold: false;
     loadContext: undefined;
-}> {
+} | null> {
     const info = await rpc.getAccountInfo(address, commitment);
-    if (!info || !info.owner.equals(TOKEN_2022_PROGRAM_ID)) {
-        throw new Error('Not a TOKEN_2022_PROGRAM_ID account');
+    if (!info) {
+        return null;
+    }
+    if (!info.owner.equals(TOKEN_2022_PROGRAM_ID)) {
+        throw new TokenInvalidAccountOwnerError();
     }
     const account = unpackAccountSPL(address, info, TOKEN_2022_PROGRAM_ID);
     return {
@@ -439,7 +487,7 @@ async function _tryFetchToken2022(
 /**
  * @internal
  */
-async function _tryFetchCTokenHot(
+async function _tryFetchLightTokenHot(
     rpc: Rpc,
     address: PublicKey,
     commitment?: Commitment,
@@ -448,18 +496,21 @@ async function _tryFetchCTokenHot(
     loadContext: undefined;
     parsed: Account;
     isCold: false;
-}> {
+} | null> {
     const info = await rpc.getAccountInfo(address, commitment);
-    if (!info || !info.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        throw new Error('Not a CTOKEN onchain account');
+    if (!info) {
+        return null;
     }
-    return parseCTokenHot(address, info);
+    if (!info.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+        throw new TokenInvalidAccountOwnerError();
+    }
+    return parseLightTokenHot(address, info);
 }
 
 /**
  * @internal
  */
-async function _tryFetchCTokenColdByOwner(
+async function _tryFetchLightTokenColdByOwner(
     rpc: Rpc,
     owner: PublicKey,
     mint: PublicKey,
@@ -481,56 +532,12 @@ async function _tryFetchCTokenColdByOwner(
     if (!compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         throw new Error('Invalid owner for light-token');
     }
-    return parseCTokenCold(ataAddress, compressedAccount);
+    return parseLightTokenCold(ataAddress, compressedAccount);
 }
 
 /**
- * @internal
- * Fetch light-token account by deriving its compressed address from the on-chain address.
- * Uses deriveAddressV2(address, addressTree, LIGHT_TOKEN_PROGRAM_ID) to get the compressed address.
- *
- * Note: This only works for accounts that were **compressed from on-chain** (via compress_accounts_idempotent).
- * For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint instead.
- */
-async function _tryFetchCTokenColdByAddress(
-    rpc: Rpc,
-    address: PublicKey,
-): Promise<{
-    accountInfo: AccountInfo<Buffer>;
-    loadContext: MerkleContext;
-    parsed: Account;
-    isCold: true;
-}> {
-    // Derive compressed address from on-chain token account address
-    const addressTree = getDefaultAddressTreeInfo().tree;
-    const compressedAddress = deriveAddressV2(
-        address.toBytes(),
-        addressTree,
-        LIGHT_TOKEN_PROGRAM_ID,
-    );
-
-    // Fetch by derived compressed address
-    const compressedAccount = await rpc.getCompressedAccount(
-        bn(compressedAddress.toBytes()),
-    );
-
-    if (!compressedAccount?.data?.data.length) {
-        throw new Error(
-            'Light-token account not found at derived address. ' +
-                'Note: getAccountInterface only finds compressed accounts that were ' +
-                'compressed from on-chain (via compress_accounts_idempotent). ' +
-                'For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint.',
-        );
-    }
-    if (!compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        throw new Error('Invalid owner for light-token');
-    }
-    return parseCTokenCold(address, compressedAccount);
-}
-
-/**
- * @internal
  * Retrieve information about a token account SPL/T22/light-token.
+ * @internal
  */
 async function _getAccountInterface(
     rpc: Rpc,
@@ -564,7 +571,7 @@ async function _getAccountInterface(
 
     // light-token-only mode
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        return getCTokenAccountInterface(
+        return getLightTokenAccountInterface(
             rpc,
             address,
             commitment,
@@ -589,6 +596,7 @@ async function _getAccountInterface(
     throw new Error(`Unsupported program ID: ${programId.toBase58()}`);
 }
 
+/** @internal */
 async function getUnifiedAccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -597,7 +605,7 @@ async function getUnifiedAccountInterface(
     wrap: boolean,
 ): Promise<AccountInterface> {
     // Canonical address for unified mode is always the light-token associated token account
-    const cTokenAta =
+    const lightTokenAta =
         address ??
         getAssociatedTokenAddressSync(
             fetchByOwner!.mint,
@@ -612,14 +620,14 @@ async function getUnifiedAccountInterface(
         parsed: Account;
         isCold: boolean;
         loadContext?: MerkleContext;
-    }>[] = [];
+    } | null>[] = [];
     const fetchTypes: TokenAccountSource['type'][] = [];
     const fetchAddresses: PublicKey[] = [];
 
     // light-token hot
-    fetchPromises.push(_tryFetchCTokenHot(rpc, cTokenAta, commitment));
-    fetchTypes.push(TokenAccountSourceType.CTokenHot);
-    fetchAddresses.push(cTokenAta);
+    fetchPromises.push(_tryFetchLightTokenHot(rpc, lightTokenAta, commitment));
+    fetchTypes.push(TokenAccountSourceType.LightTokenHot);
+    fetchAddresses.push(lightTokenAta);
 
     // SPL / Token-2022 (only when wrap is enabled)
     if (wrap) {
@@ -661,10 +669,16 @@ async function getUnifiedAccountInterface(
           })
         : rpc.getCompressedTokenAccountsByOwner(address!);
 
-    const [hotResults, coldResult] = await Promise.all([
-        Promise.allSettled(fetchPromises),
-        coldAccountsPromise.catch(() => ({ items: [] })),
-    ]);
+    const hotResults = await Promise.allSettled(fetchPromises);
+    const ownerMismatchErrors: TokenInvalidAccountOwnerError[] = [];
+    const unexpectedErrors: unknown[] = [];
+
+    let coldResult: Awaited<typeof coldAccountsPromise> | null = null;
+    try {
+        coldResult = await coldAccountsPromise;
+    } catch (error) {
+        unexpectedErrors.push(error);
+    }
 
     // collect all successful hot results
     const sources: TokenAccountSource[] = [];
@@ -673,6 +687,9 @@ async function getUnifiedAccountInterface(
         const result = hotResults[i];
         if (result.status === 'fulfilled') {
             const value = result.value;
+            if (!value) {
+                continue;
+            }
             sources.push({
                 type: fetchTypes[i],
                 address: fetchAddresses[i],
@@ -681,39 +698,56 @@ async function getUnifiedAccountInterface(
                 loadContext: value.loadContext,
                 parsed: value.parsed,
             });
+        } else if (result.reason instanceof TokenInvalidAccountOwnerError) {
+            ownerMismatchErrors.push(result.reason);
+        } else {
+            unexpectedErrors.push(result.reason);
         }
     }
 
     // Add ALL cold light-token accounts (handles both V1 and V2)
-    for (const item of coldResult.items) {
-        const compressedAccount = item.compressedAccount;
-        if (
-            compressedAccount &&
-            compressedAccount.data &&
-            compressedAccount.data.data.length > 0 &&
-            compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
-        ) {
-            const parsed = parseCTokenCold(cTokenAta, compressedAccount);
-            sources.push({
-                type: TokenAccountSourceType.CTokenCold,
-                address: cTokenAta,
-                amount: parsed.parsed.amount,
-                accountInfo: parsed.accountInfo,
-                loadContext: parsed.loadContext,
-                parsed: parsed.parsed,
-            });
+    if (coldResult) {
+        for (const item of coldResult.items) {
+            const compressedAccount = item.compressedAccount;
+            if (
+                compressedAccount &&
+                compressedAccount.data &&
+                compressedAccount.data.data.length > 0 &&
+                compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
+            ) {
+                const parsed = parseLightTokenCold(
+                    lightTokenAta,
+                    compressedAccount,
+                );
+                sources.push({
+                    type: TokenAccountSourceType.LightTokenCold,
+                    address: lightTokenAta,
+                    amount: parsed.parsed.amount,
+                    accountInfo: parsed.accountInfo,
+                    loadContext: parsed.loadContext,
+                    parsed: parsed.parsed,
+                });
+            }
         }
     }
 
+    throwIfUnexpectedRpcErrors(
+        'Failed to fetch token account data from RPC',
+        unexpectedErrors,
+    );
+
     // account not found
     if (sources.length === 0) {
+        if (ownerMismatchErrors.length > 0) {
+            throw ownerMismatchErrors[0];
+        }
         throw new TokenAccountNotFoundError();
     }
 
     // priority order: light-token hot > light-token cold > SPL/T22
     const priority: TokenAccountSource['type'][] = [
-        TokenAccountSourceType.CTokenHot,
-        TokenAccountSourceType.CTokenCold,
+        TokenAccountSourceType.LightTokenHot,
+        TokenAccountSourceType.LightTokenCold,
         TokenAccountSourceType.Spl,
         TokenAccountSourceType.Token2022,
     ];
@@ -724,10 +758,11 @@ async function getUnifiedAccountInterface(
         return aIdx - bIdx;
     });
 
-    return buildAccountInterfaceFromSources(sources, cTokenAta);
+    return buildAccountInterfaceFromSources(sources, lightTokenAta);
 }
 
-async function getCTokenAccountInterface(
+/** @internal */
+async function getLightTokenAccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
     commitment: Commitment | undefined,
@@ -736,7 +771,7 @@ async function getCTokenAccountInterface(
     // Derive address if not provided
     if (!address) {
         if (!fetchByOwner) {
-            throw new Error('fetchByOwner is required');
+            throw new Error(ERR_FETCH_BY_OWNER_REQUIRED);
         }
         address = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
@@ -756,26 +791,38 @@ async function getCTokenAccountInterface(
               })
             : rpc.getCompressedTokenAccountsByOwner(address),
     ]);
+    const unexpectedErrors: unknown[] = [];
+    const ownerMismatchErrors: TokenInvalidAccountOwnerError[] = [];
 
     const onchainAccount =
         onchainResult.status === 'fulfilled' ? onchainResult.value : null;
+    if (onchainResult.status === 'rejected') {
+        unexpectedErrors.push(onchainResult.reason);
+    }
     const compressedAccounts =
         compressedResult.status === 'fulfilled'
             ? compressedResult.value.items.map(item => item.compressedAccount)
             : [];
+    if (compressedResult.status === 'rejected') {
+        unexpectedErrors.push(compressedResult.reason);
+    }
 
     const sources: TokenAccountSource[] = [];
 
     // Collect light-token associated token account (hot balance)
-    if (onchainAccount && onchainAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        const parsed = parseCTokenHot(address, onchainAccount);
-        sources.push({
-            type: TokenAccountSourceType.CTokenHot,
-            address,
-            amount: parsed.parsed.amount,
-            accountInfo: onchainAccount,
-            parsed: parsed.parsed,
-        });
+    if (onchainAccount) {
+        if (!onchainAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+            ownerMismatchErrors.push(new TokenInvalidAccountOwnerError());
+        } else {
+            const parsed = parseLightTokenHot(address, onchainAccount);
+            sources.push({
+                type: TokenAccountSourceType.LightTokenHot,
+                address,
+                amount: parsed.parsed.amount,
+                accountInfo: onchainAccount,
+                parsed: parsed.parsed,
+            });
+        }
     }
 
     // Collect compressed light-token accounts (cold balance)
@@ -786,9 +833,9 @@ async function getCTokenAccountInterface(
             compressedAccount.data.data.length > 0 &&
             compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
         ) {
-            const parsed = parseCTokenCold(address, compressedAccount);
+            const parsed = parseLightTokenCold(address, compressedAccount);
             sources.push({
-                type: TokenAccountSourceType.CTokenCold,
+                type: TokenAccountSourceType.LightTokenCold,
                 address,
                 amount: parsed.parsed.amount,
                 accountInfo: parsed.accountInfo,
@@ -798,20 +845,31 @@ async function getCTokenAccountInterface(
         }
     }
 
+    throwIfUnexpectedRpcErrors(
+        'Failed to fetch token account data from RPC',
+        unexpectedErrors,
+    );
+
     if (sources.length === 0) {
+        if (ownerMismatchErrors.length > 0) {
+            throw ownerMismatchErrors[0];
+        }
         throw new TokenAccountNotFoundError();
     }
 
     // Priority: hot > cold
     sources.sort((a, b) => {
-        if (a.type === 'ctoken-hot' && b.type === 'ctoken-cold') return -1;
-        if (a.type === 'ctoken-cold' && b.type === 'ctoken-hot') return 1;
+        if (a.type === 'light-token-hot' && b.type === 'light-token-cold')
+            return -1;
+        if (a.type === 'light-token-cold' && b.type === 'light-token-hot')
+            return 1;
         return 0;
     });
 
     return buildAccountInterfaceFromSources(sources, address);
 }
 
+/** @internal */
 async function getSplOrToken2022AccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -821,7 +879,7 @@ async function getSplOrToken2022AccountInterface(
 ): Promise<AccountInterface> {
     if (!address) {
         if (!fetchByOwner) {
-            throw new Error('fetchByOwner is required');
+            throw new Error(ERR_FETCH_BY_OWNER_REQUIRED);
         }
         address = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
@@ -845,39 +903,51 @@ async function getSplOrToken2022AccountInterface(
         : TokenAccountSourceType.Token2022Cold;
 
     // Fetch hot and cold in parallel (neither is required individually)
-    const hotPromise = rpc
-        .getAccountInfo(address, commitment)
-        .catch(() => null);
-    const coldPromise = fetchByOwner
-        ? rpc
-              .getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
+    const [hotResult, coldResult] = await Promise.allSettled([
+        rpc.getAccountInfo(address, commitment),
+        fetchByOwner
+            ? rpc.getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
                   mint: fetchByOwner.mint,
               })
-              .catch(() => ({ items: [] as any[] }))
-        : Promise.resolve({ items: [] as any[] });
-
-    const [hotInfo, coldResult] = await Promise.all([hotPromise, coldPromise]);
+            : Promise.resolve({ items: [] as any[] }),
+    ]);
 
     const sources: TokenAccountSource[] = [];
+    const unexpectedErrors: unknown[] = [];
+    const ownerMismatchErrors: TokenInvalidAccountOwnerError[] = [];
+
+    const hotInfo = hotResult.status === 'fulfilled' ? hotResult.value : null;
+    if (hotResult.status === 'rejected')
+        unexpectedErrors.push(hotResult.reason);
+    const coldAccounts =
+        coldResult.status === 'fulfilled'
+            ? coldResult.value
+            : ({ items: [] as any[] } as const);
+    if (coldResult.status === 'rejected')
+        unexpectedErrors.push(coldResult.reason);
 
     // Hot SPL/T22 account (may not exist)
     if (hotInfo) {
-        try {
-            const account = unpackAccountSPL(address, hotInfo, programId);
-            sources.push({
-                type: hotType,
-                address,
-                amount: account.amount,
-                accountInfo: hotInfo,
-                parsed: account,
-            });
-        } catch {
-            // Not a valid SPL/T22 account at this address, skip
+        if (!hotInfo.owner.equals(programId)) {
+            ownerMismatchErrors.push(new TokenInvalidAccountOwnerError());
+        } else {
+            try {
+                const account = unpackAccountSPL(address, hotInfo, programId);
+                sources.push({
+                    type: hotType,
+                    address,
+                    amount: account.amount,
+                    accountInfo: hotInfo,
+                    parsed: account,
+                });
+            } catch (error) {
+                unexpectedErrors.push(error);
+            }
         }
     }
 
     // Cold (compressed) accounts
-    for (const item of coldResult.items) {
+    for (const item of coldAccounts.items) {
         const compressedAccount = item.compressedAccount;
         if (
             compressedAccount &&
@@ -885,7 +955,7 @@ async function getSplOrToken2022AccountInterface(
             compressedAccount.data.data.length > 0 &&
             compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
         ) {
-            const parsedCold = parseCTokenCold(address, compressedAccount);
+            const parsedCold = parseLightTokenCold(address, compressedAccount);
             sources.push({
                 type: coldType,
                 address,
@@ -897,14 +967,23 @@ async function getSplOrToken2022AccountInterface(
         }
     }
 
+    throwIfUnexpectedRpcErrors(
+        'Failed to fetch token account data from RPC',
+        unexpectedErrors,
+    );
+
     if (sources.length === 0) {
+        if (ownerMismatchErrors.length > 0) {
+            throw ownerMismatchErrors[0];
+        }
         throw new TokenAccountNotFoundError();
     }
 
     return buildAccountInterfaceFromSources(sources, address);
 }
 
-function buildAccountInterfaceFromSources(
+/** @internal */
+export function buildAccountInterfaceFromSources(
     sources: TokenAccountSource[],
     canonicalAddress: PublicKey,
 ): AccountInterface {
@@ -917,28 +996,160 @@ function buildAccountInterfaceFromSources(
 
     const hasDelegate = sources.some(src => src.parsed.delegate !== null);
     const anyFrozen = sources.some(src => src.parsed.isFrozen);
+    const hasColdSource = sources.some(src => isColdSourceType(src.type));
     const needsConsolidation = sources.length > 1;
+    const delegatedContribution = (src: TokenAccountSource): bigint => {
+        const delegated = src.parsed.delegatedAmount ?? src.amount;
+        return src.amount < delegated ? src.amount : delegated;
+    };
+
+    const sumForDelegate = (
+        candidate: PublicKey,
+        scope: (src: TokenAccountSource) => boolean,
+    ): bigint =>
+        sources.reduce((sum, src) => {
+            if (!scope(src)) return sum;
+            const delegate = src.parsed.delegate;
+            if (!delegate || !delegate.equals(candidate)) return sum;
+            return sum + delegatedContribution(src);
+        }, BigInt(0));
+
+    const hotDelegatedSource = sources.find(
+        src => !isColdSourceType(src.type) && src.parsed.delegate !== null,
+    );
+    const coldDelegatedSources = sources.filter(
+        src => isColdSourceType(src.type) && src.parsed.delegate !== null,
+    );
+
+    let canonicalDelegate: PublicKey | null = null;
+    let canonicalDelegatedAmount = BigInt(0);
+
+    if (hotDelegatedSource?.parsed.delegate) {
+        // If any hot source is delegated, it always determines canonical delegate.
+        // Cold delegates only contribute when they match this hot delegate.
+        canonicalDelegate = hotDelegatedSource.parsed.delegate;
+        canonicalDelegatedAmount = sumForDelegate(
+            canonicalDelegate,
+            () => true,
+        );
+    } else if (coldDelegatedSources.length > 0) {
+        // No hot delegate: canonical delegate is taken from the most recent
+        // delegated cold source in source order (source[0] is most recent).
+        canonicalDelegate = coldDelegatedSources[0].parsed.delegate!;
+        canonicalDelegatedAmount = sumForDelegate(canonicalDelegate, src =>
+            isColdSourceType(src.type),
+        );
+    }
 
     const unifiedAccount: Account = {
         ...primarySource.parsed,
         address: canonicalAddress,
         amount: totalAmount,
+        // Synthetic ATA view models post-load state; any cold source implies initialized.
+        isInitialized: primarySource.parsed.isInitialized || hasColdSource,
+        delegate: canonicalDelegate,
+        delegatedAmount: canonicalDelegatedAmount,
+        ...(anyFrozen ? { state: AccountState.Frozen, isFrozen: true } : {}),
     };
-
-    const coldTypes: TokenAccountSource['type'][] = [
-        'ctoken-cold',
-        'spl-cold',
-        'token2022-cold',
-    ];
 
     return {
         accountInfo: primarySource.accountInfo!,
         parsed: unifiedAccount,
-        isCold: coldTypes.includes(primarySource.type),
+        isCold: isColdSourceType(primarySource.type),
         loadContext: primarySource.loadContext,
         _sources: sources,
         _needsConsolidation: needsConsolidation,
         _hasDelegate: hasDelegate,
         _anyFrozen: anyFrozen,
+    };
+}
+
+/**
+ * Spendable amount for a given authority (owner or delegate).
+ * - If authority equals the ATA owner: full parsed.amount.
+ * - If authority is the canonical delegate: parsed.delegatedAmount (bounded by parsed.amount).
+ * - Otherwise: 0.
+ * @internal
+ */
+export function spendableAmountForAuthority(
+    iface: AccountInterface,
+    authority: PublicKey,
+): bigint {
+    const owner = iface._owner;
+    if (owner && authority.equals(owner)) {
+        return iface.parsed.amount;
+    }
+    const delegate = iface.parsed.delegate;
+    if (delegate && authority.equals(delegate)) {
+        const delegated = iface.parsed.delegatedAmount ?? BigInt(0);
+        return delegated < iface.parsed.amount
+            ? delegated
+            : iface.parsed.amount;
+    }
+    return BigInt(0);
+}
+
+/**
+ * Whether the given authority can sign for this ATA (owner or canonical delegate).
+ * @internal
+ */
+export function isAuthorityForInterface(
+    iface: AccountInterface,
+    authority: PublicKey,
+): boolean {
+    const owner = iface._owner;
+    if (owner && authority.equals(owner)) return true;
+    const delegate = iface.parsed.delegate;
+    return delegate !== null && authority.equals(delegate);
+}
+
+/**
+ * @internal
+ * Canonical authority projection for owner/delegate checks.
+ */
+export function filterInterfaceForAuthority(
+    iface: AccountInterface,
+    authority: PublicKey,
+): AccountInterface {
+    const owner = iface._owner;
+    if (owner && authority.equals(owner)) {
+        return iface;
+    }
+    const spendable = spendableAmountForAuthority(iface, authority);
+    const canonicalDelegate = iface.parsed.delegate;
+    if (
+        spendable === BigInt(0) ||
+        canonicalDelegate === null ||
+        !authority.equals(canonicalDelegate)
+    ) {
+        return {
+            ...iface,
+            _sources: [],
+            _needsConsolidation: false,
+            parsed: { ...iface.parsed, amount: BigInt(0) },
+        };
+    }
+    const sources = iface._sources ?? [];
+    const filtered = sources.filter(
+        src =>
+            src.parsed.delegate !== null &&
+            src.parsed.delegate.equals(canonicalDelegate),
+    );
+    const primary = filtered[0];
+    return {
+        ...iface,
+        ...(primary
+            ? {
+                  accountInfo: primary.accountInfo!,
+                  isCold: isColdSourceType(primary.type),
+                  loadContext: primary.loadContext,
+              }
+            : {}),
+        _sources: filtered,
+        _needsConsolidation: filtered.length > 1,
+        parsed: {
+            ...iface.parsed,
+            amount: spendable,
+        },
     };
 }

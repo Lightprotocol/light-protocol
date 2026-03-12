@@ -43,6 +43,7 @@ import {
 import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 import { getAtaProgramId } from '../ata-utils';
 import { InterfaceOptions } from '..';
+import { getMintInterface } from '../get-mint-interface';
 
 /**
  * Get associated token account with unified balance
@@ -120,11 +121,13 @@ export async function createLoadAtaInstructions(
     payer?: PublicKey,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
     return _createLoadAtaInstructions(
         rpc,
         ata,
         owner,
         mint,
+        mintInterface.mint.decimals,
         payer,
         options,
         true,
@@ -155,6 +158,7 @@ export async function loadAta(
     payer?: Signer,
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
+    decimals?: number,
 ) {
     payer ??= owner;
 
@@ -167,6 +171,7 @@ export async function loadAta(
         confirmOptions,
         interfaceOptions,
         true,
+        decimals,
     );
 
     // If nothing to load, ensure ATA exists (idempotent).
@@ -207,7 +212,7 @@ export async function loadAta(
  * @param payer           Fee payer (signer)
  * @param source          Source light-token associated token account address
  * @param mint            Mint address
- * @param destination     Destination light-token associated token account address (must exist)
+ * @param destination     Destination token account address (must exist; derive via getAssociatedTokenAddressInterface)
  * @param owner           Source owner (signer)
  * @param amount          Amount to transfer
  * @param confirmOptions  Optional confirm options
@@ -224,6 +229,7 @@ export async function transferInterface(
     amount: number | bigint | BN,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
+    decimals?: number,
 ) {
     return _transferInterface(
         rpc,
@@ -237,6 +243,7 @@ export async function transferInterface(
         confirmOptions,
         options,
         true, // wrap=true for unified
+        decimals,
     );
 }
 
@@ -307,16 +314,18 @@ export async function createTransferInterfaceInstructions(
     mint: PublicKey,
     amount: number | bigint | BN,
     sender: PublicKey,
-    recipient: PublicKey,
+    destination: PublicKey,
     options?: Omit<_TransferOptions, 'wrap'>,
 ): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
     return _createTransferInterfaceInstructions(
         rpc,
         payer,
         mint,
         amount,
         sender,
-        recipient,
+        destination,
+        mintInterface.mint.decimals,
         {
             ...options,
             wrap: true,
@@ -327,11 +336,12 @@ export async function createTransferInterfaceInstructions(
 /**
  * Build instruction batches for unwrapping light-tokens to SPL/T22.
  *
- * Unified variant: uses wrap=true for loading, so SPL/T22 balances are
- * consolidated before unwrapping.
+ * Load batches (cold -> hot) come first if needed; unwrap is bundled into the
+ * final batch.
+ * SPL/T22 balances are not consolidated; only light ATA (hot + cold) is unwrapped.
  *
- * Returns `TransactionInstruction[][]`. Load batches (if any) come first,
- * followed by one final unwrap transaction.
+ * Returns `TransactionInstruction[][]`. Load-only batches (if any) come first;
+ * the last batch contains unwrap.
  *
  * @param rpc               RPC connection
  * @param destination       Destination SPL/T22 token account (must exist)
@@ -353,25 +363,27 @@ export async function createUnwrapInstructions(
     splInterfaceInfo?: SplInterfaceInfo,
     interfaceOptions?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
     return _createUnwrapInstructions(
         rpc,
         destination,
         owner,
         mint,
+        mintInterface.mint.decimals,
         amount,
         payer,
         splInterfaceInfo,
         undefined, // maxTopUp - use default
         interfaceOptions,
-        true, // wrap=true for unified
+        false, // always no wrap on unwrap.
     );
 }
 
 /**
  * Unwrap light-tokens to SPL tokens.
  *
- * Unified variant: loads all cold + SPL/T22 balances to light-token associated token account first,
- * then unwraps to the destination SPL/T22 account.
+ * Loads cold into hot if needed, then unwraps from light ATA to destination SPL/T22.
+ * SPL/T22 balances are not consolidated; only light ATA balance is unwrapped.
  *
  * @param rpc                RPC connection
  * @param payer              Fee payer
@@ -392,6 +404,7 @@ export async function unwrap(
     amount?: number | bigint | BN,
     splInterfaceInfo?: SplInterfaceInfo,
     confirmOptions?: ConfirmOptions,
+    decimals?: number,
 ): Promise<string> {
     return _unwrap(
         rpc,
@@ -403,6 +416,8 @@ export async function unwrap(
         splInterfaceInfo,
         undefined, // maxTopUp - use default
         confirmOptions,
+        decimals,
+        false, // always no wrap on unwrap.
     );
 }
 
@@ -415,22 +430,11 @@ export {
     // Note: Account is already exported from @solana/spl-token via get-account-interface
     AccountState,
     ParsedTokenAccount,
-    parseCTokenHot,
-    parseCTokenCold,
+    parseLightTokenHot,
+    parseLightTokenCold,
     toAccountInfo,
     convertTokenDataToAccount,
 } from '../get-account-interface';
-
-export {
-    createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
-    calculateCompressibleLoadComputeUnits,
-    CompressibleAccountInput,
-    ParsedAccountInfoInterface,
-    CompressibleLoadParams,
-    PackedCompressedAccount,
-    LoadResult,
-} from '../actions/load-ata';
 
 export { InterfaceOptions, sliceLast } from '../actions/transfer-interface';
 
@@ -447,8 +451,8 @@ export {
     // Instructions
     createMintInstruction,
     createTokenMetadata,
-    createAssociatedCTokenAccountInstruction,
-    createAssociatedCTokenAccountIdempotentInstruction,
+    createAssociatedLightTokenAccountInstruction,
+    createAssociatedLightTokenAccountIdempotentInstruction,
     createAssociatedTokenAccountInterfaceInstruction,
     createAssociatedTokenAccountInterfaceIdempotentInstruction,
     createAtaInterfaceIdempotentInstruction,
@@ -462,13 +466,15 @@ export {
     createRemoveMetadataKeyInstruction,
     createWrapInstruction,
     createUnwrapInstruction,
-    createDecompressInterfaceInstruction,
     createLightTokenTransferInstruction,
+    createLightTokenTransferCheckedInstruction,
+    createLightTokenFreezeAccountInstruction,
+    createLightTokenThawAccountInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
-    CTokenConfig,
-    CreateAssociatedCTokenAccountParams,
+    LightTokenConfig,
+    CreateAssociatedLightTokenAccountParams,
     // Constants for rent sponsor
     DEFAULT_COMPRESSIBLE_CONFIG,
     // Actions
@@ -476,10 +482,9 @@ export {
     createAtaInterface,
     createAtaInterfaceIdempotent,
     // getOrCreateAtaInterface is defined locally with unified behavior
-    decompressInterface,
     wrap,
     // unwrap and createUnwrapInstructions are defined locally with unified behavior
-    mintTo as mintToCToken,
+    mintTo as mintToLightToken,
     mintToCompressed,
     mintToInterface,
     updateMintAuthority,

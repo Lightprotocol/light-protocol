@@ -11,6 +11,7 @@ import { PublicKey } from '@solana/web3.js';
  * Get associated token account program ID for a token program ID
  * @param tokenProgramId    Token program ID
  * @returns associated token account program ID
+ * @internal
  */
 export function getAtaProgramId(tokenProgramId: PublicKey): PublicKey {
     if (tokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
@@ -20,7 +21,7 @@ export function getAtaProgramId(tokenProgramId: PublicKey): PublicKey {
 }
 
 /** associated token account type for validation result */
-export type AtaType = 'spl' | 'token2022' | 'ctoken';
+export type AtaType = 'spl' | 'token2022' | 'light-token';
 
 /** Result of associated token account validation */
 export interface AtaValidationResult {
@@ -40,6 +41,7 @@ export interface AtaValidationResult {
  * @param programId          Optional: if known, only check this program's associated token account
  * @param allowOwnerOffCurve Allow the owner to be off-curve (PDA)
  * @returns                  Result with detected type, or throws on mismatch
+ * @internal
  */
 export function checkAtaAddress(
     ata: PublicKey,
@@ -70,22 +72,22 @@ export function checkAtaAddress(
         );
     }
 
-    let ctokenExpected: PublicKey;
+    let lightTokenExpected: PublicKey;
     let splExpected: PublicKey;
     let t22Expected: PublicKey;
 
     // light-token
-    ctokenExpected = getAssociatedTokenAddressSync(
+    lightTokenExpected = getAssociatedTokenAddressSync(
         mint,
         owner,
         allowOwnerOffCurve,
         LIGHT_TOKEN_PROGRAM_ID,
         getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
     );
-    if (ata.equals(ctokenExpected)) {
+    if (ata.equals(lightTokenExpected)) {
         return {
             valid: true,
-            type: 'ctoken',
+            type: 'light-token',
             programId: LIGHT_TOKEN_PROGRAM_ID,
         };
     }
@@ -122,7 +124,7 @@ export function checkAtaAddress(
     throw new Error(
         `ATA address does not match any valid derivation from mint+owner. ` +
             `Got: ${ata.toBase58()}, expected one of: ` +
-            `light-token=${ctokenExpected.toBase58()}, ` +
+            `light-token=${lightTokenExpected.toBase58()}, ` +
             `SPL=${splExpected.toBase58()}, ` +
             `T22=${t22Expected.toBase58()}`,
     );
@@ -130,9 +132,10 @@ export function checkAtaAddress(
 
 /**
  * Convert programId to AtaType
+ * @internal
  */
 function programIdToAtaType(programId: PublicKey): AtaType {
-    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) return 'ctoken';
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) return 'light-token';
     if (programId.equals(TOKEN_PROGRAM_ID)) return 'spl';
     if (programId.equals(TOKEN_2022_PROGRAM_ID)) return 'token2022';
     throw new Error(`Unknown program ID: ${programId.toBase58()}`);

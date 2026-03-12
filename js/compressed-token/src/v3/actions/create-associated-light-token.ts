@@ -11,11 +11,11 @@ import {
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import {
-    createAssociatedCTokenAccountInstruction,
-    createAssociatedCTokenAccountIdempotentInstruction,
+    createAssociatedLightTokenAccountInstruction,
+    createAssociatedLightTokenAccountIdempotentInstruction,
     CompressibleConfig,
-} from '../instructions/create-associated-ctoken';
-import { getAssociatedCTokenAddress } from '../derivation';
+} from '../instructions/create-associated-light-token';
+import { getAssociatedLightTokenAddress } from '../derivation';
 
 /**
  * Create an associated light-token account.
@@ -29,8 +29,9 @@ import { getAssociatedCTokenAddress } from '../derivation';
  * @param rentPayerPda       Optional rent payer PDA
  * @param confirmOptions     Optional confirm options
  * @returns Address of the new associated token account
+ * @internal
  */
-export async function createAssociatedCTokenAccount(
+export async function createAssociatedLightTokenAccount(
     rpc: Rpc,
     payer: Signer,
     owner: PublicKey,
@@ -42,7 +43,7 @@ export async function createAssociatedCTokenAccount(
 ): Promise<PublicKey> {
     assertBetaEnabled();
 
-    const ix = createAssociatedCTokenAccountInstruction(
+    const ix = createAssociatedLightTokenAccountInstruction(
         payer.publicKey,
         owner,
         mint,
@@ -61,7 +62,7 @@ export async function createAssociatedCTokenAccount(
 
     await sendAndConfirmTx(rpc, tx, confirmOptions);
 
-    return getAssociatedCTokenAddress(owner, mint);
+    return getAssociatedLightTokenAddress(owner, mint);
 }
 
 /**
@@ -76,8 +77,9 @@ export async function createAssociatedCTokenAccount(
  * @param rentPayerPda       Optional rent payer PDA
  * @param confirmOptions     Optional confirm options
  * @returns Address of the associated token account
+ * @internal
  */
-export async function createAssociatedCTokenAccountIdempotent(
+export async function createAssociatedLightTokenAccountIdempotent(
     rpc: Rpc,
     payer: Signer,
     owner: PublicKey,
@@ -89,7 +91,7 @@ export async function createAssociatedCTokenAccountIdempotent(
 ): Promise<PublicKey> {
     assertBetaEnabled();
 
-    const ix = createAssociatedCTokenAccountIdempotentInstruction(
+    const ix = createAssociatedLightTokenAccountIdempotentInstruction(
         payer.publicKey,
         owner,
         mint,
@@ -108,5 +110,5 @@ export async function createAssociatedCTokenAccountIdempotent(
 
     await sendAndConfirmTx(rpc, tx, confirmOptions);
 
-    return getAssociatedCTokenAddress(owner, mint);
+    return getAssociatedLightTokenAddress(owner, mint);
 }

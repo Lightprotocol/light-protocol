@@ -38,13 +38,13 @@ import {
  *
  * @example
  * const splAta = getAssociatedTokenAddressSync(mint, owner.publicKey, false, TOKEN_PROGRAM_ID);
- * const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey); // defaults to light-token
+ * const lightTokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey); // defaults to light-token
  *
  * await wrap(
  *   rpc,
  *   payer,
  *   splAta,
- *   ctokenAta,
+ *   lightTokenAta,
  *   owner,
  *   mint,
  *   1000n,

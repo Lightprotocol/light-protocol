@@ -1,11 +1,10 @@
 import { MINT_SIZE, MintLayout } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { struct, u8, u32 } from '@solana/buffer-layout';
+import { struct, u8 } from '@solana/buffer-layout';
 import { publicKey } from '@solana/buffer-layout-utils';
 import {
     struct as borshStruct,
-    option,
     vec,
     vecU8,
     publicKey as borshPublicKey,
@@ -182,6 +181,7 @@ export const COMPRESSION_INFO_SIZE = 96; // 2 + 1 + 1 + 4 + 32 + 32 + 8 + 4 + 4 
 /**
  * Calculate the byte length of a TokenMetadata extension from buffer.
  * Format: updateAuthority (32) + mint (32) + name (4+len) + symbol (4+len) + uri (4+len) + additional (4 + items)
+ * @internal
  */
 function getTokenMetadataByteLength(
     buffer: Buffer,
@@ -222,6 +222,7 @@ function getTokenMetadataByteLength(
 /**
  * Get the byte length of an extension based on its type.
  * Returns the length of the extension data (excluding the 1-byte discriminant).
+ * @internal
  */
 function getExtensionByteLength(
     extensionType: number,
@@ -241,6 +242,7 @@ function getExtensionByteLength(
 /**
  * Deserialize CompressionInfo from buffer at given offset
  * @returns Tuple of [CompressionInfo, bytesRead]
+ * @internal
  */
 function deserializeCompressionInfo(
     buffer: Buffer,
@@ -340,7 +342,7 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
     const bump = buffer.readUInt8(offset);
     offset += BUMP_SIZE;
 
-    // 3. Read reserved bytes (49 bytes) for T22 compatibility
+    // 3. Read reserved bytes (16 bytes) for T22 compatibility
     const reserved = buffer.slice(offset, offset + RESERVED_SIZE);
     offset += RESERVED_SIZE;
 
@@ -348,7 +350,7 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
     const accountType = buffer.readUInt8(offset);
     offset += ACCOUNT_TYPE_SIZE;
 
-    // 5. Read CompressionInfo (88 bytes)
+    // 5. Read CompressionInfo (96 bytes)
     const [compression, compressionBytesRead] = deserializeCompressionInfo(
         buffer,
         offset,
@@ -421,6 +423,7 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
 
 /**
  * Serialize CompressionInfo to buffer
+ * @internal
  */
 function serializeCompressionInfo(compression: CompressionInfo): Buffer {
     const buffer = Buffer.alloc(COMPRESSION_INFO_SIZE);
@@ -510,7 +513,7 @@ export function serializeMint(mint: CompressedMint): Buffer {
     buffers.push(Buffer.from(mint.mintContext.mintSigner));
     buffers.push(Buffer.from([mint.mintContext.bump]));
 
-    // 3. Encode reserved bytes (49 bytes) - default to zeros
+    // 3. Encode reserved bytes (16 bytes) - default to zeros
     const reserved = mint.reserved ?? new Uint8Array(RESERVED_SIZE);
     buffers.push(Buffer.from(reserved));
 
@@ -518,7 +521,7 @@ export function serializeMint(mint: CompressedMint): Buffer {
     const accountType = mint.accountType ?? ACCOUNT_TYPE_MINT;
     buffers.push(Buffer.from([accountType]));
 
-    // 5. Encode CompressionInfo (88 bytes) - default to zeros
+    // 5. Encode CompressionInfo (96 bytes) - default to zeros
     if (mint.compression) {
         buffers.push(serializeCompressionInfo(mint.compression));
     } else {
@@ -707,6 +710,7 @@ export interface MintInstructionDataWithMetadata extends MintInstructionData {
  *
  * @param compressedMint - Deserialized light mint from account data
  * @returns Flattened MintInstructionData for instruction encoding
+ * @internal
  */
 export function toMintInstructionData(
     compressedMint: CompressedMint,
@@ -745,6 +749,7 @@ export function toMintInstructionData(
  * @param compressedMint - Deserialized light mint from account data
  * @returns MintInstructionDataWithMetadata for metadata update instructions
  * @throws Error if metadata extension is not present
+ * @internal
  */
 export function toMintInstructionDataWithMetadata(
     compressedMint: CompressedMint,

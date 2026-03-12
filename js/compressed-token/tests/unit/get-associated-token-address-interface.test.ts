@@ -128,8 +128,8 @@ describe('getAssociatedTokenAddressInterface', () => {
     });
 
     describe('different programIds produce different ATAs', () => {
-        it('should produce different ATAs for CTOKEN vs TOKEN_PROGRAM_ID', () => {
-            const ctokenAta = getAssociatedTokenAddressInterface(
+        it('should produce different ATAs for LIGHT_TOKEN vs TOKEN_PROGRAM_ID', () => {
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner,
                 false,
@@ -142,7 +142,7 @@ describe('getAssociatedTokenAddressInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            expect(ctokenAta.toBase58()).not.toBe(splAta.toBase58());
+            expect(lightTokenAta.toBase58()).not.toBe(splAta.toBase58());
         });
 
         it('should produce different ATAs for TOKEN_PROGRAM_ID vs TOKEN_2022_PROGRAM_ID', () => {

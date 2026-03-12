@@ -19,6 +19,7 @@ import {
     createUpdateFreezeAuthorityInstruction,
 } from '../instructions/update-mint';
 import { getMintInterface } from '../get-mint-interface';
+import { ERR_MINT_MISSING_MERKLE_CONTEXT } from '../errors';
 
 /**
  * Update the mint authority of a light-token mint.
@@ -49,10 +50,11 @@ export async function updateMintAuthority(
     );
 
     if (!mintInterface.merkleContext) {
-        throw new Error('Mint does not have MerkleContext');
+        throw new Error(ERR_MINT_MISSING_MERKLE_CONTEXT);
     }
 
     // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
+    const merkleContext = mintInterface.merkleContext;
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
     const validityProof = isDecompressed
@@ -60,10 +62,10 @@ export async function updateMintAuthority(
         : await rpc.getValidityProofV2(
               [
                   {
-                      hash: bn(mintInterface.merkleContext.hash),
-                      leafIndex: mintInterface.merkleContext.leafIndex,
-                      treeInfo: mintInterface.merkleContext.treeInfo,
-                      proveByIndex: mintInterface.merkleContext.proveByIndex,
+                      hash: bn(merkleContext.hash),
+                      leafIndex: merkleContext.leafIndex,
+                      treeInfo: merkleContext.treeInfo,
+                      proveByIndex: merkleContext.proveByIndex,
                   },
               ],
               [],
@@ -124,10 +126,11 @@ export async function updateFreezeAuthority(
     );
 
     if (!mintInterface.merkleContext) {
-        throw new Error('Mint does not have MerkleContext');
+        throw new Error(ERR_MINT_MISSING_MERKLE_CONTEXT);
     }
 
     // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
+    const merkleContext = mintInterface.merkleContext;
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
     const validityProof = isDecompressed
@@ -135,10 +138,10 @@ export async function updateFreezeAuthority(
         : await rpc.getValidityProofV2(
               [
                   {
-                      hash: bn(mintInterface.merkleContext.hash),
-                      leafIndex: mintInterface.merkleContext.leafIndex,
-                      treeInfo: mintInterface.merkleContext.treeInfo,
-                      proveByIndex: mintInterface.merkleContext.proveByIndex,
+                      hash: bn(merkleContext.hash),
+                      leafIndex: merkleContext.leafIndex,
+                      treeInfo: merkleContext.treeInfo,
+                      proveByIndex: merkleContext.proveByIndex,
                   },
               ],
               [],

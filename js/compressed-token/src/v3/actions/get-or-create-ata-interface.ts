@@ -87,7 +87,7 @@ export async function getOrCreateAtaInterface(
     );
 }
 
-/** Helper to check if owner is a Signer (has both publicKey and secretKey) */
+/** @internal */
 function isSigner(owner: PublicKey | Signer): owner is Signer {
     // Check for both publicKey and secretKey properties
     // A proper Signer (like Keypair) has secretKey as Uint8Array
@@ -101,7 +101,7 @@ function isSigner(owner: PublicKey | Signer): owner is Signer {
     );
 }
 
-/** Helper to get PublicKey from owner (which may be Signer or PublicKey) */
+/** @internal */
 function getOwnerPublicKey(owner: PublicKey | Signer): PublicKey {
     return isSigner(owner) ? owner.publicKey : owner;
 }
@@ -134,7 +134,7 @@ export async function _getOrCreateAtaInterface(
     // For light-token, use getAtaInterface which properly aggregates hot+cold balances
     // When wrap=true (unified path), also includes SPL/T22 balances
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        return getOrCreateCTokenAta(
+        return getOrCreateLightTokenAta(
             rpc,
             payer,
             mint,
@@ -174,7 +174,7 @@ export async function _getOrCreateAtaInterface(
  *
  * @internal
  */
-async function getOrCreateCTokenAta(
+async function getOrCreateLightTokenAta(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
@@ -208,7 +208,7 @@ async function getOrCreateCTokenAta(
         // Check if we have a hot account
         hasHotAccount =
             accountInterface._sources?.some(
-                s => s.type === TokenAccountSourceType.CTokenHot,
+                s => s.type === TokenAccountSourceType.LightTokenHot,
             ) ?? false;
     } catch (error: unknown) {
         if (
@@ -216,7 +216,7 @@ async function getOrCreateCTokenAta(
             error instanceof TokenInvalidAccountOwnerError
         ) {
             // No account found (neither hot nor cold), create hot associated token account
-            await createCTokenAtaIdempotent(
+            await createLightTokenAtaIdempotent(
                 rpc,
                 payer,
                 mint,
@@ -244,7 +244,7 @@ async function getOrCreateCTokenAta(
 
     // If we only have cold balance (no hot associated token account), create the hot associated token account first
     if (!hasHotAccount) {
-        await createCTokenAtaIdempotent(
+        await createLightTokenAtaIdempotent(
             rpc,
             payer,
             mint,
@@ -254,15 +254,17 @@ async function getOrCreateCTokenAta(
         );
     }
 
-    // Only auto-load if owner is a Signer (we can sign the load transaction)
-    // Use direct type guard in the if condition for proper type narrowing
-    if (isSigner(owner)) {
-        // Check if we need to load tokens into the hot associated token account
-        // Load if: cold balance exists, or (wrap=true and SPL/T22 balance exists)
+    const ownerSigner: Signer | null = isSigner(owner)
+        ? owner
+        : payer.publicKey.equals(ownerPubkey)
+          ? payer
+          : null;
+
+    if (ownerSigner) {
         const sources = accountInterface._sources ?? [];
         const hasCold = sources.some(
             s =>
-                s.type === TokenAccountSourceType.CTokenCold &&
+                s.type === TokenAccountSourceType.LightTokenCold &&
                 s.amount > BigInt(0),
         );
         const hasSplToWrap =
@@ -275,22 +277,19 @@ async function getOrCreateCTokenAta(
             );
 
         if (hasCold || hasSplToWrap) {
-            // Verify owner is a valid Signer before loading
             if (
-                !(owner.secretKey instanceof Uint8Array) ||
-                owner.secretKey.length === 0
+                !(ownerSigner.secretKey instanceof Uint8Array) ||
+                ownerSigner.secretKey.length === 0
             ) {
                 throw new Error(
                     'Owner must be a valid Signer with secretKey to auto-load',
                 );
             }
 
-            // Load all tokens into hot associated token account (decompress cold, wrap SPL/T22 if
-            // wrap=true)
             await loadAta(
                 rpc,
                 associatedToken,
-                owner, // TypeScript now knows owner is Signer
+                ownerSigner,
                 mint,
                 payer,
                 confirmOptions,
@@ -324,7 +323,7 @@ async function getOrCreateCTokenAta(
  * Create light-token associated token account idempotently.
  * @internal
  */
-async function createCTokenAtaIdempotent(
+async function createLightTokenAtaIdempotent(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
@@ -332,27 +331,23 @@ async function createCTokenAtaIdempotent(
     associatedToken: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<void> {
-    try {
-        const ix = createAssociatedTokenAccountInterfaceIdempotentInstruction(
-            payer.publicKey,
-            associatedToken,
-            owner,
-            mint,
-            LIGHT_TOKEN_PROGRAM_ID,
-        );
+    const ix = createAssociatedTokenAccountInterfaceIdempotentInstruction(
+        payer.publicKey,
+        associatedToken,
+        owner,
+        mint,
+        LIGHT_TOKEN_PROGRAM_ID,
+    );
 
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const tx = buildAndSignTx(
-            [ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), ix],
-            payer,
-            blockhash,
-            [],
-        );
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), ix],
+        payer,
+        blockhash,
+        [],
+    );
 
-        await sendAndConfirmTx(rpc, tx, confirmOptions);
-    } catch {
-        // Ignore errors - associated token account may already exist
-    }
+    await sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
 /**
@@ -406,10 +401,18 @@ async function getOrCreateSplAta(
                     [payer],
                     confirmOptions,
                 );
-            } catch {
-                // Ignore all errors; for now there is no API-compatible way to
-                // selectively ignore the expected instruction error if the
-                // associated account exists already.
+            } catch (createError) {
+                // Accept race-condition "already exists" only if account can now be fetched.
+                try {
+                    await getAccountInterface(
+                        rpc,
+                        associatedToken,
+                        commitment,
+                        programId,
+                    );
+                } catch {
+                    throw createError;
+                }
             }
 
             // Now this should always succeed
