@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs::{self, File},
     path::Path,
 };
@@ -10,7 +10,8 @@ use serde_json::json;
 use solana_client::{rpc_client::RpcClient, rpc_config::RpcBlockConfig};
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_transaction_status::{
-    EncodedTransaction, EncodedTransactionWithStatusMeta, TransactionDetails, UiTransactionEncoding,
+    EncodedConfirmedTransactionWithStatusMeta, EncodedTransaction,
+    EncodedTransactionWithStatusMeta, TransactionDetails, UiTransactionEncoding,
 };
 
 #[derive(Debug, Parser)]
@@ -62,7 +63,10 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
     }
 
     let output_folder = Path::new(&opt.output_folder);
+    let blocks_dir = output_folder.join("blocks");
     let transactions_dir = output_folder.join("transactions");
+    fs::create_dir_all(&blocks_dir)
+        .with_context(|| format!("failed to create {}", blocks_dir.display()))?;
     fs::create_dir_all(&transactions_dir)
         .with_context(|| format!("failed to create {}", transactions_dir.display()))?;
 
@@ -71,7 +75,9 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
         .context("failed to fetch confirmed blocks")?;
 
     let mut slot_signatures = BTreeMap::<u64, Vec<String>>::new();
+    let mut duplicate_signatures = BTreeMap::<String, Vec<u64>>::new();
     let mut failed_signatures = Vec::<String>::new();
+    let mut written_transactions = BTreeSet::<String>::new();
     let mut transactions_dumped = 0usize;
     let blocks_scanned = slots.len();
 
@@ -80,7 +86,7 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
             .get_block_with_config(
                 slot,
                 RpcBlockConfig {
-                    encoding: Some(UiTransactionEncoding::Json),
+                    encoding: Some(UiTransactionEncoding::Base64),
                     transaction_details: Some(TransactionDetails::Full),
                     rewards: Some(false),
                     commitment: Some(CommitmentConfig::confirmed()),
@@ -89,7 +95,13 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
             )
             .with_context(|| format!("failed to fetch block {}", slot))?;
 
-        let Some(transactions) = block.transactions else {
+        let block_path = blocks_dir.join(slot.to_string());
+        let block_file = File::create(&block_path)
+            .with_context(|| format!("failed to create {}", block_path.display()))?;
+        serde_json::to_writer_pretty(block_file, &block)
+            .with_context(|| format!("failed to write {}", block_path.display()))?;
+
+        let Some(transactions) = block.transactions.clone() else {
             continue;
         };
 
@@ -98,11 +110,23 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
             let Some(signature) = extract_signature(transaction) else {
                 continue;
             };
-            let file_path = transactions_dir.join(format!("{signature}.json"));
-            let file = File::create(&file_path)
-                .with_context(|| format!("failed to create {}", file_path.display()))?;
-            serde_json::to_writer_pretty(file, transaction)
-                .with_context(|| format!("failed to write {}", file_path.display()))?;
+            if written_transactions.insert(signature.clone()) {
+                let file_path = transactions_dir.join(&signature);
+                let file = File::create(&file_path)
+                    .with_context(|| format!("failed to create {}", file_path.display()))?;
+                let confirmed_transaction = EncodedConfirmedTransactionWithStatusMeta {
+                    slot,
+                    transaction: transaction.clone(),
+                    block_time: block.block_time,
+                };
+                serde_json::to_writer_pretty(file, &confirmed_transaction)
+                    .with_context(|| format!("failed to write {}", file_path.display()))?;
+            } else {
+                duplicate_signatures
+                    .entry(signature.clone())
+                    .or_default()
+                    .push(slot);
+            }
             if transaction_failed(transaction) {
                 failed_signatures.push(signature.clone());
             }
@@ -127,17 +151,21 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
             "start_slot": start_slot,
             "end_slot": end_slot,
             "blocks_scanned": blocks_scanned,
+            "blocks_dumped": slot_signatures.len(),
             "slots_dumped": slot_signatures.len(),
             "transactions_dumped": transactions_dumped,
+            "unique_transactions_dumped": written_transactions.len(),
             "failed_signatures": failed_signatures,
+            "duplicate_signatures": duplicate_signatures,
             "slot_signatures": slot_signatures,
         }),
     )
     .with_context(|| format!("failed to write {}", summary_path.display()))?;
 
     println!(
-        "Dumped {} transactions across {} slots into {}",
+        "Dumped {} transaction occurrences, {} unique transaction files, and {} block files into {}",
         transactions_dumped,
+        written_transactions.len(),
         slot_signatures.len(),
         output_folder.display()
     );
