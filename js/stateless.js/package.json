@@ -110,11 +110,11 @@
         "test:verbose": "vitest run --reporter=verbose",
         "test:testnet": "vitest run tests/e2e/testnet.test.ts --reporter=verbose",
         "pull-idls": "../../scripts/push-stateless-js-idls.sh && ../../scripts/push-compressed-token-idl.sh",
-        "build": "if [ \"$LIGHT_PROTOCOL_VERSION\" = \"V2\" ]; then LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle; else LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle; fi",
+        "build": "if [ \"$LIGHT_PROTOCOL_VERSION\" = \"V1\" ]; then LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle; else LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle; fi",
         "build:bundle": "rimraf dist && rollup -c",
         "build:v1": "LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle",
         "build:v2": "LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle",
-        "build-ci": "if [ \"$LIGHT_PROTOCOL_VERSION\" = \"V2\" ]; then LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle; else LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle; fi",
+        "build-ci": "if [ \"$LIGHT_PROTOCOL_VERSION\" = \"V1\" ]; then LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle; else LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle; fi",
         "format": "prettier --write .",
         "lint": "eslint ."
     }

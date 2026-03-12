@@ -1,4 +1,4 @@
-## [Unreleased]
+## [0.23.0-beta.11]
 
 ### Breaking Changes
 
@@ -14,6 +14,13 @@
     - `getAccountInterface` light-token mode and SPL/T22 mode now surface `TokenInvalidAccountOwnerError` when an on-chain account exists at the queried address but is owned by a different program.
     - `getMintInterface` (decompressed light-mint branch) now validates the on-chain mint owner and throws `TokenInvalidAccountOwnerError` on mismatch; it also forwards the provided `commitment` to on-chain `getAccountInfo`.
     - **Migration impact:** callers that previously interpreted these paths as empty/not-found must now handle thrown errors explicitly (retry/backoff or surfacing RPC health).
+
+### Changed
+
+- Default version fallback is now V2 across build/runtime consistency paths:
+    - `rollup` `__BUILD_VERSION__` replacement fallback changed to `V2`.
+    - package `build` / `build-ci` scripts now default to `LIGHT_PROTOCOL_VERSION=V2` unless explicitly set to `V1`.
+    - version consistency helpers and related unit/setup checks now default to `V2` when no env var is provided.
 
 ## [0.23.0-beta.10]
 
