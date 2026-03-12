@@ -40,7 +40,8 @@ env:
   TEST_V1_ADDRESS: "true"
   TEST_V2_ADDRESS: "true"
   FORESTER_ENABLE_COMPRESSIBLE: "true"
-  PHOTON_INDEXING_COMMITMENT: "finalized"
+  SURFPOOL_REPOSITORY: "Lightprotocol/surfpool"
+  SURFPOOL_GIT_REF: "sergey/block-fix"
 
 jobs:
   test:
@@ -72,6 +73,23 @@ jobs:
         with:
           skip-components: "redis,go"
           cache-key: "rust"
+
+      - name: Checkout Surfpool branch
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SURFPOOL_REPOSITORY }}
+          ref: ${{ env.SURFPOOL_GIT_REF }}
+          path: surfpool-branch
+
+      - name: Build Surfpool branch
+        shell: bash
+        run: |
+          cargo build \
+            --release \
+            --manifest-path surfpool-branch/Cargo.toml \
+            -p surfpool-cli \
+            --bin surfpool
+          echo "LIGHT_SURFPOOL_BINARY_PATH=${GITHUB_WORKSPACE}/surfpool-branch/target/release/surfpool" >> $GITHUB_ENV
 
       - name: Check available disk space
         shell: bash
@@ -233,6 +251,23 @@ jobs:
         with:
           skip-components: "go"
           cache-key: "rust"
+
+      - name: Checkout Surfpool branch
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SURFPOOL_REPOSITORY }}
+          ref: ${{ env.SURFPOOL_GIT_REF }}
+          path: surfpool-branch
+
+      - name: Build Surfpool branch
+        shell: bash
+        run: |
+          cargo build \
+            --release \
+            --manifest-path surfpool-branch/Cargo.toml \
+            -p surfpool-cli \
+            --bin surfpool
+          echo "LIGHT_SURFPOOL_BINARY_PATH=${GITHUB_WORKSPACE}/surfpool-branch/target/release/surfpool" >> $GITHUB_ENV
 
       - name: Build CLI
         run: just cli build
