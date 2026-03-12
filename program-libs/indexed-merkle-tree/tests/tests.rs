@@ -639,18 +639,30 @@ pub fn functional_non_inclusion_test() {
     assert_eq!(
         leaf_0,
         Poseidon::hashv(&[
-            bigint_to_be_bytes_array::<32>(&0_u32.to_biguint().unwrap()).unwrap().as_ref(),
-            bigint_to_be_bytes_array::<32>(&1_u32.to_biguint().unwrap()).unwrap().as_ref(),
-            bigint_to_be_bytes_array::<32>(&30_u32.to_biguint().unwrap()).unwrap().as_ref(),
+            bigint_to_be_bytes_array::<32>(&0_u32.to_biguint().unwrap())
+                .unwrap()
+                .as_ref(),
+            bigint_to_be_bytes_array::<32>(&1_u32.to_biguint().unwrap())
+                .unwrap()
+                .as_ref(),
+            bigint_to_be_bytes_array::<32>(&30_u32.to_biguint().unwrap())
+                .unwrap()
+                .as_ref(),
         ])
         .unwrap()
     );
     assert_eq!(
         leaf_1,
         Poseidon::hashv(&[
-            bigint_to_be_bytes_array::<32>(&30_u32.to_biguint().unwrap()).unwrap().as_ref(),
-            bigint_to_be_bytes_array::<32>(&0_u32.to_biguint().unwrap()).unwrap().as_ref(),
-            bigint_to_be_bytes_array::<32>(&0_u32.to_biguint().unwrap()).unwrap().as_ref(),
+            bigint_to_be_bytes_array::<32>(&30_u32.to_biguint().unwrap())
+                .unwrap()
+                .as_ref(),
+            bigint_to_be_bytes_array::<32>(&0_u32.to_biguint().unwrap())
+                .unwrap()
+                .as_ref(),
+            bigint_to_be_bytes_array::<32>(&0_u32.to_biguint().unwrap())
+                .unwrap()
+                .as_ref(),
         ])
         .unwrap()
     );
