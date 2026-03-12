@@ -20,6 +20,9 @@ pub struct BatchUpdateAddressTree<'info> {
     /// CHECK: (account compression program).
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
+    /// CHECK: receives network fee reimbursement.
+    #[account(mut)]
+    pub fee_payer: UncheckedAccount<'info>,
 }
 
 pub fn process_batch_update_address_tree(
@@ -35,6 +38,7 @@ pub fn process_batch_update_address_tree(
         merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
         registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
         log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
+        fee_payer: ctx.accounts.fee_payer.to_account_info(),
     };
 
     let cpi_ctx = CpiContext::new_with_signer(

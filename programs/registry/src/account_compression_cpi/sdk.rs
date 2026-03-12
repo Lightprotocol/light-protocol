@@ -379,6 +379,7 @@ pub fn create_batch_append_instruction(
         registered_program_pda,
         account_compression_program: account_compression::ID,
         log_wrapper: NOOP_PUBKEY.into(),
+        fee_payer: forester,
     };
     let instruction_data = crate::instruction::BatchAppend { bump, data };
     Instruction {
@@ -506,6 +507,7 @@ pub fn create_batch_update_address_tree_instruction(
         registered_program_pda,
         account_compression_program: account_compression::ID,
         log_wrapper: NOOP_PUBKEY.into(),
+        fee_payer: forester,
     };
     let instruction_data = crate::instruction::BatchUpdateAddressTree { bump, data };
     Instruction {
