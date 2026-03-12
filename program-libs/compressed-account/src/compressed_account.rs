@@ -752,8 +752,11 @@ mod tests {
                     Some(CompressedAccountData {
                         discriminator: rng.gen(),
                         data: Vec::new(), // not used in hash
-                        data_hash: Poseidon::hash(rng.gen::<u64>().to_be_bytes().as_slice())
-                            .unwrap(),
+                        data_hash: {
+                            let mut random_bytes = [0u8; 32];
+                            random_bytes[24..].copy_from_slice(&rng.gen::<u64>().to_be_bytes());
+                            Poseidon::hash(&random_bytes).unwrap()
+                        },
                     })
                 } else {
                     None

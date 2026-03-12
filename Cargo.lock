@@ -3853,7 +3853,7 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-macros",
- "light-poseidon 0.3.0",
+ "light-poseidon 0.4.0",
  "light-program-profiler",
  "light-zero-copy",
  "num-bigint 0.4.6",
@@ -4011,7 +4011,7 @@ dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "borsh 0.10.4",
- "light-poseidon 0.3.0",
+ "light-poseidon 0.4.0",
  "num-bigint 0.4.6",
  "pinocchio",
  "rand 0.8.5",
@@ -4142,9 +4142,9 @@ dependencies = [
 
 [[package]]
 name = "light-poseidon"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39e3d87542063daaccbfecd78b60f988079b6ec4e089249658b9455075c78d42"
+checksum = "47a1ccadd0bb5a32c196da536fd72c59183de24a055f6bf0513bf845fefab862"
 dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
@@ -4326,7 +4326,7 @@ dependencies = [
  "light-compressed-account",
  "light-hasher",
  "light-macros",
- "light-poseidon 0.3.0",
+ "light-poseidon 0.4.0",
  "light-sdk-types",
  "prettyplease",
  "proc-macro2",

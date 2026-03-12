@@ -61,9 +61,10 @@ pub fn assert_nullifier_queue_insert(
 ) -> Result<(), BatchedMerkleTreeError> {
     let mut leaf_hash_chain_insert_values = vec![];
     for (insert_value, leaf_index) in bloom_filter_insert_values.iter().zip(leaf_indices.iter()) {
+        let mut leaf_index_bytes = [0u8; 32];
+        leaf_index_bytes[24..].copy_from_slice(&leaf_index.to_be_bytes());
         let nullifier =
-            Poseidon::hashv(&[insert_value.as_slice(), &leaf_index.to_be_bytes(), &tx_hash])
-                .unwrap();
+            Poseidon::hashv(&[insert_value.as_slice(), &leaf_index_bytes, &tx_hash]).unwrap();
         leaf_hash_chain_insert_values.push(nullifier);
     }
     assert_input_queue_insert(
