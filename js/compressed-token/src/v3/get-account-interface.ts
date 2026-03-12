@@ -4,6 +4,7 @@ import {
     TOKEN_2022_PROGRAM_ID,
     unpackAccount as unpackAccountSPL,
     TokenAccountNotFoundError,
+    TokenInvalidAccountOwnerError,
     getAssociatedTokenAddressSync,
     AccountState,
     Account,
@@ -71,12 +72,6 @@ export interface AccountInterface {
     _owner?: PublicKey;
     /** Associated token account mint - set by getAtaInterface */
     _mint?: PublicKey;
-}
-
-class ExpectedProbeMissError extends Error {}
-
-function isExpectedProbeMissError(error: unknown): boolean {
-    return error instanceof ExpectedProbeMissError;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -434,10 +429,13 @@ async function _tryFetchSpl(
     parsed: Account;
     isCold: false;
     loadContext: undefined;
-}> {
+} | null> {
     const info = await rpc.getAccountInfo(address, commitment);
-    if (!info || !info.owner.equals(TOKEN_PROGRAM_ID)) {
-        throw new ExpectedProbeMissError('Not a TOKEN_PROGRAM_ID account');
+    if (!info) {
+        return null;
+    }
+    if (!info.owner.equals(TOKEN_PROGRAM_ID)) {
+        throw new TokenInvalidAccountOwnerError();
     }
     const account = unpackAccountSPL(address, info, TOKEN_PROGRAM_ID);
     return {
@@ -460,10 +458,13 @@ async function _tryFetchToken2022(
     parsed: Account;
     isCold: false;
     loadContext: undefined;
-}> {
+} | null> {
     const info = await rpc.getAccountInfo(address, commitment);
-    if (!info || !info.owner.equals(TOKEN_2022_PROGRAM_ID)) {
-        throw new ExpectedProbeMissError('Not a TOKEN_2022_PROGRAM_ID account');
+    if (!info) {
+        return null;
+    }
+    if (!info.owner.equals(TOKEN_2022_PROGRAM_ID)) {
+        throw new TokenInvalidAccountOwnerError();
     }
     const account = unpackAccountSPL(address, info, TOKEN_2022_PROGRAM_ID);
     return {
@@ -486,10 +487,13 @@ async function _tryFetchLightTokenHot(
     loadContext: undefined;
     parsed: Account;
     isCold: false;
-}> {
+} | null> {
     const info = await rpc.getAccountInfo(address, commitment);
-    if (!info || !info.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        throw new ExpectedProbeMissError('Not a LIGHT_TOKEN onchain account');
+    if (!info) {
+        return null;
+    }
+    if (!info.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+        throw new TokenInvalidAccountOwnerError();
     }
     return parseLightTokenHot(address, info);
 }
@@ -607,7 +611,7 @@ async function getUnifiedAccountInterface(
         parsed: Account;
         isCold: boolean;
         loadContext?: MerkleContext;
-    }>[] = [];
+    } | null>[] = [];
     const fetchTypes: TokenAccountSource['type'][] = [];
     const fetchAddresses: PublicKey[] = [];
 
@@ -657,6 +661,7 @@ async function getUnifiedAccountInterface(
         : rpc.getCompressedTokenAccountsByOwner(address!);
 
     const hotResults = await Promise.allSettled(fetchPromises);
+    const ownerMismatchErrors: TokenInvalidAccountOwnerError[] = [];
     const unexpectedErrors: unknown[] = [];
 
     let coldResult: Awaited<typeof coldAccountsPromise> | null = null;
@@ -673,6 +678,9 @@ async function getUnifiedAccountInterface(
         const result = hotResults[i];
         if (result.status === 'fulfilled') {
             const value = result.value;
+            if (!value) {
+                continue;
+            }
             sources.push({
                 type: fetchTypes[i],
                 address: fetchAddresses[i],
@@ -681,7 +689,9 @@ async function getUnifiedAccountInterface(
                 loadContext: value.loadContext,
                 parsed: value.parsed,
             });
-        } else if (!isExpectedProbeMissError(result.reason)) {
+        } else if (result.reason instanceof TokenInvalidAccountOwnerError) {
+            ownerMismatchErrors.push(result.reason);
+        } else {
             unexpectedErrors.push(result.reason);
         }
     }
@@ -714,6 +724,9 @@ async function getUnifiedAccountInterface(
 
     // account not found
     if (sources.length === 0) {
+        if (ownerMismatchErrors.length > 0) {
+            throw ownerMismatchErrors[0];
+        }
         if (unexpectedErrors.length > 0) {
             throwRpcFetchFailure(
                 'Failed to fetch token account data from RPC',

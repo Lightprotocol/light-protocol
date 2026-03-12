@@ -15,6 +15,8 @@ import {
     unpackMint as unpackSplMint,
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
+    TokenAccountNotFoundError,
+    TokenInvalidAccountOwnerError,
 } from '@solana/spl-token';
 import {
     deserializeMint,
@@ -35,6 +37,11 @@ export interface MintInterface {
     extensions?: MintExtension[];
     /** Compression info for light-token mints */
     compression?: CompressionInfo;
+}
+
+function toErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    return String(error);
 }
 
 /**
@@ -85,7 +92,44 @@ export async function getMintInterface(
             return compressedResult.value;
         }
 
-        throw new Error(
+        const errors = [tokenResult, token2022Result, compressedResult]
+            .filter(
+                (
+                    result,
+                ): result is PromiseRejectedResult =>
+                    result.status === 'rejected',
+            )
+            .map(result => result.reason);
+
+        const ownerMismatch = errors.find(
+            error => error instanceof TokenInvalidAccountOwnerError,
+        );
+        if (ownerMismatch) {
+            throw ownerMismatch;
+        }
+
+        const allNotFound =
+            errors.length > 0 &&
+            errors.every(error => error instanceof TokenAccountNotFoundError);
+        if (allNotFound) {
+            throw new TokenAccountNotFoundError(
+                `Mint not found: ${address.toString()}. ` +
+                    `Tried TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and LIGHT_TOKEN_PROGRAM_ID.`,
+            );
+        }
+
+        const unexpected = errors.find(
+            error =>
+                !(error instanceof TokenAccountNotFoundError) &&
+                !(error instanceof TokenInvalidAccountOwnerError),
+        );
+        if (unexpected) {
+            throw new Error(
+                `Failed to fetch mint data from RPC: ${toErrorMessage(unexpected)}`,
+            );
+        }
+
+        throw new TokenAccountNotFoundError(
             `Mint not found: ${address.toString()}. ` +
                 `Tried TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and LIGHT_TOKEN_PROGRAM_ID.`,
         );
@@ -103,7 +147,12 @@ export async function getMintInterface(
         );
 
         if (!compressedAccount?.data?.data) {
-            throw new Error(`Light mint not found for ${address.toString()}`);
+            throw new TokenAccountNotFoundError(
+                `Light mint not found for ${address.toString()}`,
+            );
+        }
+        if (!compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+            throw new TokenInvalidAccountOwnerError();
         }
 
         const compressedData = Buffer.from(compressedAccount.data.data);
@@ -120,7 +169,7 @@ export async function getMintInterface(
             // Light mint account exists - read from light mint account
             const cmintAccountInfo = await rpc.getAccountInfo(address);
             if (!cmintAccountInfo?.data) {
-                throw new Error(
+                throw new TokenAccountNotFoundError(
                     `Decompressed light mint account not found on-chain for ${address.toString()}`,
                 );
             }
