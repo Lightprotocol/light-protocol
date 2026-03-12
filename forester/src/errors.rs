@@ -183,11 +183,11 @@ pub enum WorkReportError {
 impl WorkReportError {
     pub(crate) fn from_registry_error(error_code: u32, epoch: u64) -> Result<(), Self> {
         match error_code {
-            code if code == RegistryError::ForesterAlreadyReportedWork as u32 => {
+            code if code == registry_error_code(RegistryError::ForesterAlreadyReportedWork) => {
                 info!("Work already reported for epoch {}. Skipping.", epoch);
                 Ok(())
             }
-            code if code == RegistryError::NotInReportWorkPhase as u32 => {
+            code if code == registry_error_code(RegistryError::NotInReportWorkPhase) => {
                 warn!("Not in report work phase for epoch {}. Skipping.", epoch);
                 Ok(())
             }
@@ -228,6 +228,10 @@ impl ForesterError {
             error: error.to_string(),
         })
     }
+}
+
+fn registry_error_code(error: RegistryError) -> u32 {
+    ERROR_CODE_OFFSET + error as u32
 }
 
 impl<T> From<tokio::sync::mpsc::error::SendError<T>> for ForesterError {
