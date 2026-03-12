@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { AccountInfo, PublicKey } from '@solana/web3.js';
 import { Rpc } from '../../../src/rpc';
+import { featureFlags } from '../../../src/constants';
 import BN from 'bn.js';
 
 describe('getAccountInfoInterface', () => {
     const endpoint = 'http://127.0.0.1:8899';
+    const itIfV2 = it.skipIf(!featureFlags.isV2());
 
     const makeRpc = () => new Rpc(endpoint, endpoint, endpoint);
 
@@ -38,7 +40,7 @@ describe('getAccountInfoInterface', () => {
             proveByIndex: false,
         }) as any;
 
-    it('returns null only when both sources are fulfilled and empty', async () => {
+    itIfV2('returns null only when both sources are fulfilled and empty', async () => {
         const rpc = makeRpc();
 
         (rpc as any).getAccountInfo = async () => null;
@@ -52,7 +54,9 @@ describe('getAccountInfoInterface', () => {
         expect(result).toBeNull();
     });
 
-    it('propagates on-chain error when no definitive account is found', async () => {
+    itIfV2(
+        'propagates on-chain error when no definitive account is found',
+        async () => {
         const rpc = makeRpc();
         const onchainError = new Error('solana rpc failed');
 
@@ -64,9 +68,12 @@ describe('getAccountInfoInterface', () => {
         await expect(
             rpc.getAccountInfoInterface(PublicKey.unique(), PublicKey.unique()),
         ).rejects.toThrow('solana rpc failed');
-    });
+        },
+    );
 
-    it('propagates compressed error when no definitive account is found', async () => {
+    itIfV2(
+        'propagates compressed error when no definitive account is found',
+        async () => {
         const rpc = makeRpc();
         const compressedError = new Error('compression rpc failed');
 
@@ -78,9 +85,10 @@ describe('getAccountInfoInterface', () => {
         await expect(
             rpc.getAccountInfoInterface(PublicKey.unique(), PublicKey.unique()),
         ).rejects.toThrow('compression rpc failed');
-    });
+        },
+    );
 
-    it('throws on-chain error first when both sources reject', async () => {
+    itIfV2('throws on-chain error first when both sources reject', async () => {
         const rpc = makeRpc();
         const onchainError = new Error('solana rpc failed');
         const compressedError = new Error('compression rpc failed');
@@ -97,7 +105,9 @@ describe('getAccountInfoInterface', () => {
         ).rejects.toThrow('solana rpc failed');
     });
 
-    it('returns hot account when on-chain exists even if compressed call errors', async () => {
+    itIfV2(
+        'returns hot account when on-chain exists even if compressed call errors',
+        async () => {
         const rpc = makeRpc();
         const hotAccount = makeOnchainAccount();
 
@@ -115,9 +125,12 @@ describe('getAccountInfoInterface', () => {
         expect(result!.isCold).toBe(false);
         expect(result!.accountInfo).toEqual(hotAccount);
         expect(result!.loadContext).toBeUndefined();
-    });
+        },
+    );
 
-    it('returns synthesized cold account when only compressed account exists', async () => {
+    itIfV2(
+        'returns synthesized cold account when only compressed account exists',
+        async () => {
         const rpc = makeRpc();
         const compressed = makeCompressedAccount();
 
@@ -143,5 +156,6 @@ describe('getAccountInfoInterface', () => {
         expect(result!.loadContext!.hash.toString()).toBe(
             compressed.hash.toString(),
         );
-    });
+        },
+    );
 });
