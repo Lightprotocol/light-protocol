@@ -2129,6 +2129,15 @@ export class Rpc extends Connection implements CompressionApiInterface {
             this.getCompressedAccount(bn(cAddress.toBytes())),
         ]);
 
+        const onchainError =
+            onchainResult.status === 'rejected'
+                ? onchainResult.reason
+                : null;
+        const compressedError =
+            compressedResult.status === 'rejected'
+                ? compressedResult.reason
+                : null;
+
         const onchainAccount =
             onchainResult.status === 'fulfilled' ? onchainResult.value : null;
         const compressedAccount =
@@ -2186,6 +2195,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         // account does not exist.
+        if (onchainError) {
+            throw onchainError;
+        }
+        if (compressedError) {
+            throw compressedError;
+        }
         return null;
     }
 
