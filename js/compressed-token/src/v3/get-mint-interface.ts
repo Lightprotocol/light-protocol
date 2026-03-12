@@ -94,9 +94,7 @@ export async function getMintInterface(
 
         const errors = [tokenResult, token2022Result, compressedResult]
             .filter(
-                (
-                    result,
-                ): result is PromiseRejectedResult =>
+                (result): result is PromiseRejectedResult =>
                     result.status === 'rejected',
             )
             .map(result => result.reason);
