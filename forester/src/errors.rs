@@ -202,16 +202,16 @@ impl ForesterError {
     }
 
     pub fn is_forester_not_eligible(&self) -> bool {
-        const FORESTER_NOT_ELIGIBLE_ERROR_CODE: u32 =
-            ERROR_CODE_OFFSET + RegistryError::ForesterNotEligible as u32;
+        let forester_not_eligible_error_code =
+            registry_error_code(RegistryError::ForesterNotEligible);
 
         match self {
             Self::NotEligible => true,
             Self::Rpc(rpc_error) => {
-                rpc_custom_error_code(rpc_error) == Some(FORESTER_NOT_ELIGIBLE_ERROR_CODE)
+                rpc_custom_error_code(rpc_error) == Some(forester_not_eligible_error_code)
             }
             Self::V2(v2_error) => {
-                v2_error.custom_error_code() == Some(FORESTER_NOT_ELIGIBLE_ERROR_CODE)
+                v2_error.custom_error_code() == Some(forester_not_eligible_error_code)
             }
             _ => false,
         }
