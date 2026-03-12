@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "1560c14e6263",
+  "session_id": "9ebbe143-7111-4f95-9f68-e2fccaf05f5b",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T02:19:11.867678Z",
+  "branch": "jorrit/chore-add-poseidon-hash-input-error",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "program-tests/system-cpi-test/tests/test.rs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1a090d0dce06",
+  "checkpoint_transcript_start": 603,
+  "transcript_lines_at_start": 603,
+  "token_usage": {
+    "input_tokens": 87,
+    "cache_creation_tokens": 91832,
+    "cache_read_tokens": 4158237,
+    "output_tokens": 16451,
+    "api_call_count": 63
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T02:19:11.574142Z",
+    "agent_lines": 3,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/9ebbe143-7111-4f95-9f68-e2fccaf05f5b.jsonl"
+}
