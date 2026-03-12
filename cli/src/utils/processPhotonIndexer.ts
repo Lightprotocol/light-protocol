@@ -63,7 +63,17 @@ export async function startIndexer(
       args.push("--start-slot", startSlot.toString());
     }
 
-    spawnBinary(INDEXER_PROCESS_NAME, args);
+    const env = { ...process.env };
+    if (
+      env.PHOTON_INDEXING_COMMITMENT === undefined &&
+      (rpcUrl.includes("127.0.0.1") ||
+        rpcUrl.includes("localhost") ||
+        rpcUrl.includes("0.0.0.0"))
+    ) {
+      env.PHOTON_INDEXING_COMMITMENT = "finalized";
+    }
+
+    spawnBinary(INDEXER_PROCESS_NAME, args, env);
     await waitForServers([{ port: indexerPort, path: "/getIndexerHealth" }]);
     console.log("Indexer started successfully!");
   }

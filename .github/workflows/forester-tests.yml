@@ -40,6 +40,7 @@ env:
   TEST_V1_ADDRESS: "true"
   TEST_V2_ADDRESS: "true"
   FORESTER_ENABLE_COMPRESSIBLE: "true"
+  PHOTON_INDEXING_COMMITMENT: "finalized"
 
 jobs:
   test:

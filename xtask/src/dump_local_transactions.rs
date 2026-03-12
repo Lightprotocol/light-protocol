@@ -1,11 +1,12 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
+    env,
     fs::{self, File},
     path::Path,
 };
 
 use anyhow::{bail, Context};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use serde_json::json;
 use solana_client::{rpc_client::RpcClient, rpc_config::RpcBlockConfig};
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -24,6 +25,36 @@ pub struct Options {
     start_slot: Option<u64>,
     #[clap(long)]
     end_slot: Option<u64>,
+    #[clap(long, value_enum)]
+    commitment: Option<RpcCommitment>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum RpcCommitment {
+    Confirmed,
+    Finalized,
+}
+
+impl RpcCommitment {
+    fn as_config(self) -> CommitmentConfig {
+        match self {
+            Self::Confirmed => CommitmentConfig::confirmed(),
+            Self::Finalized => CommitmentConfig::finalized(),
+        }
+    }
+}
+
+fn commitment_from_env() -> Option<RpcCommitment> {
+    match env::var("PHOTON_INDEXING_COMMITMENT")
+        .ok()?
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "confirmed" => Some(RpcCommitment::Confirmed),
+        "finalized" => Some(RpcCommitment::Finalized),
+        _ => None,
+    }
 }
 
 fn extract_signature(transaction: &EncodedTransactionWithStatusMeta) -> Option<String> {
@@ -45,11 +76,16 @@ fn transaction_failed(transaction: &EncodedTransactionWithStatusMeta) -> bool {
 
 pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
     let client = RpcClient::new(opt.rpc_url.clone());
+    let commitment = opt
+        .commitment
+        .or_else(commitment_from_env)
+        .unwrap_or(RpcCommitment::Confirmed)
+        .as_config();
     let first_available_block = client
         .get_first_available_block()
         .context("failed to fetch first available block")?;
     let latest_slot = client
-        .get_slot_with_commitment(CommitmentConfig::confirmed())
+        .get_slot_with_commitment(commitment)
         .context("failed to fetch latest confirmed slot")?;
 
     let start_slot = opt.start_slot.unwrap_or(first_available_block);
@@ -71,8 +107,8 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
         .with_context(|| format!("failed to create {}", transactions_dir.display()))?;
 
     let slots = client
-        .get_blocks_with_commitment(start_slot, Some(end_slot), CommitmentConfig::confirmed())
-        .context("failed to fetch confirmed blocks")?;
+        .get_blocks_with_commitment(start_slot, Some(end_slot), commitment)
+        .with_context(|| format!("failed to fetch {:?} blocks", commitment.commitment))?;
 
     let mut slot_signatures = BTreeMap::<u64, Vec<String>>::new();
     let mut duplicate_signatures = BTreeMap::<String, Vec<u64>>::new();
@@ -89,7 +125,7 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
                     encoding: Some(UiTransactionEncoding::Base64),
                     transaction_details: Some(TransactionDetails::Full),
                     rewards: Some(false),
-                    commitment: Some(CommitmentConfig::confirmed()),
+                    commitment: Some(commitment),
                     max_supported_transaction_version: Some(0),
                 },
             )
@@ -146,8 +182,9 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
         summary_file,
         &json!({
             "rpc_url": opt.rpc_url,
+            "commitment": format!("{:?}", commitment.commitment).to_ascii_lowercase(),
             "first_available_block": first_available_block,
-            "latest_confirmed_slot": latest_slot,
+            "latest_slot_at_commitment": latest_slot,
             "start_slot": start_slot,
             "end_slot": end_slot,
             "blocks_scanned": blocks_scanned,
