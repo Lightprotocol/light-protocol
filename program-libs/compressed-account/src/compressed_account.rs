@@ -411,18 +411,27 @@ mod tests {
         };
         let merkle_tree_pubkey = Pubkey::new_unique();
         let leaf_index: u32 = 1;
+
+        // Precompute padded 32-byte arrays matching the hash implementation
+        let mut leaf_index_bytes = [0u8; 32];
+        leaf_index_bytes[28..].copy_from_slice(&leaf_index.to_le_bytes());
+        let mut lamports_bytes = [0u8; 32];
+        lamports_bytes[24..].copy_from_slice(&lamports.to_le_bytes());
+        lamports_bytes[23] = 1;
+        let mut discriminator_bytes = [0u8; 32];
+        discriminator_bytes[24..].copy_from_slice(&data.discriminator);
+        discriminator_bytes[23] = 2;
+
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
+            &leaf_index_bytes,
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
-            [&[1u8], lamports.to_le_bytes().as_slice()]
-                .concat()
-                .as_slice(),
+            &lamports_bytes,
             address.as_slice(),
-            [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
+            &discriminator_bytes,
             &data.data_hash,
         ])
         .unwrap();
@@ -442,11 +451,9 @@ mod tests {
 
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
+            &leaf_index_bytes,
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
-            [&[1u8], lamports.to_le_bytes().as_slice()]
-                .concat()
-                .as_slice(),
+            &lamports_bytes,
             address.as_slice(),
         ])
         .unwrap();
@@ -465,12 +472,10 @@ mod tests {
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
+            &leaf_index_bytes,
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
-            [&[1u8], lamports.to_le_bytes().as_slice()]
-                .concat()
-                .as_slice(),
-            [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
+            &lamports_bytes,
+            &discriminator_bytes,
             &data.data_hash,
         ])
         .unwrap();
@@ -490,9 +495,9 @@ mod tests {
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
+            &leaf_index_bytes,
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
-            [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
+            &discriminator_bytes,
             &data.data_hash,
         ])
         .unwrap();
@@ -513,11 +518,9 @@ mod tests {
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
+            &leaf_index_bytes,
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
-            [&[1u8], lamports.to_le_bytes().as_slice()]
-                .concat()
-                .as_slice(),
+            &lamports_bytes,
         ])
         .unwrap();
         assert_eq!(no_address_no_data_hash, hash_manual);
@@ -538,7 +541,7 @@ mod tests {
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
+            &leaf_index_bytes,
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
         ])
         .unwrap();
@@ -752,8 +755,11 @@ mod tests {
                     Some(CompressedAccountData {
                         discriminator: rng.gen(),
                         data: Vec::new(), // not used in hash
-                        data_hash: Poseidon::hash(rng.gen::<u64>().to_be_bytes().as_slice())
-                            .unwrap(),
+                        data_hash: {
+                            let mut random_bytes = [0u8; 32];
+                            random_bytes[24..].copy_from_slice(&rng.gen::<u64>().to_be_bytes());
+                            Poseidon::hash(&random_bytes).unwrap()
+                        },
                     })
                 } else {
                     None

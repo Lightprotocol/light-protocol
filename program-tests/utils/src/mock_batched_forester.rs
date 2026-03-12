@@ -186,7 +186,8 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 .iter()
                 .find(|tx_event| tx_event.inputs.contains(leaf))
                 .expect("No event for leaf found.");
-            let index_bytes = index.to_be_bytes();
+            let mut index_bytes = [0u8; 32];
+            index_bytes[24..].copy_from_slice(&(index as u64).to_be_bytes());
             let nullifier = Poseidon::hashv(&[leaf, &index_bytes, &event.tx_hash]).unwrap();
             tx_hashes.push(event.tx_hash);
             nullifiers.push(nullifier);

@@ -31,9 +31,9 @@ async fn prove_batch_update() {
             old_leaves.push(leaf);
             merkle_tree.append(&leaf).unwrap();
 
-            #[allow(clippy::unnecessary_cast)]
-            let nullifier =
-                Poseidon::hashv(&[&leaf, &(i as usize).to_be_bytes(), &tx_hash]).unwrap();
+            let mut index_bytes = [0u8; 32];
+            index_bytes[28..].copy_from_slice(&(i as u32).to_be_bytes());
+            let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, &tx_hash]).unwrap();
             nullifiers.push(nullifier);
         }
 

@@ -171,7 +171,8 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         let merkle_proof_array = merkle_proof.try_into().unwrap();
 
         // Use the adjusted index bytes for computing the nullifier.
-        let index_bytes = (*index).to_be_bytes();
+        let mut index_bytes = [0u8; 32];
+        index_bytes[28..].copy_from_slice(&(*index).to_be_bytes());
         let nullifier = Poseidon::hashv(&[leaf, &index_bytes, &tx_hashes[i]]).unwrap();
         let (root, changelog_entry) =
             compute_root_from_merkle_proof(nullifier, &merkle_proof_array, *index);

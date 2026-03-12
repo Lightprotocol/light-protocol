@@ -1,4 +1,4 @@
-use std::{fs::File, io::prelude::*, mem, path::PathBuf};
+use std::{fs::File, io::prelude::*, path::PathBuf};
 
 use clap::Parser;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
@@ -26,8 +26,7 @@ fn generate_zero_indexed_leaf_for_hasher<H>(opts: Options) -> anyhow::Result<()>
 where
     H: Hasher,
 {
-    let zero_indexed_leaf =
-        H::hashv(&[&[0u8; 32], &[0u8; mem::size_of::<usize>()], &[0u8; 32]]).unwrap();
+    let zero_indexed_leaf = H::hashv(&[&[0u8; 32], &[0u8; 32], &[0u8; 32]]).unwrap();
 
     let code = quote! {
         pub const ZERO_INDEXED_LEAF: [u8; 32] = [ #(#zero_indexed_leaf),* ];
