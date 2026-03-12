@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ee45a7a4e626",
+  "strategy": "manual-commit",
+  "branch": "jorrit/chore-add-poseidon-hash-input-error",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-libs/compressed-account/src/compressed_account.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ee/45a7a4e626/0/metadata.json",
+      "transcript": "/ee/45a7a4e626/0/full.jsonl",
+      "context": "/ee/45a7a4e626/0/context.md",
+      "content_hash": "/ee/45a7a4e626/0/content_hash.txt",
+      "prompt": "/ee/45a7a4e626/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6183,
+    "cache_creation_tokens": 131486,
+    "cache_read_tokens": 6638020,
+    "output_tokens": 33221,
+    "api_call_count": 78
+  }
+}
