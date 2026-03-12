@@ -2,12 +2,15 @@
 
 set -e
 
+# Keep formatter deterministic across local + CI.
+RUSTFMT_NIGHTLY_TOOLCHAIN="${RUSTFMT_NIGHTLY_TOOLCHAIN:-nightly-2025-10-26}"
+
 # JS linting (use subshells to avoid directory issues)
 (cd js/stateless.js && pnpm prettier --write . && pnpm lint)
 (cd js/compressed-token && pnpm prettier --write . && pnpm lint)
 
 # Rust linting
-cargo +nightly fmt --all -- --check
+cargo +"$RUSTFMT_NIGHTLY_TOOLCHAIN" fmt --all -- --check
 cargo clippy --workspace --all-features --all-targets -- -D warnings
 
 # Check that program-libs and programs don't depend on sdk-libs
