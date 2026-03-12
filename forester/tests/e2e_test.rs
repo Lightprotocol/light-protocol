@@ -1188,7 +1188,7 @@ async fn transfer<const V2: bool, R: Rpc>(
     println!("transfer v2: {} merkle_tree: {}", V2, merkle_tree_pubkey);
     expect_indexer_caught_up(
         rpc,
-        format!("transfer prefetch V2={} tree={}", V2, merkle_tree_pubkey),
+        format!("transfer prefetch v2={} tree={}", V2, merkle_tree_pubkey),
     )
     .await;
     let mut input_compressed_accounts = rpc
