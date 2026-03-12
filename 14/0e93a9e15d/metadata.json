@@ -3,7 +3,7 @@
   "checkpoint_id": "140e93a9e15d",
   "strategy": "manual-commit",
   "branch": "jorrit/chore-add-poseidon-hash-input-error",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "Cargo.lock",
     "Cargo.toml",
@@ -51,13 +51,20 @@
       "context": "/14/0e93a9e15d/4/context.md",
       "content_hash": "/14/0e93a9e15d/4/content_hash.txt",
       "prompt": "/14/0e93a9e15d/4/prompt.txt"
+    },
+    {
+      "metadata": "/14/0e93a9e15d/5/metadata.json",
+      "transcript": "/14/0e93a9e15d/5/full.jsonl",
+      "context": "/14/0e93a9e15d/5/context.md",
+      "content_hash": "/14/0e93a9e15d/5/content_hash.txt",
+      "prompt": "/14/0e93a9e15d/5/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 9657,
-    "cache_creation_tokens": 2086241,
-    "cache_read_tokens": 107028387,
-    "output_tokens": 252733,
-    "api_call_count": 1038
+    "input_tokens": 9710,
+    "cache_creation_tokens": 2184066,
+    "cache_read_tokens": 108870001,
+    "output_tokens": 277185,
+    "api_call_count": 1064
   }
 }
