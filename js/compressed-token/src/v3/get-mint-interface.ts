@@ -165,11 +165,17 @@ export async function getMintInterface(
 
         if (isDecompressed) {
             // Light mint account exists - read from light mint account
-            const cmintAccountInfo = await rpc.getAccountInfo(address);
+            const cmintAccountInfo = await rpc.getAccountInfo(
+                address,
+                commitment,
+            );
             if (!cmintAccountInfo?.data) {
                 throw new TokenAccountNotFoundError(
                     `Decompressed light mint account not found on-chain for ${address.toString()}`,
                 );
+            }
+            if (!cmintAccountInfo.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+                throw new TokenInvalidAccountOwnerError();
             }
             compressedMintData = deserializeMint(
                 Buffer.from(cmintAccountInfo.data),

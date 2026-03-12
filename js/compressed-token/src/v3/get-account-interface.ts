@@ -83,6 +83,15 @@ function throwRpcFetchFailure(context: string, error: unknown): never {
     throw new Error(`${context}: ${toErrorMessage(error)}`);
 }
 
+function throwIfUnexpectedRpcErrors(
+    context: string,
+    unexpectedErrors: unknown[],
+): void {
+    if (unexpectedErrors.length > 0) {
+        throwRpcFetchFailure(context, unexpectedErrors[0]);
+    }
+}
+
 export type FrozenOperation = 'load' | 'transfer' | 'unwrap';
 
 export function checkNotFrozen(
@@ -722,16 +731,15 @@ async function getUnifiedAccountInterface(
         }
     }
 
+    throwIfUnexpectedRpcErrors(
+        'Failed to fetch token account data from RPC',
+        unexpectedErrors,
+    );
+
     // account not found
     if (sources.length === 0) {
         if (ownerMismatchErrors.length > 0) {
             throw ownerMismatchErrors[0];
-        }
-        if (unexpectedErrors.length > 0) {
-            throwRpcFetchFailure(
-                'Failed to fetch token account data from RPC',
-                unexpectedErrors[0],
-            );
         }
         throw new TokenAccountNotFoundError();
     }
@@ -784,6 +792,7 @@ async function getLightTokenAccountInterface(
             : rpc.getCompressedTokenAccountsByOwner(address),
     ]);
     const unexpectedErrors: unknown[] = [];
+    const ownerMismatchErrors: TokenInvalidAccountOwnerError[] = [];
 
     const onchainAccount =
         onchainResult.status === 'fulfilled' ? onchainResult.value : null;
@@ -801,15 +810,19 @@ async function getLightTokenAccountInterface(
     const sources: TokenAccountSource[] = [];
 
     // Collect light-token associated token account (hot balance)
-    if (onchainAccount && onchainAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        const parsed = parseLightTokenHot(address, onchainAccount);
-        sources.push({
-            type: TokenAccountSourceType.LightTokenHot,
-            address,
-            amount: parsed.parsed.amount,
-            accountInfo: onchainAccount,
-            parsed: parsed.parsed,
-        });
+    if (onchainAccount) {
+        if (!onchainAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+            ownerMismatchErrors.push(new TokenInvalidAccountOwnerError());
+        } else {
+            const parsed = parseLightTokenHot(address, onchainAccount);
+            sources.push({
+                type: TokenAccountSourceType.LightTokenHot,
+                address,
+                amount: parsed.parsed.amount,
+                accountInfo: onchainAccount,
+                parsed: parsed.parsed,
+            });
+        }
     }
 
     // Collect compressed light-token accounts (cold balance)
@@ -832,12 +845,14 @@ async function getLightTokenAccountInterface(
         }
     }
 
+    throwIfUnexpectedRpcErrors(
+        'Failed to fetch token account data from RPC',
+        unexpectedErrors,
+    );
+
     if (sources.length === 0) {
-        if (unexpectedErrors.length > 0) {
-            throwRpcFetchFailure(
-                'Failed to fetch token account data from RPC',
-                unexpectedErrors[0],
-            );
+        if (ownerMismatchErrors.length > 0) {
+            throw ownerMismatchErrors[0];
         }
         throw new TokenAccountNotFoundError();
     }
@@ -899,6 +914,7 @@ async function getSplOrToken2022AccountInterface(
 
     const sources: TokenAccountSource[] = [];
     const unexpectedErrors: unknown[] = [];
+    const ownerMismatchErrors: TokenInvalidAccountOwnerError[] = [];
 
     const hotInfo = hotResult.status === 'fulfilled' ? hotResult.value : null;
     if (hotResult.status === 'rejected')
@@ -912,17 +928,21 @@ async function getSplOrToken2022AccountInterface(
 
     // Hot SPL/T22 account (may not exist)
     if (hotInfo) {
-        try {
-            const account = unpackAccountSPL(address, hotInfo, programId);
-            sources.push({
-                type: hotType,
-                address,
-                amount: account.amount,
-                accountInfo: hotInfo,
-                parsed: account,
-            });
-        } catch {
-            // Not a valid SPL/T22 account at this address, skip
+        if (!hotInfo.owner.equals(programId)) {
+            ownerMismatchErrors.push(new TokenInvalidAccountOwnerError());
+        } else {
+            try {
+                const account = unpackAccountSPL(address, hotInfo, programId);
+                sources.push({
+                    type: hotType,
+                    address,
+                    amount: account.amount,
+                    accountInfo: hotInfo,
+                    parsed: account,
+                });
+            } catch (error) {
+                unexpectedErrors.push(error);
+            }
         }
     }
 
@@ -947,12 +967,14 @@ async function getSplOrToken2022AccountInterface(
         }
     }
 
+    throwIfUnexpectedRpcErrors(
+        'Failed to fetch token account data from RPC',
+        unexpectedErrors,
+    );
+
     if (sources.length === 0) {
-        if (unexpectedErrors.length > 0) {
-            throwRpcFetchFailure(
-                'Failed to fetch token account data from RPC',
-                unexpectedErrors[0],
-            );
+        if (ownerMismatchErrors.length > 0) {
+            throw ownerMismatchErrors[0];
         }
         throw new TokenAccountNotFoundError();
     }

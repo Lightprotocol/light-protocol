@@ -2130,9 +2130,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         ]);
 
         const onchainError =
-            onchainResult.status === 'rejected'
-                ? onchainResult.reason
-                : null;
+            onchainResult.status === 'rejected' ? onchainResult.reason : null;
         const compressedError =
             compressedResult.status === 'rejected'
                 ? compressedResult.reason

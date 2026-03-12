@@ -9,6 +9,12 @@
 
 - **Root export removed:** `createLoadAtaInstructionsFromInterface` is no longer exported from the package root. Use `createLoadAtaInstructions` (public API) and pass ATA/owner/mint directly.
 
+- **Interface RPC error semantics are now strict (no silent downgrade to not-found).**
+    - `getAccountInterface` / `getAtaInterface`: unexpected RPC failures (on-chain fetch, compressed fetch, parsing) now throw immediately instead of being silently ignored when another source produced data.
+    - `getAccountInterface` light-token mode and SPL/T22 mode now surface `TokenInvalidAccountOwnerError` when an on-chain account exists at the queried address but is owned by a different program.
+    - `getMintInterface` (decompressed light-mint branch) now validates the on-chain mint owner and throws `TokenInvalidAccountOwnerError` on mismatch; it also forwards the provided `commitment` to on-chain `getAccountInfo`.
+    - **Migration impact:** callers that previously interpreted these paths as empty/not-found must now handle thrown errors explicitly (retry/backoff or surfacing RPC health).
+
 ## [0.23.0-beta.10]
 
 ### Breaking Changes
