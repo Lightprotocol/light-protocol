@@ -65,6 +65,9 @@ pub enum ForesterError {
     #[error(transparent)]
     V2(#[from] V2Error),
 
+    #[error(transparent)]
+    SmartTransaction(#[from] SmartTransactionError),
+
     #[error("Forester error: {error}")]
     General { error: String },
 
@@ -210,6 +213,18 @@ impl ForesterError {
             Self::Rpc(rpc_error) => {
                 rpc_custom_error_code(rpc_error) == Some(forester_not_eligible_error_code)
             }
+            Self::SmartTransaction(smart_error) => {
+                smart_error
+                    .transaction_error()
+                    .and_then(|error| match error {
+                        TransactionError::InstructionError(
+                            _,
+                            InstructionError::Custom(error_code),
+                        ) => Some(error_code),
+                        _ => None,
+                    })
+                    == Some(forester_not_eligible_error_code)
+            }
             Self::V2(v2_error) => {
                 v2_error.custom_error_code() == Some(forester_not_eligible_error_code)
             }
@@ -243,17 +258,6 @@ impl<T> From<tokio::sync::mpsc::error::SendError<T>> for ForesterError {
 impl From<tokio::sync::oneshot::error::RecvError> for ForesterError {
     fn from(err: tokio::sync::oneshot::error::RecvError) -> Self {
         Self::channel(err)
-    }
-}
-
-impl From<SmartTransactionError> for ForesterError {
-    fn from(err: SmartTransactionError) -> Self {
-        match err {
-            SmartTransactionError::Rpc(rpc_error) => Self::Rpc(rpc_error),
-            other => Self::General {
-                error: other.to_string(),
-            },
-        }
     }
 }
 

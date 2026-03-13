@@ -129,6 +129,18 @@ impl<R: Rpc> Clone for BatchContext<R> {
     }
 }
 
+impl<R: Rpc> BatchContext<R> {
+    #[inline]
+    pub fn eligibility_end_slot(&self) -> u64 {
+        let forester_end = self.forester_eligibility_end_slot.load(Ordering::Relaxed);
+        if forester_end > 0 {
+            forester_end
+        } else {
+            self.epoch_phases.active.end
+        }
+    }
+}
+
 pub(crate) async fn send_transaction_batch<R: Rpc>(
     context: &BatchContext<R>,
     instructions: Vec<Instruction>,
@@ -144,14 +156,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         return Err(ForesterError::NotInActivePhase);
     }
 
-    let forester_end = context
-        .forester_eligibility_end_slot
-        .load(Ordering::Acquire);
-    let eligibility_end_slot = if forester_end > 0 {
-        forester_end
-    } else {
-        context.epoch_phases.active.end
-    };
+    let eligibility_end_slot = context.eligibility_end_slot();
     let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
     let Some(confirmation_deadline) = scheduled_confirmation_deadline(slots_remaining) else {
         debug!(

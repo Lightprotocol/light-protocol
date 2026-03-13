@@ -1,7 +1,4 @@
-use std::{
-    sync::{atomic::Ordering, Arc},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use borsh::BorshSerialize;
 
@@ -217,27 +214,17 @@ impl<R: Rpc> TxSender<R> {
     }
 
     #[inline]
-    fn eligibility_end_slot(&self) -> u64 {
-        let forester_end = self
-            .context
-            .forester_eligibility_end_slot
-            .load(Ordering::Relaxed);
-        if forester_end > 0 {
-            forester_end
-        } else {
-            self.context.epoch_phases.active.end
-        }
-    }
-
-    #[inline]
     fn should_flush_due_to_time_at(&self, current_slot: u64) -> bool {
-        let slots_remaining = self.eligibility_end_slot().saturating_sub(current_slot);
+        let slots_remaining = self
+            .context
+            .eligibility_end_slot()
+            .saturating_sub(current_slot);
         slots_remaining <= FLUSH_MARGIN_SLOTS
     }
 
     #[inline]
     fn is_still_eligible_at(&self, current_slot: u64) -> bool {
-        current_slot < self.eligibility_end_slot()
+        current_slot < self.context.eligibility_end_slot()
     }
 
     async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofJobResult>) -> TxSenderTaskResult {
