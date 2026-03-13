@@ -63,7 +63,7 @@ export async function startIndexer(
       args.push("--start-slot", startSlot.toString());
     }
 
-    spawnBinary(INDEXER_PROCESS_NAME, args, process.env);
+    spawnBinary(INDEXER_PROCESS_NAME, args);
     await waitForServers([{ port: indexerPort, path: "/getIndexerHealth" }]);
     console.log("Indexer started successfully!");
   }
