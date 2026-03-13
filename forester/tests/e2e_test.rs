@@ -173,24 +173,6 @@ fn get_forester_keypair() -> Keypair {
     }
 }
 
-async fn expect_indexer_caught_up<R: Rpc>(rpc: &R, context: String) {
-    if let Err(error) = wait_for_indexer(rpc).await {
-        let rpc_slot = rpc.get_slot().await.ok();
-        let (indexer_slot, indexer_health) = match rpc.indexer() {
-            Ok(indexer) => (
-                indexer.get_indexer_slot(None).await.ok(),
-                indexer.get_indexer_health(None).await.ok(),
-            ),
-            Err(_) => (None, None),
-        };
-
-        panic!(
-            "wait_for_indexer failed during {}: {} (rpc_slot={:?}, indexer_slot={:?}, indexer_health={:?})",
-            context, error, rpc_slot, indexer_slot, indexer_health
-        );
-    }
-}
-
 fn is_v1_state_test_enabled() -> bool {
     env::var("TEST_V1_STATE").unwrap_or_else(|_| "true".to_string()) == "true"
 }
@@ -935,8 +917,6 @@ async fn execute_test_transactions<R: Rpc>(
                     &env.v2_state_trees[0].output_queue,
                     payer,
                     mint_pubkey,
-                    i,
-                    "v2",
                     sender_batched_token_counter,
                 )
                 .await;
@@ -971,8 +951,6 @@ async fn execute_test_transactions<R: Rpc>(
                     &env.v1_state_trees[0].merkle_tree,
                     payer,
                     mint_pubkey,
-                    i,
-                    "v1",
                     sender_batched_token_counter,
                 )
                 .await;
@@ -1050,15 +1028,9 @@ async fn compressed_token_transfer<R: Rpc>(
     merkle_tree_pubkey: &Pubkey,
     payer: &Keypair,
     mint: &Pubkey,
-    iteration: usize,
-    branch: &'static str,
     counter: &mut u64,
 ) -> Signature {
-    let operation_context = format!(
-        "compressed_token_transfer iteration={} branch={} tree={} mint={}",
-        iteration, branch, merkle_tree_pubkey, mint
-    );
-    expect_indexer_caught_up(rpc, operation_context.clone()).await;
+    wait_for_indexer(rpc).await.unwrap();
     let mut input_compressed_accounts: Vec<TokenDataWithMerkleContext> = rpc
         .indexer()
         .unwrap()
@@ -1075,10 +1047,6 @@ async fn compressed_token_transfer<R: Rpc>(
         .unwrap()
         .into();
     if input_compressed_accounts.is_empty() {
-        println!(
-            "{} skipped: no input compressed token accounts",
-            operation_context
-        );
         return Signature::default();
     }
 
@@ -1100,19 +1068,11 @@ async fn compressed_token_transfer<R: Rpc>(
         .unwrap();
 
     let root_indices = proof_for_compressed_accounts.value.get_root_indices();
-    let selected_leaf_index = input_compressed_accounts[0]
-        .compressed_account
-        .merkle_context
-        .leaf_index;
     let merkle_contexts = vec![
         input_compressed_accounts[0]
             .compressed_account
             .merkle_context,
     ];
-    println!(
-        "{} preparing tx with amount={} leaf_index={} root_indices={:?}",
-        operation_context, tokens, selected_leaf_index, root_indices
-    );
 
     let compressed_accounts = vec![TokenTransferOutputData {
         amount: tokens,
@@ -1172,7 +1132,6 @@ async fn compressed_token_transfer<R: Rpc>(
         .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
         .await
         .unwrap();
-    println!("{} sent tx={}", operation_context, sig);
     *counter += compressed_accounts.len() as u64;
     *counter -= input_compressed_accounts.len() as u64;
     sig
@@ -1185,12 +1144,8 @@ async fn transfer<const V2: bool, R: Rpc>(
     counter: &mut u64,
     test_accounts: &TestAccounts,
 ) -> Signature {
-    println!("transfer v2: {} merkle_tree: {}", V2, merkle_tree_pubkey);
-    expect_indexer_caught_up(
-        rpc,
-        format!("transfer prefetch v2={} tree={}", V2, merkle_tree_pubkey),
-    )
-    .await;
+    println!("transfer V2: {} merkle_tree: {}", V2, merkle_tree_pubkey);
+    wait_for_indexer(rpc).await.unwrap();
     let mut input_compressed_accounts = rpc
         .indexer()
         .unwrap()
@@ -1232,11 +1187,7 @@ async fn transfer<const V2: bool, R: Rpc>(
     let lamports = input_compressed_accounts[0].lamports;
     let compressed_account_hashes = vec![input_compressed_accounts[0].hash];
 
-    expect_indexer_caught_up(
-        rpc,
-        format!("transfer proof fetch V2={} tree={}", V2, merkle_tree_pubkey),
-    )
-    .await;
+    wait_for_indexer(rpc).await.unwrap();
     let proof_for_compressed_accounts = rpc
         .indexer()
         .unwrap()
@@ -1406,7 +1357,7 @@ async fn create_v1_address<R: Rpc>(
         tree: *merkle_tree_pubkey,
     }];
 
-    expect_indexer_caught_up(rpc, format!("create_address tree={}", merkle_tree_pubkey)).await;
+    wait_for_indexer(rpc).await.unwrap();
     let proof_for_addresses = rpc
         .indexer()
         .unwrap()

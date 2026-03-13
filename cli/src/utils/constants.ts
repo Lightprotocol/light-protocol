@@ -21,8 +21,8 @@ export const LIGHT_PROVER_PROCESS_NAME = "light-prover";
 export const INDEXER_PROCESS_NAME = "photon";
 export const FORESTER_PROCESS_NAME = "forester";
 
-export const SURFPOOL_VERSION = "1.0.1";
-export const SURFPOOL_RELEASE_TAG = "v1.0.1-light";
+export const SURFPOOL_VERSION = "1.1.1";
+export const SURFPOOL_RELEASE_TAG = "v1.1.1-light";
 
 // PHOTON_VERSION, PHOTON_GIT_COMMIT, and PHOTON_GIT_REPO are auto-generated
 // from the external/photon submodule at build time. See photonVersion.generated.ts.

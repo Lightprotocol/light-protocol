@@ -40,8 +40,6 @@ env:
   TEST_V1_ADDRESS: "true"
   TEST_V2_ADDRESS: "true"
   FORESTER_ENABLE_COMPRESSIBLE: "true"
-  SURFPOOL_REPOSITORY: "Lightprotocol/surfpool"
-  SURFPOOL_GIT_REF: "sergey/block-fix"
 
 jobs:
   test:
@@ -74,23 +72,6 @@ jobs:
           skip-components: "redis,go"
           cache-key: "rust"
 
-      - name: Checkout Surfpool branch
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ env.SURFPOOL_REPOSITORY }}
-          ref: ${{ env.SURFPOOL_GIT_REF }}
-          path: surfpool-branch
-
-      - name: Build Surfpool branch
-        shell: bash
-        run: |
-          cargo build \
-            --release \
-            --manifest-path surfpool-branch/Cargo.toml \
-            -p surfpool-cli \
-            --bin surfpool
-          echo "LIGHT_SURFPOOL_BINARY_PATH=${GITHUB_WORKSPACE}/surfpool-branch/target/release/surfpool" >> $GITHUB_ENV
-
       - name: Check available disk space
         shell: bash
         run: |
@@ -101,125 +82,7 @@ jobs:
         run: just cli build
 
       - name: Test
-        shell: bash
-        run: |
-          set -o pipefail
-          mkdir -p forester
-          if ! just forester test 2>&1 | tee forester/ci.log; then
-            echo "=== validator rpc health after test failure ==="
-            curl -sS -m 5 http://localhost:8899 \
-              -H "Content-Type: application/json" \
-              -d '{"jsonrpc":"2.0","id":1,"method":"getSlot"}' || true
-            echo
-            echo "=== validator processes after test failure ==="
-            pgrep -af "surfpool|solana-test-validator" || true
-            echo "=== validator listeners after test failure ==="
-            ss -lntp | grep -E '(:8899|:8900)' || true
-            echo "=== dumping local validator transactions ==="
-            cargo xtask dump-local-transactions \
-              --rpc-url http://localhost:8899 \
-              --output-folder forester/validator-transactions || true
-            exit 1
-          fi
-
-      - name: Dump Photon Logs On Failure
-        if: failure()
-        shell: bash
-        run: |
-          mapfile -t photon_logs < <(find . -path "*/test-ledger/photon.log" -type f | sort)
-          if [ "${#photon_logs[@]}" -gt 0 ]; then
-            for log in "${photon_logs[@]}"; do
-              echo "=== ${log} (tail -n 400) ==="
-              tail -n 400 "${log}"
-              echo "=== end ${log} ==="
-            done
-          else
-            echo "No photon.log files found under any test-ledger directory"
-          fi
-
-      - name: Build Photon Gap Summary
-        if: always()
-        shell: bash
-        run: |
-          mkdir -p forester
-          python3 - <<'PY'
-          from collections import deque
-          from pathlib import Path
-
-          output_path = Path("forester/photon-gap-summary.txt")
-          photon_logs = sorted(Path(".").glob("**/test-ledger/photon.log"))
-          surfpool_logs = sorted(Path(".").glob("**/test-ledger/surfpool.log"))
-
-          def relevant_lines(path: Path, patterns: tuple[str, ...], last_indexed_count: int = 0) -> list[str]:
-              matches = []
-              indexed = deque(maxlen=last_indexed_count)
-              with path.open("r", encoding="utf-8", errors="replace") as handle:
-                  for raw_line in handle:
-                      line = raw_line.rstrip("\n")
-                      if last_indexed_count and "Indexed slot " in line:
-                          indexed.append(line)
-                      if any(pattern in line for pattern in patterns):
-                          matches.append(line)
-              result = []
-              if indexed:
-                  result.append("Last indexed slot lines:")
-                  result.extend(indexed)
-              result.extend(matches[-200:])
-              return result
-
-          with output_path.open("w", encoding="utf-8") as output:
-              if not photon_logs and not surfpool_logs:
-                  output.write("No Photon or Surfpool logs found under any test-ledger directory.\n")
-              for log_path in photon_logs:
-                  output.write(f"=== {log_path} ===\n")
-                  lines = relevant_lines(
-                      log_path,
-                      (
-                          "Sequence gap detected",
-                          "Failed to index block batch",
-                          "Skipping failed transaction",
-                      ),
-                      last_indexed_count=10,
-                  )
-                  if lines:
-                      output.write("\n".join(lines))
-                      output.write("\n")
-                  else:
-                      output.write("No gap-related lines found.\n")
-              for log_path in surfpool_logs:
-                  output.write(f"=== {log_path} ===\n")
-                  lines = relevant_lines(
-                      log_path,
-                      (
-                          "Transaction execution failed",
-                          "Transaction simulation failed",
-                          "custom program error",
-                      ),
-                  )
-                  if lines:
-                      output.write("\n".join(lines))
-                      output.write("\n")
-                  else:
-                      output.write("No Surfpool transaction failure lines found.\n")
-          PY
-          echo "=== forester/photon-gap-summary.txt ==="
-          cat forester/photon-gap-summary.txt
-          echo "=== end forester/photon-gap-summary.txt ==="
-
-      - name: Upload Forester Test Logs
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: forester-test-ledger
-          path: |
-            forester/ci.log
-            test.log
-            forester/test.log
-            forester/photon-gap-summary.txt
-            forester/validator-transactions
-            test-ledger
-            forester/test-ledger
-          if-no-files-found: ignore
+        run: just forester test
 
   compressible-tests:
     name: Forester compressible tests
@@ -251,23 +114,6 @@ jobs:
         with:
           skip-components: "go"
           cache-key: "rust"
-
-      - name: Checkout Surfpool branch
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ env.SURFPOOL_REPOSITORY }}
-          ref: ${{ env.SURFPOOL_GIT_REF }}
-          path: surfpool-branch
-
-      - name: Build Surfpool branch
-        shell: bash
-        run: |
-          cargo build \
-            --release \
-            --manifest-path surfpool-branch/Cargo.toml \
-            -p surfpool-cli \
-            --bin surfpool
-          echo "LIGHT_SURFPOOL_BINARY_PATH=${GITHUB_WORKSPACE}/surfpool-branch/target/release/surfpool" >> $GITHUB_ENV
 
       - name: Build CLI
         run: just cli build

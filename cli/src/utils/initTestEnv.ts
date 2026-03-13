@@ -593,15 +593,6 @@ function getSurfpoolBinaryPath(): string {
   return path.join(getSurfpoolBinDir(), "surfpool");
 }
 
-function getSurfpoolBinaryOverridePath(): string | null {
-  const overridePath = process.env.LIGHT_SURFPOOL_BINARY_PATH?.trim();
-  if (!overridePath) {
-    return null;
-  }
-
-  return path.resolve(overridePath);
-}
-
 function getInstalledSurfpoolVersion(): string | null {
   const binaryPath = getSurfpoolBinaryPath();
 
@@ -646,16 +637,6 @@ async function downloadSurfpoolBinary(): Promise<void> {
 }
 
 async function ensureSurfpoolBinary(): Promise<string> {
-  const overridePath = getSurfpoolBinaryOverridePath();
-  if (overridePath) {
-    if (!fs.existsSync(overridePath)) {
-      throw new Error(
-        `Configured surfpool binary does not exist: ${overridePath}`,
-      );
-    }
-    return overridePath;
-  }
-
   const binPath = getSurfpoolBinaryPath();
   const installedVersion = getInstalledSurfpoolVersion();
 
