@@ -105,6 +105,56 @@ struct ForesterContext {
     epoch: forester_utils::forester_epoch::Epoch,
 }
 
+async fn wait_for_tracker_len(
+    tracker: &CTokenAccountTracker,
+    expected_len: usize,
+    timeout: Duration,
+) {
+    let start = tokio::time::Instant::now();
+    while start.elapsed() < timeout {
+        if tracker.len() == expected_len {
+            return;
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+
+    panic!(
+        "Timed out waiting for tracker len {} (current={})",
+        expected_len,
+        tracker.len()
+    );
+}
+
+async fn wait_for_account_lamports(
+    tracker: &CTokenAccountTracker,
+    pubkey: Pubkey,
+    expected_lamports: u64,
+    timeout: Duration,
+) {
+    let start = tokio::time::Instant::now();
+    while start.elapsed() < timeout {
+        if tracker
+            .get_all_token_accounts()
+            .into_iter()
+            .find(|account| account.pubkey == pubkey)
+            .is_some_and(|account| account.lamports == expected_lamports)
+        {
+            return;
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+
+    let current_lamports = tracker
+        .get_all_token_accounts()
+        .into_iter()
+        .find(|account| account.pubkey == pubkey)
+        .map(|account| account.lamports);
+    panic!(
+        "Timed out waiting for account {} lamports {} (current={:?})",
+        pubkey, expected_lamports, current_lamports
+    );
+}
+
 /// Register a forester for epoch 0 and wait for registration phase to complete
 async fn register_forester(
     rpc: &mut LightClient,
@@ -318,6 +368,7 @@ async fn test_compressible_ctoken_compression() {
     )
     .await
     .expect("Failed to create compressible token account");
+    wait_for_tracker_len(&tracker, 1, Duration::from_secs(10)).await;
     // Verify tracker has the account
     assert_eq!(tracker.len(), 1, "Tracker should have 1 account");
     let accounts = tracker.get_all_token_accounts();
@@ -359,6 +410,13 @@ async fn test_compressible_ctoken_compression() {
     rpc.airdrop_lamports(&account_state.pubkey, 10_000_000)
         .await
         .expect("Failed to airdrop to token account");
+    wait_for_account_lamports(
+        &tracker,
+        account_state.pubkey,
+        lamports + 10_000_000,
+        Duration::from_secs(10),
+    )
+    .await;
     let accounts = tracker.get_all_token_accounts();
     assert_eq!(accounts[0].lamports, lamports + 10_000_000);
     // Create second account with 0 epochs rent
@@ -376,6 +434,7 @@ async fn test_compressible_ctoken_compression() {
     )
     .await
     .expect("Failed to create second compressible token account");
+    wait_for_tracker_len(&tracker, 2, Duration::from_secs(10)).await;
     assert_eq!(tracker.len(), 2, "Tracker should have 2 accounts");
     // Register forester and run compression
     let ctx = register_forester(&mut rpc)
@@ -391,8 +450,12 @@ async fn test_compressible_ctoken_compression() {
         &ctx.forester_keypair.pubkey(),
         ctx.epoch.epoch,
     );
-    let compressor =
-        CTokenCompressor::new(ctx.rpc_pool.clone(), tracker.clone(), ctx.forester_keypair);
+    let compressor = CTokenCompressor::new(
+        ctx.rpc_pool.clone(),
+        tracker.clone(),
+        ctx.forester_keypair,
+        forester::smart_transaction::TransactionPolicy::default(),
+    );
     let compressor_handle = tokio::spawn(async move {
         compressor
             .compress_batch(&ready_accounts, registered_forester_pda)
@@ -416,6 +479,7 @@ async fn test_compressible_ctoken_compression() {
     }
     compressor_handle.abort();
     assert!(account_closed, "Account should be closed");
+    wait_for_tracker_len(&tracker, 1, Duration::from_secs(10)).await;
     // Verify compression succeeded
     let account_after_compression = rpc_from_pool
         .get_account(token_account_pubkey_2)

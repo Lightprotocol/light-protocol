@@ -2464,7 +2464,6 @@ dependencies = [
  "async-channel 2.5.0",
  "async-trait",
  "base64 0.13.1",
- "bb8",
  "borsh 0.10.4",
  "bs58",
  "clap 4.5.53",

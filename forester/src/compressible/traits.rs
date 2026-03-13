@@ -2,6 +2,7 @@
 
 use std::{
     fmt,
+    marker::PhantomData,
     sync::atomic::{AtomicU64, Ordering},
 };
 
@@ -13,9 +14,16 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
+use thiserror::Error;
 use tracing::info;
 
-use crate::Result;
+use crate::{
+    smart_transaction::{
+        collect_priority_fee_accounts, send_transaction_with_policy,
+        SendTransactionWithPolicyConfig, TransactionPolicy,
+    },
+    Result,
+};
 
 /// Typed error for compressor cancellation, used instead of string matching.
 #[derive(Debug)]
@@ -28,6 +36,29 @@ impl fmt::Display for Cancelled {
 }
 
 impl std::error::Error for Cancelled {}
+
+#[derive(Debug, Error)]
+pub enum CompressionTaskError {
+    #[error(transparent)]
+    Failed(#[from] anyhow::Error),
+
+    #[error("Cancelled")]
+    Cancelled,
+}
+
+#[derive(Debug)]
+pub enum CompressionOutcome<S> {
+    Compressed {
+        signature: Signature,
+        state: S,
+    },
+    Failed {
+        state: S,
+        error: CompressionTaskError,
+    },
+}
+
+pub type CompressionOutcomes<S> = Vec<CompressionOutcome<S>>;
 
 pub trait CompressibleState: Clone + Send + Sync {
     fn pubkey(&self) -> &Pubkey;
@@ -122,108 +153,97 @@ pub trait SubscriptionHandler: Send + Sync {
     fn handle_removal(&self, pubkey: &Pubkey);
 }
 
-pub async fn verify_transaction_execution(rpc: &impl Rpc, signature: Signature) -> Result<()> {
-    const MAX_RETRIES: u32 = 3;
-    const RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(500);
+struct PendingAccountsGuard<'a, T, S>
+where
+    T: CompressibleTracker<S> + ?Sized,
+    S: CompressibleState,
+{
+    tracker: &'a T,
+    pubkeys: &'a [Pubkey],
+    completed: bool,
+    state: PhantomData<S>,
+}
 
-    for attempt in 0..MAX_RETRIES {
-        let statuses = rpc
-            .get_signature_statuses(&[signature])
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Failed to get signature status for {}: {:?}", signature, e)
-            })?;
-
-        match statuses.first() {
-            Some(Some(status)) => {
-                if let Some(err) = &status.err {
-                    return Err(anyhow::anyhow!(
-                        "Transaction {} confirmed but execution failed: {:?}",
-                        signature,
-                        err
-                    ));
-                }
-                return Ok(());
-            }
-            _ if attempt < MAX_RETRIES - 1 => {
-                tracing::debug!(
-                    "Transaction {} status not yet available, retrying ({}/{})",
-                    signature,
-                    attempt + 1,
-                    MAX_RETRIES
-                );
-                tokio::time::sleep(RETRY_DELAY).await;
-            }
-            _ => {}
+impl<'a, T, S> PendingAccountsGuard<'a, T, S>
+where
+    T: CompressibleTracker<S> + ?Sized,
+    S: CompressibleState,
+{
+    fn new(tracker: &'a T, pubkeys: &'a [Pubkey]) -> Self {
+        tracker.mark_pending(pubkeys);
+        Self {
+            tracker,
+            pubkeys,
+            completed: false,
+            state: PhantomData,
         }
     }
 
-    Err(anyhow::anyhow!(
-        "Transaction {} status unavailable after {} retries",
-        signature,
-        MAX_RETRIES
-    ))
+    fn complete(mut self) {
+        for pubkey in self.pubkeys {
+            self.tracker.remove_compressed(pubkey);
+        }
+        self.completed = true;
+    }
 }
 
-/// Marks `pubkeys` as pending, sends the transaction, waits for confirmation,
-/// verifies execution, and either marks accounts as compressed or unmarks pending
-/// on any failure.
+impl<T, S> Drop for PendingAccountsGuard<'_, T, S>
+where
+    T: CompressibleTracker<S> + ?Sized,
+    S: CompressibleState,
+{
+    fn drop(&mut self) {
+        if !self.completed {
+            self.tracker.unmark_pending(self.pubkeys);
+        }
+    }
+}
+
+/// Marks `pubkeys` as pending, sends the transaction through the shared
+/// transaction policy, and either marks accounts as compressed or unmarks
+/// pending on any failure.
 pub async fn send_and_confirm_with_tracking<S: CompressibleState>(
     rpc: &mut impl Rpc,
     instructions: &[Instruction],
     payer: &Keypair,
+    transaction_policy: TransactionPolicy,
     tracker: &impl CompressibleTracker<S>,
     pubkeys: &[Pubkey],
     tx_label: &str,
 ) -> Result<Signature> {
-    tracker.mark_pending(pubkeys);
+    if transaction_policy.confirmation.is_none() {
+        return Err(anyhow::anyhow!(
+            "{} transaction requires confirmation to update tracker state safely",
+            tx_label
+        ));
+    }
 
-    let signature = match rpc
-        .create_and_send_transaction(instructions, &payer.pubkey(), &[payer])
-        .await
-    {
-        Ok(sig) => sig,
-        Err(e) => {
-            tracker.unmark_pending(pubkeys);
-            return Err(anyhow::anyhow!(
-                "Failed to send {} transaction: {:?}",
-                tx_label,
-                e
-            ));
-        }
-    };
+    let pending = PendingAccountsGuard::<_, S>::new(tracker, pubkeys);
+    let payer_pubkey = payer.pubkey();
+    let signers = [payer];
+    let signature = send_transaction_with_policy(
+        rpc,
+        SendTransactionWithPolicyConfig {
+            instructions: instructions.to_vec(),
+            payer: &payer_pubkey,
+            signers: &signers,
+            address_lookup_tables: &[],
+            priority_fee_accounts: collect_priority_fee_accounts(payer_pubkey, instructions),
+            policy: transaction_policy,
+            confirmation_deadline: None,
+        },
+    )
+    .await
+    .map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to send or confirm {} transaction: {:?}",
+            tx_label,
+            e
+        )
+    })?;
 
     info!("{} tx sent: {}", tx_label, signature);
-
-    let confirmed = match rpc.confirm_transaction(signature).await {
-        Ok(confirmed) => confirmed,
-        Err(e) => {
-            tracker.unmark_pending(pubkeys);
-            return Err(anyhow::anyhow!(
-                "Failed to confirm {} transaction: {:?}",
-                tx_label,
-                e
-            ));
-        }
-    };
-
-    if confirmed {
-        if let Err(e) = verify_transaction_execution(rpc, signature).await {
-            tracker.unmark_pending(pubkeys);
-            return Err(e);
-        }
-
-        for pubkey in pubkeys {
-            tracker.remove_compressed(pubkey);
-        }
-        info!("{} tx confirmed: {}", tx_label, signature);
-        Ok(signature)
-    } else {
-        tracker.unmark_pending(pubkeys);
-        Err(anyhow::anyhow!(
-            "{} tx not confirmed: {} - accounts returned to work pool",
-            tx_label,
-            signature
-        ))
-    }
+    pending.complete();
+    info!("{} tx confirmed: {}", tx_label, signature);
+    Ok(signature)
 }

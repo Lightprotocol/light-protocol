@@ -32,7 +32,10 @@ pub trait MerkleTreeExt: Rpc {
         &mut self,
         pubkey: Pubkey,
     ) -> Result<ConcurrentMerkleTreeCopy<Poseidon, 26>, MerkleTreeExtError> {
-        let account = self.get_account(pubkey).await?.unwrap();
+        let account = self
+            .get_account(pubkey)
+            .await?
+            .ok_or_else(|| RpcError::AccountDoesNotExist(pubkey.to_string()))?;
         let tree = ConcurrentMerkleTreeCopy::from_bytes_copy(
             &account.data[8 + mem::size_of::<MerkleTreeMetadata>()..],
         )?;
@@ -45,7 +48,10 @@ pub trait MerkleTreeExt: Rpc {
         &mut self,
         pubkey: Pubkey,
     ) -> Result<IndexedMerkleTreeCopy<Poseidon, usize, 26, 16>, MerkleTreeExtError> {
-        let account = self.get_account(pubkey).await?.unwrap();
+        let account = self
+            .get_account(pubkey)
+            .await?
+            .ok_or_else(|| RpcError::AccountDoesNotExist(pubkey.to_string()))?;
         let tree = IndexedMerkleTreeCopy::from_bytes_copy(
             &account.data[8 + mem::size_of::<MerkleTreeMetadata>()..],
         )?;

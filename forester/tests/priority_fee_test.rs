@@ -1,9 +1,7 @@
 use forester::{
     cli::{ProcessorMode, StartArgs},
-    processor::v1::{
-        config::CapConfig,
-        helpers::{get_capped_priority_fee, request_priority_fee_estimate},
-    },
+    priority_fee::request_priority_fee_estimate,
+    processor::v1::config::CapConfig,
     ForesterConfig,
 };
 use light_client::rpc::{LightClient, LightClientConfig, Rpc};
@@ -12,6 +10,20 @@ use solana_sdk::signature::Signer;
 
 use crate::test_utils::init;
 mod test_utils;
+
+fn calculate_compute_unit_price(target_lamports: u64, compute_units: u64) -> u64 {
+    ((target_lamports * 1_000_000) as f64 / compute_units as f64).ceil() as u64
+}
+
+fn get_capped_priority_fee(cap_config: CapConfig) -> u64 {
+    let max_fee_lamports = cap_config.max_fee_lamports.max(cap_config.min_fee_lamports);
+    let priority_fee_max =
+        calculate_compute_unit_price(max_fee_lamports, cap_config.compute_unit_limit);
+    let priority_fee_min =
+        calculate_compute_unit_price(cap_config.min_fee_lamports, cap_config.compute_unit_limit);
+    let capped_fee = std::cmp::min(cap_config.rec_fee_microlamports_per_cu, priority_fee_max);
+    std::cmp::max(capped_fee, priority_fee_min)
+}
 
 #[tokio::test]
 #[ignore]
@@ -56,6 +68,7 @@ async fn test_priority_fee_request() {
         confirmation_poll_interval_ms: 1000,
         cu_limit: 1_000_000,
         enable_priority_fees: true,
+        priority_fee_microlamports: None,
         rpc_pool_size: 20,
         rpc_pool_connection_timeout_secs: 1,
         rpc_pool_idle_timeout_secs: 1,

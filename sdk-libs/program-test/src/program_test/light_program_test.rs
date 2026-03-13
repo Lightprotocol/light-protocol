@@ -369,7 +369,7 @@ impl LightProgramTest {
                 &mut context.context,
                 &keypairs.forester.pubkey(),
             )
-            .map_err(|e| RpcError::CustomError(e))?;
+            .map_err(RpcError::CustomError)?;
 
             // Initialize indexer with extracted batch size
             let test_accounts = context.test_accounts.clone();

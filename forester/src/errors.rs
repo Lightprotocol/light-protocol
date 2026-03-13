@@ -1,12 +1,16 @@
 use std::time::Duration;
 
+use anchor_lang::error::ERROR_CODE_OFFSET;
 use forester_utils::rpc_pool::PoolError;
 use light_client::rpc::errors::RpcError;
 use light_compressed_account::TreeType;
 use light_registry::errors::RegistryError;
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{instruction::InstructionError, program_error::ProgramError, pubkey::Pubkey};
+use solana_sdk::transaction::TransactionError;
 use thiserror::Error;
 use tracing::{info, warn};
+
+use crate::{processor::v2::errors::V2Error, smart_transaction::SmartTransactionError};
 
 #[derive(Error, Debug)]
 pub enum ForesterError {
@@ -58,6 +62,12 @@ pub enum ForesterError {
     #[error("Not in active phase")]
     NotInActivePhase,
 
+    #[error(transparent)]
+    V2(#[from] V2Error),
+
+    #[error(transparent)]
+    SmartTransaction(#[from] SmartTransactionError),
+
     #[error("Forester error: {error}")]
     General { error: String },
 
@@ -72,13 +82,6 @@ pub enum RegistrationError {
         epoch: u64,
         current_slot: u64,
         registration_start: u64,
-    },
-
-    #[error("Cannot finalize registration for epoch {epoch}. Current slot: {current_slot}, active phase ended: {active_phase_end_slot}")]
-    FinalizeRegistrationPhaseEnded {
-        epoch: u64,
-        current_slot: u64,
-        active_phase_end_slot: u64,
     },
 
     #[error("Epoch registration returned no result")]
@@ -183,11 +186,11 @@ pub enum WorkReportError {
 impl WorkReportError {
     pub(crate) fn from_registry_error(error_code: u32, epoch: u64) -> Result<(), Self> {
         match error_code {
-            code if code == RegistryError::ForesterAlreadyReportedWork as u32 => {
+            code if code == registry_error_code(RegistryError::ForesterAlreadyReportedWork) => {
                 info!("Work already reported for epoch {}. Skipping.", epoch);
                 Ok(())
             }
-            code if code == RegistryError::NotInReportWorkPhase as u32 => {
+            code if code == registry_error_code(RegistryError::NotInReportWorkPhase) => {
                 warn!("Not in report work phase for epoch {}. Skipping.", epoch);
                 Ok(())
             }
@@ -197,6 +200,38 @@ impl WorkReportError {
 }
 
 impl ForesterError {
+    pub fn is_not_in_active_phase(&self) -> bool {
+        matches!(self, Self::NotInActivePhase)
+    }
+
+    pub fn is_forester_not_eligible(&self) -> bool {
+        let forester_not_eligible_error_code =
+            registry_error_code(RegistryError::ForesterNotEligible);
+
+        match self {
+            Self::NotEligible => true,
+            Self::Rpc(rpc_error) => {
+                rpc_custom_error_code(rpc_error) == Some(forester_not_eligible_error_code)
+            }
+            Self::SmartTransaction(smart_error) => {
+                smart_error
+                    .transaction_error()
+                    .and_then(|error| match error {
+                        TransactionError::InstructionError(
+                            _,
+                            InstructionError::Custom(error_code),
+                        ) => Some(error_code),
+                        _ => None,
+                    })
+                    == Some(forester_not_eligible_error_code)
+            }
+            Self::V2(v2_error) => {
+                v2_error.custom_error_code() == Some(forester_not_eligible_error_code)
+            }
+            _ => false,
+        }
+    }
+
     pub fn indexer<E: std::fmt::Display>(error: E) -> Self {
         Self::Indexer(IndexerError::General {
             error: error.to_string(),
@@ -210,6 +245,10 @@ impl ForesterError {
     }
 }
 
+fn registry_error_code(error: RegistryError) -> u32 {
+    ERROR_CODE_OFFSET + error as u32
+}
+
 impl<T> From<tokio::sync::mpsc::error::SendError<T>> for ForesterError {
     fn from(err: tokio::sync::mpsc::error::SendError<T>) -> Self {
         Self::channel(err)
@@ -220,6 +259,30 @@ impl From<tokio::sync::oneshot::error::RecvError> for ForesterError {
     fn from(err: tokio::sync::oneshot::error::RecvError) -> Self {
         Self::channel(err)
     }
+}
+
+pub fn rpc_transaction_error(error: &RpcError) -> Option<TransactionError> {
+    match error {
+        RpcError::TransactionError(transaction_error) => Some(transaction_error.clone()),
+        RpcError::ClientError(client_error) => client_error.get_transaction_error(),
+        _ => None,
+    }
+}
+
+pub fn rpc_custom_error_code(error: &RpcError) -> Option<u32> {
+    match rpc_transaction_error(error) {
+        Some(TransactionError::InstructionError(_, InstructionError::Custom(error_code))) => {
+            Some(error_code)
+        }
+        _ => None,
+    }
+}
+
+pub fn rpc_is_already_processed(error: &RpcError) -> bool {
+    matches!(
+        rpc_transaction_error(error),
+        Some(TransactionError::AlreadyProcessed)
+    )
 }
 
 impl From<tokio::task::JoinError> for ForesterError {

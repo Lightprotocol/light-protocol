@@ -134,7 +134,7 @@ async fn main() -> Result<(), ForesterError> {
                 prometheus_url: args.prometheus_url.clone(),
                 helius_rpc: args.helius_rpc,
                 forester_api_urls: Vec::new(),
-            });
+            })?;
 
             spawn_shutdown_handler(
                 shutdown_sender_service,
@@ -187,7 +187,7 @@ async fn main() -> Result<(), ForesterError> {
                 prometheus_url: args.prometheus_url.clone(),
                 helius_rpc: false,
                 forester_api_urls: args.forester_api_urls.clone(),
-            });
+            })?;
 
             // Block until Ctrl+C
             if let Err(e) = ctrl_c().await {

@@ -12,6 +12,7 @@ pub mod helius_priority_fee_types;
 pub mod logging;
 pub mod metrics;
 pub mod pagerduty;
+pub mod priority_fee;
 pub mod processor;
 pub mod pubsub_client;
 pub mod queue_helpers;
@@ -19,6 +20,7 @@ pub mod rollover;
 pub mod slot_tracker;
 pub mod smart_transaction;
 pub mod telemetry;
+pub mod transaction_timing;
 pub mod tree_data_sync;
 pub mod utils;
 

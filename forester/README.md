@@ -100,6 +100,7 @@ When a fallback RPC URL is configured, the pool automatically switches to it if 
 | `--legacy-ixs-per-tx` | `LEGACY_IXS_PER_TX` | 1 | Instructions per V1 transaction |
 | `--cu-limit` | `CU_LIMIT` | 1000000 | Compute unit limit per transaction |
 | `--enable-priority-fees` | `ENABLE_PRIORITY_FEES` | false | Enable dynamic priority fees |
+| `--priority-fee-microlamports` | `PRIORITY_FEE_MICROLAMPORTS` | | Fixed priority fee in micro-lamports per compute unit |
 | `--lookup-table-address` | `LOOKUP_TABLE_ADDRESS` | | Address lookup table for versioned transactions |
 | `--helius-rpc` | `HELIUS_RPC` | false | Use Helius `getProgramAccountsV2` |
 
@@ -144,7 +145,7 @@ cargo run -- start \
   --processor-mode v2 \
   --max-concurrent-sends 200 \
   --cu-limit 400000 \
-  --enable-priority-fees true
+  --priority-fee-microlamports 10000
 ```
 
 ## Status & Health

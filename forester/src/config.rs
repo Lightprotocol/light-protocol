@@ -75,6 +75,7 @@ pub struct TransactionConfig {
     pub max_concurrent_sends: usize,
     pub cu_limit: u32,
     pub enable_priority_fees: bool,
+    pub priority_fee_microlamports: Option<u64>,
     pub tx_cache_ttl_seconds: u64,
     pub ops_cache_ttl_seconds: u64,
     /// Maximum attempts to confirm a transaction before timing out.
@@ -187,6 +188,7 @@ impl Default for TransactionConfig {
             max_concurrent_sends: 12,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
+            priority_fee_microlamports: None,
             tx_cache_ttl_seconds: 15,
             ops_cache_ttl_seconds: 180,
             confirmation_max_attempts: 60,
@@ -197,6 +199,17 @@ impl Default for TransactionConfig {
 }
 impl ForesterConfig {
     pub fn new_for_start(args: &StartArgs) -> Result<Self> {
+        if args.enable_priority_fees && args.priority_fee_microlamports.is_some() {
+            return Err(ConfigError::InvalidArguments {
+                field: "priority_fee",
+                invalid_values: vec![
+                    "enable_priority_fees and priority_fee_microlamports are mutually exclusive"
+                        .to_string(),
+                ],
+            }
+            .into());
+        }
+
         let registry_pubkey = light_registry::program::LightRegistry::id().to_string();
 
         let payer: Vec<u8> = match &args.payer {
@@ -293,6 +306,7 @@ impl ForesterConfig {
                 max_concurrent_sends: args.max_concurrent_sends,
                 cu_limit: args.cu_limit,
                 enable_priority_fees: args.enable_priority_fees,
+                priority_fee_microlamports: args.priority_fee_microlamports,
                 tx_cache_ttl_seconds: args.tx_cache_ttl_seconds,
                 ops_cache_ttl_seconds: args.ops_cache_ttl_seconds,
                 confirmation_max_attempts: args.confirmation_max_attempts,

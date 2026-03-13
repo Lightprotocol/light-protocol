@@ -29,9 +29,13 @@ use crate::{
     compressible::{
         config::PdaProgramConfig,
         traits::{
-            send_and_confirm_with_tracking, verify_transaction_execution, Cancelled,
-            CompressibleTracker,
+            send_and_confirm_with_tracking, CompressibleTracker, CompressionOutcome,
+            CompressionOutcomes, CompressionTaskError,
         },
+    },
+    smart_transaction::{
+        collect_priority_fee_accounts, send_transaction_with_policy,
+        SendTransactionWithPolicyConfig, TransactionPolicy,
     },
     Result,
 };
@@ -52,6 +56,7 @@ pub struct PdaCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<PdaAccountTracker>,
     payer_keypair: Keypair,
+    transaction_policy: TransactionPolicy,
 }
 
 impl<R: Rpc + Indexer> Clone for PdaCompressor<R> {
@@ -60,6 +65,7 @@ impl<R: Rpc + Indexer> Clone for PdaCompressor<R> {
             rpc_pool: Arc::clone(&self.rpc_pool),
             tracker: Arc::clone(&self.tracker),
             payer_keypair: self.payer_keypair.insecure_clone(),
+            transaction_policy: self.transaction_policy,
         }
     }
 }
@@ -69,11 +75,13 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<PdaAccountTracker>,
         payer_keypair: Keypair,
+        transaction_policy: TransactionPolicy,
     ) -> Self {
         Self {
             rpc_pool,
             tracker,
             payer_keypair,
+            transaction_policy,
         }
     }
 
@@ -153,8 +161,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         cached_config: &CachedProgramConfig,
         max_concurrent: usize,
         cancelled: Arc<AtomicBool>,
-    ) -> Vec<std::result::Result<(Signature, PdaAccountState), (PdaAccountState, anyhow::Error)>>
-    {
+    ) -> CompressionOutcomes<PdaAccountState> {
         if account_states.is_empty() {
             return Vec::new();
         }
@@ -175,15 +182,24 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 if cancelled.load(Ordering::Relaxed) {
                     // Unmark since we won't process this account
                     compressor.tracker.unmark_pending(&[account_state.pubkey]);
-                    return Err((account_state, Cancelled.into()));
+                    return CompressionOutcome::Failed {
+                        state: account_state,
+                        error: CompressionTaskError::Cancelled,
+                    };
                 }
 
                 match compressor
                     .compress(&account_state, &program_config, &cached_config)
                     .await
                 {
-                    Ok(sig) => Ok((sig, account_state)),
-                    Err(e) => Err((account_state, e)),
+                    Ok(sig) => CompressionOutcome::Compressed {
+                        signature: sig,
+                        state: account_state,
+                    },
+                    Err(e) => CompressionOutcome::Failed {
+                        state: account_state,
+                        error: e.into(),
+                    },
                 }
             }
         });
@@ -197,11 +213,11 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         // Remove successfully compressed PDAs; unmark failed ones
         for result in &results {
             match result {
-                Ok((_, pda_state)) => {
-                    self.tracker.remove_compressed(&pda_state.pubkey);
+                CompressionOutcome::Compressed { state, .. } => {
+                    self.tracker.remove_compressed(&state.pubkey);
                 }
-                Err((pda_state, _)) => {
-                    self.tracker.unmark_pending(&[pda_state.pubkey]);
+                CompressionOutcome::Failed { state, .. } => {
+                    self.tracker.unmark_pending(&[state.pubkey]);
                 }
             }
         }
@@ -302,6 +318,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             &mut *rpc,
             &[ix],
             &self.payer_keypair,
+            self.transaction_policy,
             &*self.tracker,
             &pubkeys,
             "compress_accounts_idempotent",
@@ -378,38 +395,29 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             pda, program_id
         );
 
-        // Send transaction (pending is managed by the caller)
-        let signature = rpc
-            .create_and_send_transaction(
-                &[ix],
-                &self.payer_keypair.pubkey(),
-                &[&self.payer_keypair],
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to send transaction: {:?}", e))?;
+        let payer_pubkey = self.payer_keypair.pubkey();
+        let signers = [&self.payer_keypair];
+        let instructions = vec![ix];
+        let priority_fee_accounts = collect_priority_fee_accounts(payer_pubkey, &instructions);
+        let signature = send_transaction_with_policy(
+            &mut *rpc,
+            SendTransactionWithPolicyConfig {
+                instructions,
+                payer: &payer_pubkey,
+                signers: &signers,
+                address_lookup_tables: &[],
+                priority_fee_accounts,
+                policy: self.transaction_policy,
+                confirmation_deadline: None,
+            },
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to send transaction: {:?}", e))?;
 
         info!(
-            "compress_accounts_idempotent tx for PDA {} sent: {}",
+            "compress_accounts_idempotent tx for PDA {} confirmed: {}",
             pda, signature
         );
-
-        // Wait for confirmation
-        let confirmed = rpc
-            .confirm_transaction(signature)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {:?}", e))?;
-
-        if confirmed {
-            verify_transaction_execution(&*rpc, signature).await?;
-
-            info!("compress_accounts_idempotent tx for PDA {} confirmed", pda);
-            Ok(signature)
-        } else {
-            Err(anyhow::anyhow!(
-                "Transaction {} not confirmed for PDA {}",
-                signature,
-                pda
-            ))
-        }
+        Ok(signature)
     }
 }

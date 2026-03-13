@@ -14,7 +14,6 @@ use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
-use reqwest::Url;
 use solana_program::instruction::Instruction;
 use tokio::time::Instant;
 use tracing::{info, warn};
@@ -31,11 +30,6 @@ const ADDRESS_PROOF_RETRY_BASE_DELAY_MS: u64 = 500;
 use crate::{
     epoch_manager::{MerkleProofType, WorkItem},
     errors::ForesterError,
-    helius_priority_fee_types::{
-        GetPriorityFeeEstimateOptions, GetPriorityFeeEstimateRequest,
-        GetPriorityFeeEstimateResponse, RpcRequest, RpcResponse,
-    },
-    processor::v1::config::CapConfig,
 };
 
 /// Work items should be of only one type and tree
@@ -381,101 +375,6 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
         proofs.push(MerkleProofType::StateProof(proof.clone()));
 
-        let _debug = false;
-        if _debug {
-            let onchain_account = rpc
-                .get_account(item.tree_account.merkle_tree)
-                .await?
-                .ok_or_else(|| {
-                    anyhow::anyhow!("Tree account {} not found", item.tree_account.merkle_tree)
-                })?;
-            let onchain_tree = match account_compression::state_merkle_tree_from_bytes_zero_copy(
-                &onchain_account.data,
-            ) {
-                Ok(tree) => tree,
-                Err(e) => {
-                    tracing::error!(
-                        event = "v1_onchain_tree_deserialize_failed",
-                        tree = %item.tree_account.merkle_tree,
-                        error = %e,
-                        "Failed to deserialize onchain tree"
-                    );
-                    return Err(anyhow::anyhow!("Failed to deserialize onchain tree: {}", e));
-                }
-            };
-
-            let onchain_root = onchain_tree.root();
-            let onchain_root_index = onchain_tree.root_index();
-            let onchain_changelog_index = onchain_tree.changelog_index();
-
-            tracing::info!(
-                event = "v1_debug_nullify_instruction",
-                tree = %item.tree_account.merkle_tree,
-                hash = %bs58::encode(&item.queue_item_data.hash).into_string(),
-                leaf_index = proof.leaf_index,
-                root_seq = proof.root_seq,
-                changelog_index = proof.root_seq % STATE_MERKLE_TREE_CHANGELOG,
-                indexer_root = %bs58::encode(&proof.root).into_string(),
-                "Creating nullify instruction"
-            );
-
-            tracing::info!(
-                event = "v1_debug_onchain_tree_state",
-                tree = %item.tree_account.merkle_tree,
-                current_root = %bs58::encode(&onchain_root).into_string(),
-                root_index = onchain_root_index,
-                changelog_index = onchain_changelog_index,
-                "Onchain tree state"
-            );
-
-            let capacity = onchain_tree.roots.capacity();
-            let first_index = onchain_tree.roots.first_index();
-
-            let root_history: Vec<String> = onchain_tree
-                .roots
-                .iter()
-                .enumerate()
-                .map(|(offset, root)| {
-                    let buffer_index = (first_index + offset) % capacity.max(1);
-                    format!("#{buffer_index}: {}", bs58::encode(root).into_string())
-                })
-                .collect();
-
-            tracing::info!(
-                event = "v1_debug_onchain_root_history",
-                history_len = onchain_tree.roots.len(),
-                capacity,
-                root_history = ?root_history,
-                "Onchain root history"
-            );
-
-            let indexer_root_position =
-                onchain_tree
-                    .roots
-                    .iter()
-                    .enumerate()
-                    .find_map(|(offset, root)| {
-                        (root == &proof.root).then_some((first_index + offset) % capacity.max(1))
-                    });
-
-            tracing::info!(
-                event = "v1_debug_indexer_root_position",
-                indexer_root = %bs58::encode(&proof.root).into_string(),
-                present_at_buffer_index = ?indexer_root_position,
-                "Indexer root position in onchain buffer"
-            );
-
-            if indexer_root_position.is_none() {
-                return Err(anyhow::anyhow!(
-                    "Indexer root {} not found in onchain root history for tree {}. Current root: {}, root_index: {}",
-                    bs58::encode(&proof.root).into_string(),
-                    item.tree_account.merkle_tree,
-                    bs58::encode(&onchain_root).into_string(),
-                    onchain_root_index
-                ));
-            }
-        }
-
         let instruction = create_nullify_instruction(
             CreateNullifyInstructionInputs {
                 nullifier_queue: item.tree_account.queue,
@@ -494,90 +393,4 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     }
 
     Ok((proofs, instructions))
-}
-
-/// Request priority fee estimate from Helius RPC endpoint
-pub async fn request_priority_fee_estimate(
-    url: &Url,
-    account_keys: Vec<Pubkey>,
-) -> crate::Result<u64> {
-    if url.host_str() != Some("mainnet") {
-        return Ok(10_000);
-    }
-
-    let priority_fee_request = GetPriorityFeeEstimateRequest {
-        transaction: None,
-        account_keys: Some(
-            account_keys
-                .iter()
-                .map(|pubkey| bs58::encode(pubkey).into_string())
-                .collect(),
-        ),
-        options: Some(GetPriorityFeeEstimateOptions {
-            include_all_priority_fee_levels: None,
-            recommended: Some(true),
-            include_vote: None,
-            lookback_slots: None,
-            priority_level: None,
-            transaction_encoding: None,
-        }),
-    };
-
-    let rpc_request = RpcRequest::new(
-        "getPriorityFeeEstimate".to_string(),
-        serde_json::json!({
-            "get_priority_fee_estimate_request": priority_fee_request
-        }),
-    );
-
-    let client = reqwest::Client::new();
-    let response = client
-        .post(url.clone())
-        .header("Content-Type", "application/json")
-        .json(&rpc_request)
-        .send()
-        .await?;
-
-    let response_text = response.text().await?;
-
-    let response: RpcResponse<GetPriorityFeeEstimateResponse> =
-        serde_json::from_str(&response_text)?;
-
-    response
-        .result
-        .priority_fee_estimate
-        .map(|estimate| estimate as u64)
-        .ok_or(
-            ForesterError::General {
-                error: "Priority fee estimate not available".to_string(),
-            }
-            .into(),
-        )
-}
-
-/// Calculate the compute unit price in microLamports based on the target lamports and compute units
-#[allow(dead_code)]
-pub fn calculate_compute_unit_price(target_lamports: u64, compute_units: u64) -> u64 {
-    ((target_lamports * 1_000_000) as f64 / compute_units as f64).ceil() as u64
-}
-
-/// Get a capped priority fee for transaction between min and max.
-#[allow(dead_code)]
-pub fn get_capped_priority_fee(cap_config: CapConfig) -> u64 {
-    if cap_config.max_fee_lamports < cap_config.min_fee_lamports {
-        warn!(
-            event = "v1_priority_fee_cap_invalid",
-            max_fee_lamports = cap_config.max_fee_lamports,
-            min_fee_lamports = cap_config.min_fee_lamports,
-            "Invalid priority fee cap config; clamping max to min"
-        );
-    }
-    let max_fee_lamports = cap_config.max_fee_lamports.max(cap_config.min_fee_lamports);
-
-    let priority_fee_max =
-        calculate_compute_unit_price(max_fee_lamports, cap_config.compute_unit_limit);
-    let priority_fee_min =
-        calculate_compute_unit_price(cap_config.min_fee_lamports, cap_config.compute_unit_limit);
-    let capped_fee = std::cmp::min(cap_config.rec_fee_microlamports_per_cu, priority_fee_max);
-    std::cmp::max(capped_fee, priority_fee_min)
 }
