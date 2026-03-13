@@ -1,4 +1,4 @@
-## [0.23.0-beta.11]
+## [0.23.0-beta.10]
 
 ### Breaking Changes
 
@@ -14,17 +14,6 @@
     - `getAccountInterface` light-token mode and SPL/T22 mode now surface `TokenInvalidAccountOwnerError` when an on-chain account exists at the queried address but is owned by a different program.
     - `getMintInterface` (decompressed light-mint branch) now validates the on-chain mint owner and throws `TokenInvalidAccountOwnerError` on mismatch; it also forwards the provided `commitment` to on-chain `getAccountInfo`.
     - **Migration impact:** callers that previously interpreted these paths as empty/not-found must now handle thrown errors explicitly (retry/backoff or surfacing RPC health).
-
-### Changed
-
-- Default version fallback is now V2 across build/runtime consistency paths:
-    - `rollup` `__BUILD_VERSION__` replacement fallback changed to `V2`.
-    - package `build` / `build-ci` scripts now default to `LIGHT_PROTOCOL_VERSION=V2` unless explicitly set to `V1`.
-    - version consistency helpers and related unit/setup checks now default to `V2` when no env var is provided.
-
-## [0.23.0-beta.10]
-
-### Breaking Changes
 
 - **`decompressInterface` removed.** Use `loadAta` (action) or `createLoadAtaInstructions` (instruction builder) instead. `decompressInterface` did not support >8 compressed inputs and has been fully removed.
     - **Action (send transaction):** Replace `decompressInterface(rpc, payer, owner, mint, amount?, destinationAta?, destinationOwner?, splInterfaceInfo?, confirmOptions?)` with `loadAta(rpc, ata, owner, mint, payer?, confirmOptions?, interfaceOptions?, wrap?)`. Derive the target ATA with `getAssociatedTokenAddressInterface(mint, owner)` for light-token, or pass the SPL/T22 ATA to decompress to that program. `loadAta` loads all cold balance into the given ATA (no partial amount); it supports >8 inputs via batched transactions and creates the ATA if needed.
