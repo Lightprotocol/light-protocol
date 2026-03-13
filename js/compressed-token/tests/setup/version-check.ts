@@ -6,7 +6,7 @@ export default function setup() {
 
     try {
         validateVersionConsistency();
-        const expectedVersion = process.env.LIGHT_PROTOCOL_VERSION || 'V1';
+        const expectedVersion = process.env.LIGHT_PROTOCOL_VERSION || 'V2';
         console.log(`✅ Version check passed: Using ${expectedVersion}`);
     } catch (error) {
         console.error('❌ Version check failed:');
