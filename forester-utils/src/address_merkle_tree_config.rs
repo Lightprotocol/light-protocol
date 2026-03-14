@@ -14,7 +14,8 @@ use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;
 
 use crate::account_zero_copy::{
-    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopyError,
+    get_concurrent_merkle_tree, get_indexed_merkle_tree, parse_concurrent_merkle_tree_from_bytes,
+    parse_hash_set_from_bytes, parse_indexed_merkle_tree_from_bytes, AccountZeroCopyError,
 };
 
 fn deserialize_account<T: AccountDeserialize>(
@@ -29,7 +30,7 @@ fn deserialize_account<T: AccountDeserialize>(
         )));
     }
 
-    T::try_deserialize(&mut &data[8..]).map_err(|e| {
+    T::try_deserialize(&mut &data[..]).map_err(|e| {
         AccountZeroCopyError::RpcError(format!("Failed to deserialize account {}: {}", pubkey, e))
     })
 }
@@ -46,7 +47,8 @@ pub async fn get_address_bundle_config<R: Rpc>(
     let address_queue_meta_data =
         deserialize_account::<QueueAccount>(&address_queue_account.data, address_bundle.queue)?
             .metadata;
-    let address_queue = get_hash_set::<QueueAccount, R>(rpc, address_bundle.queue).await?;
+    let address_queue = parse_hash_set_from_bytes::<QueueAccount>(&address_queue_account.data)
+        .map_err(|e| AccountZeroCopyError::RpcError(format!("HashSet parse error: {:?}", e)))?;
     let queue_config = AddressQueueConfig {
         network_fee: Some(address_queue_meta_data.rollover_metadata.network_fee),
         // rollover_threshold: address_queue_meta_data.rollover_threshold,
@@ -66,11 +68,12 @@ pub async fn get_address_bundle_config<R: Rpc>(
     )?
     .metadata;
     let address_tree =
-        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
-            rpc,
-            address_bundle.merkle_tree,
+        parse_indexed_merkle_tree_from_bytes::<AddressMerkleTreeAccount, Poseidon, usize, 26, 16>(
+            &address_tree_account.data,
         )
-        .await?;
+        .map_err(|e| {
+            AccountZeroCopyError::RpcError(format!("IndexedMerkleTree parse error: {:?}", e))
+        })?;
     let address_merkle_tree_config = AddressMerkleTreeConfig {
         height: address_tree.height as u32,
         changelog_size: address_tree.merkle_tree.changelog.capacity() as u64,
@@ -103,17 +106,17 @@ pub async fn get_state_bundle_config<R: Rpc>(
         .ok_or(AccountZeroCopyError::AccountNotFound(
             state_tree_bundle.nullifier_queue,
         ))?;
-    let address_queue_meta_data = deserialize_account::<QueueAccount>(
+    let nullifier_queue_metadata = deserialize_account::<QueueAccount>(
         &queue_account.data,
         state_tree_bundle.nullifier_queue,
     )?
     .metadata;
-    let address_queue =
-        get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.nullifier_queue).await?;
+    let nullifier_queue = parse_hash_set_from_bytes::<QueueAccount>(&queue_account.data)
+        .map_err(|e| AccountZeroCopyError::RpcError(format!("HashSet parse error: {:?}", e)))?;
     let queue_config = NullifierQueueConfig {
-        network_fee: Some(address_queue_meta_data.rollover_metadata.network_fee),
-        capacity: address_queue.get_capacity() as u16,
-        sequence_threshold: address_queue.sequence_threshold as u64,
+        network_fee: Some(nullifier_queue_metadata.rollover_metadata.network_fee),
+        capacity: nullifier_queue.get_capacity() as u16,
+        sequence_threshold: nullifier_queue.sequence_threshold as u64,
     };
     let state_tree_account = rpc
         .get_account(state_tree_bundle.merkle_tree)
@@ -122,34 +125,36 @@ pub async fn get_state_bundle_config<R: Rpc>(
         .ok_or(AccountZeroCopyError::AccountNotFound(
             state_tree_bundle.merkle_tree,
         ))?;
-    let address_tree_meta_data = deserialize_account::<StateMerkleTreeAccount>(
+    let state_tree_metadata = deserialize_account::<StateMerkleTreeAccount>(
         &state_tree_account.data,
         state_tree_bundle.merkle_tree,
     )?
     .metadata;
-    let address_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
-        rpc,
-        state_tree_bundle.merkle_tree,
-    )
-    .await?;
-    let address_merkle_tree_config = StateMerkleTreeConfig {
-        height: address_tree.height as u32,
-        changelog_size: address_tree.changelog.capacity() as u64,
-        roots_size: address_tree.roots.capacity() as u64,
-        canopy_depth: address_tree.canopy_depth as u64,
-        rollover_threshold: if address_tree_meta_data
+    let state_tree =
+        parse_concurrent_merkle_tree_from_bytes::<StateMerkleTreeAccount, Poseidon, 26>(
+            &state_tree_account.data,
+        )
+        .map_err(|e| {
+            AccountZeroCopyError::RpcError(format!("ConcurrentMerkleTree parse error: {:?}", e))
+        })?;
+    let state_merkle_tree_config = StateMerkleTreeConfig {
+        height: state_tree.height as u32,
+        changelog_size: state_tree.changelog.capacity() as u64,
+        roots_size: state_tree.roots.capacity() as u64,
+        canopy_depth: state_tree.canopy_depth as u64,
+        rollover_threshold: if state_tree_metadata
             .rollover_metadata
             .rollover_threshold
             .is_zero()
         {
             None
         } else {
-            Some(address_tree_meta_data.rollover_metadata.rollover_threshold)
+            Some(state_tree_metadata.rollover_metadata.rollover_threshold)
         },
-        network_fee: Some(address_tree_meta_data.rollover_metadata.network_fee),
+        network_fee: Some(state_tree_metadata.rollover_metadata.network_fee),
         close_threshold: None,
     };
-    Ok((address_merkle_tree_config, queue_config))
+    Ok((state_merkle_tree_config, queue_config))
 }
 
 pub async fn address_tree_ready_for_rollover<R: Rpc>(

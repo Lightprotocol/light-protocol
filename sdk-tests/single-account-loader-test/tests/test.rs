@@ -44,7 +44,8 @@ async fn test_create_zero_copy_record() {
         rent_sponsor,
         payer.pubkey(),
     )
-    .build();
+    .build()
+    .unwrap();
 
     rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
         .await
@@ -149,7 +150,8 @@ async fn test_zero_copy_record_full_lifecycle() {
         rent_sponsor,
         payer.pubkey(),
     )
-    .build();
+    .build()
+    .unwrap();
 
     rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
         .await

@@ -202,10 +202,15 @@ fn collect_mint_hashes(ifaces: &[&AccountInterface]) -> Result<Vec<[u8; 32]>, Lo
         .collect()
 }
 
+/// Groups already-ordered PDA specs into contiguous runs of the same program id.
+///
+/// This preserves input order rather than globally regrouping by program. Callers that
+/// want maximal batching across interleaved program ids should sort before calling.
 fn group_pda_specs<'a, V>(
     specs: &[&'a PdaSpec<V>],
     max_per_group: usize,
 ) -> Vec<Vec<&'a PdaSpec<V>>> {
+    debug_assert!(max_per_group > 0, "max_per_group must be non-zero");
     if specs.is_empty() || max_per_group == 0 {
         return Vec::new();
     }

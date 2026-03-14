@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
@@ -14,7 +15,7 @@ use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
     rpc_pool::SolanaRpcPool,
 };
-use futures::{future::join_all, FutureExt};
+use futures::{future::join_all, stream::FuturesUnordered, FutureExt, StreamExt};
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
     rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
@@ -39,7 +40,8 @@ use solana_sdk::{
     transaction::TransactionError,
 };
 use tokio::{
-    sync::{mpsc, oneshot, Mutex},
+    runtime::Handle,
+    sync::{mpsc, oneshot, Mutex, Semaphore},
     task::JoinHandle,
     time::{sleep, Instant, MissedTickBehavior},
 };
@@ -219,6 +221,46 @@ impl std::ops::AddAssign for ProcessingMetrics {
     }
 }
 
+fn panic_payload_message(payload: &(dyn Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else if let Some(message) = payload.downcast_ref::<&'static str>() {
+        (*message).to_string()
+    } else {
+        "non-string panic payload".to_string()
+    }
+}
+
+const NEW_TREE_WORKER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+
+fn max_parallel_tree_workers(tree_count: usize) -> usize {
+    if tree_count == 0 {
+        return 0;
+    }
+
+    let cpu_count = std::thread::available_parallelism()
+        .map(|parallelism| parallelism.get())
+        .unwrap_or(4);
+    tree_count.min(std::cmp::max(1, cpu_count / 2))
+}
+
+struct NewTreeWorker {
+    tree: Pubkey,
+    epoch: u64,
+    cancel: Option<oneshot::Sender<()>>,
+    completion: oneshot::Receiver<()>,
+    thread_handle: std::thread::JoinHandle<()>,
+}
+
+impl std::fmt::Debug for NewTreeWorker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NewTreeWorker")
+            .field("tree", &self.tree)
+            .field("epoch", &self.epoch)
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct WorkReport {
     pub epoch: u64,
@@ -278,6 +320,7 @@ pub struct EpochManager<R: Rpc + Indexer> {
     run_id: Arc<str>,
     /// Per-epoch registration trackers to coordinate re-finalization when new foresters register mid-epoch
     registration_trackers: Arc<DashMap<u64, Arc<RegistrationTracker>>>,
+    new_tree_workers: Arc<Mutex<Vec<NewTreeWorker>>>,
 }
 
 impl<R: Rpc + Indexer> Clone for EpochManager<R> {
@@ -308,6 +351,7 @@ impl<R: Rpc + Indexer> Clone for EpochManager<R> {
             heartbeat: self.heartbeat.clone(),
             run_id: self.run_id.clone(),
             registration_trackers: self.registration_trackers.clone(),
+            new_tree_workers: self.new_tree_workers.clone(),
         }
     }
 }
@@ -357,7 +401,127 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             heartbeat,
             run_id: Arc::<str>::from(run_id),
             registration_trackers: Arc::new(DashMap::new()),
+            new_tree_workers: Arc::new(Mutex::new(Vec::new())),
         })
+    }
+
+    fn join_new_tree_worker_with_run_id(run_id: Arc<str>, worker: NewTreeWorker) {
+        if let Err(payload) = worker.thread_handle.join() {
+            error!(
+                event = "new_tree_worker_join_panicked",
+                run_id = %run_id,
+                tree = %worker.tree,
+                epoch = worker.epoch,
+                panic = %panic_payload_message(payload.as_ref()),
+                "New tree worker panicked while joining"
+            );
+        }
+    }
+
+    fn join_new_tree_worker(&self, worker: NewTreeWorker) {
+        Self::join_new_tree_worker_with_run_id(self.run_id.clone(), worker);
+    }
+
+    fn detach_new_tree_worker_join(&self, worker: NewTreeWorker) {
+        let run_id = self.run_id.clone();
+        let tree = worker.tree;
+        let epoch = worker.epoch;
+        std::thread::spawn(move || {
+            warn!(
+                event = "new_tree_worker_join_deferred",
+                run_id = %run_id,
+                tree = %tree,
+                epoch,
+                "Deferring timed-out new-tree worker join to background thread"
+            );
+            Self::join_new_tree_worker_with_run_id(run_id, worker);
+        });
+    }
+
+    async fn reap_finished_new_tree_workers(&self) {
+        let finished_workers = {
+            let mut workers = self.new_tree_workers.lock().await;
+            let mut pending = Vec::with_capacity(workers.len());
+            let mut finished = Vec::new();
+
+            for worker in workers.drain(..) {
+                if worker.thread_handle.is_finished() {
+                    finished.push(worker);
+                } else {
+                    pending.push(worker);
+                }
+            }
+
+            *workers = pending;
+            finished
+        };
+
+        for mut worker in finished_workers {
+            let _ = worker.completion.try_recv();
+            self.join_new_tree_worker(worker);
+        }
+    }
+
+    async fn register_new_tree_worker(&self, worker: NewTreeWorker) {
+        self.reap_finished_new_tree_workers().await;
+        self.new_tree_workers.lock().await.push(worker);
+    }
+
+    async fn shutdown_new_tree_workers(&self, timeout_duration: Duration) {
+        let mut workers = {
+            let mut guard = self.new_tree_workers.lock().await;
+            std::mem::take(&mut *guard)
+        };
+
+        if workers.is_empty() {
+            return;
+        }
+
+        info!(
+            event = "new_tree_workers_shutdown_started",
+            run_id = %self.run_id,
+            worker_count = workers.len(),
+            timeout_secs = timeout_duration.as_secs_f64(),
+            "Shutting down tracked new-tree workers"
+        );
+
+        for worker in &mut workers {
+            if let Some(cancel) = worker.cancel.take() {
+                let _ = cancel.send(());
+            }
+        }
+
+        let deadline = Instant::now() + timeout_duration;
+        for mut worker in workers {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                warn!(
+                    event = "new_tree_worker_shutdown_timed_out",
+                    run_id = %self.run_id,
+                    tree = %worker.tree,
+                    epoch = worker.epoch,
+                    "Timed out waiting for new-tree worker shutdown"
+                );
+                self.detach_new_tree_worker_join(worker);
+                continue;
+            }
+
+            match tokio::time::timeout(remaining, &mut worker.completion).await {
+                Ok(Ok(())) | Ok(Err(_)) => {
+                    self.join_new_tree_worker(worker);
+                }
+                Err(_) => {
+                    warn!(
+                        event = "new_tree_worker_shutdown_timed_out",
+                        run_id = %self.run_id,
+                        tree = %worker.tree,
+                        epoch = worker.epoch,
+                        "Timed out waiting for new-tree worker shutdown"
+                    );
+                    self.detach_new_tree_worker_join(worker);
+                }
+            }
+        }
     }
 
     pub async fn run(self: Arc<Self>) -> Result<()> {
@@ -409,8 +573,40 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             },
         );
 
+        let mut epoch_tasks = FuturesUnordered::new();
         let result = loop {
             tokio::select! {
+                Some((epoch, result)) = epoch_tasks.next(), if !epoch_tasks.is_empty() => {
+                    match result {
+                        Ok(Ok(())) => {
+                            debug!(
+                                event = "epoch_processing_completed",
+                                run_id = %self.run_id,
+                                epoch,
+                                "Epoch processed successfully"
+                            );
+                        }
+                        Ok(Err(e)) => {
+                            error!(
+                                event = "epoch_processing_failed",
+                                run_id = %self.run_id,
+                                epoch,
+                                error = ?e,
+                                "Error processing epoch"
+                            );
+                        }
+                        Err(payload) => {
+                            let payload: Box<dyn Any + Send> = payload;
+                            error!(
+                                event = "epoch_processing_panicked",
+                                run_id = %self.run_id,
+                                epoch,
+                                panic = %panic_payload_message(payload.as_ref()),
+                                "Epoch processing panicked"
+                            );
+                        }
+                    }
+                }
                 epoch_opt = rx.recv() => {
                     match epoch_opt {
                         Some(epoch) => {
@@ -420,15 +616,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                                 epoch,
                                 "Received epoch from monitor"
                             );
-                            if let Err(e) = self.process_epoch(epoch).await {
-                                error!(
-                                    event = "epoch_processing_failed",
-                                    run_id = %self.run_id,
-                                    epoch,
-                                    error = ?e,
-                                    "Error processing epoch"
-                                );
-                            }
+                            let self_clone = Arc::clone(&self);
+                            epoch_tasks.push(async move {
+                                let result = std::panic::AssertUnwindSafe(self_clone.process_epoch(epoch))
+                                    .catch_unwind()
+                                    .await;
+                                (epoch, result)
+                            });
                         }
                         None => {
                             error!(
@@ -483,6 +677,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         // Abort monitor_handle on exit
         monitor_handle.abort();
+        self.shutdown_new_tree_workers(NEW_TREE_WORKER_SHUTDOWN_TIMEOUT)
+            .await;
         result
     }
 
@@ -715,15 +911,60 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         epoch = current_epoch,
                         "Spawning task to process new tree in current epoch"
                     );
-                    std::thread::spawn(move || {
+                    let (cancel_tx, mut cancel_rx) = oneshot::channel();
+                    let (completion_tx, completion_rx) = oneshot::channel();
+                    let thread_handle = std::thread::spawn(move || {
                         let tree_pubkey = tree_schedule.tree_accounts.merkle_tree;
                         let run_id = self_clone.run_id.clone();
-                        let runtime = match tokio::runtime::Builder::new_current_thread()
-                            .enable_all()
-                            .build()
-                        {
-                            Ok(runtime) => runtime,
-                            Err(error) => {
+                        let thread_run_id = run_id.clone();
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            let runtime = tokio::runtime::Builder::new_multi_thread()
+                                .worker_threads(2)
+                                .enable_all()
+                                .build()?;
+                            runtime.block_on(async move {
+                                tokio::select! {
+                                    result = self_clone
+                                        .clone()
+                                        .process_queue(
+                                            epoch_info.epoch.clone(),
+                                            epoch_info.forester_epoch_pda.clone(),
+                                            tree_schedule,
+                                            tracker,
+                                        ) => {
+                                            if let Err(e) = result {
+                                                error!(
+                                                    event = "new_tree_process_queue_failed",
+                                                    run_id = %thread_run_id,
+                                                    tree = %tree_pubkey,
+                                                    error = ?e,
+                                                    "Error processing queue for new tree"
+                                                );
+                                            } else {
+                                                info!(
+                                                    event = "new_tree_process_queue_succeeded",
+                                                    run_id = %thread_run_id,
+                                                    tree = %tree_pubkey,
+                                                    "Successfully processed new tree in current epoch"
+                                                );
+                                            }
+                                        }
+                                    _ = &mut cancel_rx => {
+                                        info!(
+                                            event = "new_tree_process_queue_cancelled",
+                                            run_id = %thread_run_id,
+                                            tree = %tree_pubkey,
+                                            "Cancellation requested for new tree worker"
+                                        );
+                                    }
+                                }
+                                Ok::<(), anyhow::Error>(())
+                            })
+                        }));
+                        let _ = completion_tx.send(());
+                        match result {
+                            Ok(Ok(())) => {}
+                            Ok(Err(error)) => {
                                 error!(
                                     event = "new_tree_runtime_build_failed",
                                     run_id = %run_id,
@@ -731,37 +972,26 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                                     error = ?error,
                                     "Failed to build background runtime for new tree processing"
                                 );
-                                return;
                             }
-                        };
-                        runtime.block_on(async move {
-                            if let Err(e) = self_clone
-                                .clone()
-                                .process_queue(
-                                    epoch_info.epoch.clone(),
-                                    epoch_info.forester_epoch_pda.clone(),
-                                    tree_schedule,
-                                    tracker,
-                                )
-                                .await
-                            {
+                            Err(payload) => {
                                 error!(
-                                    event = "new_tree_process_queue_failed",
+                                    event = "new_tree_processing_task_panicked",
                                     run_id = %run_id,
                                     tree = %tree_pubkey,
-                                    error = ?e,
-                                    "Error processing queue for new tree"
-                                );
-                            } else {
-                                info!(
-                                    event = "new_tree_process_queue_succeeded",
-                                    run_id = %run_id,
-                                    tree = %tree_pubkey,
-                                    "Successfully processed new tree in current epoch"
+                                    panic = %panic_payload_message(payload.as_ref()),
+                                    "New tree processing thread panicked"
                                 );
                             }
-                        });
+                        }
                     });
+                    self.register_new_tree_worker(NewTreeWorker {
+                        tree: new_tree.merkle_tree,
+                        epoch: current_epoch,
+                        cancel: Some(cancel_tx),
+                        completion: completion_rx,
+                        thread_handle,
+                    })
+                    .await;
                 }
                 Ok(None) => {
                     debug!(
@@ -1630,16 +1860,19 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .cloned()
             .collect();
 
+        let max_parallel_tree_workers = max_parallel_tree_workers(trees_to_process.len());
         info!(
             event = "active_work_cycle_started",
             run_id = %self.run_id,
             current_slot,
             active_phase_end,
             tree_count = trees_to_process.len(),
+            parallel_tree_worker_limit = max_parallel_tree_workers,
             "Starting active work cycle"
         );
 
         let self_arc = Arc::new(self.clone());
+        let worker_slots = Arc::new(Semaphore::new(max_parallel_tree_workers));
         let registration_tracker = self
             .registration_trackers
             .entry(epoch_info.epoch.epoch)
@@ -1651,13 +1884,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .value()
             .clone();
 
+        let runtime_handle = Handle::current();
         let mut tasks = Vec::with_capacity(trees_to_process.len());
 
         for tree in trees_to_process {
+            let tree_pubkey = tree.tree_accounts.merkle_tree;
             debug!(
                 event = "tree_processing_task_spawned",
                 run_id = %self.run_id,
-                tree = %tree.tree_accounts.merkle_tree,
+                tree = %tree_pubkey,
                 tree_type = ?tree.tree_accounts.tree_type,
                 "Spawning tree processing task"
             );
@@ -1667,16 +1902,30 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             let epoch_clone = epoch_info.epoch.clone();
             let forester_epoch_pda = epoch_info.forester_epoch_pda.clone();
             let tracker = registration_tracker.clone();
-
-            let task = std::panic::AssertUnwindSafe(self_clone.process_queue(
-                epoch_clone,
-                forester_epoch_pda,
-                tree,
-                tracker,
-            ))
-            .catch_unwind();
-
-            tasks.push(task);
+            let worker_slots = worker_slots.clone();
+            let runtime_handle = runtime_handle.clone();
+            tasks.push(async move {
+                let permit = match worker_slots.acquire_owned().await {
+                    Ok(permit) => permit,
+                    Err(_) => {
+                        return Ok((
+                            tree_pubkey,
+                            Err(anyhow!("tree worker semaphore was closed unexpectedly")),
+                        ));
+                    }
+                };
+                tokio::task::spawn_blocking(move || {
+                    let _permit = permit;
+                    let result = runtime_handle.block_on(self_clone.process_queue(
+                        epoch_clone,
+                        forester_epoch_pda,
+                        tree,
+                        tracker,
+                    ));
+                    (tree_pubkey, result)
+                })
+                .await
+            });
         }
 
         debug!("Waiting for {} tree processing tasks", tasks.len());
@@ -1686,23 +1935,35 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let mut panic_count = 0usize;
         for result in results {
             match result {
-                Ok(Ok(())) => success_count += 1,
-                Ok(Err(e)) => {
+                Ok((_, Ok(()))) => success_count += 1,
+                Ok((tree_pubkey, Err(e))) => {
                     error_count += 1;
                     error!(
                         event = "tree_processing_task_failed",
                         run_id = %self.run_id,
+                        tree = %tree_pubkey,
                         error = ?e,
                         "Error processing queue"
                     );
                 }
-                Err(_) => {
+                Err(join_error) => {
                     panic_count += 1;
-                    error!(
-                        event = "tree_processing_task_panicked",
-                        run_id = %self.run_id,
-                        "Tree processing task panicked"
-                    );
+                    if join_error.is_panic() {
+                        let payload = join_error.into_panic();
+                        error!(
+                            event = "tree_processing_task_join_panicked",
+                            run_id = %self.run_id,
+                            panic = %panic_payload_message(payload.as_ref()),
+                            "Tree processing task panicked before completion"
+                        );
+                    } else {
+                        error!(
+                            event = "tree_processing_task_join_failed",
+                            run_id = %self.run_id,
+                            error = ?join_error,
+                            "Tree processing task failed to join"
+                        );
+                    }
                 }
             }
         }
@@ -1829,23 +2090,30 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 // where cached_weight is correct but schedule was never recomputed.
                 if force_refinalize || last_weight_check.elapsed() >= WEIGHT_CHECK_INTERVAL {
                     last_weight_check = Instant::now();
-                    if let Err(e) = self
+                    match self
+                        .clone()
                         .maybe_refinalize(
-                            &epoch_info,
-                            &mut forester_epoch_pda,
-                            &mut tree_schedule,
-                            &registration_tracker,
+                            epoch_info.clone(),
+                            forester_epoch_pda.clone(),
+                            tree_schedule.clone(),
+                            registration_tracker.clone(),
                             force_refinalize,
                         )
                         .await
                     {
-                        warn!(
-                            event = "refinalize_check_failed",
-                            run_id = %self.run_id,
-                            forced = force_refinalize,
-                            error = ?e,
-                            "Failed to check/perform re-finalization"
-                        );
+                        Ok((updated_pda, updated_schedule)) => {
+                            forester_epoch_pda = updated_pda;
+                            tree_schedule = updated_schedule;
+                        }
+                        Err(e) => {
+                            warn!(
+                                event = "refinalize_check_failed",
+                                run_id = %self.run_id,
+                                forced = force_refinalize,
+                                error = ?e,
+                                "Failed to check/perform re-finalization"
+                            );
+                        }
                     }
                 }
             } else {
@@ -1878,13 +2146,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     /// When `force` is true (e.g. after a ForesterNotEligible error), skips
     /// the weight-change check and unconditionally refreshes the schedule.
     async fn maybe_refinalize(
-        &self,
-        epoch_info: &Epoch,
-        forester_epoch_pda: &mut ForesterEpochPda,
-        tree_schedule: &mut TreeForesterSchedule,
-        registration_tracker: &RegistrationTracker,
+        self: Arc<Self>,
+        epoch_info: Epoch,
+        forester_epoch_pda: ForesterEpochPda,
+        tree_schedule: TreeForesterSchedule,
+        registration_tracker: Arc<RegistrationTracker>,
         force: bool,
-    ) -> Result<()> {
+    ) -> Result<(ForesterEpochPda, TreeForesterSchedule)> {
         let mut rpc = self.rpc_pool.get_connection().await?;
         let epoch_pda_address = get_epoch_pda_address(epoch_info.epoch);
         let on_chain_epoch_pda: EpochPda = rpc
@@ -1897,7 +2165,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let weight_changed = on_chain_weight != cached_weight;
 
         if !weight_changed && !force {
-            return Ok(());
+            return Ok((forester_epoch_pda, tree_schedule));
         }
 
         if weight_changed {
@@ -1933,7 +2201,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         "Skipping re-finalization because not enough active-phase time remains for confirmation"
                     );
                     registration_tracker.complete_refinalize(cached_weight);
-                    return Ok(());
+                    return Ok((forester_epoch_pda, tree_schedule));
                 };
                 let payer = self.config.payer_keypair.pubkey();
                 let signers = [&self.config.payer_keypair];
@@ -2011,19 +2279,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             &refreshed_epoch_pda,
         )?;
 
-        *forester_epoch_pda = updated_pda;
-        *tree_schedule = new_schedule;
-
         info!(
             event = "schedule_recomputed_after_refinalize",
             run_id = %self.run_id,
             epoch = epoch_info.epoch,
-            tree = %tree_schedule.tree_accounts.merkle_tree,
-            new_eligible_slots = tree_schedule.slots.iter().filter(|s| s.is_some()).count(),
+            tree = %new_schedule.tree_accounts.merkle_tree,
+            new_eligible_slots = new_schedule.slots.iter().filter(|s| s.is_some()).count(),
             "Recomputed schedule after re-finalization"
         );
 
-        Ok(())
+        Ok((updated_pda, new_schedule))
     }
 
     async fn process_light_slot(

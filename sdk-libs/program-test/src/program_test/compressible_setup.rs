@@ -67,7 +67,7 @@ pub async fn initialize_compression_config<T: Rpc>(
         rent_sponsor,
         address_space,
         config_bump,
-    );
+    )?;
 
     let signers = if payer.pubkey() == authority.pubkey() {
         vec![payer]
@@ -97,7 +97,7 @@ pub async fn update_compression_config<T: Rpc>(
         new_rent_sponsor,
         new_address_space,
         new_update_authority,
-    );
+    )?;
 
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer, authority])
         .await

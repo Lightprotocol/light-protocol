@@ -116,7 +116,8 @@ async fn setup() -> AmmTestContext {
         csdk_anchor_full_derived_test::program_rent_sponsor(),
         payer.pubkey(),
     )
-    .build();
+    .build()
+    .unwrap();
 
     rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
         .await

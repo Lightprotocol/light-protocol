@@ -309,7 +309,8 @@ async fn test_compressible_pda_bootstrap() {
         RENT_SPONSOR,
         authority.pubkey(),
     )
-    .build();
+    .build()
+    .unwrap();
 
     rpc.create_and_send_transaction(&[init_config_ix], &authority.pubkey(), &[&authority])
         .await
@@ -504,7 +505,8 @@ async fn test_compressible_pda_compression() {
         RENT_SPONSOR,
         authority.pubkey(),
     )
-    .build();
+    .build()
+    .unwrap();
 
     rpc.create_and_send_transaction(&[init_config_ix], &authority.pubkey(), &[&authority])
         .await
@@ -745,7 +747,8 @@ async fn test_compressible_pda_subscription() {
         RENT_SPONSOR,
         authority.pubkey(),
     )
-    .build();
+    .build()
+    .unwrap();
 
     rpc.create_and_send_transaction(&[init_config_ix], &authority.pubkey(), &[&authority])
         .await

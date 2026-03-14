@@ -72,12 +72,6 @@ pub async fn spawn_prover() -> Result<(), ProverClientError> {
     spawn_result
 }
 
-pub async fn spawn_prover_or_log() {
-    if let Err(error) = spawn_prover().await {
-        tracing::error!("{}", error);
-    }
-}
-
 pub async fn health_check(retries: usize, timeout: usize) -> bool {
     let client = reqwest::Client::new();
     let mut result = false;

@@ -18,7 +18,10 @@ use light_token::constants::{
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
-use crate::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
+use crate::{
+    indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext},
+    interface::serialize::serialize_anchor_data,
+};
 
 #[inline]
 fn get_output_queue(tree_info: &TreeInfo) -> Pubkey {
@@ -27,13 +30,6 @@ fn get_output_queue(tree_info: &TreeInfo) -> Pubkey {
         .as_ref()
         .map(|next| next.queue)
         .unwrap_or(tree_info.queue)
-}
-
-fn serialize_anchor_data<T: AnchorSerialize>(value: &T) -> Vec<u8> {
-    let mut serialized = Vec::new();
-    // Serializing into a `Vec<u8>` cannot fail because the writer is memory-backed.
-    let _ = value.serialize(&mut serialized);
-    serialized
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -105,7 +101,7 @@ pub fn initialize_config(
     rent_sponsor: Pubkey,
     address_space: Vec<Pubkey>,
     config_bump: Option<u8>,
-) -> Instruction {
+) -> std::io::Result<Instruction> {
     let config_bump = config_bump.unwrap_or(0);
     let config_bump_u16 = config_bump as u16;
     let (config_pda, _) = Pubkey::find_program_address(
@@ -136,16 +132,16 @@ pub fn initialize_config(
         address_space: address_space.iter().map(|p| p.to_bytes()).collect(),
         config_bump,
     };
-    let serialized = serialize_anchor_data(&params);
+    let serialized = serialize_anchor_data(&params)?;
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
 
-    Instruction {
+    Ok(Instruction {
         program_id: *program_id,
         accounts,
         data,
-    }
+    })
 }
 
 pub fn update_config(
@@ -155,7 +151,7 @@ pub fn update_config(
     new_rent_sponsor: Option<Pubkey>,
     new_address_space: Option<Vec<Pubkey>>,
     new_update_authority: Option<Pubkey>,
-) -> Instruction {
+) -> std::io::Result<Instruction> {
     let (config_pda, _) = Pubkey::find_program_address(
         &[light_account::LIGHT_CONFIG_SEED, &0u16.to_le_bytes()],
         program_id,
@@ -174,16 +170,16 @@ pub fn update_config(
         new_write_top_up: None,
         new_address_space: new_address_space.map(|v| v.iter().map(|p| p.to_bytes()).collect()),
     };
-    let serialized = serialize_anchor_data(&params);
+    let serialized = serialize_anchor_data(&params)?;
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
 
-    Instruction {
+    Ok(Instruction {
         program_id: *program_id,
         accounts,
         data,
-    }
+    })
 }
 
 /// Build load (decompress) instruction.

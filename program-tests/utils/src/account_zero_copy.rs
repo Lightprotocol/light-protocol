@@ -26,7 +26,7 @@ fn deserialize_anchor_account<T: AccountDeserialize>(
         )));
     }
 
-    T::try_deserialize(&mut &data[8..]).map_err(|error| {
+    T::try_deserialize(&mut &data[..]).map_err(|error| {
         AccountZeroCopyError::RpcError(format!(
             "Failed to deserialize account {}: {}",
             pubkey, error

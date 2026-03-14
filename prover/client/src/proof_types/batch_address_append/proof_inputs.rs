@@ -244,13 +244,13 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     for i in 0..new_element_values.len() {
         let mut changelog_index = 0;
         let low_element_index = low_element_indices[i].try_into().map_err(|_| {
-            ProverClientError::GenericError(format!(
+            ProverClientError::IntegerConversion(format!(
                 "low element index {:?} does not fit into usize",
                 low_element_indices[i]
             ))
         })?;
         let low_element_next_index = low_element_next_indices[i].try_into().map_err(|_| {
-            ProverClientError::GenericError(format!(
+            ProverClientError::IntegerConversion(format!(
                 "low element next index {:?} does not fit into usize",
                 low_element_next_indices[i]
             ))

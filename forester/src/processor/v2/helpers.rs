@@ -22,6 +22,17 @@ pub(crate) fn lock_recover<'a, T>(mutex: &'a Mutex<T>, name: &'static str) -> Mu
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct AddressBatchSnapshot<const HEIGHT: usize> {
+    pub addresses: Vec<[u8; 32]>,
+    pub low_element_values: Vec<[u8; 32]>,
+    pub low_element_next_values: Vec<[u8; 32]>,
+    pub low_element_indices: Vec<u64>,
+    pub low_element_next_indices: Vec<u64>,
+    pub low_element_proofs: Vec<[[u8; 32]; HEIGHT]>,
+    pub leaves_hashchain: [u8; 32],
+}
+
 pub async fn fetch_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> crate::Result<u64> {
     let rpc = context.rpc_pool.get_connection().await?;
     let mut account = rpc
@@ -474,19 +485,45 @@ impl StreamingAddressQueue {
         }
     }
 
-    pub fn with_batch_data<T>(
+    pub fn get_batch_snapshot<const HEIGHT: usize>(
         &self,
         start: usize,
         end: usize,
-        f: impl FnOnce(&AddressQueueData, usize) -> crate::Result<T>,
-    ) -> crate::Result<Option<T>> {
+        hashchain_idx: usize,
+    ) -> crate::Result<Option<AddressBatchSnapshot<HEIGHT>>> {
         let available = self.wait_for_batch(end);
         if start >= available {
             return Ok(None);
         }
         let actual_end = end.min(available);
         let data = lock_recover(&self.data, "streaming_address_queue.data");
-        f(&data, actual_end).map(Some)
+
+        let addresses = data.addresses[start..actual_end].to_vec();
+        if addresses.is_empty() {
+            return Err(anyhow!("Empty batch at start={}", start));
+        }
+
+        let leaves_hashchain = data
+            .leaves_hash_chains
+            .get(hashchain_idx)
+            .copied()
+            .ok_or_else(|| {
+                anyhow!(
+                    "Missing leaves_hash_chain for batch {} (available: {})",
+                    hashchain_idx,
+                    data.leaves_hash_chains.len()
+                )
+            })?;
+
+        Ok(Some(AddressBatchSnapshot {
+            low_element_values: data.low_element_values[start..actual_end].to_vec(),
+            low_element_next_values: data.low_element_next_values[start..actual_end].to_vec(),
+            low_element_indices: data.low_element_indices[start..actual_end].to_vec(),
+            low_element_next_indices: data.low_element_next_indices[start..actual_end].to_vec(),
+            low_element_proofs: data.reconstruct_proofs::<HEIGHT>(start..actual_end)?,
+            addresses,
+            leaves_hashchain,
+        }))
     }
 
     pub fn into_data(self) -> AddressQueueData {

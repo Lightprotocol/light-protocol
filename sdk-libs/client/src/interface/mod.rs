@@ -8,6 +8,7 @@ pub mod instructions;
 pub mod light_program_interface;
 pub mod load_accounts;
 pub mod pack;
+mod serialize;
 pub mod tx_size;
 
 pub use account_interface::{AccountInterface, AccountInterfaceError, TokenAccountInterface};

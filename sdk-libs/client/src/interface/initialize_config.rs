@@ -7,19 +7,14 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
+use crate::interface::serialize::serialize_anchor_data;
+
 /// Default address tree v2 pubkey.
 pub const ADDRESS_TREE_V2: Pubkey =
     solana_pubkey::pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx");
 
 /// Default write top-up value (5000 lamports).
 pub const DEFAULT_INIT_WRITE_TOP_UP: u32 = 5_000;
-
-fn serialize_anchor_data<T: AnchorSerialize>(value: &T) -> Vec<u8> {
-    let mut serialized = Vec::new();
-    // Serializing into a `Vec<u8>` cannot fail because the writer is memory-backed.
-    let _ = value.serialize(&mut serialized);
-    serialized
-}
 
 /// Instruction data format matching anchor-generated `initialize_compression_config`.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -92,7 +87,7 @@ impl InitializeRentFreeConfig {
         self
     }
 
-    pub fn build(self) -> (Instruction, Pubkey) {
+    pub fn build(self) -> std::io::Result<(Instruction, Pubkey)> {
         let authority = self.authority.unwrap_or(self.fee_payer);
         let config_bump_u16 = self.config_bump as u16;
         let (config_pda, _) = Pubkey::find_program_address(
@@ -126,7 +121,7 @@ impl InitializeRentFreeConfig {
         // SHA256("global:initialize_compression_config")[..8]
         const DISCRIMINATOR: [u8; 8] = [133, 228, 12, 169, 56, 76, 222, 61];
 
-        let serialized_data = serialize_anchor_data(&instruction_data);
+        let serialized_data = serialize_anchor_data(&instruction_data)?;
 
         let mut data = Vec::with_capacity(DISCRIMINATOR.len() + serialized_data.len());
         data.extend_from_slice(&DISCRIMINATOR);
@@ -138,6 +133,6 @@ impl InitializeRentFreeConfig {
             data,
         };
 
-        (instruction, config_pda)
+        Ok((instruction, config_pda))
     }
 }

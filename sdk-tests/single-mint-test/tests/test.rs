@@ -41,7 +41,8 @@ async fn test_create_single_mint() {
         rent_sponsor,
         payer.pubkey(),
     )
-    .build();
+    .build()
+    .unwrap();
 
     rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
         .await

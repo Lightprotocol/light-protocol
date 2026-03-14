@@ -801,7 +801,8 @@ async fn setup_forester_pipeline(
 
     let config = Arc::new(config.clone());
     let service_handle = tokio::task::spawn_blocking(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
             .enable_all()
             .build()?;
         runtime.block_on(run_pipeline::<LightClient>(
