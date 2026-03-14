@@ -66,11 +66,14 @@ pub struct AddressQueueData {
 }
 
 impl AddressQueueData {
+    const ADDRESS_TREE_HEIGHT: usize = 40;
+
     /// Reconstruct a merkle proof for a given low_element_index from the deduplicated nodes.
     pub fn reconstruct_proof<const HEIGHT: usize>(
         &self,
         address_idx: usize,
     ) -> Result<[[u8; 32]; HEIGHT], IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         let leaf_index = *self.low_element_indices.get(address_idx).ok_or_else(|| {
             IndexerError::MissingResult {
                 context: "reconstruct_proof".to_string(),
@@ -126,6 +129,7 @@ impl AddressQueueData {
         &self,
         address_range: std::ops::Range<usize>,
     ) -> Result<Vec<[[u8; 32]; HEIGHT]>, IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         let node_lookup = self.build_node_lookup();
         let mut proofs = Vec::with_capacity(address_range.len());
 
@@ -140,16 +144,16 @@ impl AddressQueueData {
     pub fn reconstruct_all_proofs<const HEIGHT: usize>(
         &self,
     ) -> Result<Vec<[[u8; 32]; HEIGHT]>, IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         self.reconstruct_proofs::<HEIGHT>(0..self.addresses.len())
     }
 
     fn build_node_lookup(&self) -> HashMap<u64, usize> {
-        self.nodes
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(idx, node)| (node, idx))
-            .collect()
+        let mut lookup = HashMap::with_capacity(self.nodes.len());
+        for (idx, node) in self.nodes.iter().copied().enumerate() {
+            lookup.entry(node).or_insert(idx);
+        }
+        lookup
     }
 
     fn reconstruct_proof_with_lookup<const HEIGHT: usize>(
@@ -157,6 +161,7 @@ impl AddressQueueData {
         address_idx: usize,
         node_lookup: &HashMap<u64, usize>,
     ) -> Result<[[u8; 32]; HEIGHT], IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         let leaf_index = *self.low_element_indices.get(address_idx).ok_or_else(|| {
             IndexerError::MissingResult {
                 context: "reconstruct_proof".to_string(),
@@ -208,6 +213,18 @@ impl AddressQueueData {
     #[inline]
     fn encode_node_index(level: usize, position: u64) -> u64 {
         ((level as u64) << 56) | position
+    }
+
+    fn validate_proof_height<const HEIGHT: usize>(&self) -> Result<(), IndexerError> {
+        if HEIGHT == Self::ADDRESS_TREE_HEIGHT {
+            return Ok(());
+        }
+
+        Err(IndexerError::InvalidParameters(format!(
+            "address queue proofs require HEIGHT={} but got HEIGHT={}",
+            Self::ADDRESS_TREE_HEIGHT,
+            HEIGHT
+        )))
     }
 }
 
