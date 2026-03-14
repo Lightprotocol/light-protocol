@@ -6,6 +6,8 @@ use num_bigint::{BigInt, BigUint};
 use num_traits::{Num, ToPrimitive};
 use serde::Serialize;
 
+use crate::errors::ProverClientError;
+
 pub fn get_project_root() -> Option<String> {
     let output = Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
@@ -48,7 +50,7 @@ pub fn compute_root_from_merkle_proof<const HEIGHT: usize>(
     leaf: [u8; 32],
     path_elements: &[[u8; 32]; HEIGHT],
     path_index: u32,
-) -> ([u8; 32], ChangelogEntry<HEIGHT>) {
+) -> Result<([u8; 32], ChangelogEntry<HEIGHT>), ProverClientError> {
     let mut changelog_entry = ChangelogEntry::default_with_index(path_index as usize);
 
     let mut current_hash = leaf;
@@ -56,14 +58,14 @@ pub fn compute_root_from_merkle_proof<const HEIGHT: usize>(
     for (level, path_element) in path_elements.iter().enumerate() {
         changelog_entry.path[level] = Some(current_hash);
         if current_index.is_multiple_of(2) {
-            current_hash = Poseidon::hashv(&[&current_hash, path_element]).unwrap();
+            current_hash = Poseidon::hashv(&[&current_hash, path_element])?;
         } else {
-            current_hash = Poseidon::hashv(&[path_element, &current_hash]).unwrap();
+            current_hash = Poseidon::hashv(&[path_element, &current_hash])?;
         }
         current_index /= 2;
     }
 
-    (current_hash, changelog_entry)
+    Ok((current_hash, changelog_entry))
 }
 
 pub fn big_uint_to_string(big_uint: &BigUint) -> String {
