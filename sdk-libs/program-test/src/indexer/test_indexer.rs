@@ -2170,18 +2170,20 @@ impl TestIndexer {
             let inclusion_proof_inputs =
                 InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
             (
-                Some(BatchInclusionJsonStruct::from_inclusion_proof_inputs(
-                    &inclusion_proof_inputs,
-                )),
+                Some(
+                    BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs),
+                ),
                 None,
             )
         } else if height == STATE_MERKLE_TREE_HEIGHT as usize {
             let inclusion_proof_inputs = InclusionProofInputsLegacy(inclusion_proofs.as_slice());
             (
                 None,
-                Some(BatchInclusionJsonStructLegacy::from_inclusion_proof_inputs(
-                    &inclusion_proof_inputs,
-                )),
+                Some(
+                    BatchInclusionJsonStructLegacy::from_inclusion_proof_inputs(
+                        &inclusion_proof_inputs,
+                    ),
+                ),
             )
         } else {
             return Err(IndexerError::CustomError(
@@ -2358,7 +2360,11 @@ impl TestIndexer {
                         if let Some(payload) = payload {
                             (indices, Vec::new(), payload.to_string())
                         } else {
-                            (indices, Vec::new(), payload_legacy.unwrap().to_string())
+                            (
+                                indices,
+                                Vec::new(),
+                                payload_legacy.unwrap().to_string(),
+                            )
                         }
                     }
                     (None, Some(addresses)) => {

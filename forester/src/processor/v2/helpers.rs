@@ -9,6 +9,7 @@ use light_client::{
     indexer::{AddressQueueData, Indexer, QueueElementsV2Options, StateQueueData},
     rpc::Rpc,
 };
+use light_hasher::hash_chain::create_hash_chain_from_slice;
 
 use crate::processor::v2::{common::clamp_to_u16, BatchContext};
 
@@ -20,6 +21,17 @@ pub(crate) fn lock_recover<'a, T>(mutex: &'a Mutex<T>, name: &'static str) -> Mu
             poisoned.into_inner()
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct AddressBatchSnapshot<const HEIGHT: usize> {
+    pub addresses: Vec<[u8; 32]>,
+    pub low_element_values: Vec<[u8; 32]>,
+    pub low_element_next_values: Vec<[u8; 32]>,
+    pub low_element_indices: Vec<u64>,
+    pub low_element_next_indices: Vec<u64>,
+    pub low_element_proofs: Vec<[[u8; 32]; HEIGHT]>,
+    pub leaves_hashchain: [u8; 32],
 }
 
 pub async fn fetch_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> crate::Result<u64> {
@@ -474,20 +486,52 @@ impl StreamingAddressQueue {
         }
     }
 
-    pub fn get_batch_data(&self, start: usize, end: usize) -> Option<BatchDataSlice> {
+    pub fn get_batch_snapshot<const HEIGHT: usize>(
+        &self,
+        start: usize,
+        end: usize,
+        hashchain_idx: usize,
+    ) -> crate::Result<Option<AddressBatchSnapshot<HEIGHT>>> {
         let available = self.wait_for_batch(end);
         if start >= available {
-            return None;
+            return Ok(None);
         }
         let actual_end = end.min(available);
         let data = lock_recover(&self.data, "streaming_address_queue.data");
-        Some(BatchDataSlice {
-            addresses: data.addresses[start..actual_end].to_vec(),
+
+        let addresses = data.addresses[start..actual_end].to_vec();
+        if addresses.is_empty() {
+            return Err(anyhow!("Empty batch at start={}", start));
+        }
+
+        let leaves_hashchain = match data.leaves_hash_chains.get(hashchain_idx).copied() {
+            Some(hashchain) => hashchain,
+            None => {
+                tracing::debug!(
+                    "Missing leaves_hash_chain for batch {} (available: {}), deriving from addresses",
+                    hashchain_idx,
+                    data.leaves_hash_chains.len()
+                );
+                create_hash_chain_from_slice(&addresses).map_err(|error| {
+                    anyhow!(
+                        "Failed to derive leaves_hash_chain for batch {} from {} addresses: {}",
+                        hashchain_idx,
+                        addresses.len(),
+                        error
+                    )
+                })?
+            }
+        };
+
+        Ok(Some(AddressBatchSnapshot {
             low_element_values: data.low_element_values[start..actual_end].to_vec(),
             low_element_next_values: data.low_element_next_values[start..actual_end].to_vec(),
             low_element_indices: data.low_element_indices[start..actual_end].to_vec(),
             low_element_next_indices: data.low_element_next_indices[start..actual_end].to_vec(),
-        })
+            low_element_proofs: data.reconstruct_proofs::<HEIGHT>(start..actual_end)?,
+            addresses,
+            leaves_hashchain,
+        }))
     }
 
     pub fn into_data(self) -> AddressQueueData {
@@ -551,15 +595,6 @@ impl StreamingAddressQueue {
             "streaming_address_queue.fetch_complete",
         )
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct BatchDataSlice {
-    pub addresses: Vec<[u8; 32]>,
-    pub low_element_values: Vec<[u8; 32]>,
-    pub low_element_next_values: Vec<[u8; 32]>,
-    pub low_element_indices: Vec<u64>,
-    pub low_element_next_indices: Vec<u64>,
 }
 
 pub async fn fetch_streaming_address_batches<R: Rpc + 'static>(

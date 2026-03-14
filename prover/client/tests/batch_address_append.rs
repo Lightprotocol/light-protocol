@@ -45,7 +45,8 @@ async fn prove_batch_address_append() {
     let mut low_element_indices = Vec::new();
     let mut low_element_next_indices = Vec::new();
     let mut low_element_next_values = Vec::new();
-    let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
+    let mut low_element_proofs: Vec<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]> =
+        Vec::new();
 
     // Generate non-inclusion proofs for each element
     for new_element_value in &new_element_values {
@@ -57,7 +58,13 @@ async fn prove_batch_address_append() {
         low_element_indices.push(non_inclusion_proof.leaf_index);
         low_element_next_indices.push(non_inclusion_proof.next_index);
         low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
-        low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
+        low_element_proofs.push(
+            non_inclusion_proof
+                .merkle_proof
+                .as_slice()
+                .try_into()
+                .unwrap(),
+        );
     }
 
     // Convert big integers to byte arrays
@@ -87,12 +94,12 @@ async fn prove_batch_address_append() {
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index,
             current_root,
-            low_element_values,
-            low_element_next_values,
-            low_element_indices,
-            low_element_next_indices,
-            low_element_proofs,
-            new_element_values,
+            &low_element_values,
+            &low_element_next_values,
+            &low_element_indices,
+            &low_element_next_indices,
+            &low_element_proofs,
+            &new_element_values,
             &mut sparse_merkle_tree,
             hash_chain,
             zkp_batch_size,
