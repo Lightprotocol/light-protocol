@@ -835,7 +835,7 @@ where
                                         .map_err(|error| RpcError::CustomError(error.to_string()))
                                         .unwrap();
                                     let (proof_a, proof_b, proof_c) =
-                                        proof_from_json_struct(proof_json);
+                                        proof_from_json_struct(proof_json).unwrap();
                                     let (proof_a, proof_b, proof_c) =
                                         compress_proof(&proof_a, &proof_b, &proof_c);
                                     let instruction_data = InstructionDataBatchNullifyInputs {

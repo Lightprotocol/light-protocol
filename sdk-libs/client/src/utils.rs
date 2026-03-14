@@ -15,8 +15,11 @@ pub fn find_light_bin() -> Option<PathBuf> {
         if !output.status.success() {
             return None;
         }
-        // Convert the output into a string (removing any trailing newline)
-        let light_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let light_path = std::str::from_utf8(&output.stdout)
+            .ok()?
+            .trim_end_matches("\r\n")
+            .trim_end_matches('\n')
+            .to_string();
         // Get the parent directory of the 'light' binary
         let mut light_bin_path = PathBuf::from(light_path);
         light_bin_path.pop(); // Remove the 'light' binary itself
@@ -30,16 +33,16 @@ pub fn find_light_bin() -> Option<PathBuf> {
     #[cfg(feature = "devenv")]
     {
         println!("Use only in light protocol monorepo. Using 'git rev-parse --show-toplevel' to find the location of 'light' binary");
-        let light_protocol_toplevel = String::from_utf8_lossy(
-            &std::process::Command::new("git")
-                .arg("rev-parse")
-                .arg("--show-toplevel")
-                .output()
-                .expect("Failed to get top-level directory")
-                .stdout,
-        )
-        .trim()
-        .to_string();
+        let output = std::process::Command::new("git")
+            .arg("rev-parse")
+            .arg("--show-toplevel")
+            .output()
+            .expect("Failed to get top-level directory");
+        let light_protocol_toplevel = std::str::from_utf8(&output.stdout)
+            .ok()?
+            .trim_end_matches("\r\n")
+            .trim_end_matches('\n')
+            .to_string();
         let light_path = PathBuf::from(format!("{}/target/deploy/", light_protocol_toplevel));
         Some(light_path)
     }

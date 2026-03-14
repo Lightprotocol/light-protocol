@@ -88,7 +88,7 @@ impl AddressQueueData {
         address_range: std::ops::Range<usize>,
     ) -> Result<Vec<[[u8; 32]; HEIGHT]>, IndexerError> {
         self.validate_proof_height::<HEIGHT>()?;
-        let available = self.proof_count();
+        let available = self.proof_count()?;
         if address_range.start > address_range.end {
             return Err(IndexerError::InvalidParameters(format!(
                 "invalid address proof range {}..{}",
@@ -115,6 +115,7 @@ impl AddressQueueData {
     pub fn reconstruct_all_proofs<const HEIGHT: usize>(
         &self,
     ) -> Result<Vec<[[u8; 32]; HEIGHT]>, IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         self.reconstruct_proofs::<HEIGHT>(0..self.addresses.len())
     }
 
@@ -126,8 +127,15 @@ impl AddressQueueData {
         lookup
     }
 
-    fn proof_count(&self) -> usize {
-        self.addresses.len().min(self.low_element_indices.len())
+    fn proof_count(&self) -> Result<usize, IndexerError> {
+        let addr_len = self.addresses.len();
+        let idx_len = self.low_element_indices.len();
+        if addr_len != idx_len {
+            return Err(IndexerError::InvalidParameters(format!(
+                "address queue length mismatch: addresses.len()={addr_len} != low_element_indices.len()={idx_len}"
+            )));
+        }
+        Ok(addr_len)
     }
 
     fn reconstruct_proof_with_lookup<const HEIGHT: usize>(
@@ -135,6 +143,7 @@ impl AddressQueueData {
         address_idx: usize,
         node_lookup: &HashMap<u64, usize>,
     ) -> Result<[[u8; 32]; HEIGHT], IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         let leaf_index = *self.low_element_indices.get(address_idx).ok_or_else(|| {
             IndexerError::MissingResult {
                 context: "reconstruct_proof".to_string(),

@@ -127,7 +127,7 @@ async fn create_compressed_account(
         )
         .await?
         .value;
-    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts).unwrap();
 
     let output_tree_index = rpc
         .get_random_state_tree_info()
@@ -178,6 +178,7 @@ async fn read_sha256_light_system_cpi(
 
     let packed_tree_accounts = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
+        .unwrap()
         .state_trees
         .unwrap();
 
@@ -231,6 +232,7 @@ async fn read_sha256_lowlevel(
 
     let packed_tree_accounts = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
+        .unwrap()
         .state_trees
         .unwrap();
 
@@ -289,7 +291,7 @@ async fn create_compressed_account_poseidon(
         )
         .await?
         .value;
-    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts).unwrap();
 
     let output_tree_index = rpc
         .get_random_state_tree_info()
@@ -340,6 +342,7 @@ async fn read_poseidon_light_system_cpi(
 
     let packed_tree_accounts = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
+        .unwrap()
         .state_trees
         .unwrap();
 
@@ -393,6 +396,7 @@ async fn read_poseidon_lowlevel(
 
     let packed_tree_accounts = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
+        .unwrap()
         .state_trees
         .unwrap();
 

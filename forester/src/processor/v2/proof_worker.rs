@@ -132,27 +132,27 @@ struct ProofClients {
 }
 
 impl ProofClients {
-    fn new(config: &ProverConfig) -> Self {
-        Self {
+    fn new(config: &ProverConfig) -> crate::Result<Self> {
+        Ok(Self {
             append_client: ProofClient::with_config(
                 config.append_url.clone(),
                 config.polling_interval,
                 config.max_wait_time,
                 config.api_key.clone(),
-            ),
+            )?,
             nullify_client: ProofClient::with_config(
                 config.update_url.clone(),
                 config.polling_interval,
                 config.max_wait_time,
                 config.api_key.clone(),
-            ),
+            )?,
             address_append_client: ProofClient::with_config(
                 config.address_append_url.clone(),
                 config.polling_interval,
                 config.max_wait_time,
                 config.api_key.clone(),
-            ),
-        }
+            )?,
+        })
     }
 
     fn get_client(&self, input: &ProofInput) -> &ProofClient {
@@ -164,11 +164,13 @@ impl ProofClients {
     }
 }
 
-pub fn spawn_proof_workers(config: &ProverConfig) -> async_channel::Sender<ProofJob> {
+pub fn spawn_proof_workers(
+    config: &ProverConfig,
+) -> crate::Result<async_channel::Sender<ProofJob>> {
     let (job_tx, job_rx) = async_channel::bounded::<ProofJob>(256);
-    let clients = Arc::new(ProofClients::new(config));
+    let clients = Arc::new(ProofClients::new(config)?);
     tokio::spawn(async move { run_proof_pipeline(job_rx, clients).await });
-    job_tx
+    Ok(job_tx)
 }
 
 async fn run_proof_pipeline(

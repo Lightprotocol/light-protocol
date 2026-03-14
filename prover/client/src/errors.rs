@@ -39,6 +39,7 @@ pub enum ProverClientError {
 
     #[error("Integer conversion failed: {0}")]
     IntegerConversion(String),
+
     #[error("Hashchain mismatch: computed {computed:?} != expected {expected:?} (batch_size={batch_size}, next_index={next_index})")]
     HashchainMismatch {
         computed: [u8; 32],
