@@ -53,6 +53,9 @@ pub enum LoadAccountsError {
     #[error("Cold PDA at index {index} (pubkey {pubkey}) missing data")]
     MissingPdaCompressed { index: usize, pubkey: Pubkey },
 
+    #[error("Cold PDA (pubkey {pubkey}) missing data")]
+    MissingPdaCompressedData { pubkey: Pubkey },
+
     #[error("Cold ATA at index {index} (pubkey {pubkey}) missing data")]
     MissingAtaCompressed { index: usize, pubkey: Pubkey },
 
@@ -67,6 +70,7 @@ pub enum LoadAccountsError {
 }
 
 const MAX_ATAS_PER_IX: usize = 8;
+const MAX_PDAS_PER_IX: usize = 8;
 
 /// Build load instructions for cold accounts. Returns empty vec if all hot.
 ///
@@ -113,14 +117,18 @@ where
         })
         .collect();
 
-    let pda_hashes = collect_pda_hashes(&cold_pdas)?;
+    let pda_groups = group_pda_specs(&cold_pdas, MAX_PDAS_PER_IX);
+    let pda_hashes = pda_groups
+        .iter()
+        .map(|group| collect_pda_hashes(group))
+        .collect::<Result<Vec<_>, _>>()?;
     let ata_hashes = collect_ata_hashes(&cold_atas)?;
     let mint_hashes = collect_mint_hashes(&cold_mints)?;
 
     let (pda_proofs, ata_proofs, mint_proofs) = futures::join!(
-        fetch_proofs(&pda_hashes, indexer),
+        fetch_proof_batches(&pda_hashes, indexer),
         fetch_proofs_batched(&ata_hashes, MAX_ATAS_PER_IX, indexer),
-        fetch_proofs(&mint_hashes, indexer),
+        fetch_individual_proofs(&mint_hashes, indexer),
     );
 
     let pda_proofs = pda_proofs?;
@@ -136,9 +144,9 @@ where
 
     // 2. DecompressAccountsIdempotent for all cold PDAs (including token PDAs).
     //    Token PDAs are created on-chain via CPI inside DecompressVariant.
-    for (spec, proof) in cold_pdas.iter().zip(pda_proofs) {
+    for (group, proof) in pda_groups.into_iter().zip(pda_proofs) {
         out.push(build_pda_load(
-            &[spec],
+            &group,
             proof,
             fee_payer,
             compression_config,
@@ -146,8 +154,7 @@ where
     }
 
     // 3. ATA loads (CreateAssociatedTokenAccount + Transfer2) - requires mint to exist
-    let ata_chunks: Vec<_> = cold_atas.chunks(MAX_ATAS_PER_IX).collect();
-    for (chunk, proof) in ata_chunks.into_iter().zip(ata_proofs) {
+    for (chunk, proof) in cold_atas.chunks(MAX_ATAS_PER_IX).zip(ata_proofs) {
         out.extend(build_ata_load(chunk, proof, fee_payer)?);
     }
 
@@ -195,23 +202,77 @@ fn collect_mint_hashes(ifaces: &[&AccountInterface]) -> Result<Vec<[u8; 32]>, Lo
         .collect()
 }
 
-async fn fetch_proofs<I: Indexer>(
+/// Groups already-ordered PDA specs into contiguous runs of the same program id.
+///
+/// This preserves input order rather than globally regrouping by program. Callers that
+/// want maximal batching across interleaved program ids should sort before calling.
+fn group_pda_specs<'a, V>(
+    specs: &[&'a PdaSpec<V>],
+    max_per_group: usize,
+) -> Vec<Vec<&'a PdaSpec<V>>> {
+    assert!(max_per_group > 0, "max_per_group must be non-zero");
+    if specs.is_empty() {
+        return Vec::new();
+    }
+
+    let mut groups = Vec::new();
+    let mut current = Vec::with_capacity(max_per_group);
+    let mut current_program: Option<Pubkey> = None;
+
+    for spec in specs {
+        let program_id = spec.program_id();
+        let should_split = current_program
+            .map(|existing| existing != program_id || current.len() >= max_per_group)
+            .unwrap_or(false);
+
+        if should_split {
+            groups.push(current);
+            current = Vec::with_capacity(max_per_group);
+        }
+
+        current_program = Some(program_id);
+        current.push(*spec);
+    }
+
+    if !current.is_empty() {
+        groups.push(current);
+    }
+
+    groups
+}
+
+async fn fetch_individual_proofs<I: Indexer>(
     hashes: &[[u8; 32]],
     indexer: &I,
 ) -> Result<Vec<ValidityProofWithContext>, IndexerError> {
     if hashes.is_empty() {
         return Ok(vec![]);
     }
-    let mut proofs = Vec::with_capacity(hashes.len());
-    for hash in hashes {
-        proofs.push(
-            indexer
-                .get_validity_proof(vec![*hash], vec![], None)
-                .await?
-                .value,
-        );
+
+    futures::future::try_join_all(hashes.iter().map(|hash| async move {
+        indexer
+            .get_validity_proof(vec![*hash], vec![], None)
+            .await
+            .map(|response| response.value)
+    }))
+    .await
+}
+
+async fn fetch_proof_batches<I: Indexer>(
+    hash_batches: &[Vec<[u8; 32]>],
+    indexer: &I,
+) -> Result<Vec<ValidityProofWithContext>, IndexerError> {
+    if hash_batches.is_empty() {
+        return Ok(vec![]);
     }
-    Ok(proofs)
+
+    futures::future::try_join_all(hash_batches.iter().map(|hashes| async move {
+        indexer
+            .get_validity_proof(hashes.clone(), vec![], None)
+            .await
+            .map(|response| response.value)
+    }))
+    .await
 }
 
 async fn fetch_proofs_batched<I: Indexer>(
@@ -222,16 +283,13 @@ async fn fetch_proofs_batched<I: Indexer>(
     if hashes.is_empty() {
         return Ok(vec![]);
     }
-    let mut proofs = Vec::with_capacity(hashes.len().div_ceil(batch_size));
-    for chunk in hashes.chunks(batch_size) {
-        proofs.push(
-            indexer
-                .get_validity_proof(chunk.to_vec(), vec![], None)
-                .await?
-                .value,
-        );
-    }
-    Ok(proofs)
+
+    let hash_batches = hashes
+        .chunks(batch_size)
+        .map(|chunk| chunk.to_vec())
+        .collect::<Vec<_>>();
+
+    fetch_proof_batches(&hash_batches, indexer).await
 }
 
 fn build_pda_load<V>(
@@ -262,11 +320,16 @@ where
     let hot_addresses: Vec<Pubkey> = specs.iter().map(|s| s.address()).collect();
     let cold_accounts: Vec<(CompressedAccount, V)> = specs
         .iter()
-        .map(|s| {
-            let compressed = s.compressed().expect("cold spec must have data").clone();
-            (compressed, s.variant.clone())
+        .map(|s| -> Result<_, LoadAccountsError> {
+            let compressed =
+                s.compressed()
+                    .cloned()
+                    .ok_or(LoadAccountsError::MissingPdaCompressedData {
+                        pubkey: s.address(),
+                    })?;
+            Ok((compressed, s.variant.clone()))
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     let program_id = specs.first().map(|s| s.program_id()).unwrap_or_default();
 
