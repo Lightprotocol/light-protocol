@@ -165,7 +165,9 @@ pub async fn create_append_batch_ix_data<R: Rpc>(
             bundle.merkle_tree.root()
         );
         let proof_client = ProofClient::local();
-        let inputs_json = BatchAppendInputsJson::from_inputs(&circuit_inputs).to_string();
+        let inputs_json = BatchAppendInputsJson::from_inputs(&circuit_inputs)
+            .to_string()
+            ;
 
         match proof_client.generate_proof(inputs_json).await {
             Ok(compressed_proof) => (
