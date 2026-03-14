@@ -213,7 +213,7 @@ async fn test_decompress_full_cpi() {
             .unwrap()
             .value;
 
-        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+        let packed_tree_infos = rpc_result.pack_state_tree_infos(&mut remaining_accounts);
         let config = DecompressFullAccounts::new(None);
         remaining_accounts
             .add_custom_system_accounts(config)
@@ -236,12 +236,7 @@ async fn test_decompress_full_cpi() {
         let indices: Vec<_> = token_data
             .iter()
             .zip(
-                packed_tree_info
-                    .state_trees
-                    .as_ref()
-                    .unwrap()
-                    .packed_tree_infos
-                    .iter(),
+                packed_tree_infos.iter(),
             )
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())
@@ -370,7 +365,7 @@ async fn test_decompress_full_cpi_with_context() {
             .value;
 
         // Add tree accounts first, then custom system accounts (no CPI context since params is None)
-        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+        let packed_tree_infos = rpc_result.pack_state_tree_infos(&mut remaining_accounts);
         let config = DecompressFullAccounts::new(None);
         remaining_accounts
             .add_custom_system_accounts(config)
@@ -393,12 +388,7 @@ async fn test_decompress_full_cpi_with_context() {
         let indices: Vec<_> = token_data
             .iter()
             .zip(
-                packed_tree_info
-                    .state_trees
-                    .as_ref()
-                    .unwrap()
-                    .packed_tree_infos
-                    .iter(),
+                packed_tree_infos.iter(),
             )
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())

@@ -519,7 +519,47 @@ impl StreamingAddressQueue {
 
         let addresses = data.addresses[start..actual_end].to_vec();
         if addresses.is_empty() {
-            return Err(anyhow!("Empty batch at start={}", start));
+            return Ok(None);
+        }
+        let expected_len = addresses.len();
+        let Some(low_element_values) = data
+            .low_element_values
+            .get(start..end)
+            .map(|slice| slice.to_vec())
+        else {
+            return Ok(None);
+        };
+        let Some(low_element_next_values) = data
+            .low_element_next_values
+            .get(start..end)
+            .map(|slice| slice.to_vec())
+        else {
+            return Ok(None);
+        };
+        let Some(low_element_indices) = data
+            .low_element_indices
+            .get(start..end)
+            .map(|slice| slice.to_vec())
+        else {
+            return Ok(None);
+        };
+        let Some(low_element_next_indices) = data
+            .low_element_next_indices
+            .get(start..end)
+            .map(|slice| slice.to_vec())
+        else {
+            return Ok(None);
+        };
+        if [
+            low_element_values.len(),
+            low_element_next_values.len(),
+            low_element_indices.len(),
+            low_element_next_indices.len(),
+        ]
+        .iter()
+        .any(|&len| len != expected_len)
+        {
+            return Ok(None);
         }
 
         let leaves_hashchain = match data.leaves_hash_chains.get(hashchain_idx).copied() {

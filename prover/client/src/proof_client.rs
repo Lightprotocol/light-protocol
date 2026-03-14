@@ -84,21 +84,21 @@ impl ProofClient {
         polling_interval: Duration,
         max_wait_time: Duration,
         api_key: Option<String>,
-    ) -> Self {
+    ) -> Result<Self, ProverClientError> {
         let initial_poll_delay = if api_key.is_some() {
             Duration::from_millis(INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS)
         } else {
             Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS)
         };
 
-        Self {
+        Ok(Self {
             client: build_http_client(),
             server_address,
             polling_interval,
             max_wait_time,
             api_key,
             initial_poll_delay,
-        }
+        })
     }
 
     #[allow(unused)]
@@ -654,7 +654,7 @@ impl ProofClient {
             ProverClientError::ProverServerError(format!("Failed to deserialize proof JSON: {}", e))
         })?;
 
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json)?;
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
 
         Ok(ProofResult {

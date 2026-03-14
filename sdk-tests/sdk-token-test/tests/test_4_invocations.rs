@@ -22,6 +22,21 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
 };
 
+fn pack_selected_output_tree_index(
+    tree_info: light_client::indexer::TreeInfo,
+    remaining_accounts: &mut PackedAccounts,
+) -> Result<u8, Box<RpcError>> {
+    tree_info
+        .next_tree_info
+        .map(|next| next.pack_output_tree_index(remaining_accounts))
+        .unwrap_or_else(|| tree_info.pack_output_tree_index(remaining_accounts))
+        .map_err(|error| {
+            Box::new(RpcError::CustomError(format!(
+                "Failed to pack output tree index: {error}"
+            )))
+        })
+}
+
 #[ignore = "fix cpi context usage"]
 #[tokio::test]
 async fn test_4_invocations() {
@@ -389,7 +404,7 @@ async fn create_compressed_escrow_pda(
         .await?
         .value;
 
-    let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts).unwrap();
     let new_address_params = packed_tree_info.address_trees[0]
         .into_new_address_params_assigned_packed(address_seed, Some(0));
 
@@ -495,29 +510,18 @@ async fn test_four_invokes_instruction(
         )
         .await?
         .value;
-    // We need to pack the tree after the cpi context.
-    remaining_accounts.insert_or_get(rpc_result.accounts[0].tree_info.tree);
-
-    let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
-    let output_tree_index = packed_tree_info
-        .state_trees
-        .as_ref()
-        .unwrap()
-        .output_tree_index;
+    let output_tree_index = pack_selected_output_tree_index(
+        mint2_token_account.account.tree_info,
+        &mut remaining_accounts,
+    )
+    .map_err(|error| *error)?;
+    let packed_tree_infos = rpc_result.pack_state_tree_infos(&mut remaining_accounts);
 
     // Create token metas from compressed accounts - each uses its respective tree info index
     // Index 0: escrow PDA, Index 1: mint2 token account, Index 2: mint3 token account
-    let mint2_tree_info = packed_tree_info
-        .state_trees
-        .as_ref()
-        .unwrap()
-        .packed_tree_infos[1];
+    let mint2_tree_info = packed_tree_infos[1];
 
-    let mint3_tree_info = packed_tree_info
-        .state_trees
-        .as_ref()
-        .unwrap()
-        .packed_tree_infos[2];
+    let mint3_tree_info = packed_tree_infos[2];
 
     // Create FourInvokesParams
     let four_invokes_params = sdk_token_test::FourInvokesParams {
@@ -557,11 +561,7 @@ async fn test_four_invokes_instruction(
     };
 
     // Create PdaParams - escrow PDA uses tree info index 0
-    let escrow_tree_info = packed_tree_info
-        .state_trees
-        .as_ref()
-        .unwrap()
-        .packed_tree_infos[0];
+    let escrow_tree_info = packed_tree_infos[0];
 
     let pda_params = sdk_token_test::PdaParams {
         account_meta: light_sdk::instruction::account_meta::CompressedAccountMeta {
