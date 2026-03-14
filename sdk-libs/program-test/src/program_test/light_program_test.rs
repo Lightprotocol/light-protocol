@@ -393,11 +393,15 @@ impl LightProgramTest {
 
         #[cfg(feature = "devenv")]
         {
-            spawn_prover().await;
+            spawn_prover()
+                .await
+                .map_err(|error| RpcError::CustomError(error.to_string()))?;
         }
         #[cfg(not(feature = "devenv"))]
         if config.with_prover {
-            spawn_prover().await;
+            spawn_prover()
+                .await
+                .map_err(|error| RpcError::CustomError(error.to_string()))?;
         }
 
         Ok(context)

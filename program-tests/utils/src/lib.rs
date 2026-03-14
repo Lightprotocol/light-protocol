@@ -1,11 +1,10 @@
 use std::cmp;
 
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
+pub use account_zero_copy::AccountZeroCopy;
 use batched_address_tree::assert_address_merkle_tree_initialized;
 pub use forester_utils::{
-    account_zero_copy::{
-        get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy,
-    },
+    account_zero_copy::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree},
     instructions::create_account_instruction,
     utils::airdrop_lamports,
 };
@@ -16,6 +15,7 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
     transaction,
 };
+pub mod account_zero_copy;
 pub mod actions;
 pub mod address;
 pub mod address_tree_rollover;

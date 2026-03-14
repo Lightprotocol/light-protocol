@@ -25,8 +25,8 @@ pub struct BatchAppendsCircuitInputs {
 }
 
 impl BatchAppendsCircuitInputs {
-    pub fn public_inputs_arr(&self) -> [u8; 32] {
-        bigint_to_u8_32(&self.public_input_hash).unwrap()
+    pub fn public_inputs_arr(&self) -> Result<[u8; 32], ProverClientError> {
+        bigint_to_u8_32(&self.public_input_hash)
     }
 
     pub fn new<const HEIGHT: usize>(
@@ -177,7 +177,13 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
             }
         }
 
-        let merkle_proof_array = merkle_proof.try_into().unwrap();
+        let merkle_proof_array = merkle_proof.as_slice().try_into().map_err(|_| {
+            ProverClientError::InvalidProofData(format!(
+                "invalid merkle proof length: expected {}, got {}",
+                HEIGHT,
+                merkle_proof.len()
+            ))
+        })?;
         // Determine if we use the old or new leaf based on whether the old leaf is nullified (zeroed).
         let is_old_leaf_zero = old_leaf.iter().all(|&byte| byte == 0);
         let final_leaf = if is_old_leaf_zero {
@@ -187,8 +193,11 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
         };
 
         // Update the root based on the current proof and nullifier
-        let (updated_root, changelog_entry) =
-            compute_root_from_merkle_proof(final_leaf, &merkle_proof_array, start_index + i as u32);
+        let (updated_root, changelog_entry) = compute_root_from_merkle_proof(
+            final_leaf,
+            &merkle_proof_array,
+            start_index + i as u32,
+        )?;
         new_root = updated_root;
         changelog.push(changelog_entry);
         circuit_merkle_proofs.push(

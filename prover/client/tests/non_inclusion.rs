@@ -10,7 +10,7 @@ use crate::init_merkle_tree::{non_inclusion_inputs_string_v1, non_inclusion_inpu
 #[serial]
 #[tokio::test]
 async fn prove_non_inclusion() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let client = Client::new();
     // legacy height 26
     {

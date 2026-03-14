@@ -7,47 +7,75 @@ use std::{
 
 use tracing::info;
 
+#[cfg(feature = "devenv")]
+use crate::helpers::get_project_root;
 use crate::{
     constants::{HEALTH_CHECK, SERVER_ADDRESS},
-    helpers::get_project_root,
+    errors::ProverClientError,
 };
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
 
-pub async fn spawn_prover() {
-    if let Some(_project_root) = get_project_root() {
-        let prover_path: &str = {
-            #[cfg(feature = "devenv")]
-            {
-                &format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
-            }
-            #[cfg(not(feature = "devenv"))]
-            {
-                println!("Running in production mode, using prover binary");
-                "light"
-            }
-        };
+pub async fn spawn_prover() -> Result<(), ProverClientError> {
+    #[cfg(feature = "devenv")]
+    let project_root = get_project_root().ok_or(ProverClientError::ProjectRootNotFound)?;
 
-        if !health_check(10, 1).await && !IS_LOADING.load(Ordering::Relaxed) {
-            IS_LOADING.store(true, Ordering::Relaxed);
-
-            let command = Command::new(prover_path)
-                .arg("start-prover")
-                .spawn()
-                .expect("Failed to start prover process");
-
-            let _ = command.wait_with_output();
-
-            let health_result = health_check(120, 1).await;
-            if health_result {
-                info!("Prover started successfully");
-            } else {
-                panic!("Failed to start prover, health check failed.");
-            }
+    let prover_path: String = {
+        #[cfg(feature = "devenv")]
+        {
+            format!("{}/{}", project_root.trim(), "cli/test_bin/run")
         }
-    } else {
-        panic!("Failed to find project root.");
+        #[cfg(not(feature = "devenv"))]
+        {
+            println!("Running in production mode, using prover binary");
+            "light".to_string()
+        }
     };
+
+    if health_check(10, 1).await {
+        return Ok(());
+    }
+
+    let loading_guard = IS_LOADING
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok();
+
+    if !loading_guard {
+        return if health_check(120, 1).await {
+            Ok(())
+        } else {
+            Err(ProverClientError::HealthCheckFailed)
+        };
+    }
+
+    let spawn_result = async {
+        let command = Command::new(&prover_path)
+            .arg("start-prover")
+            .spawn()
+            .map_err(|error| ProverClientError::ProcessStart(error.to_string()))?;
+
+        command
+            .wait_with_output()
+            .map_err(|error| ProverClientError::ProcessWait(error.to_string()))?;
+
+        if health_check(120, 1).await {
+            info!("Prover started successfully");
+            Ok(())
+        } else {
+            Err(ProverClientError::HealthCheckFailed)
+        }
+    }
+    .await;
+
+    IS_LOADING.store(false, Ordering::Release);
+
+    spawn_result
+}
+
+pub async fn spawn_prover_or_log() {
+    if let Err(error) = spawn_prover().await {
+        tracing::error!("{}", error);
+    }
 }
 
 pub async fn health_check(retries: usize, timeout: usize) -> bool {

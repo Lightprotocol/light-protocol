@@ -56,17 +56,23 @@ pub async fn create_compress_and_close_mint_instruction<R: Rpc + Indexer>(
         .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
         .await?
         .value;
+    let proof_account = rpc_proof_result.accounts.first().ok_or_else(|| {
+        RpcError::CustomError("Missing compressed mint proof account".to_string())
+    })?;
 
     // Build MintWithContext
     let compressed_mint_inputs = MintWithContext {
-        prove_by_index: rpc_proof_result.accounts[0].root_index.proof_by_index(),
+        prove_by_index: proof_account.root_index.proof_by_index(),
         leaf_index: compressed_mint_account.leaf_index,
-        root_index: rpc_proof_result.accounts[0]
-            .root_index
-            .root_index()
-            .unwrap_or_default(),
+        root_index: proof_account.root_index.root_index().unwrap_or_default(),
         address: compressed_mint_address,
-        mint: compressed_mint.map(|m| m.try_into().unwrap()),
+        mint: compressed_mint
+            .map(|mint| {
+                mint.try_into().map_err(|e| {
+                    RpcError::CustomError(format!("Failed to convert compressed mint: {:?}", e))
+                })
+            })
+            .transpose()?,
     };
 
     // Build instruction data with CompressAndCloseMint action
@@ -91,7 +97,7 @@ pub async fn create_compress_and_close_mint_instruction<R: Rpc + Indexer>(
         })?;
 
     // Build account metas configuration
-    let state_tree_info = rpc_proof_result.accounts[0].tree_info;
+    let state_tree_info = proof_account.tree_info;
     let config = MintActionMetaConfig::new(
         payer,
         payer, // authority - permissionless, using payer

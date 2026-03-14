@@ -103,7 +103,8 @@ pub async fn create_pda(
         .value;
 
     let output_merkle_tree_index = accounts.insert_or_get(*merkle_tree_pubkey);
-    let packed_address_tree_info = rpc_result.pack_tree_infos(&mut accounts).address_trees[0];
+    let packed_tree_infos = rpc_result.pack_tree_infos(&mut accounts)?;
+    let packed_address_tree_info = packed_tree_infos.address_trees[0];
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 
     let instruction_data = CreatePdaInstructionData {
@@ -146,7 +147,7 @@ pub async fn update_pda(
         .value;
 
     let packed_accounts = rpc_result
-        .pack_tree_infos(&mut accounts)
+        .pack_tree_infos(&mut accounts)?
         .state_trees
         .unwrap();
 

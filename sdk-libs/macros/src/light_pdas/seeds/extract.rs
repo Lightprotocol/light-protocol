@@ -113,7 +113,7 @@ fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool, bool, bool
                 _ => continue,
             };
 
-            let token_vec: Vec<_> = tokens.clone().into_iter().collect();
+            let token_vec: Vec<_> = tokens.into_iter().collect();
 
             // Helper to check for a namespace prefix (e.g., "mint", "token", "associated_token")
             let has_namespace_prefix = |namespace: &str| {

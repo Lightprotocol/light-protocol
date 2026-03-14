@@ -37,6 +37,24 @@ pub enum ProverClientError {
     #[error("Invalid proof data: {0}")]
     InvalidProofData(String),
 
+    #[error("Integer conversion failed: {0}")]
+    IntegerConversion(String),
+
+    #[error("JSON serialization failed: {0}")]
+    JsonSerialization(String),
+
+    #[error("Failed to start prover process: {0}")]
+    ProcessStart(String),
+
+    #[error("Failed to wait for prover process: {0}")]
+    ProcessWait(String),
+
+    #[error("Project root not found")]
+    ProjectRootNotFound,
+
+    #[error("Prover health check failed after startup")]
+    HealthCheckFailed,
+
     #[error("Hashchain mismatch: computed {computed:?} != expected {expected:?} (batch_size={batch_size}, next_index={next_index})")]
     HashchainMismatch {
         computed: [u8; 32],

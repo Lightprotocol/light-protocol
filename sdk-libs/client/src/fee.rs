@@ -65,7 +65,11 @@ pub async fn assert_transaction_params(
     if let Some(transaction_params) = params {
         let mut deduped_signers = signers.to_vec();
         deduped_signers.dedup();
-        let post_balance = rpc.get_account(*payer).await?.unwrap().lamports;
+        let post_balance = rpc
+            .get_account(*payer)
+            .await?
+            .ok_or_else(|| RpcError::AccountDoesNotExist(payer.to_string()))?
+            .lamports;
 
         // Network fee is charged per input and per address
         let mut network_fee: i64 = 0;

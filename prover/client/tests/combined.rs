@@ -10,7 +10,7 @@ use crate::init_merkle_tree::{combined_inputs_string_v1, combined_inputs_string_
 #[serial]
 #[tokio::test]
 async fn prove_combined() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let client = Client::new();
     {
         for i in 1..=4 {

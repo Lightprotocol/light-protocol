@@ -40,13 +40,12 @@ pub struct GetCompressedAccountsFilter {
     pub offset: u32,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<FilterSelector> for GetCompressedAccountsFilter {
-    fn into(self) -> FilterSelector {
+impl From<&GetCompressedAccountsFilter> for FilterSelector {
+    fn from(filter: &GetCompressedAccountsFilter) -> FilterSelector {
         FilterSelector {
             memcmp: Some(Memcmp {
-                offset: self.offset as u64,
-                bytes: photon_api::types::Base58String(bs58::encode(&self.bytes).into_string()),
+                offset: filter.offset as u64,
+                bytes: photon_api::types::Base58String(bs58::encode(&filter.bytes).into_string()),
             }),
         }
     }
@@ -56,7 +55,7 @@ impl GetCompressedAccountsByOwnerConfig {
     pub fn filters_to_photon(&self) -> Option<Vec<FilterSelector>> {
         self.filters
             .as_ref()
-            .map(|filters| filters.iter().map(|f| f.clone().into()).collect())
+            .map(|filters| filters.iter().map(Into::into).collect())
     }
 }
 

@@ -31,8 +31,8 @@ pub struct BatchUpdateCircuitInputs {
 }
 
 impl BatchUpdateCircuitInputs {
-    pub fn public_inputs_arr(&self) -> [u8; 32] {
-        bigint_to_u8_32(&self.public_input_hash).unwrap()
+    pub fn public_inputs_arr(&self) -> Result<[u8; 32], ProverClientError> {
+        bigint_to_u8_32(&self.public_input_hash)
     }
 
     pub fn new<const HEIGHT: usize>(
@@ -112,9 +112,9 @@ impl BatchUpdateCircuitInputs {
 pub struct BatchUpdateInputs<'a>(pub &'a [BatchUpdateCircuitInputs]);
 
 impl BatchUpdateInputs<'_> {
-    pub fn public_inputs(&self) -> Vec<[u8; 32]> {
+    pub fn public_inputs(&self) -> Result<Vec<[u8; 32]>, ProverClientError> {
         // Concatenate all public inputs into a single flat vector
-        vec![self.0[0].public_inputs_arr()]
+        Ok(vec![self.0[0].public_inputs_arr()?])
     }
 }
 
@@ -168,14 +168,20 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
             }
         }
 
-        let merkle_proof_array = merkle_proof.try_into().unwrap();
+        let merkle_proof_array = merkle_proof.as_slice().try_into().map_err(|_| {
+            ProverClientError::InvalidProofData(format!(
+                "invalid merkle proof length: expected {}, got {}",
+                HEIGHT,
+                merkle_proof.len()
+            ))
+        })?;
 
         // Use the adjusted index bytes for computing the nullifier.
         let mut index_bytes = [0u8; 32];
         index_bytes[28..].copy_from_slice(&(*index).to_be_bytes());
-        let nullifier = Poseidon::hashv(&[leaf, &index_bytes, &tx_hashes[i]]).unwrap();
+        let nullifier = Poseidon::hashv(&[leaf, &index_bytes, &tx_hashes[i]])?;
         let (root, changelog_entry) =
-            compute_root_from_merkle_proof(nullifier, &merkle_proof_array, *index);
+            compute_root_from_merkle_proof(nullifier, &merkle_proof_array, *index)?;
         new_root = root;
         changelog.push(changelog_entry);
         circuit_merkle_proofs.push(

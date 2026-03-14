@@ -82,11 +82,19 @@ async fn main() -> Result<(), ForesterError> {
             let rpc_rate_limiter = config
                 .external_services
                 .rpc_rate_limit
-                .map(RateLimiter::new);
+                .map(RateLimiter::new)
+                .transpose()
+                .map_err(|e| ForesterError::General {
+                    error: format!("invalid rpc rate limit: {}", e),
+                })?;
             let send_tx_limiter = config
                 .external_services
                 .send_tx_rate_limit
-                .map(RateLimiter::new);
+                .map(RateLimiter::new)
+                .transpose()
+                .map_err(|e| ForesterError::General {
+                    error: format!("invalid send_tx rate limit: {}", e),
+                })?;
 
             let mut shutdown_sender_compressible: Option<tokio::sync::broadcast::Sender<()>> = None;
             let mut shutdown_sender_bootstrap: Option<oneshot::Sender<()>> = None;

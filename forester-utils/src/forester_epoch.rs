@@ -111,7 +111,7 @@ pub fn get_schedule_for_queue(
             total_epoch_weight,
             epoch,
         )
-        .unwrap();
+        .map_err(|e| ForesterUtilsError::Parse(e.to_string()))?;
         vec.push(Some(ForesterSlot {
             slot: light_slot,
             start_solana_slot,
@@ -326,7 +326,7 @@ impl Epoch {
 
         let mut epoch = protocol_config
             .get_latest_register_epoch(current_solana_slot)
-            .unwrap();
+            .map_err(|e| RpcError::CustomError(e.to_string()))?;
         let registration_start_slot =
             protocol_config.genesis_slot + epoch * protocol_config.active_phase_length;
 
@@ -388,7 +388,7 @@ impl Epoch {
         let epoch_pda = rpc
             .get_anchor_account::<EpochPda>(&epoch_pda_pubkey)
             .await?
-            .unwrap();
+            .ok_or_else(|| RpcError::AccountDoesNotExist(epoch_pda_pubkey.to_string()))?;
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(derivation, target_epoch).0;
 
@@ -426,11 +426,11 @@ impl Epoch {
         let epoch_pda = rpc
             .get_anchor_account::<EpochPda>(&self.epoch_pda)
             .await?
-            .unwrap();
+            .ok_or_else(|| RpcError::AccountDoesNotExist(self.epoch_pda.to_string()))?;
         let mut forester_epoch_pda = rpc
             .get_anchor_account::<ForesterEpochPda>(&self.forester_epoch_pda)
             .await?
-            .unwrap();
+            .ok_or_else(|| RpcError::AccountDoesNotExist(self.forester_epoch_pda.to_string()))?;
         // IF active phase has started and total_epoch_weight is not set, set it now to
         if forester_epoch_pda.total_epoch_weight.is_none() {
             forester_epoch_pda.total_epoch_weight = Some(epoch_pda.registered_weight);

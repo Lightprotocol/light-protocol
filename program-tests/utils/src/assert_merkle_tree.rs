@@ -1,9 +1,11 @@
 use account_compression::StateMerkleTreeAccount;
-use forester_utils::account_zero_copy::{get_concurrent_merkle_tree, AccountZeroCopy};
+use forester_utils::account_zero_copy::get_concurrent_merkle_tree;
 use light_client::rpc::Rpc;
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::fee::compute_rollover_fee;
 use solana_sdk::pubkey::Pubkey;
+
+use crate::AccountZeroCopy;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_merkle_tree_initialized<R: Rpc>(
@@ -29,7 +31,7 @@ pub async fn assert_merkle_tree_initialized<R: Rpc>(
     )
     .await
     .unwrap();
-    let merkle_tree_account = merkle_tree_account.deserialized();
+    let merkle_tree_account = merkle_tree_account.try_deserialized().unwrap();
 
     let balance_merkle_tree = rpc
         .get_account(*merkle_tree_pubkey)

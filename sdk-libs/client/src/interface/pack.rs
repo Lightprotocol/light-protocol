@@ -6,12 +6,15 @@ use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
-use crate::indexer::{TreeInfo, ValidityProofWithContext};
+use crate::indexer::{IndexerError, TreeInfo, ValidityProofWithContext};
 
 #[derive(Debug, Error)]
 pub enum PackError {
     #[error("Failed to add system accounts: {0}")]
     SystemAccounts(#[from] light_sdk::error::LightSdkError),
+
+    #[error("Indexer error: {0}")]
+    Indexer(#[from] IndexerError),
 }
 
 /// Packed state tree infos from validity proof.
@@ -87,7 +90,7 @@ fn pack_proof_internal(
     // For mint creation: pack address tree first (index 1), then state tree.
     let (client_packed_tree_infos, state_tree_index) = if include_state_tree {
         // Pack tree infos first to ensure address tree is at index 1
-        let tree_infos = proof.pack_tree_infos(&mut packed);
+        let tree_infos = proof.pack_tree_infos(&mut packed)?;
 
         // Then add state tree (will be after address tree)
         let state_tree = output_tree
@@ -99,7 +102,7 @@ fn pack_proof_internal(
 
         (tree_infos, Some(state_idx))
     } else {
-        let tree_infos = proof.pack_tree_infos(&mut packed);
+        let tree_infos = proof.pack_tree_infos(&mut packed)?;
         (tree_infos, None)
     };
     let (remaining_accounts, system_offset, _) = packed.to_account_metas();

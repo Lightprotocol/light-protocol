@@ -376,8 +376,9 @@ pub async fn empty_address_queue_test<R: Rpc>(
             .await
             .unwrap();
         assert_eq!(address_tree_bundle.root(), address_merkle_tree.root());
-        let address_queue =
-            unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await }.unwrap();
+        let address_queue = get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey)
+            .await
+            .unwrap();
 
         let address = address_queue.first_no_seq().unwrap();
 
@@ -562,9 +563,9 @@ pub async fn empty_address_queue_test<R: Rpc>(
             let address_bundle = address_tree_bundle
                 .new_element_with_low_element_index(old_low_address.index, &address.value_biguint())
                 .unwrap();
-            let address_queue =
-                unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await }
-                    .unwrap();
+            let address_queue = get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey)
+                .await
+                .unwrap();
 
             assert_eq!(
                 address_queue

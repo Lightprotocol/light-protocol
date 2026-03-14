@@ -12,7 +12,7 @@ mod init_merkle_tree;
 #[serial]
 #[tokio::test]
 async fn prove_batch_append_with_proofs() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
 
     const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;
@@ -67,7 +67,9 @@ async fn prove_batch_append_with_proofs() {
 
         // Serialize inputs to JSON
         let client = Client::new();
-        let inputs_json = BatchAppendInputsJson::from_inputs(&inputs).to_string();
+        let inputs_json = BatchAppendInputsJson::from_inputs(&inputs)
+            .to_string()
+            .unwrap();
         // Send proof request to server
         let response_result = client
             .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))

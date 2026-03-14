@@ -14,7 +14,7 @@ use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
     rpc_pool::SolanaRpcPool,
 };
-use futures::future::join_all;
+use futures::{future::join_all, FutureExt};
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
     rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
@@ -94,8 +94,6 @@ type StateBatchProcessorMap<R> =
 type AddressBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>)>>;
 type ProcessorInitLockMap = Arc<DashMap<Pubkey, Arc<Mutex<()>>>>;
-type TreeProcessingTask = JoinHandle<Result<()>>;
-
 /// Coordinates re-finalization across parallel `process_queue` tasks when new
 /// foresters register mid-epoch. Only one task performs the on-chain
 /// `finalize_registration` tx; others wait for it to complete.
@@ -422,18 +420,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                                 epoch,
                                 "Received epoch from monitor"
                             );
-                            let self_clone = Arc::clone(&self);
-                            tokio::spawn(async move {
-                                if let Err(e) = self_clone.process_epoch(epoch).await {
-                                    error!(
-                                        event = "epoch_processing_failed",
-                                        run_id = %self_clone.run_id,
-                                        epoch,
-                                        error = ?e,
-                                        "Error processing epoch"
-                                    );
-                                }
-                            });
+                            if let Err(e) = self.process_epoch(epoch).await {
+                                error!(
+                                    event = "epoch_processing_failed",
+                                    run_id = %self.run_id,
+                                    epoch,
+                                    error = ?e,
+                                    "Error processing epoch"
+                                );
+                            }
                         }
                         None => {
                             error!(
@@ -720,32 +715,52 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         epoch = current_epoch,
                         "Spawning task to process new tree in current epoch"
                     );
-                    tokio::spawn(async move {
+                    std::thread::spawn(move || {
                         let tree_pubkey = tree_schedule.tree_accounts.merkle_tree;
-                        if let Err(e) = self_clone
-                            .process_queue(
-                                &epoch_info.epoch,
-                                epoch_info.forester_epoch_pda.clone(),
-                                tree_schedule,
-                                tracker,
-                            )
-                            .await
+                        let run_id = self_clone.run_id.clone();
+                        let runtime = match tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
                         {
-                            error!(
-                                event = "new_tree_process_queue_failed",
-                                run_id = %self_clone.run_id,
-                                tree = %tree_pubkey,
-                                error = ?e,
-                                "Error processing queue for new tree"
-                            );
-                        } else {
-                            info!(
-                                event = "new_tree_process_queue_succeeded",
-                                run_id = %self_clone.run_id,
-                                tree = %tree_pubkey,
-                                "Successfully processed new tree in current epoch"
-                            );
-                        }
+                            Ok(runtime) => runtime,
+                            Err(error) => {
+                                error!(
+                                    event = "new_tree_runtime_build_failed",
+                                    run_id = %run_id,
+                                    tree = %tree_pubkey,
+                                    error = ?error,
+                                    "Failed to build background runtime for new tree processing"
+                                );
+                                return;
+                            }
+                        };
+                        runtime.block_on(async move {
+                            if let Err(e) = self_clone
+                                .clone()
+                                .process_queue(
+                                    epoch_info.epoch.clone(),
+                                    epoch_info.forester_epoch_pda.clone(),
+                                    tree_schedule,
+                                    tracker,
+                                )
+                                .await
+                            {
+                                error!(
+                                    event = "new_tree_process_queue_failed",
+                                    run_id = %run_id,
+                                    tree = %tree_pubkey,
+                                    error = ?e,
+                                    "Error processing queue for new tree"
+                                );
+                            } else {
+                                info!(
+                                    event = "new_tree_process_queue_succeeded",
+                                    run_id = %run_id,
+                                    tree = %tree_pubkey,
+                                    "Successfully processed new tree in current epoch"
+                                );
+                            }
+                        });
                     });
                 }
                 Ok(None) => {
@@ -1636,7 +1651,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .value()
             .clone();
 
-        let mut handles: Vec<TreeProcessingTask> = Vec::with_capacity(trees_to_process.len());
+        let mut tasks = Vec::with_capacity(trees_to_process.len());
 
         for tree in trees_to_process {
             debug!(
@@ -1653,17 +1668,19 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             let forester_epoch_pda = epoch_info.forester_epoch_pda.clone();
             let tracker = registration_tracker.clone();
 
-            let handle = tokio::spawn(async move {
-                self_clone
-                    .process_queue(&epoch_clone, forester_epoch_pda, tree, tracker)
-                    .await
-            });
+            let task = std::panic::AssertUnwindSafe(self_clone.process_queue(
+                epoch_clone,
+                forester_epoch_pda,
+                tree,
+                tracker,
+            ))
+            .catch_unwind();
 
-            handles.push(handle);
+            tasks.push(task);
         }
 
-        debug!("Waiting for {} tree processing tasks", handles.len());
-        let results = join_all(handles).await;
+        debug!("Waiting for {} tree processing tasks", tasks.len());
+        let results = join_all(tasks).await;
         let mut success_count = 0usize;
         let mut error_count = 0usize;
         let mut panic_count = 0usize;
@@ -1679,12 +1696,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         "Error processing queue"
                     );
                 }
-                Err(e) => {
+                Err(_) => {
                     panic_count += 1;
                     error!(
                         event = "tree_processing_task_panicked",
                         run_id = %self.run_id,
-                        error = ?e,
                         "Tree processing task panicked"
                     );
                 }
@@ -1713,15 +1729,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         Ok(current_slot)
     }
 
-    #[instrument(
-        level = "debug",
-        skip(self, epoch_info, forester_epoch_pda, tree_schedule, registration_tracker),
-        fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch,
-        tree = %tree_schedule.tree_accounts.merkle_tree)
-    )]
     pub(crate) async fn process_queue(
-        &self,
-        epoch_info: &Epoch,
+        self: Arc<Self>,
+        epoch_info: Epoch,
         mut forester_epoch_pda: ForesterEpochPda,
         mut tree_schedule: TreeForesterSchedule,
         registration_tracker: Arc<RegistrationTracker>,
@@ -1758,26 +1768,28 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             if let Some((slot_idx, light_slot_details)) = next_slot_to_process {
                 let result = match tree_type {
                     TreeType::StateV1 | TreeType::AddressV1 | TreeType::Unknown => {
-                        self.process_light_slot(
-                            epoch_info,
-                            &forester_epoch_pda,
-                            &tree_schedule.tree_accounts,
-                            &light_slot_details,
-                        )
-                        .await
+                        self.clone()
+                            .process_light_slot(
+                                epoch_info.clone(),
+                                forester_epoch_pda.clone(),
+                                tree_schedule.tree_accounts,
+                                light_slot_details.clone(),
+                            )
+                            .await
                     }
                     TreeType::StateV2 | TreeType::AddressV2 => {
                         let consecutive_end = tree_schedule
                             .get_consecutive_eligibility_end(slot_idx)
                             .unwrap_or(light_slot_details.end_solana_slot);
-                        self.process_light_slot_v2(
-                            epoch_info,
-                            &forester_epoch_pda,
-                            &tree_schedule.tree_accounts,
-                            &light_slot_details,
-                            consecutive_end,
-                        )
-                        .await
+                        self.clone()
+                            .process_light_slot_v2(
+                                epoch_info.clone(),
+                                forester_epoch_pda.clone(),
+                                tree_schedule.tree_accounts,
+                                light_slot_details.clone(),
+                                consecutive_end,
+                            )
+                            .await
                     }
                 };
 
@@ -1819,7 +1831,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     last_weight_check = Instant::now();
                     if let Err(e) = self
                         .maybe_refinalize(
-                            epoch_info,
+                            &epoch_info,
                             &mut forester_epoch_pda,
                             &mut tree_schedule,
                             &registration_tracker,
@@ -2014,18 +2026,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         Ok(())
     }
 
-    #[instrument(
-        level = "debug",
-        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details),
-        fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch,
-        tree = %tree_accounts.merkle_tree)
-    )]
     async fn process_light_slot(
-        &self,
-        epoch_info: &Epoch,
-        epoch_pda: &ForesterEpochPda,
-        tree_accounts: &TreeAccounts,
-        forester_slot_details: &ForesterSlot,
+        self: Arc<Self>,
+        epoch_info: Epoch,
+        epoch_pda: ForesterEpochPda,
+        tree_accounts: TreeAccounts,
+        forester_slot_details: ForesterSlot,
     ) -> std::result::Result<(), ForesterError> {
         debug!(
             event = "light_slot_processing_started",
@@ -2070,26 +2076,24 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 break 'inner_processing_loop;
             }
 
-            if !self
-                .check_forester_eligibility(
-                    epoch_pda,
-                    current_light_slot,
-                    &tree_accounts.queue,
-                    epoch_info.epoch,
-                    epoch_info,
-                )
-                .await?
-            {
+            if !self.check_forester_eligibility(
+                &epoch_pda,
+                current_light_slot,
+                &tree_accounts.queue,
+                epoch_info.epoch,
+                &epoch_info,
+            )? {
                 break 'inner_processing_loop;
             }
 
             let processing_start_time = Instant::now();
             let items_processed_this_iteration = match self
+                .clone()
                 .dispatch_tree_processing(
-                    epoch_info,
-                    epoch_pda,
+                    epoch_info.clone(),
+                    epoch_pda.clone(),
                     tree_accounts,
-                    forester_slot_details,
+                    forester_slot_details.clone(),
                     forester_slot_details.end_solana_slot,
                     estimated_slot,
                 )
@@ -2158,17 +2162,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         Ok(())
     }
 
-    #[instrument(
-        level = "debug",
-        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, consecutive_eligibility_end),
-        fields(tree = %tree_accounts.merkle_tree)
-    )]
     async fn process_light_slot_v2(
-        &self,
-        epoch_info: &Epoch,
-        epoch_pda: &ForesterEpochPda,
-        tree_accounts: &TreeAccounts,
-        forester_slot_details: &ForesterSlot,
+        self: Arc<Self>,
+        epoch_info: Epoch,
+        epoch_pda: ForesterEpochPda,
+        tree_accounts: TreeAccounts,
+        forester_slot_details: ForesterSlot,
         consecutive_eligibility_end: u64,
     ) -> std::result::Result<(), ForesterError> {
         debug!(
@@ -2195,7 +2194,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         // Try to send any cached proofs first
         let cached_send_start = Instant::now();
         if let Some(items_sent) = self
-            .try_send_cached_proofs(epoch_info, tree_accounts, consecutive_eligibility_end)
+            .try_send_cached_proofs(&epoch_info, &tree_accounts, consecutive_eligibility_end)
             .await?
         {
             if items_sent > 0 {
@@ -2242,27 +2241,25 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 break 'inner_processing_loop;
             }
 
-            if !self
-                .check_forester_eligibility(
-                    epoch_pda,
-                    current_light_slot,
-                    &tree_accounts.merkle_tree,
-                    epoch_info.epoch,
-                    epoch_info,
-                )
-                .await?
-            {
+            if !self.check_forester_eligibility(
+                &epoch_pda,
+                current_light_slot,
+                &tree_accounts.merkle_tree,
+                epoch_info.epoch,
+                &epoch_info,
+            )? {
                 break 'inner_processing_loop;
             }
 
             // Process directly - the processor fetches queue data from the indexer
             let processing_start_time = Instant::now();
             match self
+                .clone()
                 .dispatch_tree_processing(
-                    epoch_info,
-                    epoch_pda,
+                    epoch_info.clone(),
+                    epoch_pda.clone(),
                     tree_accounts,
-                    forester_slot_details,
+                    forester_slot_details.clone(),
                     consecutive_eligibility_end,
                     estimated_slot,
                 )
@@ -2327,7 +2324,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         Ok(())
     }
 
-    async fn check_forester_eligibility(
+    fn check_forester_eligibility(
         &self,
         epoch_pda: &ForesterEpochPda,
         current_light_slot: u64,
@@ -2389,16 +2386,17 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
     #[allow(clippy::too_many_arguments)]
     async fn dispatch_tree_processing(
-        &self,
-        epoch_info: &Epoch,
-        epoch_pda: &ForesterEpochPda,
-        tree_accounts: &TreeAccounts,
-        forester_slot_details: &ForesterSlot,
+        self: Arc<Self>,
+        epoch_info: Epoch,
+        epoch_pda: ForesterEpochPda,
+        tree_accounts: TreeAccounts,
+        forester_slot_details: ForesterSlot,
         consecutive_eligibility_end: u64,
         current_solana_slot: u64,
     ) -> std::result::Result<usize, ForesterError> {
         match tree_accounts.tree_type {
             TreeType::Unknown => self
+                .clone()
                 .dispatch_compression(
                     epoch_info,
                     epoch_pda,
@@ -2408,18 +2406,24 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 .await
                 .map_err(ForesterError::from),
             TreeType::StateV1 | TreeType::AddressV1 => {
-                self.process_v1(
-                    epoch_info,
-                    epoch_pda,
-                    tree_accounts,
-                    forester_slot_details,
-                    current_solana_slot,
-                )
-                .await
+                self.clone()
+                    .process_v1(
+                        epoch_info,
+                        epoch_pda,
+                        tree_accounts,
+                        forester_slot_details,
+                        current_solana_slot,
+                    )
+                    .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
                 let result = self
-                    .process_v2(epoch_info, tree_accounts, consecutive_eligibility_end)
+                    .clone()
+                    .process_v2(
+                        epoch_info.clone(),
+                        tree_accounts,
+                        consecutive_eligibility_end,
+                    )
                     .await?;
                 // Accumulate processing metrics for this epoch
                 self.add_processing_metrics(epoch_info.epoch, result.metrics)
@@ -2430,10 +2434,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     }
 
     async fn dispatch_compression(
-        &self,
-        epoch_info: &Epoch,
-        epoch_pda: &ForesterEpochPda,
-        forester_slot_details: &ForesterSlot,
+        self: Arc<Self>,
+        epoch_info: Epoch,
+        epoch_pda: ForesterEpochPda,
+        forester_slot_details: ForesterSlot,
         consecutive_eligibility_end: u64,
     ) -> Result<usize> {
         let current_slot = self.slot_tracker.estimated_current_slot();
@@ -2455,16 +2459,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         let current_light_slot = current_slot.saturating_sub(epoch_info.phases.active.start)
             / epoch_pda.protocol_config.slot_length;
-        if !self
-            .check_forester_eligibility(
-                epoch_pda,
-                current_light_slot,
-                &Pubkey::default(),
-                epoch_info.epoch,
-                epoch_info,
-            )
-            .await?
-        {
+        if !self.check_forester_eligibility(
+            &epoch_pda,
+            current_light_slot,
+            &Pubkey::default(),
+            epoch_info.epoch,
+            &epoch_info,
+        )? {
             debug!(
                 "Skipping compression: forester not eligible for current light slot {}",
                 current_light_slot
@@ -2518,85 +2519,85 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         // Create parallel compression futures
         use futures::stream::StreamExt;
 
-        // Collect chunks into owned vectors to avoid lifetime issues
-        let batches: Vec<(usize, Vec<_>)> = accounts
-            .chunks(config.batch_size)
-            .enumerate()
-            .map(|(idx, chunk)| (idx, chunk.to_vec()))
-            .collect();
-
+        let run_id = self.run_id.clone();
         let slot_tracker = self.slot_tracker.clone();
         // Shared cancellation flag - when set, all pending futures should skip processing
         let cancelled = Arc::new(AtomicBool::new(false));
 
-        let compression_futures = batches.into_iter().map(|(batch_idx, batch)| {
-            let compressor = compressor.clone();
-            let slot_tracker = slot_tracker.clone();
-            let cancelled = cancelled.clone();
-            async move {
-                // Check if already cancelled by another future
-                if cancelled.load(Ordering::Relaxed) {
-                    debug!(
-                        "Skipping compression batch {}/{}: cancelled",
-                        batch_idx + 1,
-                        num_batches
-                    );
-                    return Err((batch_idx, batch.len(), Cancelled.into()));
-                }
+        let compression_futures =
+            accounts
+                .chunks(config.batch_size)
+                .enumerate()
+                .map(|(batch_idx, chunk)| {
+                    let batch = chunk.to_vec();
+                    let compressor = compressor.clone();
+                    let run_id = run_id.clone();
+                    let slot_tracker = slot_tracker.clone();
+                    let cancelled = cancelled.clone();
+                    async move {
+                        // Check if already cancelled by another future
+                        if cancelled.load(Ordering::Relaxed) {
+                            debug!(
+                                "Skipping compression batch {}/{}: cancelled",
+                                batch_idx + 1,
+                                num_batches
+                            );
+                            return Err((batch_idx, batch.len(), Cancelled.into()));
+                        }
 
-                // Check forester is still eligible before processing this batch
-                let current_slot = slot_tracker.estimated_current_slot();
-                if current_slot >= consecutive_eligibility_end {
-                    // Signal cancellation to all other futures
-                    cancelled.store(true, Ordering::Relaxed);
-                    warn!(
-                        event = "compression_ctoken_cancelled_not_eligible",
-                        run_id = %self.run_id,
-                        current_slot,
-                        eligibility_end_slot = consecutive_eligibility_end,
-                        "Cancelling compression because forester is no longer eligible"
-                    );
-                    return Err((
-                        batch_idx,
-                        batch.len(),
-                        anyhow!("Forester no longer eligible"),
-                    ));
-                }
+                        // Check forester is still eligible before processing this batch
+                        let current_slot = slot_tracker.estimated_current_slot();
+                        if current_slot >= consecutive_eligibility_end {
+                            // Signal cancellation to all other futures
+                            cancelled.store(true, Ordering::Relaxed);
+                            warn!(
+                                event = "compression_ctoken_cancelled_not_eligible",
+                                run_id = %run_id,
+                                current_slot,
+                                eligibility_end_slot = consecutive_eligibility_end,
+                                "Cancelling compression because forester is no longer eligible"
+                            );
+                            return Err((
+                                batch_idx,
+                                batch.len(),
+                                anyhow!("Forester no longer eligible"),
+                            ));
+                        }
 
-                debug!(
-                    "Processing compression batch {}/{} with {} accounts",
-                    batch_idx + 1,
-                    num_batches,
-                    batch.len()
-                );
-
-                match compressor
-                    .compress_batch(&batch, registered_forester_pda)
-                    .await
-                {
-                    Ok(sig) => {
                         debug!(
-                            "Compression batch {}/{} succeeded: {}",
+                            "Processing compression batch {}/{} with {} accounts",
                             batch_idx + 1,
                             num_batches,
-                            sig
+                            batch.len()
                         );
-                        Ok((batch_idx, batch.len(), sig))
+
+                        match compressor
+                            .compress_batch(&batch, registered_forester_pda)
+                            .await
+                        {
+                            Ok(sig) => {
+                                debug!(
+                                    "Compression batch {}/{} succeeded: {}",
+                                    batch_idx + 1,
+                                    num_batches,
+                                    sig
+                                );
+                                Ok((batch_idx, batch.len(), sig))
+                            }
+                            Err(e) => {
+                                error!(
+                                    event = "compression_ctoken_batch_failed",
+                                    run_id = %run_id,
+                                    batch = batch_idx + 1,
+                                    total_batches = num_batches,
+                                    error = ?e,
+                                    "Compression batch failed"
+                                );
+                                Err((batch_idx, batch.len(), e))
+                            }
+                        }
                     }
-                    Err(e) => {
-                        error!(
-                            event = "compression_ctoken_batch_failed",
-                            run_id = %self.run_id,
-                            batch = batch_idx + 1,
-                            total_batches = num_batches,
-                            error = ?e,
-                            "Compression batch failed"
-                        );
-                        Err((batch_idx, batch.len(), e))
-                    }
-                }
-            }
-        });
+                });
 
         // Execute batches in parallel with concurrency limit
         let results = futures::stream::iter(compression_futures)
@@ -2644,7 +2645,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         // Process PDA compression if configured
         let pda_compressed = self
-            .dispatch_pda_compression(epoch_info, epoch_pda, consecutive_eligibility_end)
+            .dispatch_pda_compression(&epoch_info, &epoch_pda, consecutive_eligibility_end)
             .await
             .unwrap_or_else(|e| {
                 error!(
@@ -2658,7 +2659,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         // Process Mint compression
         let mint_compressed = self
-            .dispatch_mint_compression(epoch_info, epoch_pda, consecutive_eligibility_end)
+            .dispatch_mint_compression(&epoch_info, &epoch_pda, consecutive_eligibility_end)
             .await
             .unwrap_or_else(|e| {
                 error!(
@@ -2943,16 +2944,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         let current_light_slot = current_slot.saturating_sub(epoch_info.phases.active.start)
             / epoch_pda.protocol_config.slot_length;
-        if !self
-            .check_forester_eligibility(
-                epoch_pda,
-                current_light_slot,
-                &Pubkey::default(),
-                epoch_info.epoch,
-                epoch_info,
-            )
-            .await?
-        {
+        if !self.check_forester_eligibility(
+            epoch_pda,
+            current_light_slot,
+            &Pubkey::default(),
+            epoch_info.epoch,
+            epoch_info,
+        )? {
             debug!(
                 "Skipping {} compression: forester not eligible for current light slot {}",
                 label, current_light_slot
@@ -2964,11 +2962,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     }
 
     async fn process_v1(
-        &self,
-        epoch_info: &Epoch,
-        epoch_pda: &ForesterEpochPda,
-        tree_accounts: &TreeAccounts,
-        forester_slot_details: &ForesterSlot,
+        self: Arc<Self>,
+        epoch_info: Epoch,
+        epoch_pda: ForesterEpochPda,
+        tree_accounts: TreeAccounts,
+        forester_slot_details: ForesterSlot,
         current_solana_slot: u64,
     ) -> std::result::Result<usize, ForesterError> {
         let slots_remaining = forester_slot_details
@@ -3018,7 +3016,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             &self.config.derivation_pubkey,
             self.rpc_pool.clone(),
             &batched_tx_config,
-            *tree_accounts,
+            tree_accounts,
             transaction_builder,
         )
         .await?;
@@ -3033,7 +3031,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             );
         }
 
-        match self.rollover_if_needed(tree_accounts).await {
+        match self.rollover_if_needed(&tree_accounts).await {
             Ok(_) => Ok(num_sent),
             Err(e) => {
                 error!(
@@ -3283,15 +3281,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     }
 
     async fn process_v2(
-        &self,
-        epoch_info: &Epoch,
-        tree_accounts: &TreeAccounts,
+        self: Arc<Self>,
+        epoch_info: Epoch,
+        tree_accounts: TreeAccounts,
         consecutive_eligibility_end: u64,
     ) -> std::result::Result<ProcessingResult, ForesterError> {
         match tree_accounts.tree_type {
             TreeType::StateV2 => {
                 let processor = self
-                    .get_or_create_state_processor(epoch_info, tree_accounts)
+                    .get_or_create_state_processor(&epoch_info, &tree_accounts)
                     .await?;
 
                 let cache = self
@@ -3358,7 +3356,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
             TreeType::AddressV2 => {
                 let processor = self
-                    .get_or_create_address_processor(epoch_info, tree_accounts)
+                    .get_or_create_address_processor(&epoch_info, &tree_accounts)
                     .await?;
 
                 let cache = self

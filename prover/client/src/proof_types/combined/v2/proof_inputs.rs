@@ -37,8 +37,8 @@ impl<'a> CombinedProofInputs<'a> {
         Ok(BigInt::from_bytes_be(
             num_bigint::Sign::Plus,
             &create_hash_chain_from_array([
-                bigint_to_u8_32(&inclusion_parameters.public_input_hash).unwrap(),
-                bigint_to_u8_32(&non_inclusion_parameters.public_input_hash).unwrap(),
+                bigint_to_u8_32(&inclusion_parameters.public_input_hash)?,
+                bigint_to_u8_32(&non_inclusion_parameters.public_input_hash)?,
             ])?,
         ))
     }

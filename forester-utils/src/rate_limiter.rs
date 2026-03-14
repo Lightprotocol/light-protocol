@@ -16,6 +16,9 @@ pub trait UseRateLimiter {
 pub enum RateLimiterError {
     #[error("Rate limit exceeded")]
     RateLimitExceeded,
+
+    #[error("Invalid requests_per_second value: {0}")]
+    InvalidRequestsPerSecond(u32),
 }
 
 #[derive(Clone, Debug)]
@@ -24,18 +27,26 @@ pub struct RateLimiter {
 }
 
 impl RateLimiter {
-    pub fn new(requests_per_second: u32) -> Self {
-        // Create a quota that allows exactly one request per 1/requests_per_second seconds
-        let quota = Quota::with_period(Duration::from_secs_f64(1.0 / requests_per_second as f64))
-            .unwrap()
-            .allow_burst(NonZeroU32::new(1).unwrap());
-        RateLimiter {
+    pub fn new(requests_per_second: u32) -> Result<Self, RateLimiterError> {
+        if requests_per_second == 0 {
+            return Err(RateLimiterError::InvalidRequestsPerSecond(
+                requests_per_second,
+            ));
+        }
+
+        let period = Duration::from_secs_f64(1.0 / requests_per_second as f64);
+        let quota = Quota::with_period(period)
+            .ok_or(RateLimiterError::InvalidRequestsPerSecond(
+                requests_per_second,
+            ))?
+            .allow_burst(NonZeroU32::MIN);
+        Ok(RateLimiter {
             governor: Arc::new(Governor::new(
                 quota,
                 InMemoryState::default(),
                 DefaultClock::default(),
             )),
-        }
+        })
     }
 
     pub async fn acquire(&self) -> Result<(), RateLimiterError> {
@@ -98,7 +109,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limiter_basic() {
-        let limiter = RateLimiter::new(10);
+        let limiter = RateLimiter::new(10).unwrap();
         let mut successes = 0;
 
         for _ in 0..20 {
@@ -120,6 +131,7 @@ mod tests {
         }
 
         let rate_limiter = RateLimiter::new(10);
+        let rate_limiter = rate_limiter.unwrap();
         let client = RateLimitedClient::new(MockClient, rate_limiter);
 
         let result = client
@@ -131,7 +143,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limiter_concurrent() {
-        let rate_limiter = RateLimiter::new(10);
+        let rate_limiter = RateLimiter::new(10).unwrap();
         let test_duration = Duration::from_secs(3);
         let start_time = Instant::now();
         let mut total_successful = 0;
@@ -162,7 +174,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limiter_with_wait() {
-        let rate_limiter = RateLimiter::new(10);
+        let rate_limiter = RateLimiter::new(10).unwrap();
         let start_time = Instant::now();
 
         for _ in 0..15 {

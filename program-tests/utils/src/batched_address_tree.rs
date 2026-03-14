@@ -1,7 +1,7 @@
 use std::cmp;
 
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
-use forester_utils::account_zero_copy::{get_hash_set, get_indexed_merkle_tree, AccountZeroCopy};
+use forester_utils::account_zero_copy::{get_hash_set, get_indexed_merkle_tree};
 use light_client::rpc::{Rpc, RpcError};
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::{
@@ -14,6 +14,8 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
 };
+
+use crate::AccountZeroCopy;
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]
@@ -141,7 +143,7 @@ pub async fn assert_address_merkle_tree_initialized<R: Rpc>(
     )
     .await
     .unwrap();
-    let merkle_tree_account = merkle_tree.deserialized();
+    let merkle_tree_account = merkle_tree.try_deserialized().unwrap();
 
     assert_eq!(
         merkle_tree_account
@@ -354,7 +356,7 @@ pub async fn assert_queue<R: Rpc>(
     let queue = AccountZeroCopy::<account_compression::QueueAccount>::new(rpc, *queue_pubkey)
         .await
         .unwrap();
-    let queue_account = queue.deserialized();
+    let queue_account = queue.try_deserialized().unwrap();
 
     let expected_rollover_meta_data = RolloverMetadata {
         index: expected_index,
@@ -381,9 +383,9 @@ pub async fn assert_queue<R: Rpc>(
     };
     assert_eq!(queue_account.metadata, expected_queue_meta_data);
 
-    let queue =
-        unsafe { get_hash_set::<account_compression::QueueAccount, R>(rpc, *queue_pubkey).await }
-            .unwrap();
+    let queue = get_hash_set::<account_compression::QueueAccount, R>(rpc, *queue_pubkey)
+        .await
+        .unwrap();
     assert_eq!(queue.get_capacity(), queue_config.capacity as usize);
     assert_eq!(
         queue.sequence_threshold,

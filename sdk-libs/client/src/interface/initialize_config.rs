@@ -14,6 +14,13 @@ pub const ADDRESS_TREE_V2: Pubkey =
 /// Default write top-up value (5000 lamports).
 pub const DEFAULT_INIT_WRITE_TOP_UP: u32 = 5_000;
 
+fn serialize_anchor_data<T: AnchorSerialize>(value: &T) -> Vec<u8> {
+    let mut serialized = Vec::new();
+    // Serializing into a `Vec<u8>` cannot fail because the writer is memory-backed.
+    let _ = value.serialize(&mut serialized);
+    serialized
+}
+
 /// Instruction data format matching anchor-generated `initialize_compression_config`.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct InitializeCompressionConfigAnchorData {
@@ -119,9 +126,7 @@ impl InitializeRentFreeConfig {
         // SHA256("global:initialize_compression_config")[..8]
         const DISCRIMINATOR: [u8; 8] = [133, 228, 12, 169, 56, 76, 222, 61];
 
-        let serialized_data = instruction_data
-            .try_to_vec()
-            .expect("Failed to serialize instruction data");
+        let serialized_data = serialize_anchor_data(&instruction_data);
 
         let mut data = Vec::with_capacity(DISCRIMINATOR.len() + serialized_data.len());
         data.extend_from_slice(&DISCRIMINATOR);

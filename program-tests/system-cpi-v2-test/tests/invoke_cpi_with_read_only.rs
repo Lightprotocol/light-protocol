@@ -47,7 +47,7 @@ use solana_sdk::pubkey::Pubkey;
 #[serial]
 #[tokio::test]
 async fn functional_read_only() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for (batched, is_v2_ix) in [(true, false), (true, true), (false, false), (false, true)] {
         let config = if batched {
             let mut config = ProgramTestConfig::default_with_batched_trees(false);
@@ -348,7 +348,7 @@ async fn functional_read_only() {
 #[serial]
 #[tokio::test]
 async fn functional_account_infos() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for (batched, is_v2_ix) in
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
     {
@@ -664,7 +664,7 @@ async fn functional_account_infos() {
 #[serial]
 #[tokio::test]
 async fn create_addresses_with_account_info() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let with_transaction_hash = true;
     for (batched, is_v2_ix) in
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
@@ -1264,7 +1264,7 @@ async fn create_addresses_with_account_info() {
 #[serial]
 #[tokio::test]
 async fn create_addresses_with_read_only() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let with_transaction_hash = true;
     for (batched, is_v2_ix) in
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
@@ -2024,7 +2024,7 @@ async fn compress_sol_with_account_info() {
 #[serial]
 #[tokio::test]
 async fn cpi_context_with_read_only() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let with_transaction_hash = false;
     let batched = true;
     for is_v2_ix in [true, false].into_iter() {
@@ -2322,7 +2322,7 @@ async fn cpi_context_with_read_only() {
 #[serial]
 #[tokio::test]
 async fn cpi_context_with_account_info() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let with_transaction_hash = false;
     let batched = true;
     for is_v2_ix in [true, false].into_iter() {
@@ -2841,7 +2841,7 @@ fn get_output_account_info(output_merkle_tree_index: u8) -> OutAccountInfo {
 #[serial]
 #[tokio::test]
 async fn test_duplicate_account_in_inputs_and_read_only() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
 
     let mut config = ProgramTestConfig::default_with_batched_trees(false);
     config.with_prover = false;

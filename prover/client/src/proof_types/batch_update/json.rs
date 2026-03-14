@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use crate::{
+    errors::ProverClientError,
     helpers::{big_int_to_string, create_json_from_struct},
     proof_types::{batch_update::BatchUpdateCircuitInputs, circuit_type::CircuitType},
 };
@@ -103,12 +104,14 @@ impl BatchUpdateProofInputsJson {
     }
 
     #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&self) -> Result<String, ProverClientError> {
         create_json_from_struct(&self)
     }
 }
 
-pub fn update_inputs_string(inputs: &BatchUpdateCircuitInputs) -> String {
+pub fn update_inputs_string(
+    inputs: &BatchUpdateCircuitInputs,
+) -> Result<String, ProverClientError> {
     let json_struct = BatchUpdateProofInputsJson::from_update_inputs(inputs);
     json_struct.to_string()
 }

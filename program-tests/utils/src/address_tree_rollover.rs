@@ -258,10 +258,12 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: Rpc>(
     // rent is reimbursed, 3 signatures cost 3 x 5000 lamports
     assert_eq!(*fee_payer_prior_balance, fee_payer_post_balance + 15000);
     {
-        let old_address_queue =
-            unsafe { get_hash_set::<QueueAccount, R>(rpc, *old_queue_pubkey).await }.unwrap();
-        let new_address_queue =
-            unsafe { get_hash_set::<QueueAccount, R>(rpc, *new_queue_pubkey).await }.unwrap();
+        let old_address_queue = get_hash_set::<QueueAccount, R>(rpc, *old_queue_pubkey)
+            .await
+            .unwrap();
+        let new_address_queue = get_hash_set::<QueueAccount, R>(rpc, *new_queue_pubkey)
+            .await
+            .unwrap();
 
         assert_eq!(
             old_address_queue.get_capacity(),

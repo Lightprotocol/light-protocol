@@ -1,8 +1,6 @@
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::Discriminator;
-use forester_utils::account_zero_copy::{
-    get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy,
-};
+use forester_utils::account_zero_copy::{get_concurrent_merkle_tree, get_hash_set};
 use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::{
     batch::Batch, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueMetadata,
@@ -22,7 +20,7 @@ use num_bigint::BigUint;
 use num_traits::FromBytes;
 use solana_sdk::{account::ReadableAccount, pubkey::Pubkey};
 
-use crate::system_program::get_sol_pool_pda;
+use crate::{system_program::get_sol_pool_pda, AccountZeroCopy};
 
 pub struct AssertCompressedTransactionInputs<'a, R: Rpc, I: Indexer + TestIndexerExtensions> {
     pub rpc: &'a mut R,
@@ -133,11 +131,10 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: Rpc>(
     for (i, hash) in input_compressed_account_hashes.iter().enumerate() {
         match snapshots[i].tree_type {
             TreeType::StateV1 => {
-                let nullifier_queue = unsafe {
+                let nullifier_queue =
                     get_hash_set::<QueueAccount, R>(rpc, snapshots[i].accounts.nullifier_queue)
                         .await
-                }
-                .unwrap();
+                        .unwrap();
                 assert!(nullifier_queue
                     .contains(&BigUint::from_be_bytes(hash.as_slice()), None)
                     .unwrap());
@@ -183,8 +180,7 @@ pub async fn assert_addresses_exist_in_hash_sets<R: Rpc>(
         let discriminator = &account.data[0..8];
         match discriminator {
             QueueAccount::DISCRIMINATOR => {
-                let address_queue =
-                    unsafe { get_hash_set::<QueueAccount, R>(rpc, *pubkey).await }.unwrap();
+                let address_queue = get_hash_set::<QueueAccount, R>(rpc, *pubkey).await.unwrap();
                 assert!(address_queue
                     .contains(&BigUint::from_be_bytes(address), None)
                     .unwrap());
@@ -490,7 +486,11 @@ pub async fn get_merkle_tree_snapshots<R: Rpc>(
                 snapshots.push(MerkleTreeTestSnapShot {
                     accounts: *account_bundle,
                     root,
-                    next_index: output_queue.deserialized().batch_metadata.next_index as usize,
+                    next_index: output_queue
+                        .try_deserialized()
+                        .unwrap()
+                        .batch_metadata
+                        .next_index as usize,
                     num_added_accounts: accounts
                         .iter()
                         .filter(|x| x.merkle_tree == account_bundle.merkle_tree)

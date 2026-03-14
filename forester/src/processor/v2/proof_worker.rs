@@ -37,7 +37,7 @@ impl ProofInput {
         }
     }
 
-    fn to_json(&self, tree_id: &str, batch_index: u64) -> String {
+    fn to_json(&self, tree_id: &str, batch_index: u64) -> Result<String, ProverClientError> {
         match self {
             ProofInput::Append(inputs) => BatchAppendInputsJson::from_inputs(inputs)
                 .with_tree_id(tree_id.to_string())
@@ -194,7 +194,24 @@ async fn run_proof_pipeline(
 async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
     let client = clients.get_client(&job.inputs);
     // Use seq as batch_index for ordering in the prover queue
-    let inputs_json = job.inputs.to_json(&job.tree_id, job.seq);
+    let inputs_json = match job.inputs.to_json(&job.tree_id, job.seq) {
+        Ok(inputs_json) => inputs_json,
+        Err(error) => {
+            let _ = job
+                .result_tx
+                .send(ProofJobResult {
+                    seq: job.seq,
+                    result: Err(format!("Failed to serialize proof inputs: {}", error)),
+                    old_root: [0u8; 32],
+                    new_root: [0u8; 32],
+                    proof_duration_ms: 0,
+                    round_trip_ms: 0,
+                    submitted_at: std::time::Instant::now(),
+                })
+                .await;
+            return;
+        }
+    };
     let circuit_type = job.inputs.circuit_type();
 
     let round_trip_start = std::time::Instant::now();
@@ -260,7 +277,7 @@ async fn poll_and_send_result(
     let client = clients.get_client(&inputs);
 
     // Poll; on job_not_found, resubmit once and poll the new job.
-    let result = match client.poll_proof_completion(job_id.clone()).await {
+    let result = match client.poll_proof_completion(&job_id).await {
         Ok(proof) => {
             let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
             debug!(
@@ -276,7 +293,22 @@ async fn poll_and_send_result(
             );
             tokio::time::sleep(Duration::from_millis(200)).await;
 
-            let inputs_json = inputs.to_json(&tree_id, seq);
+            let inputs_json = match inputs.to_json(&tree_id, seq) {
+                Ok(inputs_json) => inputs_json,
+                Err(error) => {
+                    let result = ProofJobResult {
+                        seq,
+                        result: Err(format!("Failed to serialize proof inputs: {}", error)),
+                        old_root: [0u8; 32],
+                        new_root: [0u8; 32],
+                        proof_duration_ms: 0,
+                        round_trip_ms: round_trip_start.elapsed().as_millis() as u64,
+                        submitted_at: round_trip_start,
+                    };
+                    let _ = result_tx.send(result).await;
+                    return;
+                }
+            };
             let circuit_type = inputs.circuit_type();
             match client.submit_proof_async(inputs_json, circuit_type).await {
                 Ok(SubmitProofResult::Queued(new_job_id)) => {
@@ -284,7 +316,7 @@ async fn poll_and_send_result(
                         "Resubmitted proof job seq={} type={} new_job_id={}",
                         seq, circuit_type, new_job_id
                     );
-                    match client.poll_proof_completion(new_job_id.clone()).await {
+                    match client.poll_proof_completion(&new_job_id).await {
                         Ok(proof) => {
                             let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
                             debug!(

@@ -165,7 +165,7 @@ pub fn non_inclusion_inputs_string_v1(
     number_of_utxos: usize,
 ) -> (String, NonInclusionMerkleProofInputs) {
     let (json_struct, public_inputs) = non_inclusion_new_with_public_inputs_v1(number_of_utxos);
-    (json_struct.to_string(), public_inputs)
+    (json_struct.to_string().unwrap(), public_inputs)
 }
 
 pub fn non_inclusion_new_with_public_inputs_v1(
@@ -203,7 +203,7 @@ pub fn non_inclusion_new_with_public_inputs_v1(
 
 pub fn non_inclusion_inputs_string_v2(number_of_utxos: usize) -> String {
     let (json_struct, _) = non_inclusion_new_with_public_inputs_v2(number_of_utxos).unwrap();
-    json_struct.to_string()
+    json_struct.to_string().unwrap()
 }
 
 pub fn non_inclusion_new_with_public_inputs_v2(
@@ -270,7 +270,7 @@ pub fn inclusion_new_with_public_inputs_v1(number_of_utxos: usize) -> BatchInclu
 
 pub fn inclusion_inputs_string_v1(number_of_utxos: usize) -> String {
     let json_struct = inclusion_new_with_public_inputs_v1(number_of_utxos);
-    json_struct.to_string()
+    json_struct.to_string().unwrap()
 }
 
 pub fn inclusion_new_with_public_inputs_v2(
@@ -312,7 +312,7 @@ pub fn inclusion_new_with_public_inputs_v2(
 
 pub fn inclusion_inputs_string_v2(number_of_utxos: usize) -> String {
     let (json_struct, _) = inclusion_new_with_public_inputs_v2(number_of_utxos);
-    json_struct.to_string()
+    json_struct.to_string().unwrap()
 }
 
 fn combined_new_with_public_inputs_v1(
@@ -334,7 +334,7 @@ fn combined_new_with_public_inputs_v1(
 
 pub fn combined_inputs_string_v1(num_inclusion: usize, num_non_inclusion: usize) -> String {
     let json_struct = combined_new_with_public_inputs_v1(num_inclusion, num_non_inclusion);
-    json_struct.to_string()
+    json_struct.to_string().unwrap()
 }
 
 fn combined_new_with_public_inputs_v2(
@@ -366,5 +366,5 @@ fn combined_new_with_public_inputs_v2(
 
 pub fn combined_inputs_string_v2(num_inclusion: usize, num_non_inclusion: usize) -> String {
     let json_struct = combined_new_with_public_inputs_v2(num_inclusion, num_non_inclusion);
-    json_struct.unwrap().to_string()
+    json_struct.unwrap().to_string().unwrap()
 }

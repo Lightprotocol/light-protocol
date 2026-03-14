@@ -211,7 +211,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
 
     let mut packed_tree_accounts = PackedAccounts::default();
     // tree infos must be packed before packing the token input accounts
-    let packed_tree_infos = rpc_proof_result.pack_tree_infos(&mut packed_tree_accounts);
+    let packed_tree_infos = rpc_proof_result
+        .pack_tree_infos(&mut packed_tree_accounts)
+        .map_err(|error| TokenSdkError::CpiError(error.to_string()))?;
 
     // We use a single shared output queue for all compress/compress-and-close operations to avoid ordering failures.
     let shared_output_queue = if packed_tree_infos.address_trees.is_empty() {

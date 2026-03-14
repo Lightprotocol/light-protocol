@@ -338,7 +338,13 @@ impl ForesterConfig {
                         .into());
                     }
 
-                    valid.into_iter().map(|r| r.unwrap()).collect()
+                    valid
+                        .into_iter()
+                        .collect::<std::result::Result<Vec<_>, _>>()
+                        .map_err(|_| ConfigError::InvalidArguments {
+                            field: "tree_ids",
+                            invalid_values: vec!["failed to parse tree_ids".to_string()],
+                        })?
                 },
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,

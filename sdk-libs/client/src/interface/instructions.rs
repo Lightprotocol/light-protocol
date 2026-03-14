@@ -29,6 +29,13 @@ fn get_output_queue(tree_info: &TreeInfo) -> Pubkey {
         .unwrap_or(tree_info.queue)
 }
 
+fn serialize_anchor_data<T: AnchorSerialize>(value: &T) -> Vec<u8> {
+    let mut serialized = Vec::new();
+    // Serializing into a `Vec<u8>` cannot fail because the writer is memory-backed.
+    let _ = value.serialize(&mut serialized);
+    serialized
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct LoadAccountsData<T> {
     pub system_accounts_offset: u8,
@@ -129,7 +136,7 @@ pub fn initialize_config(
         address_space: address_space.iter().map(|p| p.to_bytes()).collect(),
         config_bump,
     };
-    let serialized = params.try_to_vec().expect("serialize params");
+    let serialized = serialize_anchor_data(&params);
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -167,7 +174,7 @@ pub fn update_config(
         new_write_top_up: None,
         new_address_space: new_address_space.map(|v| v.iter().map(|p| p.to_bytes()).collect()),
     };
-    let serialized = params.try_to_vec().expect("serialize params");
+    let serialized = serialize_anchor_data(&params);
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -234,7 +241,7 @@ where
     let output_queue = get_output_queue(&cold_accounts[0].0.tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
-    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts);
+    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts)?;
     let tree_infos = &packed_tree_infos
         .state_trees
         .as_ref()
@@ -309,7 +316,7 @@ pub fn build_compress_accounts_idempotent(
     let output_queue = get_output_queue(&proof.accounts[0].tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
-    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts);
+    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts)?;
     let tree_infos = packed_tree_infos
         .state_trees
         .as_ref()

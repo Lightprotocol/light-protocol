@@ -19,6 +19,9 @@ pub struct ProofCompressed {
     pub c: [u8; 32],
 }
 
+pub type CompressedProofParts = ([u8; 32], [u8; 64], [u8; 32]);
+pub type UncompressedProofParts = ([u8; 64], [u8; 128], [u8; 64]);
+
 #[derive(Debug, Clone, Copy)]
 pub struct ProofResult {
     pub proof: ProofCompressed,
@@ -66,16 +69,23 @@ pub fn deserialize_gnark_proof_json(json_data: &str) -> serde_json::Result<Gnark
     Ok(deserialized_data)
 }
 
-pub fn deserialize_hex_string_to_be_bytes(hex_str: &str) -> [u8; 32] {
+pub fn deserialize_hex_string_to_be_bytes(hex_str: &str) -> Result<[u8; 32], ProverClientError> {
     let trimmed_str = hex_str.trim_start_matches("0x");
-    let big_int = num_bigint::BigInt::from_str_radix(trimmed_str, 16).unwrap();
+    let big_int = num_bigint::BigInt::from_str_radix(trimmed_str, 16)
+        .map_err(|e| ProverClientError::InvalidHexString(format!("{} ({})", hex_str, e)))?;
     let big_int_bytes = big_int.to_bytes_be().1;
     if big_int_bytes.len() < 32 {
         let mut result = [0u8; 32];
         result[32 - big_int_bytes.len()..].copy_from_slice(&big_int_bytes);
-        result
+        Ok(result)
     } else {
-        big_int_bytes.try_into().unwrap()
+        let len = big_int_bytes.len();
+        big_int_bytes.try_into().map_err(|_| {
+            ProverClientError::InvalidHexString(format!(
+                "expected at most 32 bytes, got {} for {}",
+                len, hex_str
+            ))
+        })
     }
 }
 
@@ -83,47 +93,92 @@ pub fn compress_proof(
     proof_a: &[u8; 64],
     proof_b: &[u8; 128],
     proof_c: &[u8; 64],
-) -> ([u8; 32], [u8; 64], [u8; 32]) {
-    let proof_a = alt_bn128_g1_compress(proof_a).unwrap();
-    let proof_b = alt_bn128_g2_compress(proof_b).unwrap();
-    let proof_c = alt_bn128_g1_compress(proof_c).unwrap();
-    (proof_a, proof_b, proof_c)
+) -> Result<CompressedProofParts, ProverClientError> {
+    let proof_a = alt_bn128_g1_compress(proof_a)?;
+    let proof_b = alt_bn128_g2_compress(proof_b)?;
+    let proof_c = alt_bn128_g1_compress(proof_c)?;
+    Ok((proof_a, proof_b, proof_c))
 }
 
-pub fn proof_from_json_struct(json: GnarkProofJson) -> ([u8; 64], [u8; 128], [u8; 64]) {
-    let proof_a_x = deserialize_hex_string_to_be_bytes(&json.ar[0]);
-    let proof_a_y = deserialize_hex_string_to_be_bytes(&json.ar[1]);
-    let proof_a: [u8; 64] = [proof_a_x, proof_a_y].concat().try_into().unwrap();
-    let proof_a = negate_g1(&proof_a);
-    let proof_b_x_0 = deserialize_hex_string_to_be_bytes(&json.bs[0][0]);
-    let proof_b_x_1 = deserialize_hex_string_to_be_bytes(&json.bs[0][1]);
-    let proof_b_y_0 = deserialize_hex_string_to_be_bytes(&json.bs[1][0]);
-    let proof_b_y_1 = deserialize_hex_string_to_be_bytes(&json.bs[1][1]);
+pub fn proof_from_json_struct(
+    json: GnarkProofJson,
+) -> Result<UncompressedProofParts, ProverClientError> {
+    let proof_a_x = deserialize_hex_string_to_be_bytes(
+        json.ar
+            .first()
+            .ok_or_else(|| ProverClientError::InvalidProofData("missing ar[0]".to_string()))?,
+    )?;
+    let proof_a_y = deserialize_hex_string_to_be_bytes(
+        json.ar
+            .get(1)
+            .ok_or_else(|| ProverClientError::InvalidProofData("missing ar[1]".to_string()))?,
+    )?;
+    let proof_a: [u8; 64] = [proof_a_x, proof_a_y]
+        .concat()
+        .try_into()
+        .map_err(|_| ProverClientError::InvalidProofData("invalid proof_a length".to_string()))?;
+    let proof_a = negate_g1(&proof_a)?;
+    let proof_b_x_0 = deserialize_hex_string_to_be_bytes(
+        json.bs
+            .first()
+            .and_then(|row| row.first())
+            .ok_or_else(|| ProverClientError::InvalidProofData("missing bs[0][0]".to_string()))?,
+    )?;
+    let proof_b_x_1 = deserialize_hex_string_to_be_bytes(
+        json.bs
+            .first()
+            .and_then(|row| row.get(1))
+            .ok_or_else(|| ProverClientError::InvalidProofData("missing bs[0][1]".to_string()))?,
+    )?;
+    let proof_b_y_0 = deserialize_hex_string_to_be_bytes(
+        json.bs
+            .get(1)
+            .and_then(|row| row.first())
+            .ok_or_else(|| ProverClientError::InvalidProofData("missing bs[1][0]".to_string()))?,
+    )?;
+    let proof_b_y_1 = deserialize_hex_string_to_be_bytes(
+        json.bs
+            .get(1)
+            .and_then(|row| row.get(1))
+            .ok_or_else(|| ProverClientError::InvalidProofData("missing bs[1][1]".to_string()))?,
+    )?;
     let proof_b: [u8; 128] = [proof_b_x_0, proof_b_x_1, proof_b_y_0, proof_b_y_1]
         .concat()
         .try_into()
-        .unwrap();
+        .map_err(|_| ProverClientError::InvalidProofData("invalid proof_b length".to_string()))?;
 
-    let proof_c_x = deserialize_hex_string_to_be_bytes(&json.krs[0]);
-    let proof_c_y = deserialize_hex_string_to_be_bytes(&json.krs[1]);
-    let proof_c: [u8; 64] = [proof_c_x, proof_c_y].concat().try_into().unwrap();
-    (proof_a, proof_b, proof_c)
+    let proof_c_x = deserialize_hex_string_to_be_bytes(
+        json.krs
+            .first()
+            .ok_or_else(|| ProverClientError::InvalidProofData("missing krs[0]".to_string()))?,
+    )?;
+    let proof_c_y = deserialize_hex_string_to_be_bytes(
+        json.krs
+            .get(1)
+            .ok_or_else(|| ProverClientError::InvalidProofData("missing krs[1]".to_string()))?,
+    )?;
+    let proof_c: [u8; 64] = [proof_c_x, proof_c_y]
+        .concat()
+        .try_into()
+        .map_err(|_| ProverClientError::InvalidProofData("invalid proof_c length".to_string()))?;
+    Ok((proof_a, proof_b, proof_c))
 }
 
-pub fn negate_g1(g1_be: &[u8; 64]) -> [u8; 64] {
+pub fn negate_g1(g1_be: &[u8; 64]) -> Result<[u8; 64], ProverClientError> {
     let g1_le = convert_endianness::<32, 64>(g1_be);
-    let g1: G1 = G1::deserialize_with_mode(g1_le.as_slice(), Compress::No, Validate::No).unwrap();
+    let g1: G1 = G1::deserialize_with_mode(g1_le.as_slice(), Compress::No, Validate::No)
+        .map_err(|e| ProverClientError::InvalidProofData(e.to_string()))?;
 
     let g1_neg = g1.neg();
     let mut g1_neg_be = [0u8; 64];
     g1_neg
         .x
         .serialize_with_mode(&mut g1_neg_be[..32], Compress::No)
-        .unwrap();
+        .map_err(|e| ProverClientError::InvalidProofData(e.to_string()))?;
     g1_neg
         .y
         .serialize_with_mode(&mut g1_neg_be[32..], Compress::No)
-        .unwrap();
+        .map_err(|e| ProverClientError::InvalidProofData(e.to_string()))?;
     let g1_neg_be: [u8; 64] = convert_endianness::<32, 64>(&g1_neg_be);
-    g1_neg_be
+    Ok(g1_neg_be)
 }

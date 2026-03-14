@@ -274,7 +274,8 @@ async fn test_compressible_pda_bootstrap() {
         use_surfpool: true,
         validator_args: vec![],
     })
-    .await;
+    .await
+    .unwrap();
 
     let mut rpc = LightClient::new(LightClientConfig::local())
         .await
@@ -468,7 +469,8 @@ async fn test_compressible_pda_compression() {
         use_surfpool: true,
         validator_args: vec![],
     })
-    .await;
+    .await
+    .unwrap();
 
     let mut rpc = LightClient::new(LightClientConfig::local())
         .await
@@ -706,7 +708,8 @@ async fn test_compressible_pda_subscription() {
         use_surfpool: true,
         validator_args: vec![],
     })
-    .await;
+    .await
+    .unwrap();
 
     let mut rpc = LightClient::new(LightClientConfig::local())
         .await

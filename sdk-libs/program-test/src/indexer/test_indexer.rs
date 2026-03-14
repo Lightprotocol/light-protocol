@@ -2170,18 +2170,22 @@ impl TestIndexer {
             let inclusion_proof_inputs =
                 InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
             (
-                Some(BatchInclusionJsonStruct::from_inclusion_proof_inputs(
-                    &inclusion_proof_inputs,
-                )),
+                Some(
+                    BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs)
+                        .map_err(|e| IndexerError::CustomError(e.to_string()))?,
+                ),
                 None,
             )
         } else if height == STATE_MERKLE_TREE_HEIGHT as usize {
             let inclusion_proof_inputs = InclusionProofInputsLegacy(inclusion_proofs.as_slice());
             (
                 None,
-                Some(BatchInclusionJsonStructLegacy::from_inclusion_proof_inputs(
-                    &inclusion_proof_inputs,
-                )),
+                Some(
+                    BatchInclusionJsonStructLegacy::from_inclusion_proof_inputs(
+                        &inclusion_proof_inputs,
+                    )
+                    .map_err(|e| IndexerError::CustomError(e.to_string()))?,
+                ),
             )
         } else {
             return Err(IndexerError::CustomError(
@@ -2259,7 +2263,8 @@ impl TestIndexer {
                     Some(
                         BatchNonInclusionJsonStructLegacy::from_non_inclusion_proof_inputs(
                             &non_inclusion_proof_inputs,
-                        ),
+                        )
+                        .map_err(|e| IndexerError::CustomError(e.to_string()))?,
                     ),
                 )
             } else if tree_heights[0] == 40 {
@@ -2269,7 +2274,8 @@ impl TestIndexer {
                     Some(
                         BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
                             &non_inclusion_proof_inputs,
-                        ),
+                        )
+                        .map_err(|e| IndexerError::CustomError(e.to_string()))?,
                     ),
                     None,
                 )
@@ -2356,9 +2362,22 @@ impl TestIndexer {
                             )
                             .await?;
                         if let Some(payload) = payload {
-                            (indices, Vec::new(), payload.to_string())
+                            (
+                                indices,
+                                Vec::new(),
+                                payload
+                                    .to_string()
+                                    .map_err(|e| IndexerError::CustomError(e.to_string()))?,
+                            )
                         } else {
-                            (indices, Vec::new(), payload_legacy.unwrap().to_string())
+                            (
+                                indices,
+                                Vec::new(),
+                                payload_legacy
+                                    .unwrap()
+                                    .to_string()
+                                    .map_err(|e| IndexerError::CustomError(e.to_string()))?,
+                            )
                         }
                     }
                     (None, Some(addresses)) => {
@@ -2369,9 +2388,14 @@ impl TestIndexer {
                             )
                             .await?;
                         let payload_string = if let Some(payload) = payload {
-                            payload.to_string()
+                            payload
+                                .to_string()
+                                .map_err(|e| IndexerError::CustomError(e.to_string()))?
                         } else {
-                            payload_legacy.unwrap().to_string()
+                            payload_legacy
+                                .unwrap()
+                                .to_string()
+                                .map_err(|e| IndexerError::CustomError(e.to_string()))?
                         };
                         (Vec::new(), indices, payload_string)
                     }
@@ -2448,6 +2472,7 @@ impl TestIndexer {
                                 non_inclusion: non_inclusion_payload.inputs,
                             }
                             .to_string()
+                            .map_err(|e| IndexerError::CustomError(e.to_string()))?
                         } else if let Some(non_inclusion_payload) = non_inclusion_payload_legacy {
                             CombinedJsonStructLegacy {
                                 circuit_type: ProofType::Combined.to_string(),
@@ -2457,6 +2482,7 @@ impl TestIndexer {
                                 non_inclusion: non_inclusion_payload.inputs,
                             }
                             .to_string()
+                            .map_err(|e| IndexerError::CustomError(e.to_string()))?
                         } else {
                             panic!("Unsupported tree height")
                         };
@@ -2481,9 +2507,11 @@ impl TestIndexer {
                     if response_result.status().is_success() {
                         let body = response_result.text().await.unwrap();
                         let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-                        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+                        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json)
+                            .map_err(|e| IndexerError::CustomError(e.to_string()))?;
                         let (proof_a, proof_b, proof_c) =
-                            compress_proof(&proof_a, &proof_b, &proof_c);
+                            compress_proof(&proof_a, &proof_b, &proof_c)
+                                .map_err(|e| IndexerError::CustomError(e.to_string()))?;
                         return Ok(ValidityProofWithContext {
                             accounts: account_proof_inputs,
                             addresses: address_proof_inputs,

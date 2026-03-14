@@ -59,7 +59,7 @@ async fn test_all_endpoints() {
         validator_args: vec![],
     };
 
-    spawn_validator(config).await;
+    spawn_validator(config).await.unwrap();
 
     let test_accounts = TestAccounts::get_local_test_validator_accounts();
     let mut rpc: LightClient = LightClient::new(LightClientConfig::local()).await.unwrap();

@@ -1,9 +1,9 @@
 use account_compression::QueueAccount;
+use forester_utils::account_zero_copy::parse_hash_set_from_bytes;
 use light_batched_merkle_tree::{
     batch::BatchState, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_client::rpc::Rpc;
-use light_hash_set::HashSet;
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 use tracing::trace;
@@ -181,7 +181,7 @@ pub async fn fetch_queue_item_data<R: Rpc>(
 ) -> Result<QueueFetchResult> {
     trace!("Fetching queue data for {:?}", queue_pubkey);
     let account = rpc.get_account(*queue_pubkey).await?;
-    let mut account = match account {
+    let account = match account {
         Some(acc) => acc,
         None => {
             tracing::warn!(
@@ -209,7 +209,7 @@ pub async fn fetch_queue_item_data<R: Rpc>(
             total_pending: 0,
         });
     }
-    let queue: HashSet = unsafe { HashSet::from_bytes_copy(&mut account.data[offset..])? };
+    let queue = parse_hash_set_from_bytes::<QueueAccount>(&account.data)?;
 
     let end_index = queue.get_capacity();
     let capacity = end_index as u64;

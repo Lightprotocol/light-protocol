@@ -546,7 +546,8 @@ async fn generate_photon_test_data_multiple_events() {
             use_surfpool: true,
             validator_args: vec![],
         })
-        .await;
+        .await
+        .unwrap();
 
         let mut rpc = LightClient::new(LightClientConfig::local_no_indexer())
             .await

@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use crate::{
+    errors::ProverClientError,
     helpers::create_json_from_struct,
     proof_types::{
         circuit_type::CircuitType,
@@ -24,22 +25,23 @@ pub struct CombinedJsonStruct {
 }
 
 impl CombinedJsonStruct {
-    pub fn from_combined_inputs(inputs: &CombinedProofInputs) -> Self {
+    pub fn from_combined_inputs(inputs: &CombinedProofInputs) -> Result<Self, ProverClientError> {
         let inclusion_parameters =
-            BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inputs.inclusion_parameters);
-        let non_inclusion_parameters = BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
-            &inputs.non_inclusion_parameters,
-        );
-        Self {
+            BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inputs.inclusion_parameters)?;
+        let non_inclusion_parameters =
+            BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+                &inputs.non_inclusion_parameters,
+            )?;
+        Ok(Self {
             circuit_type: CircuitType::Combined.to_string(),
             state_tree_height: inclusion_parameters.state_tree_height,
             address_tree_height: non_inclusion_parameters.address_tree_height,
             inclusion: inclusion_parameters.inputs,
             non_inclusion: non_inclusion_parameters.inputs,
-        }
+        })
     }
     #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&self) -> Result<String, ProverClientError> {
         create_json_from_struct(&self)
     }
 }

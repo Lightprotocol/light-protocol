@@ -7,10 +7,7 @@ pub fn find_light_bin() -> Option<PathBuf> {
     {
         println!("Running 'which light' (feature 'devenv' is not enabled)");
         use std::process::Command;
-        let output = Command::new("which")
-            .arg("light")
-            .output()
-            .expect("Failed to execute 'which light'");
+        let output = Command::new("which").arg("light").output().ok()?;
 
         if !output.status.success() {
             return None;
@@ -30,16 +27,15 @@ pub fn find_light_bin() -> Option<PathBuf> {
     #[cfg(feature = "devenv")]
     {
         println!("Use only in light protocol monorepo. Using 'git rev-parse --show-toplevel' to find the location of 'light' binary");
-        let light_protocol_toplevel = String::from_utf8_lossy(
-            &std::process::Command::new("git")
-                .arg("rev-parse")
-                .arg("--show-toplevel")
-                .output()
-                .expect("Failed to get top-level directory")
-                .stdout,
-        )
-        .trim()
-        .to_string();
+        let output = std::process::Command::new("git")
+            .arg("rev-parse")
+            .arg("--show-toplevel")
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let light_protocol_toplevel = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let light_path = PathBuf::from(format!("{}/target/deploy/", light_protocol_toplevel));
         Some(light_path)
     }

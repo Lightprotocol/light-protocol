@@ -277,16 +277,16 @@ impl LightClient {
                 .client
                 .get_transaction_with_config(&signature, rpc_transaction_config)
                 .map_err(|e| RpcError::CustomError(e.to_string()))?;
-            let decoded_transaction = transaction
-                .transaction
-                .transaction
-                .decode()
-                .clone()
-                .ok_or_else(|| {
-                    RpcError::CustomError(
-                        "Failed to decode transaction from RPC response".to_string(),
-                    )
-                })?;
+            let decoded_transaction =
+                transaction
+                    .transaction
+                    .transaction
+                    .decode()
+                    .ok_or_else(|| {
+                        RpcError::CustomError(
+                            "Failed to decode transaction from RPC response".to_string(),
+                        )
+                    })?;
             let account_keys = decoded_transaction.message.static_account_keys();
             let meta = transaction.transaction.meta.as_ref().ok_or_else(|| {
                 RpcError::CustomError("Transaction missing metadata information".to_string())

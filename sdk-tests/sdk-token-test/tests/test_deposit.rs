@@ -206,7 +206,7 @@ async fn create_deposit_compressed_account(
         )
         .await?
         .value;
-    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts)?;
     println!("packed_accounts {:?}", packed_accounts.state_trees);
 
     // Create token meta from compressed account
@@ -318,7 +318,7 @@ async fn update_deposit_compressed_account(
     // Get validity proof for the compressed token account and new address
     println!("rpc_result {:?}", rpc_result);
 
-    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts)?;
     println!("packed_accounts {:?}", packed_accounts.state_trees);
     // TODO: investigate why packed_tree_infos seem to be out of order
     // Create token meta from compressed account

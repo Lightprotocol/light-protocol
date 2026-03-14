@@ -1,12 +1,13 @@
 use crate::{
-    helpers::bigint_to_u8_32, proof_types::non_inclusion::v2::NonInclusionMerkleProofInputs,
+    errors::ProverClientError, helpers::bigint_to_u8_32,
+    proof_types::non_inclusion::v2::NonInclusionMerkleProofInputs,
 };
 
 impl NonInclusionMerkleProofInputs {
-    pub fn public_inputs_legacy(&self) -> [[u8; 32]; 2] {
-        let root = bigint_to_u8_32(&self.root).unwrap();
-        let value = bigint_to_u8_32(&self.value).unwrap();
-        [root, value]
+    pub fn public_inputs_legacy(&self) -> Result<[[u8; 32]; 2], ProverClientError> {
+        let root = bigint_to_u8_32(&self.root)?;
+        let value = bigint_to_u8_32(&self.value)?;
+        Ok([root, value])
     }
 }
 

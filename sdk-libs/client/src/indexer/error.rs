@@ -135,7 +135,7 @@ impl Clone for IndexerError {
                 IndexerError::CustomError("IndexedMerkleTreeError".to_string())
             }
             IndexerError::InvalidResponseData => IndexerError::InvalidResponseData,
-            IndexerError::CustomError(_) => IndexerError::CustomError("IndexerError".to_string()),
+            IndexerError::CustomError(msg) => IndexerError::CustomError(msg.clone()),
             IndexerError::NotInitialized => IndexerError::NotInitialized,
             IndexerError::IndexerNotSyncedToSlot => IndexerError::IndexerNotSyncedToSlot,
             IndexerError::InvalidPackTreeType => IndexerError::InvalidPackTreeType,

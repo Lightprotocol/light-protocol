@@ -99,7 +99,7 @@ async fn freeze_or_thaw<const FREEZE: bool>(
 #[tokio::test]
 #[serial]
 async fn test_freeze_thaw_v1_no_tlv_and_decompress() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let result = run_freeze_thaw_test(TokenDataVersion::V1).await;
     assert!(result.is_ok(), "Test failed: {:?}", result.err());
 }
@@ -109,7 +109,7 @@ async fn test_freeze_thaw_v1_no_tlv_and_decompress() {
 #[tokio::test]
 #[serial]
 async fn test_freeze_thaw_v2_no_tlv_and_decompress() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let result = run_freeze_thaw_test(TokenDataVersion::V2).await;
     assert!(result.is_ok(), "Test failed: {:?}", result.err());
 }
@@ -119,7 +119,7 @@ async fn test_freeze_thaw_v2_no_tlv_and_decompress() {
 #[tokio::test]
 #[serial]
 async fn test_freeze_thaw_sha_flat_no_tlv_and_decompress() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let result = run_freeze_thaw_test(TokenDataVersion::ShaFlat).await;
     assert!(result.is_ok(), "Test failed: {:?}", result.err());
 }

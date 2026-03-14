@@ -34,16 +34,13 @@ impl<'a> NonInclusionProofInputs<'a> {
     pub fn public_input(
         inputs: &'a [NonInclusionMerkleProofInputs],
     ) -> Result<BigInt, ProverClientError> {
-        let public_input_hash = create_two_inputs_hash_chain(
-            &inputs
-                .iter()
-                .map(|x| bigint_to_u8_32(&x.root).unwrap())
-                .collect::<Vec<_>>(),
-            &inputs
-                .iter()
-                .map(|x| bigint_to_u8_32(&x.value).unwrap())
-                .collect::<Vec<_>>(),
-        )?;
+        let mut roots = Vec::with_capacity(inputs.len());
+        let mut values = Vec::with_capacity(inputs.len());
+        for input in inputs {
+            roots.push(bigint_to_u8_32(&input.root)?);
+            values.push(bigint_to_u8_32(&input.value)?);
+        }
+        let public_input_hash = create_two_inputs_hash_chain(&roots, &values)?;
         Ok(BigInt::from_bytes_be(
             num_bigint::Sign::Plus,
             &public_input_hash,

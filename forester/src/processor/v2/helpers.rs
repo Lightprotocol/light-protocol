@@ -474,20 +474,19 @@ impl StreamingAddressQueue {
         }
     }
 
-    pub fn get_batch_data(&self, start: usize, end: usize) -> Option<BatchDataSlice> {
+    pub fn with_batch_data<T>(
+        &self,
+        start: usize,
+        end: usize,
+        f: impl FnOnce(&AddressQueueData, usize) -> crate::Result<T>,
+    ) -> crate::Result<Option<T>> {
         let available = self.wait_for_batch(end);
         if start >= available {
-            return None;
+            return Ok(None);
         }
         let actual_end = end.min(available);
         let data = lock_recover(&self.data, "streaming_address_queue.data");
-        Some(BatchDataSlice {
-            addresses: data.addresses[start..actual_end].to_vec(),
-            low_element_values: data.low_element_values[start..actual_end].to_vec(),
-            low_element_next_values: data.low_element_next_values[start..actual_end].to_vec(),
-            low_element_indices: data.low_element_indices[start..actual_end].to_vec(),
-            low_element_next_indices: data.low_element_next_indices[start..actual_end].to_vec(),
-        })
+        f(&data, actual_end).map(Some)
     }
 
     pub fn into_data(self) -> AddressQueueData {
@@ -551,15 +550,6 @@ impl StreamingAddressQueue {
             "streaming_address_queue.fetch_complete",
         )
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct BatchDataSlice {
-    pub addresses: Vec<[u8; 32]>,
-    pub low_element_values: Vec<[u8; 32]>,
-    pub low_element_next_values: Vec<[u8; 32]>,
-    pub low_element_indices: Vec<u64>,
-    pub low_element_next_indices: Vec<u64>,
 }
 
 pub async fn fetch_streaming_address_batches<R: Rpc + 'static>(

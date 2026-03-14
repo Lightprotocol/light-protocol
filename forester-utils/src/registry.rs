@@ -38,7 +38,9 @@ pub async fn update_test_forester<R: Rpc>(
     let mut pre_account_state = rpc
         .get_anchor_account::<ForesterPda>(&get_forester_pda(derivation_key).0)
         .await?
-        .unwrap();
+        .ok_or_else(|| {
+            RpcError::AccountDoesNotExist(get_forester_pda(derivation_key).0.to_string())
+        })?;
     let (signers, new_forester_authority) = if let Some(new_authority) = new_forester_authority {
         pre_account_state.authority = new_authority.pubkey();
 
@@ -69,7 +71,10 @@ pub async fn assert_registered_forester<R: Rpc>(
     expected_account: ForesterPda,
 ) -> Result<(), RpcError> {
     let pda = get_forester_pda(forester).0;
-    let account_data = rpc.get_anchor_account::<ForesterPda>(&pda).await?.unwrap();
+    let account_data = rpc
+        .get_anchor_account::<ForesterPda>(&pda)
+        .await?
+        .ok_or_else(|| RpcError::AccountDoesNotExist(pda.to_string()))?;
     if account_data != expected_account {
         return Err(RpcError::AssertRpcError(format!(
             "Expected account data: {:?}, got: {:?}",

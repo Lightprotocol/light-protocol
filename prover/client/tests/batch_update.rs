@@ -12,7 +12,7 @@ mod init_merkle_tree;
 #[serial]
 #[tokio::test]
 async fn prove_batch_update() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;
     let num_insertions = 10;
@@ -59,7 +59,7 @@ async fn prove_batch_update() {
         )
         .unwrap();
         let client = Client::new();
-        let inputs = update_inputs_string(&inputs);
+        let inputs = update_inputs_string(&inputs).unwrap();
         let response_result = client
             .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")

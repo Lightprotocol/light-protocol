@@ -671,7 +671,7 @@ fn parse_tree_status(
 
             let (queue_len, queue_cap) = queue_account
                 .map(|acc| {
-                    unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) }
+                    parse_hash_set_from_bytes::<QueueAccount>(&acc.data)
                         .ok()
                         .map(|hs| {
                             let len = hs
@@ -726,7 +726,7 @@ fn parse_tree_status(
 
             let (queue_len, queue_cap) = queue_account
                 .map(|acc| {
-                    unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) }
+                    parse_hash_set_from_bytes::<QueueAccount>(&acc.data)
                         .ok()
                         .map(|hs| {
                             let len = hs

@@ -213,7 +213,7 @@ async fn test_decompress_full_cpi() {
             .unwrap()
             .value;
 
-        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts).unwrap();
         let config = DecompressFullAccounts::new(None);
         remaining_accounts
             .add_custom_system_accounts(config)
@@ -370,7 +370,7 @@ async fn test_decompress_full_cpi_with_context() {
             .value;
 
         // Add tree accounts first, then custom system accounts (no CPI context since params is None)
-        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts).unwrap();
         let config = DecompressFullAccounts::new(None);
         remaining_accounts
             .add_custom_system_accounts(config)

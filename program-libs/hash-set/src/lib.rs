@@ -135,6 +135,55 @@ pub struct HashSet {
 unsafe impl Send for HashSetCell {}
 
 impl HashSet {
+    fn parse_copy_header(bytes: &[u8]) -> Result<(usize, usize, usize, usize), HashSetError> {
+        if bytes.len() < Self::non_dyn_fields_size() {
+            return Err(HashSetError::BufferSize(
+                Self::non_dyn_fields_size(),
+                bytes.len(),
+            ));
+        }
+
+        let capacity = usize::from_le_bytes(
+            bytes[0..8]
+                .try_into()
+                .map_err(|_| HashSetError::BufferSize(8, bytes.len()))?,
+        );
+        let sequence_threshold = usize::from_le_bytes(
+            bytes[8..16]
+                .try_into()
+                .map_err(|_| HashSetError::BufferSize(16, bytes.len()))?,
+        );
+        let buckets_size_unaligned = mem::size_of::<Option<HashSetCell>>()
+            .checked_mul(capacity)
+            .ok_or(HashSetError::IntegerOverflow)?;
+        let expected_size = Self::non_dyn_fields_size()
+            .checked_add(
+                buckets_size_unaligned
+                    .checked_add(mem::align_of::<usize>())
+                    .ok_or(HashSetError::IntegerOverflow)?
+                    .checked_sub(buckets_size_unaligned % mem::align_of::<usize>())
+                    .ok_or(HashSetError::IntegerOverflow)?,
+            )
+            .ok_or(HashSetError::IntegerOverflow)?;
+        if bytes.len() != expected_size {
+            return Err(HashSetError::BufferSize(expected_size, bytes.len()));
+        }
+
+        let offset = Self::non_dyn_fields_size() + mem::size_of::<usize>();
+        Ok((capacity, sequence_threshold, expected_size, offset))
+    }
+
+    fn alloc_buckets(capacity: usize) -> Result<NonNull<Option<HashSetCell>>, HashSetError> {
+        let layout = Layout::array::<Option<HashSetCell>>(capacity)
+            .map_err(|_| HashSetError::IntegerOverflow)?;
+        let values_ptr = unsafe { alloc::alloc(layout) as *mut Option<HashSetCell> };
+        if values_ptr.is_null() {
+            handle_alloc_error(layout);
+        }
+
+        Ok(unsafe { NonNull::new_unchecked(values_ptr) })
+    }
+
     /// Size of the struct **without** dynamically sized fields.
     pub fn non_dyn_fields_size() -> usize {
         // capacity
@@ -157,13 +206,8 @@ impl HashSet {
 
     // Create a new hash set with the given capacity
     pub fn new(capacity_values: usize, sequence_threshold: usize) -> Result<Self, HashSetError> {
-        // SAFETY: It's just a regular allocation.
-        let layout = Layout::array::<Option<HashSetCell>>(capacity_values).unwrap();
-        let values_ptr = unsafe { alloc::alloc(layout) as *mut Option<HashSetCell> };
-        if values_ptr.is_null() {
-            handle_alloc_error(layout);
-        }
-        let values = NonNull::new(values_ptr).unwrap();
+        let values = Self::alloc_buckets(capacity_values)?;
+        let values_ptr = values.as_ptr();
         for i in 0..capacity_values {
             unsafe {
                 std::ptr::write(values_ptr.add(i), None);
@@ -174,6 +218,31 @@ impl HashSet {
             sequence_threshold,
             capacity: capacity_values,
             buckets: values,
+        })
+    }
+
+    /// Creates a copy of `HashSet` from the given byte slice without requiring
+    /// the source bytes to be aligned.
+    pub fn from_bytes_copy_safe(bytes: &[u8]) -> Result<Self, HashSetError> {
+        let (capacity, sequence_threshold, _, offset) = Self::parse_copy_header(bytes)?;
+        let buckets = Self::alloc_buckets(capacity)?;
+        let buckets_dst_ptr = buckets.as_ptr();
+        let buckets_size = mem::size_of::<Option<HashSetCell>>()
+            .checked_mul(capacity)
+            .ok_or(HashSetError::IntegerOverflow)?;
+
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                bytes.as_ptr().add(offset),
+                buckets_dst_ptr.cast::<u8>(),
+                buckets_size,
+            );
+        }
+
+        Ok(Self {
+            capacity,
+            sequence_threshold,
+            buckets,
         })
     }
 
@@ -191,41 +260,7 @@ impl HashSet {
     /// provides actual actual data of the hash set is the caller's
     /// responsibility.
     pub unsafe fn from_bytes_copy(bytes: &mut [u8]) -> Result<Self, HashSetError> {
-        if bytes.len() < Self::non_dyn_fields_size() {
-            return Err(HashSetError::BufferSize(
-                Self::non_dyn_fields_size(),
-                bytes.len(),
-            ));
-        }
-
-        let capacity = usize::from_le_bytes(bytes[0..8].try_into().unwrap());
-        let sequence_threshold = usize::from_le_bytes(bytes[8..16].try_into().unwrap());
-        let expected_size = Self::size_in_account(capacity);
-        if bytes.len() != expected_size {
-            return Err(HashSetError::BufferSize(expected_size, bytes.len()));
-        }
-
-        let buckets_layout = Layout::array::<Option<HashSetCell>>(capacity).unwrap();
-        // SAFETY: `I` is always a signed integer. Creating a layout for an
-        // array of integers of any size won't cause any panic.
-        let buckets_dst_ptr = unsafe { alloc::alloc(buckets_layout) as *mut Option<HashSetCell> };
-        if buckets_dst_ptr.is_null() {
-            handle_alloc_error(buckets_layout);
-        }
-        let buckets = NonNull::new(buckets_dst_ptr).unwrap();
-        for i in 0..capacity {
-            std::ptr::write(buckets_dst_ptr.add(i), None);
-        }
-
-        let offset = Self::non_dyn_fields_size() + mem::size_of::<usize>();
-        let buckets_src_ptr = bytes.as_ptr().add(offset) as *const Option<HashSetCell>;
-        std::ptr::copy(buckets_src_ptr, buckets_dst_ptr, capacity);
-
-        Ok(Self {
-            capacity,
-            sequence_threshold,
-            buckets,
-        })
+        Self::from_bytes_copy_safe(bytes)
     }
 
     fn probe_index(&self, value: &BigUint, iteration: usize) -> usize {

@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicU64;
+use std::sync::{atomic::AtomicU64, Arc};
 
 use borsh::BorshDeserialize;
 use dashmap::{DashMap, DashSet};
@@ -126,7 +126,7 @@ impl CTokenAccountTracker {
 
         let state = CTokenAccountState {
             pubkey,
-            account: ctoken,
+            account: Arc::new(ctoken),
             lamports,
             compressible_slot,
             is_ata,

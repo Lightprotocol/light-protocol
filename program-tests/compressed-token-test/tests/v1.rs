@@ -76,7 +76,7 @@ use spl_token::error::TokenError;
 #[serial]
 #[tokio::test]
 async fn test_wrapped_sol() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     // is token 22 fails with Instruction: InitializeAccount, Program log: Error: Invalid Mint line 216
     for is_token_22 in [false] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
@@ -729,7 +729,7 @@ async fn test_mint_to_failing() {
 #[serial]
 #[tokio::test]
 async fn test_transfers() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let possible_inputs = [1, 2, 3, 4, 8];
     for input_num in possible_inputs {
         for output_num in 1..8 {
@@ -892,7 +892,7 @@ async fn perform_transfer_22_test(
 #[serial]
 #[tokio::test]
 async fn test_decompression() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
         let mut context = LightProgramTest::new(ProgramTestConfig::new(false, None))
@@ -1036,7 +1036,7 @@ pub async fn assert_minted_to_all_token_pools<R: Rpc>(
 #[serial]
 #[tokio::test]
 async fn test_mint_to_and_burn_from_all_token_pools() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -1111,7 +1111,7 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
 #[serial]
 #[tokio::test]
 async fn test_multiple_decompression() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     let rng = &mut thread_rng();
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
@@ -2286,7 +2286,7 @@ async fn test_revoke_failing() {
 #[serial]
 #[tokio::test]
 async fn test_burn() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
@@ -2558,7 +2558,7 @@ async fn test_burn() {
 #[serial]
 #[tokio::test]
 async fn failing_tests_burn() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -2913,7 +2913,7 @@ async fn failing_tests_burn() {
 /// 4. Freeze delegated tokens
 /// 5. Thaw delegated tokens
 async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -3097,7 +3097,7 @@ async fn test_freeze_and_thaw_10000() {
 #[serial]
 #[tokio::test]
 async fn test_failing_freeze() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -3360,7 +3360,7 @@ async fn test_failing_freeze() {
 #[serial]
 #[tokio::test]
 async fn test_failing_thaw() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -3651,7 +3651,7 @@ async fn test_failing_thaw() {
 #[serial]
 #[tokio::test]
 async fn test_failing_decompression() {
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
     for is_token_22 in [false, true] {
         let mut context = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -4895,7 +4895,8 @@ async fn test_transfer_with_photon_and_batched_tree() {
         use_surfpool: true,
         validator_args: vec![],
     })
-    .await;
+    .await
+    .unwrap();
 
     let mut rpc = LightClient::new(LightClientConfig::local_no_indexer())
         .await

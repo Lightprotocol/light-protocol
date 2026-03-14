@@ -2,7 +2,7 @@ use account_compression::{
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
-use anchor_lang::Discriminator;
+use anchor_lang::{AccountDeserialize, Discriminator};
 use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::{
@@ -14,34 +14,57 @@ use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;
 
 use crate::account_zero_copy::{
-    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy,
-    AccountZeroCopyError,
+    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopyError,
 };
+
+fn deserialize_account<T: AccountDeserialize>(
+    data: &[u8],
+    pubkey: Pubkey,
+) -> Result<T, AccountZeroCopyError> {
+    if data.len() < 8 {
+        return Err(AccountZeroCopyError::RpcError(format!(
+            "Account {} data too short: {}",
+            pubkey,
+            data.len()
+        )));
+    }
+
+    T::try_deserialize(&mut &data[8..]).map_err(|e| {
+        AccountZeroCopyError::RpcError(format!("Failed to deserialize account {}: {}", pubkey, e))
+    })
+}
 
 pub async fn get_address_bundle_config<R: Rpc>(
     rpc: &mut R,
     address_bundle: AddressMerkleTreeAccounts,
 ) -> Result<(AddressMerkleTreeConfig, AddressQueueConfig), AccountZeroCopyError> {
-    // Get queue metadata - don't hold AccountZeroCopy across await points
-    let address_queue_meta_data = {
-        let account = AccountZeroCopy::<QueueAccount>::new(rpc, address_bundle.queue).await?;
-        account.deserialized().metadata
-    };
-    let address_queue =
-        unsafe { get_hash_set::<QueueAccount, R>(rpc, address_bundle.queue).await? };
+    let address_queue_account = rpc
+        .get_account(address_bundle.queue)
+        .await
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?
+        .ok_or(AccountZeroCopyError::AccountNotFound(address_bundle.queue))?;
+    let address_queue_meta_data =
+        deserialize_account::<QueueAccount>(&address_queue_account.data, address_bundle.queue)?
+            .metadata;
+    let address_queue = get_hash_set::<QueueAccount, R>(rpc, address_bundle.queue).await?;
     let queue_config = AddressQueueConfig {
         network_fee: Some(address_queue_meta_data.rollover_metadata.network_fee),
         // rollover_threshold: address_queue_meta_data.rollover_threshold,
         capacity: address_queue.get_capacity() as u16,
         sequence_threshold: address_queue.sequence_threshold as u64,
     };
-    // Get tree metadata - don't hold AccountZeroCopy across await points
-    let address_tree_meta_data = {
-        let account =
-            AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_bundle.merkle_tree)
-                .await?;
-        account.deserialized().metadata
-    };
+    let address_tree_account = rpc
+        .get_account(address_bundle.merkle_tree)
+        .await
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?
+        .ok_or(AccountZeroCopyError::AccountNotFound(
+            address_bundle.merkle_tree,
+        ))?;
+    let address_tree_meta_data = deserialize_account::<AddressMerkleTreeAccount>(
+        &address_tree_account.data,
+        address_bundle.merkle_tree,
+    )?
+    .metadata;
     let address_tree =
         get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
             rpc,
@@ -73,26 +96,37 @@ pub async fn get_state_bundle_config<R: Rpc>(
     rpc: &mut R,
     state_tree_bundle: StateMerkleTreeAccounts,
 ) -> Result<(StateMerkleTreeConfig, NullifierQueueConfig), AccountZeroCopyError> {
-    // Get queue metadata - don't hold AccountZeroCopy across await points
-    let address_queue_meta_data = {
-        let account =
-            AccountZeroCopy::<QueueAccount>::new(rpc, state_tree_bundle.nullifier_queue).await?;
-        account.deserialized().metadata
-    };
+    let queue_account = rpc
+        .get_account(state_tree_bundle.nullifier_queue)
+        .await
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?
+        .ok_or(AccountZeroCopyError::AccountNotFound(
+            state_tree_bundle.nullifier_queue,
+        ))?;
+    let address_queue_meta_data = deserialize_account::<QueueAccount>(
+        &queue_account.data,
+        state_tree_bundle.nullifier_queue,
+    )?
+    .metadata;
     let address_queue =
-        unsafe { get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.nullifier_queue).await? };
+        get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.nullifier_queue).await?;
     let queue_config = NullifierQueueConfig {
         network_fee: Some(address_queue_meta_data.rollover_metadata.network_fee),
         capacity: address_queue.get_capacity() as u16,
         sequence_threshold: address_queue.sequence_threshold as u64,
     };
-    // Get tree metadata - don't hold AccountZeroCopy across await points
-    let address_tree_meta_data = {
-        let account =
-            AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.merkle_tree)
-                .await?;
-        account.deserialized().metadata
-    };
+    let state_tree_account = rpc
+        .get_account(state_tree_bundle.merkle_tree)
+        .await
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?
+        .ok_or(AccountZeroCopyError::AccountNotFound(
+            state_tree_bundle.merkle_tree,
+        ))?;
+    let address_tree_meta_data = deserialize_account::<StateMerkleTreeAccount>(
+        &state_tree_account.data,
+        state_tree_bundle.merkle_tree,
+    )?
+    .metadata;
     let address_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
         rpc,
         state_tree_bundle.merkle_tree,
@@ -122,15 +156,15 @@ pub async fn address_tree_ready_for_rollover<R: Rpc>(
     rpc: &mut R,
     merkle_tree: Pubkey,
 ) -> Result<bool, AccountZeroCopyError> {
-    // Get account data - don't hold AccountZeroCopy across await points
-    let (address_tree_meta_data, account_data_len, account_lamports) = {
-        let account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, merkle_tree).await?;
-        (
-            account.deserialized().metadata,
-            account.account.data.len(),
-            account.account.lamports,
-        )
-    };
+    let account = rpc
+        .get_account(merkle_tree)
+        .await
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?
+        .ok_or(AccountZeroCopyError::AccountNotFound(merkle_tree))?;
+    let address_tree_meta_data =
+        deserialize_account::<AddressMerkleTreeAccount>(&account.data, merkle_tree)?.metadata;
+    let account_data_len = account.data.len();
+    let account_lamports = account.lamports;
     let rent_exemption = rpc
         .get_minimum_balance_for_rent_exemption(account_data_len)
         .await
@@ -166,15 +200,18 @@ pub async fn state_tree_ready_for_rollover<R: Rpc>(
         .get_minimum_balance_for_rent_exemption(account.data.len())
         .await
         .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?;
+    if account.data.len() < 8 {
+        return Err(AccountZeroCopyError::RpcError(format!(
+            "Account {} data too short: {}",
+            merkle_tree,
+            account.data.len()
+        )));
+    }
     let discriminator = &account.data[0..8];
     let (next_index, tree_meta_data, height) = match discriminator {
         d if d == StateMerkleTreeAccount::DISCRIMINATOR => {
-            // Get tree metadata - don't hold AccountZeroCopy across await points
-            let tree_meta_data = {
-                let account =
-                    AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree).await?;
-                account.deserialized().metadata
-            };
+            let tree_meta_data =
+                deserialize_account::<StateMerkleTreeAccount>(&account.data, merkle_tree)?.metadata;
             let tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
                 rpc,
                 merkle_tree,
