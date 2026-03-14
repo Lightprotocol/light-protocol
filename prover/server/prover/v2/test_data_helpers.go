@@ -31,7 +31,7 @@ func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) Inclu
 
 	for i := 0; i < numberOfCompressedAccounts; i++ {
 		inputs[i].Leaf = *leaf
-		inputs[i].PathIndex = uint32(pathIndex)
+		inputs[i].PathIndex = uint64(pathIndex)
 		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
 		inputs[i].Root = tree.Root.Value()
 		leaves[i] = leaf
@@ -92,7 +92,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		}
 
 		inputs[i].Value = *value
-		inputs[i].PathIndex = uint32(pathIndex)
+		inputs[i].PathIndex = uint64(pathIndex)
 		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
 		inputs[i].Root = tree.Root.Value()
 		inputs[i].LeafLowerRangeValue = *leafLower

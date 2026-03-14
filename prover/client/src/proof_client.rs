@@ -84,21 +84,21 @@ impl ProofClient {
         polling_interval: Duration,
         max_wait_time: Duration,
         api_key: Option<String>,
-    ) -> Result<Self, ProverClientError> {
+    ) -> Self {
         let initial_poll_delay = if api_key.is_some() {
             Duration::from_millis(INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS)
         } else {
             Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS)
         };
 
-        Ok(Self {
+        Self {
             client: build_http_client(),
             server_address,
             polling_interval,
             max_wait_time,
             api_key,
             initial_poll_delay,
-        })
+        }
     }
 
     #[allow(unused)]

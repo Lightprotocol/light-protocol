@@ -11,7 +11,10 @@ use light_client::{
 };
 use light_hasher::hash_chain::create_hash_chain_from_slice;
 
-use crate::processor::v2::{common::clamp_to_u16, BatchContext};
+use crate::{
+    logging::should_emit_rate_limited_warning,
+    processor::v2::{common::clamp_to_u16, BatchContext},
+};
 
 pub(crate) fn lock_recover<'a, T>(mutex: &'a Mutex<T>, name: &'static str) -> MutexGuard<'a, T> {
     match mutex.lock() {
@@ -496,71 +499,57 @@ impl StreamingAddressQueue {
         if available < end || start >= end {
             return Ok(None);
         }
-        let actual_end = end;
         let data = lock_recover(&self.data, "streaming_address_queue.data");
 
-        let min_len = [
-            data.addresses.len(),
-            data.low_element_values.len(),
-            data.low_element_next_values.len(),
-            data.low_element_indices.len(),
-            data.low_element_next_indices.len(),
-        ]
-        .into_iter()
-        .min()
-        .unwrap_or(0);
-        if min_len < actual_end {
-            return Err(anyhow!(
-                "incomplete batch data: min field length {} < required end {}",
-                min_len,
-                actual_end
-            ));
-        }
+        // `available` can be bumped before every parallel array is filled,
+        // so a missing range here means "not ready yet" — return Ok(None)
+        // and let the caller retry on the next tick.
+        let range = start..end;
+        let (
+            Some(addresses),
+            Some(low_element_values),
+            Some(low_element_next_values),
+            Some(low_element_indices),
+            Some(low_element_next_indices),
+        ) = (
+            data.addresses.get(range.clone()).map(<[_]>::to_vec),
+            data.low_element_values
+                .get(range.clone())
+                .map(<[_]>::to_vec),
+            data.low_element_next_values
+                .get(range.clone())
+                .map(<[_]>::to_vec),
+            data.low_element_indices
+                .get(range.clone())
+                .map(<[_]>::to_vec),
+            data.low_element_next_indices
+                .get(range.clone())
+                .map(<[_]>::to_vec),
+        )
+        else {
+            return Ok(None);
+        };
 
-        let addresses = data.addresses[start..actual_end].to_vec();
-        if addresses.is_empty() {
-            return Ok(None);
-        }
-        let expected_len = addresses.len();
-        let Some(low_element_values) = data
-            .low_element_values
-            .get(start..end)
-            .map(|slice| slice.to_vec())
-        else {
-            return Ok(None);
+        // Proofs can also be unavailable if the indexer hasn't populated the
+        // merkle nodes for this range yet — return Ok(None) and retry. Log
+        // at warn (rate-limited) so persistent failures are still visible.
+        let low_element_proofs = match data.reconstruct_proofs::<HEIGHT>(range) {
+            Ok(proofs) => proofs,
+            Err(error) => {
+                if should_emit_rate_limited_warning(
+                    "address_queue_proofs_not_ready",
+                    std::time::Duration::from_secs(60),
+                ) {
+                    tracing::warn!(
+                        ?error,
+                        start,
+                        end,
+                        "address proof reconstruction not ready, retrying"
+                    );
+                }
+                return Ok(None);
+            }
         };
-        let Some(low_element_next_values) = data
-            .low_element_next_values
-            .get(start..end)
-            .map(|slice| slice.to_vec())
-        else {
-            return Ok(None);
-        };
-        let Some(low_element_indices) = data
-            .low_element_indices
-            .get(start..end)
-            .map(|slice| slice.to_vec())
-        else {
-            return Ok(None);
-        };
-        let Some(low_element_next_indices) = data
-            .low_element_next_indices
-            .get(start..end)
-            .map(|slice| slice.to_vec())
-        else {
-            return Ok(None);
-        };
-        if [
-            low_element_values.len(),
-            low_element_next_values.len(),
-            low_element_indices.len(),
-            low_element_next_indices.len(),
-        ]
-        .iter()
-        .any(|&len| len != expected_len)
-        {
-            return Ok(None);
-        }
 
         let leaves_hashchain = match data.leaves_hash_chains.get(hashchain_idx).copied() {
             Some(hashchain) => hashchain,
@@ -582,15 +571,11 @@ impl StreamingAddressQueue {
         };
 
         Ok(Some(AddressBatchSnapshot {
-            low_element_values: data.low_element_values[start..actual_end].to_vec(),
-            low_element_next_values: data.low_element_next_values[start..actual_end].to_vec(),
-            low_element_indices: data.low_element_indices[start..actual_end].to_vec(),
-            low_element_next_indices: data.low_element_next_indices[start..actual_end].to_vec(),
-            low_element_proofs: data
-                .reconstruct_proofs::<HEIGHT>(start..actual_end)
-                .map_err(|error| {
-                    anyhow!("incomplete batch data: failed to reconstruct proofs: {error}")
-                })?,
+            low_element_values,
+            low_element_next_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_proofs,
             addresses,
             leaves_hashchain,
         }))

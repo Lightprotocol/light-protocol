@@ -226,7 +226,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 			LeafLowerRangeValue:  *leafLowerRangeValue,
 			LeafHigherRangeValue: *leafHigherRangeValue,
 			NextIndex:            uint32(0),
-			PathIndex:            uint32(pathIndex),
+			PathIndex:            uint64(pathIndex),
 			PathElements:         pathElements,
 		}
 
