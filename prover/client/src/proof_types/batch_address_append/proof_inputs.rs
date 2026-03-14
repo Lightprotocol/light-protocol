@@ -93,7 +93,6 @@ pub struct BatchAddressAppendInputs {
     pub hashchain_hash: BigUint,
     pub low_element_values: Vec<BigUint>,
     pub low_element_indices: Vec<BigUint>,
-    pub low_element_next_indices: Vec<BigUint>,
     pub low_element_next_values: Vec<BigUint>,
     pub low_element_proofs: Vec<Vec<BigUint>>,
     pub new_element_values: Vec<BigUint>,
@@ -103,84 +102,6 @@ pub struct BatchAddressAppendInputs {
     pub public_input_hash: BigUint,
     pub start_index: usize,
     pub tree_height: usize,
-}
-
-impl BatchAddressAppendInputs {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new<const HEIGHT: usize>(
-        batch_size: usize,
-        leaves_hashchain: [u8; 32],
-        low_element_values: &[[u8; 32]],
-        low_element_indices: &[u64],
-        low_element_next_indices: &[u64],
-        low_element_next_values: &[[u8; 32]],
-        low_element_proofs: Vec<Vec<[u8; 32]>>,
-        new_element_values: &[[u8; 32]],
-        new_element_proofs: Vec<Vec<[u8; 32]>>,
-        new_root: [u8; 32],
-        old_root: [u8; 32],
-        start_index: usize,
-    ) -> Result<Self, ProverClientError> {
-        let hash_chain_inputs = [
-            old_root,
-            new_root,
-            leaves_hashchain,
-            bigint_to_be_bytes_array::<32>(&start_index.into())?,
-        ];
-        let public_input_hash = create_hash_chain_from_array(hash_chain_inputs)?;
-
-        let low_element_proofs_bigint: Vec<Vec<BigUint>> = low_element_proofs
-            .into_iter()
-            .map(|proof| {
-                proof
-                    .into_iter()
-                    .map(|p| BigUint::from_bytes_be(&p))
-                    .collect()
-            })
-            .collect();
-
-        let new_element_proofs_bigint: Vec<Vec<BigUint>> = new_element_proofs
-            .into_iter()
-            .map(|proof| {
-                proof
-                    .into_iter()
-                    .map(|p| BigUint::from_bytes_be(&p))
-                    .collect()
-            })
-            .collect();
-
-        Ok(Self {
-            batch_size,
-            hashchain_hash: BigUint::from_bytes_be(&leaves_hashchain),
-            low_element_values: low_element_values
-                .iter()
-                .map(|v| BigUint::from_bytes_be(v))
-                .collect(),
-            low_element_indices: low_element_indices
-                .iter()
-                .map(|&i| BigUint::from(i))
-                .collect(),
-            low_element_next_indices: low_element_next_indices
-                .iter()
-                .map(|&i| BigUint::from(i))
-                .collect(),
-            low_element_next_values: low_element_next_values
-                .iter()
-                .map(|v| BigUint::from_bytes_be(v))
-                .collect(),
-            low_element_proofs: low_element_proofs_bigint,
-            new_element_values: new_element_values
-                .iter()
-                .map(|v| BigUint::from_bytes_be(v))
-                .collect(),
-            new_element_proofs: new_element_proofs_bigint,
-            new_root: BigUint::from_bytes_be(&new_root),
-            old_root: BigUint::from_bytes_be(&old_root),
-            public_input_hash: BigUint::from_bytes_be(&public_input_hash),
-            start_index,
-            tree_height: HEIGHT,
-        })
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -199,32 +120,31 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     changelog: &mut Vec<ChangelogEntry<HEIGHT>>,
     indexed_changelog: &mut Vec<IndexedChangelogEntry<usize, HEIGHT>>,
 ) -> Result<BatchAddressAppendInputs, ProverClientError> {
-    if zkp_batch_size > new_element_values.len()
-        || zkp_batch_size > low_element_values.len()
-        || zkp_batch_size > low_element_indices.len()
-        || zkp_batch_size > low_element_next_indices.len()
-        || zkp_batch_size > low_element_next_values.len()
-        || zkp_batch_size > low_element_proofs.len()
-    {
-        return Err(ProverClientError::GenericError(format!(
-            "zkp_batch_size {} exceeds input slice lengths \
-             (new_element_values={}, low_element_values={}, low_element_indices={}, \
-              low_element_next_indices={}, low_element_next_values={}, low_element_proofs={})",
-            zkp_batch_size,
-            new_element_values.len(),
-            low_element_values.len(),
-            low_element_indices.len(),
-            low_element_next_indices.len(),
-            low_element_next_values.len(),
-            low_element_proofs.len(),
-        )));
+    for (name, len) in [
+        ("new_element_values", new_element_values.len()),
+        ("low_element_values", low_element_values.len()),
+        ("low_element_next_values", low_element_next_values.len()),
+        ("low_element_indices", low_element_indices.len()),
+        ("low_element_next_indices", low_element_next_indices.len()),
+        ("low_element_proofs", low_element_proofs.len()),
+    ] {
+        if len < zkp_batch_size {
+            return Err(ProverClientError::GenericError(format!(
+                "truncated batch from indexer: {} len {} < required batch size {}",
+                name, len, zkp_batch_size
+            )));
+        }
     }
+
     let new_element_values = &new_element_values[..zkp_batch_size];
+    let mut staged_changelog = changelog.clone();
+    let mut staged_indexed_changelog = indexed_changelog.clone();
+    let mut staged_sparse_merkle_tree = sparse_merkle_tree.clone();
+    let initial_changelog_len = staged_changelog.len();
     let mut new_root = [0u8; 32];
     let mut low_element_circuit_merkle_proofs = Vec::with_capacity(zkp_batch_size);
     let mut new_element_circuit_merkle_proofs = Vec::with_capacity(zkp_batch_size);
     let mut patched_low_element_next_values = Vec::with_capacity(zkp_batch_size);
-    let mut patched_low_element_next_indices = Vec::with_capacity(zkp_batch_size);
     let mut patched_low_element_values = Vec::with_capacity(zkp_batch_size);
     let mut patched_low_element_indices = Vec::with_capacity(zkp_batch_size);
 
@@ -255,11 +175,6 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         zkp_batch_size,
         next_index
     );
-
-    let mut staged_changelog = changelog.clone();
-    let mut staged_indexed_changelog = indexed_changelog.clone();
-    let mut staged_sparse_merkle_tree = sparse_merkle_tree.clone();
-    let initial_changelog_len = staged_changelog.len();
 
     let mut patcher = ChangelogProofPatcher::new::<HEIGHT>(&staged_changelog);
 
@@ -313,7 +228,6 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         })?;
         patched_low_element_next_values
             .push(bigint_to_be_bytes_array::<32>(&low_element_next_value)?);
-        patched_low_element_next_indices.push(low_element.next_index());
         patched_low_element_indices.push(low_element.index);
         patched_low_element_values.push(bigint_to_be_bytes_array::<32>(&low_element.value)?);
 
@@ -566,10 +480,6 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             .map(|v| BigUint::from_bytes_be(v))
             .collect(),
         low_element_indices: patched_low_element_indices
-            .iter()
-            .map(|&i| BigUint::from(i))
-            .collect(),
-        low_element_next_indices: patched_low_element_next_indices
             .iter()
             .map(|&i| BigUint::from(i))
             .collect(),

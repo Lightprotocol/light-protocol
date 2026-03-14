@@ -105,19 +105,12 @@ pub fn forester_config() -> ForesterConfig {
         indexer_config: Default::default(),
         transaction_config: Default::default(),
         general_config: GeneralConfig {
-            slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 5,
             enable_metrics: false,
-            skip_v1_state_trees: false,
-            skip_v2_state_trees: false,
-            skip_v1_address_trees: false,
-            skip_v2_address_trees: false,
-            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
             queue_polling_mode: QueuePollingMode::OnChain,
-            group_authority: None,
-            helius_rpc: false,
+            ..Default::default()
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,

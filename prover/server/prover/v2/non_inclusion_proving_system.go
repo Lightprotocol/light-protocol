@@ -17,7 +17,7 @@ import (
 type NonInclusionInputs struct {
 	Root         big.Int
 	Value        big.Int
-	PathIndex    uint32
+	PathIndex    uint64
 	PathElements []big.Int
 
 	LeafLowerRangeValue  big.Int

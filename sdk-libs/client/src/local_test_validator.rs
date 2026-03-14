@@ -58,53 +58,55 @@ impl Default for LightValidatorConfig {
 
 pub async fn spawn_validator(config: LightValidatorConfig) {
     if let Some(project_root) = get_project_root() {
-        let command = "cli/test_bin/run test-validator";
-        let mut command = format!("{}/{}", project_root.trim(), command);
+        let project_root = project_root.trim_end_matches(['\n', '\r']);
+        let executable = format!("{}/cli/test_bin/run", project_root);
+        let mut args = vec!["test-validator".to_string()];
         if !config.enable_indexer {
-            command.push_str(" --skip-indexer");
+            args.push("--skip-indexer".to_string());
         }
 
         if let Some(limit_ledger_size) = config.limit_ledger_size {
-            command.push_str(&format!(" --limit-ledger-size {}", limit_ledger_size));
+            args.push("--limit-ledger-size".to_string());
+            args.push(limit_ledger_size.to_string());
         }
 
         for sbf_program in config.sbf_programs.iter() {
-            command.push_str(&format!(
-                " --sbf-program {} {}",
-                sbf_program.0, sbf_program.1
-            ));
+            args.push("--sbf-program".to_string());
+            args.push(sbf_program.0.clone());
+            args.push(sbf_program.1.clone());
         }
 
         for upgradeable_program in config.upgradeable_programs.iter() {
-            command.push_str(&format!(
-                " --upgradeable-program {} {} {}",
-                upgradeable_program.program_id,
-                upgradeable_program.program_path,
-                upgradeable_program.upgrade_authority
-            ));
+            args.push("--upgradeable-program".to_string());
+            args.push(upgradeable_program.program_id.clone());
+            args.push(upgradeable_program.program_path.clone());
+            args.push(upgradeable_program.upgrade_authority.clone());
         }
 
         if !config.enable_prover {
-            command.push_str(" --skip-prover");
+            args.push("--skip-prover".to_string());
         }
 
         if config.use_surfpool {
-            command.push_str(" --use-surfpool");
+            args.push("--use-surfpool".to_string());
         }
 
         for arg in config.validator_args.iter() {
-            command.push_str(&format!(" {}", arg));
+            args.push(arg.clone());
         }
 
-        println!("Starting validator with command: {}", command);
+        println!(
+            "Starting validator with command: {} {}",
+            executable,
+            args.join(" ")
+        );
 
         if config.use_surfpool {
             // The CLI starts surfpool, prover, and photon, then exits once all
             // services are ready. Wait for it to finish so we know everything
             // is up before the test proceeds.
-            let mut child = Command::new("sh")
-                .arg("-c")
-                .arg(command)
+            let mut child = Command::new(&executable)
+                .args(&args)
                 .stdin(Stdio::null())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
@@ -113,17 +115,21 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             let status = child.wait().await.expect("Failed to wait for CLI process");
             assert!(status.success(), "CLI exited with error: {}", status);
         } else {
-            let _child = Command::new("sh")
-                .arg("-c")
-                .arg(command)
+            let mut child = Command::new(&executable)
+                .args(&args)
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
                 .expect("Failed to start server process");
-            // Intentionally detaching the spawned child; the caller only waits
-            // for the validator services to become available.
             tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
+            if let Some(status) = child.try_wait().expect("Failed to poll validator process") {
+                assert!(
+                    status.success(),
+                    "Validator exited early with error: {}",
+                    status
+                );
+            }
         }
     }
 }

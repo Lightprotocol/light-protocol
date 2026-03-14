@@ -2,6 +2,7 @@ use serde::Serialize;
 
 use crate::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
+    errors::ProverClientError,
     helpers::{big_int_to_string, create_json_from_struct},
     proof_types::{
         circuit_type::CircuitType,
@@ -29,21 +30,22 @@ pub struct CombinedJsonStruct {
 }
 
 impl CombinedJsonStruct {
-    pub fn from_combined_inputs(inputs: &CombinedProofInputs) -> Self {
+    pub fn from_combined_inputs(inputs: &CombinedProofInputs) -> Result<Self, ProverClientError> {
         let inclusion_parameters =
             BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inputs.inclusion_parameters);
-        let non_inclusion_parameters = BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
-            &inputs.non_inclusion_parameters,
-        );
+        let non_inclusion_parameters =
+            BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+                &inputs.non_inclusion_parameters,
+            )?;
 
-        Self {
+        Ok(Self {
             circuit_type: CircuitType::Combined.to_string(),
             state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
             public_input_hash: big_int_to_string(&inputs.public_input_hash),
             inclusion: inclusion_parameters.inputs,
             non_inclusion: non_inclusion_parameters.inputs,
-        }
+        })
     }
 
     #[allow(clippy::inherent_to_string)]

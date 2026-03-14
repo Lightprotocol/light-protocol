@@ -14,7 +14,7 @@ import (
 
 type InclusionInputs struct {
 	Root         big.Int
-	PathIndex    uint32
+	PathIndex    uint64
 	PathElements []big.Int
 	Leaf         big.Int
 }
