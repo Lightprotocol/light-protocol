@@ -126,8 +126,9 @@ impl ProofCache {
             }
         }
 
-        self.proofs = self.warming_proofs.values().cloned().collect();
-        self.warming_proofs.clear();
+        self.proofs = std::mem::take(&mut self.warming_proofs)
+            .into_values()
+            .collect();
 
         info!(
             "Cache warm-up complete for tree {}: {} proofs cached with root {:?}",

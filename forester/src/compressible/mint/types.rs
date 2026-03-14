@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use light_token_interface::state::Mint;
 use solana_sdk::pubkey::Pubkey;
 
@@ -8,7 +10,7 @@ pub struct MintAccountState {
     pub pubkey: Pubkey,
     pub mint_seed: Pubkey,
     pub compressed_address: [u8; 32],
-    pub mint: Mint,
+    pub mint: Arc<Mint>,
     pub lamports: u64,
     /// Ready to compress when current_slot > compressible_slot
     pub compressible_slot: u64,

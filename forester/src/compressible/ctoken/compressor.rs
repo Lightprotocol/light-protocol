@@ -30,7 +30,7 @@ use crate::{
 pub struct CTokenCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<CTokenAccountTracker>,
-    payer_keypair: Keypair,
+    payer_keypair: Arc<Keypair>,
     transaction_policy: TransactionPolicy,
 }
 
@@ -39,7 +39,7 @@ impl<R: Rpc + Indexer> Clone for CTokenCompressor<R> {
         Self {
             rpc_pool: Arc::clone(&self.rpc_pool),
             tracker: Arc::clone(&self.tracker),
-            payer_keypair: self.payer_keypair.insecure_clone(),
+            payer_keypair: Arc::clone(&self.payer_keypair),
             transaction_policy: self.transaction_policy,
         }
     }
@@ -55,7 +55,7 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
         Self {
             rpc_pool,
             tracker,
-            payer_keypair,
+            payer_keypair: Arc::new(payer_keypair),
             transaction_policy,
         }
     }
@@ -253,7 +253,7 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
         send_and_confirm_with_tracking(
             &mut *rpc,
             &[ix],
-            &self.payer_keypair,
+            self.payer_keypair.as_ref(),
             self.transaction_policy,
             &*self.tracker,
             &pubkeys,
