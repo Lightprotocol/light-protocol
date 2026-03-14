@@ -87,7 +87,7 @@ async fn test_state_indexer_async_batched() {
         validator_args: vec![],
     }))
     .await;
-    spawn_prover().await;
+    spawn_prover().await.unwrap();
 
     let env = TestAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();

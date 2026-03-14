@@ -440,21 +440,19 @@ pub async fn metrics_handler() -> Result<impl warp::Reply> {
     if let Err(e) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
         error!("could not encode custom metrics: {}", e);
     };
-    let mut res = String::from_utf8(buffer.clone()).unwrap_or_else(|e| {
+    let mut res = String::from_utf8(buffer).unwrap_or_else(|e| {
         error!("custom metrics could not be from_utf8'd: {}", e);
         String::new()
     });
-    buffer.clear();
 
     let mut buffer = Vec::new();
     if let Err(e) = encoder.encode(&prometheus::gather(), &mut buffer) {
         error!("could not encode prometheus metrics: {}", e);
     };
-    let res_prometheus = String::from_utf8(buffer.clone()).unwrap_or_else(|e| {
+    let res_prometheus = String::from_utf8(buffer).unwrap_or_else(|e| {
         error!("prometheus metrics could not be from_utf8'd: {}", e);
         String::new()
     });
-    buffer.clear();
 
     res.push_str(&res_prometheus);
     Ok(res)
