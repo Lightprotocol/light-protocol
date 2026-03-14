@@ -115,6 +115,7 @@ impl AddressQueueData {
     pub fn reconstruct_all_proofs<const HEIGHT: usize>(
         &self,
     ) -> Result<Vec<[[u8; 32]; HEIGHT]>, IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         self.reconstruct_proofs::<HEIGHT>(0..self.addresses.len())
     }
 
@@ -135,6 +136,7 @@ impl AddressQueueData {
         address_idx: usize,
         node_lookup: &HashMap<u64, usize>,
     ) -> Result<[[u8; 32]; HEIGHT], IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         let leaf_index = *self.low_element_indices.get(address_idx).ok_or_else(|| {
             IndexerError::MissingResult {
                 context: "reconstruct_proof".to_string(),
