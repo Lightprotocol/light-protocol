@@ -270,13 +270,17 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             low_element_indices.push(non_inclusion_proof.leaf_index);
             low_element_next_indices.push(non_inclusion_proof.next_index);
             low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
-            let proof = non_inclusion_proof.merkle_proof.as_slice().try_into().map_err(|_| {
-                ProverClientError::InvalidProofData(format!(
-                    "invalid low element proof length: expected {}, got {}",
-                    HEIGHT,
-                    non_inclusion_proof.merkle_proof.len()
-                ))
-            })?;
+            let proof = non_inclusion_proof
+                .merkle_proof
+                .as_slice()
+                .try_into()
+                .map_err(|_| {
+                    ProverClientError::InvalidProofData(format!(
+                        "invalid low element proof length: expected {}, got {}",
+                        HEIGHT,
+                        non_inclusion_proof.merkle_proof.len()
+                    ))
+                })?;
             low_element_proofs.push(proof);
         }
         let subtrees = self.merkle_tree.merkle_tree.get_subtrees();
