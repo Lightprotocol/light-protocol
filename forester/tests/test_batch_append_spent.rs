@@ -328,15 +328,22 @@ async fn run_forester(config: &ForesterConfig, duration: Duration) {
         tokio::sync::broadcast::channel(1);
     let (work_report_sender, _) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline::<LightClient>(
-        Arc::from(config.clone()),
-        None,
-        None,
-        shutdown_receiver,
-        Some(shutdown_compressible_receiver),
-        None, // shutdown_bootstrap
-        work_report_sender,
-    ));
+    let config = Arc::new(config.clone());
+    let service_handle = tokio::task::spawn_blocking(move || {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()?;
+        runtime.block_on(run_pipeline::<LightClient>(
+            config,
+            None,
+            None,
+            shutdown_receiver,
+            Some(shutdown_compressible_receiver),
+            None, // shutdown_bootstrap
+            work_report_sender,
+        ))
+    });
 
     tokio::time::sleep(duration).await;
 
