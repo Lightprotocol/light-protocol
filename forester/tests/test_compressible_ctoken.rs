@@ -320,7 +320,8 @@ async fn test_compressible_ctoken_compression() {
         use_surfpool: true,
         validator_args: vec![],
     })
-    .await;
+    .await
+    .unwrap();
     let mut rpc = LightClient::new(LightClientConfig::local())
         .await
         .expect("Failed to create LightClient");
@@ -403,6 +404,7 @@ async fn test_compressible_ctoken_compression() {
             account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
             extensions: Some(vec![ExtensionStruct::Compressible(compressible_ext)]),
         }
+        .into()
     );
     assert!(account_state.lamports > 0);
     let lamports = account_state.lamports;
@@ -525,7 +527,8 @@ async fn test_compressible_ctoken_bootstrap() {
         use_surfpool: true,
         validator_args: vec![],
     })
-    .await;
+    .await
+    .unwrap();
 
     let mut rpc = LightClient::new(LightClientConfig::local())
         .await

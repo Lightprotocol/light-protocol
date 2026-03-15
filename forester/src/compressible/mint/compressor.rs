@@ -30,7 +30,7 @@ use crate::{
 pub struct MintCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<MintAccountTracker>,
-    payer_keypair: Keypair,
+    payer_keypair: Arc<Keypair>,
     transaction_policy: TransactionPolicy,
 }
 
@@ -39,7 +39,7 @@ impl<R: Rpc + Indexer> Clone for MintCompressor<R> {
         Self {
             rpc_pool: Arc::clone(&self.rpc_pool),
             tracker: Arc::clone(&self.tracker),
-            payer_keypair: self.payer_keypair.insecure_clone(),
+            payer_keypair: Arc::clone(&self.payer_keypair),
             transaction_policy: self.transaction_policy,
         }
     }
@@ -55,7 +55,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         Self {
             rpc_pool,
             tracker,
-            payer_keypair,
+            payer_keypair: Arc::new(payer_keypair),
             transaction_policy,
         }
     }
@@ -117,7 +117,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         send_and_confirm_with_tracking(
             &mut *rpc,
             &instructions,
-            &self.payer_keypair,
+            self.payer_keypair.as_ref(),
             self.transaction_policy,
             &*self.tracker,
             &pubkeys,
@@ -160,7 +160,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         self.tracker.mark_pending(&all_pubkeys);
 
         // Create futures for each mint
-        let compression_futures = mint_states.iter().cloned().map(|mint_state| {
+        let compression_futures = mint_states.iter().map(|mint_state| {
             let compressor = self.clone();
             let cancelled = cancelled.clone();
             async move {
@@ -168,18 +168,18 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
                 if cancelled.load(Ordering::Relaxed) {
                     compressor.tracker.unmark_pending(&[mint_state.pubkey]);
                     return CompressionOutcome::Failed {
-                        state: mint_state,
+                        state: mint_state.clone(),
                         error: CompressionTaskError::Cancelled,
                     };
                 }
 
-                match compressor.compress(&mint_state).await {
+                match compressor.compress(mint_state).await {
                     Ok(sig) => CompressionOutcome::Compressed {
                         signature: sig,
-                        state: mint_state,
+                        state: mint_state.clone(),
                     },
                     Err(e) => CompressionOutcome::Failed {
-                        state: mint_state,
+                        state: mint_state.clone(),
                         error: e.into(),
                     },
                 }
@@ -259,7 +259,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         let signature = send_and_confirm_with_tracking(
             &mut *rpc,
             &[ix],
-            &self.payer_keypair,
+            self.payer_keypair.as_ref(),
             self.transaction_policy,
             &*self.tracker,
             &tracked_pubkeys,

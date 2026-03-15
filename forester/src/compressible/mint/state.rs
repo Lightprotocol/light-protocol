@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicU64;
+use std::sync::{atomic::AtomicU64, Arc};
 
 use borsh::BorshDeserialize;
 use dashmap::{DashMap, DashSet};
@@ -109,7 +109,7 @@ impl MintAccountTracker {
             pubkey,
             mint_seed,
             compressed_address,
-            mint,
+            mint: Arc::new(mint),
             lamports,
             compressible_slot,
         };

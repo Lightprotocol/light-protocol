@@ -55,7 +55,7 @@ pub struct CachedProgramConfig {
 pub struct PdaCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<PdaAccountTracker>,
-    payer_keypair: Keypair,
+    payer_keypair: Arc<Keypair>,
     transaction_policy: TransactionPolicy,
 }
 
@@ -64,7 +64,7 @@ impl<R: Rpc + Indexer> Clone for PdaCompressor<R> {
         Self {
             rpc_pool: Arc::clone(&self.rpc_pool),
             tracker: Arc::clone(&self.tracker),
-            payer_keypair: self.payer_keypair.insecure_clone(),
+            payer_keypair: Arc::clone(&self.payer_keypair),
             transaction_policy: self.transaction_policy,
         }
     }
@@ -80,7 +80,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         Self {
             rpc_pool,
             tracker,
-            payer_keypair,
+            payer_keypair: Arc::new(payer_keypair),
             transaction_policy,
         }
     }
@@ -171,10 +171,12 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         self.tracker.mark_pending(&all_pubkeys);
 
         // Create futures for each account
-        let compression_futures = account_states.iter().cloned().map(|account_state| {
+        let program_config = Arc::new(program_config.clone());
+        let cached_config = Arc::new(cached_config.clone());
+        let compression_futures = account_states.iter().map(|account_state| {
             let compressor = self.clone();
-            let program_config = program_config.clone();
-            let cached_config = cached_config.clone();
+            let program_config = Arc::clone(&program_config);
+            let cached_config = Arc::clone(&cached_config);
             let cancelled = cancelled.clone();
 
             async move {
@@ -183,21 +185,21 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                     // Unmark since we won't process this account
                     compressor.tracker.unmark_pending(&[account_state.pubkey]);
                     return CompressionOutcome::Failed {
-                        state: account_state,
+                        state: account_state.clone(),
                         error: CompressionTaskError::Cancelled,
                     };
                 }
 
                 match compressor
-                    .compress(&account_state, &program_config, &cached_config)
+                    .compress(account_state, &program_config, &cached_config)
                     .await
                 {
                     Ok(sig) => CompressionOutcome::Compressed {
                         signature: sig,
-                        state: account_state,
+                        state: account_state.clone(),
                     },
                     Err(e) => CompressionOutcome::Failed {
-                        state: account_state,
+                        state: account_state.clone(),
                         error: e.into(),
                     },
                 }
@@ -317,7 +319,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         send_and_confirm_with_tracking(
             &mut *rpc,
             &[ix],
-            &self.payer_keypair,
+            self.payer_keypair.as_ref(),
             self.transaction_policy,
             &*self.tracker,
             &pubkeys,
@@ -396,7 +398,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         );
 
         let payer_pubkey = self.payer_keypair.pubkey();
-        let signers = [&self.payer_keypair];
+        let signers = [self.payer_keypair.as_ref()];
         let instructions = vec![ix];
         let priority_fee_accounts = collect_priority_fee_accounts(payer_pubkey, &instructions);
         let signature = send_transaction_with_policy(

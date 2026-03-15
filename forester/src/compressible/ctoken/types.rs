@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use light_token_interface::state::Token;
 use solana_sdk::pubkey::Pubkey;
 
@@ -6,7 +8,7 @@ use crate::compressible::traits::CompressibleState;
 #[derive(Clone, Debug)]
 pub struct CTokenAccountState {
     pub pubkey: Pubkey,
-    pub account: Token,
+    pub account: Arc<Token>,
     pub lamports: u64,
     /// Ready to compress when current_slot > compressible_slot
     pub compressible_slot: u64,

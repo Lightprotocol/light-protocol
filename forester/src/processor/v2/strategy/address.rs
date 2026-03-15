@@ -14,11 +14,10 @@ use tracing::{debug, info, instrument};
 
 use crate::processor::v2::{
     batch_job_builder::BatchJobBuilder,
-    common::get_leaves_hashchain,
     errors::V2Error,
     helpers::{
         fetch_address_zkp_batch_size, fetch_onchain_address_root, fetch_streaming_address_batches,
-        lock_recover, StreamingAddressQueue,
+        AddressBatchSnapshot, StreamingAddressQueue,
     },
     proof_worker::ProofInput,
     root_guard::{reconcile_alignment, AlignmentDecision},
@@ -168,7 +167,7 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         }
 
         let initial_root = streaming_queue.initial_root();
-        let start_index = streaming_queue.start_index();
+        let start_index = streaming_queue.tree_next_insertion_index();
 
         let subtrees_arr: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] =
             subtrees.try_into().map_err(|v: Vec<[u8; 32]>| {
@@ -267,9 +266,23 @@ impl BatchJobBuilder for AddressQueueData {
 
         let batch_end = start + zkp_batch_size_usize;
 
-        let batch_data = self
-            .streaming_queue
-            .get_batch_data(start, batch_end)
+        let streaming_queue = &self.streaming_queue;
+        let staging_tree = &mut self.staging_tree;
+        let hashchain_idx = start / zkp_batch_size_usize;
+        let AddressBatchSnapshot {
+            addresses,
+            low_element_values,
+            low_element_next_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_proofs,
+            leaves_hashchain,
+        } = streaming_queue
+            .get_batch_snapshot::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
+                start,
+                batch_end,
+                hashchain_idx,
+            )?
             .ok_or_else(|| {
                 anyhow!(
                     "Batch data not available: start={}, end={}, available={}",
@@ -278,31 +291,21 @@ impl BatchJobBuilder for AddressQueueData {
                     self.streaming_queue.available_batches() * zkp_batch_size_usize
                 )
             })?;
-
-        let addresses = &batch_data.addresses;
         let zkp_batch_size_actual = addresses.len();
-
-        if zkp_batch_size_actual == 0 {
-            return Err(anyhow!("Empty batch at start={}", start));
-        }
-
-        let low_element_values = &batch_data.low_element_values;
-        let low_element_next_values = &batch_data.low_element_next_values;
-        let low_element_indices = &batch_data.low_element_indices;
-        let low_element_next_indices = &batch_data.low_element_next_indices;
-
-        let low_element_proofs: Vec<Vec<[u8; 32]>> = {
-            let data = lock_recover(self.streaming_queue.data.as_ref(), "streaming_queue.data");
-            (start..start + zkp_batch_size_actual)
-                .map(|i| data.reconstruct_proof(i, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u8))
-                .collect::<Result<Vec<_>, _>>()?
-        };
-
-        let hashchain_idx = start / zkp_batch_size_usize;
-        let leaves_hashchain = {
-            let data = lock_recover(self.streaming_queue.data.as_ref(), "streaming_queue.data");
-            get_leaves_hashchain(&data.leaves_hash_chains, hashchain_idx)?
-        };
+        let result = staging_tree
+            .process_batch(
+                &addresses,
+                &low_element_values,
+                &low_element_next_values,
+                &low_element_indices,
+                &low_element_next_indices,
+                &low_element_proofs,
+                leaves_hashchain,
+                zkp_batch_size_actual,
+                epoch,
+                tree,
+            )
+            .map_err(|err| map_address_staging_error(tree, err))?;
 
         let tree_batch = tree_next_index / zkp_batch_size_usize;
         let absolute_index = data_start + start;
@@ -317,24 +320,6 @@ impl BatchJobBuilder for AddressQueueData {
             tree_batch,
             self.streaming_queue.is_complete()
         );
-
-        let result = self.staging_tree.process_batch(
-            addresses,
-            low_element_values,
-            low_element_next_values,
-            low_element_indices,
-            low_element_next_indices,
-            &low_element_proofs,
-            leaves_hashchain,
-            zkp_batch_size_actual,
-            epoch,
-            tree,
-        );
-
-        let result = match result {
-            Ok(r) => r,
-            Err(err) => return Err(map_address_staging_error(tree, err)),
-        };
 
         Ok(Some((
             ProofInput::AddressAppend(result.circuit_inputs),
