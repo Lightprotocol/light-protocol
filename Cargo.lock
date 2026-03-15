@@ -2439,6 +2439,7 @@ dependencies = [
  "async-channel 2.5.0",
  "async-trait",
  "base64 0.13.1",
+ "bincode",
  "borsh 0.10.4",
  "bs58",
  "clap 4.5.60",
@@ -2472,6 +2473,7 @@ dependencies = [
  "light-token",
  "light-token-client",
  "light-token-interface",
+ "mwmatching",
  "photon-api",
  "prometheus",
  "rand 0.8.5",
@@ -4835,6 +4837,12 @@ dependencies = [
  "solana-program",
  "thiserror 1.0.69",
 ]
+
+[[package]]
+name = "mwmatching"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f13b50448d988736cc2c938a76ae336241fcb31a225017c0e3121bd349e7dc06"
 
 [[package]]
 name = "native-tls"

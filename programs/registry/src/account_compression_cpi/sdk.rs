@@ -37,6 +37,42 @@ pub fn create_nullify_instruction(
         Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
     };
     let (cpi_authority, bump) = get_cpi_authority_pda();
+    let instruction_data = crate::instruction::Nullify {
+        bump,
+        change_log_indices: inputs.change_log_indices,
+        leaves_queue_indices: inputs.leaves_queue_indices,
+        indices: inputs.indices,
+        proofs: inputs.proofs,
+    };
+
+    let accounts = crate::accounts::NullifyLeaves {
+        authority: inputs.authority,
+        registered_forester_pda,
+        registered_program_pda: register_program_pda,
+        nullifier_queue: inputs.nullifier_queue,
+        merkle_tree: inputs.merkle_tree,
+        log_wrapper: NOOP_PUBKEY.into(),
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_nullify_with_proof_accounts_instruction(
+    inputs: CreateNullifyInstructionInputs,
+    epoch: u64,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let registered_forester_pda = if inputs.is_metadata_forester {
+        None
+    } else {
+        Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
+    };
+    let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::NullifyWithProofAccounts {
         bump,
         change_log_indices: inputs.change_log_indices,
@@ -57,7 +93,10 @@ pub fn create_nullify_instruction(
     let mut accounts = base_accounts.to_account_metas(Some(true));
     for proof in inputs.proofs {
         for node in proof {
-            accounts.push(AccountMeta::new_readonly(Pubkey::new_from_array(node), false));
+            accounts.push(AccountMeta::new_readonly(
+                Pubkey::new_from_array(node),
+                false,
+            ));
         }
     }
 
@@ -549,5 +588,91 @@ pub fn create_rollover_batch_address_tree_instruction(
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),
         data: instruction_data.data(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anchor_lang::Discriminator;
+
+    use super::*;
+
+    #[test]
+    fn create_nullify_instruction_uses_legacy_payload() {
+        let authority = Pubkey::new_unique();
+        let derivation = Pubkey::new_unique();
+        let nullifier_queue = Pubkey::new_unique();
+        let merkle_tree = Pubkey::new_unique();
+        let proof = (0..16)
+            .map(|i| {
+                let mut node = [0u8; 32];
+                node[0] = i as u8;
+                node
+            })
+            .collect::<Vec<_>>();
+        let ix = create_nullify_instruction(
+            CreateNullifyInstructionInputs {
+                authority,
+                nullifier_queue,
+                merkle_tree,
+                change_log_indices: vec![7],
+                leaves_queue_indices: vec![11],
+                indices: vec![42],
+                proofs: vec![proof],
+                derivation,
+                is_metadata_forester: false,
+            },
+            1,
+        );
+
+        assert_eq!(ix.program_id, crate::ID);
+        assert_eq!(ix.accounts.len(), 8);
+        assert_eq!(&ix.data[..8], crate::instruction::Nullify::DISCRIMINATOR);
+        assert_eq!(ix.data.len(), 559);
+    }
+
+    #[test]
+    fn create_nullify_with_proof_accounts_instruction_uses_compact_payload_and_remaining_accounts()
+    {
+        let authority = Pubkey::new_unique();
+        let derivation = Pubkey::new_unique();
+        let nullifier_queue = Pubkey::new_unique();
+        let merkle_tree = Pubkey::new_unique();
+        let proof = (0..16)
+            .map(|i| {
+                let mut node = [0u8; 32];
+                node[0] = i as u8;
+                node
+            })
+            .collect::<Vec<_>>();
+        let ix = create_nullify_with_proof_accounts_instruction(
+            CreateNullifyInstructionInputs {
+                authority,
+                nullifier_queue,
+                merkle_tree,
+                change_log_indices: vec![7],
+                leaves_queue_indices: vec![11],
+                indices: vec![42],
+                proofs: vec![proof.clone()],
+                derivation,
+                is_metadata_forester: false,
+            },
+            1,
+        );
+
+        assert_eq!(ix.program_id, crate::ID);
+        assert_eq!(ix.accounts.len(), 8 + 16);
+        for (account_meta, node) in ix.accounts[8..].iter().zip(proof.iter()) {
+            assert_eq!(account_meta.pubkey, Pubkey::new_from_array(*node));
+            assert!(!account_meta.is_signer);
+            assert!(!account_meta.is_writable);
+        }
+
+        assert_eq!(
+            &ix.data[..8],
+            crate::instruction::NullifyWithProofAccounts::DISCRIMINATOR
+        );
+        // 8-byte discriminator + 31-byte compact payload.
+        assert_eq!(ix.data.len(), 39);
     }
 }

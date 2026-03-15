@@ -11,7 +11,7 @@ use forester_utils::{rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
-    create_nullify_instruction, create_update_address_merkle_tree_instruction,
+    create_nullify_with_proof_accounts_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
 use solana_program::instruction::Instruction;
@@ -32,6 +32,19 @@ use crate::{
     errors::ForesterError,
 };
 
+#[derive(Clone, Debug)]
+pub enum PreparedV1Instruction {
+    AddressUpdate(Instruction),
+    StateNullify(StateNullifyInstruction),
+}
+
+#[derive(Clone, Debug)]
+pub struct StateNullifyInstruction {
+    pub instruction: Instruction,
+    pub proof_nodes: Vec<[u8; 32]>,
+    pub leaf_index: u64,
+}
+
 /// Work items should be of only one type and tree
 pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     authority: Pubkey,
@@ -39,7 +52,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     pool: Arc<SolanaRpcPool<R>>,
     epoch: u64,
     work_items: &[WorkItem],
-) -> crate::Result<(Vec<MerkleProofType>, Vec<Instruction>)> {
+) -> crate::Result<(Vec<MerkleProofType>, Vec<PreparedV1Instruction>)> {
     let mut proofs = Vec::new();
     let mut instructions = vec![];
 
@@ -360,7 +373,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
             },
             epoch,
         );
-        instructions.push(instruction);
+        instructions.push(PreparedV1Instruction::AddressUpdate(instruction));
     }
 
     // Process state proofs and create instructions
@@ -375,7 +388,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
         proofs.push(MerkleProofType::StateProof(proof.clone()));
 
-        let instruction = create_nullify_instruction(
+        let instruction = create_nullify_with_proof_accounts_instruction(
             CreateNullifyInstructionInputs {
                 nullifier_queue: item.tree_account.queue,
                 merkle_tree: item.tree_account.merkle_tree,
@@ -389,7 +402,11 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
             },
             epoch,
         );
-        instructions.push(instruction);
+        instructions.push(PreparedV1Instruction::StateNullify(StateNullifyInstruction {
+            instruction,
+            proof_nodes: proof.proof,
+            leaf_index: proof.leaf_index,
+        }));
     }
 
     Ok((proofs, instructions))

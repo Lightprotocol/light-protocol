@@ -40,6 +40,10 @@ pub enum RegistryError {
     EmptyIndices,
     #[msg("Proof accounts cannot be empty")]
     EmptyProofAccounts,
+    #[msg("Compact nullify proof accounts length is invalid")]
+    InvalidProofAccountsLength,
+    #[msg("Compact nullify supports exactly one change, queue index, and leaf index")]
+    InvalidCompactNullifyInputs,
     #[msg("Failed to borrow account data")]
     BorrowAccountDataFailed,
     #[msg("Failed to serialize instruction data")]

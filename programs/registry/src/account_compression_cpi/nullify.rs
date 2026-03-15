@@ -5,6 +5,8 @@ use anchor_lang::prelude::*;
 
 use crate::{epoch::register_epoch::ForesterEpochPda, errors::RegistryError};
 
+const COMPACT_NULLIFY_PROOF_ACCOUNTS_LEN: usize = 16;
+
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
@@ -69,9 +71,12 @@ pub fn process_nullify_from_remaining_accounts(
     leaves_queue_indices: Vec<u16>,
     indices: Vec<u64>,
 ) -> Result<()> {
-    if ctx.remaining_accounts.is_empty() {
-        return err!(RegistryError::EmptyProofAccounts);
-    }
+    validate_compact_nullify_inputs(
+        &change_log_indices,
+        &leaves_queue_indices,
+        &indices,
+        ctx.remaining_accounts.len(),
+    )?;
 
     let proof_nodes: Vec<[u8; 32]> = ctx
         .remaining_accounts
@@ -87,4 +92,64 @@ pub fn process_nullify_from_remaining_accounts(
         indices,
         vec![proof_nodes],
     )
+}
+
+pub(crate) fn validate_compact_nullify_inputs(
+    change_log_indices: &[u64],
+    leaves_queue_indices: &[u16],
+    indices: &[u64],
+    proof_accounts_len: usize,
+) -> Result<()> {
+    if change_log_indices.len() != 1
+        || leaves_queue_indices.len() != 1
+        || indices.len() != 1
+    {
+        return err!(RegistryError::InvalidCompactNullifyInputs);
+    }
+    if proof_accounts_len == 0 {
+        return err!(RegistryError::EmptyProofAccounts);
+    }
+    if proof_accounts_len != COMPACT_NULLIFY_PROOF_ACCOUNTS_LEN {
+        return err!(RegistryError::InvalidProofAccountsLength);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_compact_nullify_inputs;
+    use crate::errors::RegistryError;
+
+    #[test]
+    fn compact_nullify_inputs_validate_happy_path() {
+        let result = validate_compact_nullify_inputs(&[1], &[1], &[42], 16);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn compact_nullify_inputs_reject_empty_proof_accounts() {
+        let result = validate_compact_nullify_inputs(&[1], &[1], &[42], 0);
+        assert_eq!(
+            result.err().unwrap(),
+            RegistryError::EmptyProofAccounts.into()
+        );
+    }
+
+    #[test]
+    fn compact_nullify_inputs_reject_vector_length_mismatch() {
+        let result = validate_compact_nullify_inputs(&[1, 2], &[1], &[42], 16);
+        assert_eq!(
+            result.err().unwrap(),
+            RegistryError::InvalidCompactNullifyInputs.into()
+        );
+    }
+
+    #[test]
+    fn compact_nullify_inputs_reject_invalid_proof_accounts_length() {
+        let result = validate_compact_nullify_inputs(&[1], &[1], &[42], 15);
+        assert_eq!(
+            result.err().unwrap(),
+            RegistryError::InvalidProofAccountsLength.into()
+        );
+    }
 }
