@@ -9,7 +9,7 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_system_program::program::LightSystemProgram;
-use solana_sdk::instruction::Instruction;
+use solana_sdk::instruction::{AccountMeta, Instruction};
 
 use crate::utils::{
     get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
@@ -37,15 +37,14 @@ pub fn create_nullify_instruction(
         Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
     };
     let (cpi_authority, bump) = get_cpi_authority_pda();
-    let instruction_data = crate::instruction::Nullify {
+    let instruction_data = crate::instruction::NullifyWithProofAccounts {
         bump,
         change_log_indices: inputs.change_log_indices,
         leaves_queue_indices: inputs.leaves_queue_indices,
         indices: inputs.indices,
-        proofs: inputs.proofs,
     };
 
-    let accounts = crate::accounts::NullifyLeaves {
+    let base_accounts = crate::accounts::NullifyLeaves {
         authority: inputs.authority,
         registered_forester_pda,
         registered_program_pda: register_program_pda,
@@ -55,9 +54,16 @@ pub fn create_nullify_instruction(
         cpi_authority,
         account_compression_program: account_compression::ID,
     };
+    let mut accounts = base_accounts.to_account_metas(Some(true));
+    for proof in inputs.proofs {
+        for node in proof {
+            accounts.push(AccountMeta::new_readonly(Pubkey::new_from_array(node), false));
+        }
+    }
+
     Instruction {
         program_id: crate::ID,
-        accounts: accounts.to_account_metas(Some(true)),
+        accounts,
         data: instruction_data.data(),
     }
 }

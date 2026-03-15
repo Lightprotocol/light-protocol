@@ -38,6 +38,8 @@ pub enum RegistryError {
     InvalidTokenAccountData,
     #[msg("Indices array cannot be empty")]
     EmptyIndices,
+    #[msg("Proof accounts cannot be empty")]
+    EmptyProofAccounts,
     #[msg("Failed to borrow account data")]
     BorrowAccountDataFailed,
     #[msg("Failed to serialize instruction data")]

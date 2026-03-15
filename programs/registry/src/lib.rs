@@ -420,6 +420,31 @@ pub mod light_registry {
         )
     }
 
+    pub fn nullify_with_proof_accounts<'info>(
+        ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
+        bump: u8,
+        change_log_indices: Vec<u64>,
+        leaves_queue_indices: Vec<u16>,
+        indices: Vec<u64>,
+    ) -> Result<()> {
+        let metadata = ctx.accounts.merkle_tree.load()?.metadata;
+        check_forester(
+            &metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.nullifier_queue.key(),
+            &mut ctx.accounts.registered_forester_pda,
+            DEFAULT_WORK_V1,
+        )?;
+
+        process_nullify_from_remaining_accounts(
+            &ctx,
+            bump,
+            change_log_indices,
+            leaves_queue_indices,
+            indices,
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_address_merkle_tree(
         ctx: Context<UpdateAddressMerkleTree>,

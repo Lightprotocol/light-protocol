@@ -3,7 +3,7 @@ use account_compression::{
 };
 use anchor_lang::prelude::*;
 
-use crate::epoch::register_epoch::ForesterEpochPda;
+use crate::{epoch::register_epoch::ForesterEpochPda, errors::RegistryError};
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
@@ -59,5 +59,32 @@ pub fn process_nullify(
         leaves_queue_indices,
         indices,
         proofs,
+    )
+}
+
+pub fn process_nullify_from_remaining_accounts(
+    ctx: &Context<NullifyLeaves>,
+    bump: u8,
+    change_log_indices: Vec<u64>,
+    leaves_queue_indices: Vec<u16>,
+    indices: Vec<u64>,
+) -> Result<()> {
+    if ctx.remaining_accounts.is_empty() {
+        return err!(RegistryError::EmptyProofAccounts);
+    }
+
+    let proof_nodes: Vec<[u8; 32]> = ctx
+        .remaining_accounts
+        .iter()
+        .map(|account_info| account_info.key().to_bytes())
+        .collect();
+
+    process_nullify(
+        ctx,
+        bump,
+        change_log_indices,
+        leaves_queue_indices,
+        indices,
+        vec![proof_nodes],
     )
 }
