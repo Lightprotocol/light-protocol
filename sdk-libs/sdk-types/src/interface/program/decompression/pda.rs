@@ -143,12 +143,21 @@ where
     let address = derive_address(&pda_key, &ctx.light_config.address_space[0], ctx.program_id);
 
     // 10. Build CompressedAccountInfo for CPI
+    // When PDA decompression is only the first phase of a later token Transfer2 execution,
+    // the stored input queue index must match that later execution basis, not the original
+    // packed proof basis. The mixed PDA+token flow uses `output_queue_index` for that.
+    let input_queue_index = if ctx.cpi_accounts.config().cpi_context {
+        output_queue_index
+    } else {
+        tree_info.queue_pubkey_index
+    };
+
     let input = InAccountInfo {
         data_hash: input_data_hash,
         lamports: 0,
         merkle_context: PackedMerkleContext {
             merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-            queue_pubkey_index: tree_info.queue_pubkey_index,
+            queue_pubkey_index: input_queue_index,
             leaf_index: tree_info.leaf_index,
             prove_by_index: tree_info.prove_by_index,
         },

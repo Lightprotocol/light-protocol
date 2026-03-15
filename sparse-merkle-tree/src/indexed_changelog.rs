@@ -29,7 +29,7 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
     low_element: &mut IndexedElement<usize>,
     new_element: &mut IndexedElement<usize>,
     low_element_next_value: &mut BigUint,
-    low_leaf_proof: &mut Vec<[u8; 32]>,
+    low_leaf_proof: &mut [[u8; 32]; HEIGHT],
 ) -> Result<(), SparseMerkleTreeError> {
     // Tests are in program-tests/merkle-tree/tests/indexed_changelog.rs
     let next_indexed_changelog_indices: Vec<usize> = (*indexed_changelogs)
@@ -69,7 +69,7 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
         // Patch the next value.
         *low_element_next_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
         // Patch the proof.
-        *low_leaf_proof = changelog_entry.proof.to_vec();
+        *low_leaf_proof = changelog_entry.proof;
     }
 
     // If we found a new low element.
@@ -82,7 +82,7 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
             next_index: new_low_element_changelog_entry.element.next_index,
         };
 
-        *low_leaf_proof = new_low_element_changelog_entry.proof.to_vec();
+        *low_leaf_proof = new_low_element_changelog_entry.proof;
         new_element.next_index = low_element.next_index;
         if new_low_element_changelog_index == indexed_changelogs.len() - 1 {
             return Ok(());

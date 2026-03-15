@@ -277,7 +277,7 @@ async fn e2e_test() {
             validator_args: vec![],
         }))
         .await;
-        spawn_prover().await;
+        spawn_prover().await.unwrap();
     }
 
     let mut rpc = setup_rpc_connection(&env.protocol.forester).await;
@@ -799,15 +799,22 @@ async fn setup_forester_pipeline(
     let (shutdown_bootstrap_sender, shutdown_bootstrap_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline::<LightClient>(
-        Arc::from(config.clone()),
-        None,
-        None,
-        shutdown_receiver,
-        Some(shutdown_compressible_receiver),
-        Some(shutdown_bootstrap_receiver),
-        work_report_sender,
-    ));
+    let config = Arc::new(config.clone());
+    let service_handle = tokio::task::spawn_blocking(move || {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()?;
+        runtime.block_on(run_pipeline::<LightClient>(
+            config,
+            None,
+            None,
+            shutdown_receiver,
+            Some(shutdown_compressible_receiver),
+            Some(shutdown_bootstrap_receiver),
+            work_report_sender,
+        ))
+    });
 
     (
         service_handle,
