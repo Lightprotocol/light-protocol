@@ -727,6 +727,7 @@ impl Indexer for TestIndexer {
                         leaves_hash_chains: Vec::new(),
                         subtrees: address_tree_bundle.get_subtrees(),
                         start_index: start as u64,
+                        tree_next_insertion_index: address_tree_bundle.right_most_index() as u64,
                         root_seq: address_tree_bundle.sequence_number(),
                     })
                 } else {

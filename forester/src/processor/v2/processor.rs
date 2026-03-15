@@ -132,7 +132,7 @@ where
         }
 
         if self.worker_pool.is_none() {
-            let job_tx = spawn_proof_workers(&self.context.prover_config);
+            let job_tx = spawn_proof_workers(&self.context.prover_config)?;
             self.worker_pool = Some(WorkerPool { job_tx });
         }
 
@@ -532,7 +532,7 @@ where
             ((queue_size / self.zkp_batch_size) as usize).min(self.context.max_batches_per_tree);
 
         if self.worker_pool.is_none() {
-            let job_tx = spawn_proof_workers(&self.context.prover_config);
+            let job_tx = spawn_proof_workers(&self.context.prover_config)?;
             self.worker_pool = Some(WorkerPool { job_tx });
         }
 
@@ -561,7 +561,7 @@ where
         let max_batches = max_batches.min(self.context.max_batches_per_tree);
 
         if self.worker_pool.is_none() {
-            let job_tx = spawn_proof_workers(&self.context.prover_config);
+            let job_tx = spawn_proof_workers(&self.context.prover_config)?;
             self.worker_pool = Some(WorkerPool { job_tx });
         }
 

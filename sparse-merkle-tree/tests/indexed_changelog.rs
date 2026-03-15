@@ -92,7 +92,8 @@ fn test_indexed_changelog() {
                 next_index: low_element_next_indices[i],
             };
             println!("unpatched new_element: {:?}", new_element);
-            let mut low_element_proof = low_element_proofs[i].to_vec();
+            let mut low_element_proof: [[u8; 32]; 8] =
+                low_element_proofs[i].as_slice().try_into().unwrap();
             let mut low_element_next_value = BigUint::from_bytes_be(&low_element_next_values[i]);
 
             if i > 0 {
@@ -114,7 +115,7 @@ fn test_indexed_changelog() {
                     next_value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),
                     index: low_element.index,
                 },
-                proof: low_element_proof.as_slice().to_vec().try_into().unwrap(),
+                proof: low_element_proof,
                 changelog_index: indexed_changelog.len(),
             });
             indexed_changelog.push(IndexedChangelogEntry {
@@ -124,7 +125,7 @@ fn test_indexed_changelog() {
                     next_value: bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap(),
                     index: new_element.index,
                 },
-                proof: low_element_proof.as_slice().to_vec().try_into().unwrap(),
+                proof: low_element_proof,
                 changelog_index: indexed_changelog.len(),
             });
             println!("patched -------------------");
@@ -206,7 +207,8 @@ fn debug_test_indexed_changelog() {
                 next_index: low_element_next_indices[i],
             };
             println!("unpatched new_element: {:?}", new_element);
-            let mut low_element_proof = low_element_proofs[i].to_vec();
+            let mut low_element_proof: [[u8; 32]; 8] =
+                low_element_proofs[i].as_slice().try_into().unwrap();
             let mut low_element_next_value = BigUint::from_bytes_be(&low_element_next_values[i]);
 
             if i > 0 {
@@ -228,7 +230,7 @@ fn debug_test_indexed_changelog() {
                     next_value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),
                     index: low_element.index,
                 },
-                proof: low_element_proof.as_slice().to_vec().try_into().unwrap(),
+                proof: low_element_proof,
                 changelog_index: indexed_changelog.len(),
             });
             indexed_changelog.push(IndexedChangelogEntry {
@@ -238,7 +240,7 @@ fn debug_test_indexed_changelog() {
                     next_value: bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap(),
                     index: new_element.index,
                 },
-                proof: low_element_proof.as_slice().to_vec().try_into().unwrap(),
+                proof: low_element_proof,
                 changelog_index: indexed_changelog.len(),
             });
             man_indexed_array.elements[low_element.index()] = low_element.clone();
