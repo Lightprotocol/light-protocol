@@ -1,5 +1,6 @@
 //! Load cold accounts API.
 
+use futures::{stream, StreamExt, TryStreamExt};
 use light_account::{derive_rent_sponsor_pda, Pack};
 use light_compressed_account::{
     compressed_account::PackedMerkleContext, instruction_data::compressed_proof::ValidityProof,
@@ -71,6 +72,7 @@ pub enum LoadAccountsError {
 
 const MAX_ATAS_PER_IX: usize = 8;
 const MAX_PDAS_PER_IX: usize = 8;
+const PROOF_FETCH_CONCURRENCY: usize = 8;
 
 /// Build load instructions for cold accounts. Returns empty vec if all hot.
 ///
@@ -118,9 +120,14 @@ where
         .collect();
 
     let pda_groups = group_pda_specs(&cold_pdas, MAX_PDAS_PER_IX);
+    let mut pda_offset = 0usize;
     let pda_hashes = pda_groups
         .iter()
-        .map(|group| collect_pda_hashes(group))
+        .map(|group| {
+            let hashes = collect_pda_hashes(group, pda_offset)?;
+            pda_offset += group.len();
+            Ok::<_, LoadAccountsError>(hashes)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     let ata_hashes = collect_ata_hashes(&cold_atas)?;
     let mint_hashes = collect_mint_hashes(&cold_mints)?;
@@ -161,13 +168,16 @@ where
     Ok(out)
 }
 
-fn collect_pda_hashes<V>(specs: &[&PdaSpec<V>]) -> Result<Vec<[u8; 32]>, LoadAccountsError> {
+fn collect_pda_hashes<V>(
+    specs: &[&PdaSpec<V>],
+    start_index: usize,
+) -> Result<Vec<[u8; 32]>, LoadAccountsError> {
     specs
         .iter()
         .enumerate()
         .map(|(i, s)| {
             s.hash().ok_or(LoadAccountsError::MissingPdaCompressed {
-                index: i,
+                index: start_index + i,
                 pubkey: s.address(),
             })
         })
@@ -249,13 +259,16 @@ async fn fetch_individual_proofs<I: Indexer>(
         return Ok(vec![]);
     }
 
-    futures::future::try_join_all(hashes.iter().map(|hash| async move {
-        indexer
-            .get_validity_proof(vec![*hash], vec![], None)
-            .await
-            .map(|response| response.value)
-    }))
-    .await
+    stream::iter(hashes.iter().copied())
+        .map(|hash| async move {
+            indexer
+                .get_validity_proof(vec![hash], vec![], None)
+                .await
+                .map(|response| response.value)
+        })
+        .buffered(PROOF_FETCH_CONCURRENCY)
+        .try_collect()
+        .await
 }
 
 async fn fetch_proof_batches<I: Indexer>(
@@ -266,13 +279,16 @@ async fn fetch_proof_batches<I: Indexer>(
         return Ok(vec![]);
     }
 
-    futures::future::try_join_all(hash_batches.iter().map(|hashes| async move {
-        indexer
-            .get_validity_proof(hashes.clone(), vec![], None)
-            .await
-            .map(|response| response.value)
-    }))
-    .await
+    stream::iter(hash_batches.iter().cloned())
+        .map(|hashes| async move {
+            indexer
+                .get_validity_proof(hashes, vec![], None)
+                .await
+                .map(|response| response.value)
+        })
+        .buffered(PROOF_FETCH_CONCURRENCY)
+        .try_collect()
+        .await
 }
 
 async fn fetch_proofs_batched<I: Indexer>(

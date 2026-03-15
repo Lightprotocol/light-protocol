@@ -764,7 +764,8 @@ where
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
-                                let start_index = address_queue.start_index as usize;
+                                let start_index =
+                                    address_queue.tree_next_insertion_index as usize;
                                 assert!(
                                     start_index >= 2,
                                     "start index should be greater than 2 else tree is not inited"

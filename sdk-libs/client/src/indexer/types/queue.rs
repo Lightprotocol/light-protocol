@@ -61,7 +61,10 @@ pub struct AddressQueueData {
     pub initial_root: [u8; 32],
     pub leaves_hash_chains: Vec<[u8; 32]>,
     pub subtrees: Vec<[u8; 32]>,
+    /// Pagination offset for the returned queue slice.
     pub start_index: u64,
+    /// Sparse tree insertion point / next index used to initialize staging trees.
+    pub tree_next_insertion_index: u64,
     pub root_seq: u64,
 }
 
@@ -130,6 +133,19 @@ impl AddressQueueData {
         address_range: std::ops::Range<usize>,
     ) -> Result<Vec<[[u8; 32]; HEIGHT]>, IndexerError> {
         self.validate_proof_height::<HEIGHT>()?;
+        let available = self.proof_count();
+        if address_range.start > address_range.end {
+            return Err(IndexerError::InvalidParameters(format!(
+                "invalid address proof range {}..{}",
+                address_range.start, address_range.end
+            )));
+        }
+        if address_range.end > available {
+            return Err(IndexerError::InvalidParameters(format!(
+                "address proof range {}..{} exceeds available proofs {}",
+                address_range.start, address_range.end, available
+            )));
+        }
         let node_lookup = self.build_node_lookup();
         let mut proofs = Vec::with_capacity(address_range.len());
 
@@ -154,6 +170,10 @@ impl AddressQueueData {
             lookup.entry(node).or_insert(idx);
         }
         lookup
+    }
+
+    fn proof_count(&self) -> usize {
+        self.addresses.len().min(self.low_element_indices.len())
     }
 
     fn reconstruct_proof_with_lookup<const HEIGHT: usize>(
@@ -279,6 +299,7 @@ mod tests {
             leaves_hash_chains: vec![[3u8; 32]; num_addresses.max(1)],
             subtrees: vec![[4u8; 32]; HEIGHT],
             start_index: 0,
+            tree_next_insertion_index: 0,
             root_seq: 0,
         }
     }

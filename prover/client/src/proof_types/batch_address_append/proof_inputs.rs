@@ -199,14 +199,31 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     changelog: &mut Vec<ChangelogEntry<HEIGHT>>,
     indexed_changelog: &mut Vec<IndexedChangelogEntry<usize, HEIGHT>>,
 ) -> Result<BatchAddressAppendInputs, ProverClientError> {
-    let new_element_values = &new_element_values[..zkp_batch_size];
+    let batch_len = zkp_batch_size;
+    for (name, len) in [
+        ("new_element_values", new_element_values.len()),
+        ("low_element_values", low_element_values.len()),
+        ("low_element_next_values", low_element_next_values.len()),
+        ("low_element_indices", low_element_indices.len()),
+        ("low_element_next_indices", low_element_next_indices.len()),
+        ("low_element_proofs", low_element_proofs.len()),
+    ] {
+        if len < batch_len {
+            return Err(ProverClientError::GenericError(format!(
+                "truncated batch from indexer: {} len {} < required batch size {}",
+                name, len, batch_len
+            )));
+        }
+    }
+
+    let new_element_values = &new_element_values[..batch_len];
     let mut new_root = [0u8; 32];
-    let mut low_element_circuit_merkle_proofs = Vec::with_capacity(new_element_values.len());
-    let mut new_element_circuit_merkle_proofs = Vec::with_capacity(new_element_values.len());
-    let mut patched_low_element_next_values = Vec::with_capacity(new_element_values.len());
-    let mut patched_low_element_next_indices = Vec::with_capacity(new_element_values.len());
-    let mut patched_low_element_values = Vec::with_capacity(new_element_values.len());
-    let mut patched_low_element_indices = Vec::with_capacity(new_element_values.len());
+    let mut low_element_circuit_merkle_proofs = Vec::with_capacity(batch_len);
+    let mut new_element_circuit_merkle_proofs = Vec::with_capacity(batch_len);
+    let mut patched_low_element_next_values = Vec::with_capacity(batch_len);
+    let mut patched_low_element_next_indices = Vec::with_capacity(batch_len);
+    let mut patched_low_element_values = Vec::with_capacity(batch_len);
+    let mut patched_low_element_indices = Vec::with_capacity(batch_len);
 
     let computed_hashchain = create_hash_chain_from_slice(new_element_values).map_err(|e| {
         ProverClientError::GenericError(format!("Failed to compute hashchain: {}", e))
@@ -241,7 +258,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     let is_first_batch = indexed_changelog.is_empty();
     let mut expected_root_for_low = current_root;
 
-    for i in 0..new_element_values.len() {
+    for i in 0..batch_len {
         let mut changelog_index = 0;
         let low_element_index = low_element_indices[i].try_into().map_err(|_| {
             ProverClientError::IntegerConversion(format!(
@@ -322,7 +339,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                 let (computed_root, _) = compute_root_from_merkle_proof::<HEIGHT>(
                     old_low_leaf_hash,
                     &merkle_proof,
-                    low_element.index as u32,
+                    low_element.index,
                 )?;
                 if computed_root != expected_root_for_low {
                     let low_value_bytes = bigint_to_be_bytes_array::<32>(&low_element.value)
@@ -363,7 +380,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                 compute_root_from_merkle_proof::<HEIGHT>(
                     new_low_leaf_hash,
                     &merkle_proof,
-                    new_low_element.index as u32,
+                    new_low_element.index,
                 )?;
 
             patcher.push_changelog_entry::<HEIGHT>(changelog, changelog_entry);
@@ -404,7 +421,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             let (updated_root, changelog_entry) = compute_root_from_merkle_proof(
                 new_element_leaf_hash,
                 &merkle_proof_array,
-                current_index as u32,
+                current_index,
             )?;
 
             if i == 0 && changelog.len() == 1 {
@@ -431,7 +448,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                 let (root_with_zero, _) = compute_root_from_merkle_proof::<HEIGHT>(
                     zero_hash,
                     &merkle_proof_array,
-                    current_index as u32,
+                    current_index,
                 )?;
                 if root_with_zero != intermediate_root {
                     tracing::error!(
