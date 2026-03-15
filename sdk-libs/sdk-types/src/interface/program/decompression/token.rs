@@ -148,8 +148,9 @@ where
         )
         .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
 
-        // Push seeds for the Transfer2 CPI (needed for invoke_signed)
-        ctx.token_seeds.extend(seeds.iter().map(|s| s.to_vec()));
+        // Push one signer seed group per vault PDA for the later Transfer2 CPI.
+        ctx.token_seeds
+            .push(seeds.iter().map(|seed| seed.to_vec()).collect());
     }
 
     // Push token data for the Transfer2 CPI (common for both ATA and regular paths)

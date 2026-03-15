@@ -167,7 +167,7 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         }
 
         let initial_root = streaming_queue.initial_root();
-        let start_index = streaming_queue.start_index();
+        let start_index = streaming_queue.tree_next_insertion_index();
 
         let subtrees_arr: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] =
             subtrees.try_into().map_err(|v: Vec<[u8; 32]>| {
