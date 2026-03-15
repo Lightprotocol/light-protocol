@@ -187,8 +187,11 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
         };
 
         // Update the root based on the current proof and nullifier
-        let (updated_root, changelog_entry) =
-            compute_root_from_merkle_proof(final_leaf, &merkle_proof_array, start_index + i as u32);
+        let (updated_root, changelog_entry) = compute_root_from_merkle_proof(
+            final_leaf,
+            &merkle_proof_array,
+            start_index + i as u32,
+        )?;
         new_root = updated_root;
         changelog.push(changelog_entry);
         circuit_merkle_proofs.push(

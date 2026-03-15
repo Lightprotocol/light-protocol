@@ -319,12 +319,12 @@ pub async fn get_batched_nullify_ix_data<R: Rpc>(
     })
 }
 
-use forester_utils::{
-    account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
-};
+use forester_utils::instructions::create_account::create_account_instruction;
 use light_client::indexer::{Indexer, QueueElementsV2Options};
 use light_program_test::indexer::state_tree::StateMerkleTreeBundle;
 use light_sparse_merkle_tree::SparseMerkleTree;
+
+use crate::AccountZeroCopy;
 
 pub async fn assert_registry_created_batched_state_merkle_tree<R: Rpc>(
     rpc: &mut R,
@@ -663,50 +663,33 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
         .get_queue_elements(merkle_tree_pubkey.to_bytes(), options, None)
         .await
         .unwrap();
-    let addresses = result
-        .value
-        .address_queue
-        .map(|aq| aq.addresses)
-        .unwrap_or_default();
+    let address_queue = result.value.address_queue.unwrap();
+    let low_element_proofs = address_queue
+        .reconstruct_all_proofs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>()
+        .unwrap();
     // // local_leaves_hash_chain is only used for a test assertion.
     // let local_nullifier_hash_chain = create_hash_chain_from_slice(addresses.as_slice()).unwrap();
     // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
-    let start_index = merkle_tree.next_index as usize;
+    let start_index = address_queue.start_index as usize;
     assert!(
         start_index >= 1,
         "start index should be greater than 2 else tree is not inited"
     );
     let current_root = *merkle_tree.root_history.last().unwrap();
-    let mut low_element_values = Vec::new();
-    let mut low_element_indices = Vec::new();
-    let mut low_element_next_indices = Vec::new();
-    let mut low_element_next_values = Vec::new();
-    let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
-    let non_inclusion_proofs = indexer
-        .get_multiple_new_address_proofs(merkle_tree_pubkey.to_bytes(), addresses.clone(), None)
-        .await
-        .unwrap();
-    for non_inclusion_proof in &non_inclusion_proofs.value.items {
-        low_element_values.push(non_inclusion_proof.low_address_value);
-        low_element_indices.push(non_inclusion_proof.low_address_index as usize);
-        low_element_next_indices.push(non_inclusion_proof.low_address_next_index as usize);
-        low_element_next_values.push(non_inclusion_proof.low_address_next_value);
-
-        low_element_proofs.push(non_inclusion_proof.low_address_proof.to_vec());
-    }
-
-    let subtrees = indexer
-        .get_subtrees(merkle_tree_pubkey.to_bytes(), None)
-        .await
-        .unwrap();
+    assert_eq!(address_queue.initial_root, current_root);
+    let light_client::indexer::AddressQueueData {
+        addresses,
+        low_element_values,
+        low_element_indices,
+        low_element_next_indices,
+        low_element_next_values,
+        subtrees,
+        ..
+    } = address_queue;
     let mut sparse_merkle_tree = SparseMerkleTree::<
         Poseidon,
         { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
-    >::new(
-        <[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees.value.items)
-            .unwrap(),
-        start_index,
-    );
+    >::new(subtrees.as_slice().try_into().unwrap(), start_index);
 
     let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> =
         Vec::new();
@@ -718,12 +701,12 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index,
             current_root,
-            low_element_values,
-            low_element_next_values,
-            low_element_indices,
-            low_element_next_indices,
-            low_element_proofs,
-            addresses,
+            &low_element_values,
+            &low_element_next_values,
+            &low_element_indices,
+            &low_element_next_indices,
+            &low_element_proofs,
+            &addresses,
             &mut sparse_merkle_tree,
             leaves_hash_chain,
             batch.zkp_batch_size as usize,
