@@ -164,7 +164,7 @@ pub async fn create_append_batch_ix_data<R: Rpc>(
             bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
             bundle.merkle_tree.root()
         );
-        let proof_client = ProofClient::local();
+        let proof_client = ProofClient::local().unwrap();
         let inputs_json = BatchAppendInputsJson::from_inputs(&circuit_inputs).to_string();
 
         match proof_client.generate_proof(inputs_json).await {
@@ -293,7 +293,7 @@ pub async fn get_batched_nullify_ix_data<R: Rpc>(
         &[],
     )
     .unwrap();
-    let proof_client = ProofClient::local();
+    let proof_client = ProofClient::local().unwrap();
     let circuit_inputs_new_root =
         bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
     let inputs_json = update_inputs_string(&inputs);
@@ -715,7 +715,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
         )
         .unwrap();
 
-    let proof_client = ProofClient::local();
+    let proof_client = ProofClient::local().unwrap();
     let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs_json = to_json(&inputs);
 

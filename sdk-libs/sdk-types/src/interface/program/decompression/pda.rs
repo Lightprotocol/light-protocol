@@ -151,7 +151,7 @@ where
         lamports: 0,
         merkle_context: PackedMerkleContext {
             merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-            queue_pubkey_index: tree_info.queue_pubkey_index,
+            queue_pubkey_index: input_queue_index,
             leaf_index: tree_info.leaf_index,
             prove_by_index: tree_info.prove_by_index,
         },

@@ -75,7 +75,7 @@ impl ProofClient {
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
             api_key: None,
             initial_poll_delay: Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS),
-        }
+        })
     }
 
     #[allow(unused)]
@@ -84,7 +84,7 @@ impl ProofClient {
         polling_interval: Duration,
         max_wait_time: Duration,
         api_key: Option<String>,
-    ) -> Self {
+    ) -> Result<Self, ProverClientError> {
         let initial_poll_delay = if api_key.is_some() {
             Duration::from_millis(INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS)
         } else {
@@ -98,7 +98,7 @@ impl ProofClient {
             max_wait_time,
             api_key,
             initial_poll_delay,
-        }
+        })
     }
 
     #[allow(unused)]
@@ -116,7 +116,7 @@ impl ProofClient {
             max_wait_time,
             api_key,
             initial_poll_delay,
-        }
+        })
     }
 
     pub async fn submit_proof_async(
