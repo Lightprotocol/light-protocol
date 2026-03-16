@@ -1,7 +1,7 @@
 use std::{
     io::{Read, Write},
     net::{TcpStream, ToSocketAddrs},
-    process::Command,
+    process::{Child, Command},
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
@@ -39,15 +39,15 @@ pub(crate) fn build_http_client() -> Result<reqwest::Client, ProverClientError> 
 }
 
 fn health_check_once(timeout: Duration) -> bool {
-    if prover_listener_present() {
-        return true;
-    }
-
     let endpoint = SERVER_ADDRESS
         .strip_prefix("http://")
         .or_else(|| SERVER_ADDRESS.strip_prefix("https://"))
         .unwrap_or(SERVER_ADDRESS);
-    let addr = match endpoint.to_socket_addrs().ok().and_then(|mut addrs| addrs.next()) {
+    let addr = match endpoint
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+    {
         Some(addr) => addr,
         None => return false,
     };
@@ -64,8 +64,10 @@ fn health_check_once(timeout: Duration) -> bool {
     let _ = stream.set_write_timeout(Some(timeout));
 
     let host = endpoint.split(':').next().unwrap_or("127.0.0.1");
-    let request =
-        format!("GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n", HEALTH_CHECK, host);
+    let request = format!(
+        "GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
+        HEALTH_CHECK, host
+    );
     if let Err(error) = stream.write_all(request.as_bytes()) {
         tracing::debug!(?error, "failed to write prover health request");
         return health_check_once_with_curl(timeout);
@@ -84,25 +86,6 @@ fn health_check_once(timeout: Duration) -> bool {
         && (has_http_ok_status(&response[..bytes_read]) || health_check_once_with_curl(timeout))
 }
 
-fn prover_listener_present() -> bool {
-    let endpoint = SERVER_ADDRESS
-        .strip_prefix("http://")
-        .or_else(|| SERVER_ADDRESS.strip_prefix("https://"))
-        .unwrap_or(SERVER_ADDRESS);
-    let port = endpoint.rsplit(':').next().unwrap_or("3001");
-
-    match Command::new("lsof")
-        .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN"])
-        .output()
-    {
-        Ok(output) => output.status.success() && !output.stdout.is_empty(),
-        Err(error) => {
-            tracing::debug!(?error, "failed to execute lsof prover listener check");
-            false
-        }
-    }
-}
-
 fn health_check_once_with_curl(timeout: Duration) -> bool {
     let timeout_secs = timeout.as_secs().max(1).to_string();
     let url = format!("{}{}", SERVER_ADDRESS, HEALTH_CHECK);
@@ -119,6 +102,46 @@ fn health_check_once_with_curl(timeout: Duration) -> bool {
             false
         }
     }
+}
+
+async fn wait_for_prover_health(
+    retries: usize,
+    timeout: Duration,
+    child: &mut Child,
+) -> Result<(), String> {
+    for attempt in 0..retries {
+        if health_check_once(timeout) {
+            return Ok(());
+        }
+
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return Err(format!(
+                    "prover process exited before health check succeeded with status {status}"
+                ));
+            }
+            Ok(None) => {}
+            Err(error) => {
+                return Err(format!("failed to poll prover process status: {error}"));
+            }
+        }
+
+        if attempt + 1 < retries {
+            sleep(timeout).await;
+        }
+    }
+
+    Err(format!(
+        "prover health check failed after {} attempts",
+        retries
+    ))
+}
+
+fn monitor_prover_child(mut child: Child) {
+    std::thread::spawn(move || match child.wait() {
+        Ok(status) => tracing::debug!(?status, "prover launcher exited"),
+        Err(error) => tracing::warn!(?error, "failed to wait on prover launcher"),
+    });
 }
 
 pub async fn spawn_prover() {
@@ -150,15 +173,27 @@ pub async fn spawn_prover() {
         }
 
         let spawn_result = async {
-            Command::new(&prover_path)
+            let mut child = Command::new(&prover_path)
                 .arg("start-prover")
                 .spawn()
                 .unwrap_or_else(|error| panic!("Failed to start prover process: {error}"));
 
-            if health_check(STARTUP_HEALTH_CHECK_RETRIES, 1).await {
-                info!("Prover started successfully");
-            } else {
-                panic!("Failed to start prover, health check failed.");
+            match wait_for_prover_health(
+                STARTUP_HEALTH_CHECK_RETRIES,
+                Duration::from_secs(1),
+                &mut child,
+            )
+            .await
+            {
+                Ok(()) => {
+                    monitor_prover_child(child);
+                    info!("Prover started successfully");
+                }
+                Err(error) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    panic!("Failed to start prover: {error}");
+                }
             }
         }
         .await;
