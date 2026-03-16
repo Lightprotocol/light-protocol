@@ -1,4 +1,4 @@
-# Forester V1 Flows (PR: Compact Nullify + Blockhash)
+# Forester V1 Flows (PR: v2 Nullify + Blockhash)
 
 ## 1. Transaction Send Flow (Blockhash)
 
@@ -54,14 +54,14 @@
   No refetch-before-send. No re-sign.
 ```
 
-## 2. State Nullify Instruction Flow (Compact vs Legacy)
+## 2. State Nullify Instruction Flow (Legacy vs v2)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │ Registry: nullify instruction paths                                               │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
-  LEGACY (proof in ix data)                    COMPACT (proof in remaining_accounts)
+  LEGACY (proof in ix data)                    v2 (proof in remaining_accounts)
   ───────────────────────                     ────────────────────────────────────
 
   create_nullify_instruction()                 create_nullify_with_proof_accounts_instruction()
@@ -79,7 +79,7 @@
                                                - extract_proof_nodes_from_remaining_accounts
                                                - process_nullify(..., vec![proof_nodes])
 
-  Forester V1 uses COMPACT only (create_nullify_with_proof_accounts_instruction).
+  Forester V1 uses V2 only (create_nullify_with_proof_accounts_instruction).
 ```
 
 ## 3. Forester V1 State Nullify Pairing Flow
@@ -92,7 +92,7 @@
   fetch_proofs_and_create_instructions
        │
        │ For each state item:
-       │   create_nullify_with_proof_accounts_instruction (compact)
+       │   create_nullify_with_proof_accounts_instruction (v2)
        │   → StateNullifyInstruction { instruction, proof_nodes, leaf_index }
        │
        ▼
@@ -147,7 +147,7 @@
   build_signed_transaction_batch
       │
       ├─ fetch_proofs_and_create_instructions
-      │     - state: compact nullify ix (proof in remaining_accounts)
+      │     - state: v2 nullify ix (proof in remaining_accounts)
       │     - address: update ix
       │
       ├─ build_instruction_batches
@@ -161,3 +161,4 @@
   - PreparedTransaction::legacy(tx, chunk_last_valid_block_height)
   - send + confirm with blockhash expiry check
 ```
+

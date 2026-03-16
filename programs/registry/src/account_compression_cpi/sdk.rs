@@ -632,7 +632,7 @@ mod tests {
     }
 
     #[test]
-    fn create_nullify_2_instruction_uses_compact_payload_and_remaining_accounts()
+    fn create_nullify_2_instruction_uses_minimal_payload_and_remaining_accounts()
     {
         let authority = Pubkey::new_unique();
         let derivation = Pubkey::new_unique();
@@ -672,7 +672,7 @@ mod tests {
             &ix.data[..8],
             crate::instruction::Nullify2::DISCRIMINATOR
         );
-        // 8-byte discriminator + 31-byte compact payload.
+        // 8-byte discriminator + 31-byte minimal payload.
         assert_eq!(ix.data.len(), 39);
     }
 }

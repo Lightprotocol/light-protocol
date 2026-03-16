@@ -109,7 +109,7 @@ pub(crate) fn validate_nullify_2_inputs(
         || leaves_queue_indices.len() != 1
         || indices.len() != 1
     {
-        return err!(RegistryError::InvalidCompactNullifyInputs);
+        return err!(RegistryError::InvalidNullify2Inputs);
     }
     if proof_accounts_len == 0 {
         return err!(RegistryError::EmptyProofAccounts);
@@ -145,7 +145,7 @@ mod tests {
         let result = validate_nullify_2_inputs(&[1, 2], &[1], &[42], 16);
         assert_eq!(
             result.err().unwrap(),
-            RegistryError::InvalidCompactNullifyInputs.into()
+            RegistryError::InvalidNullify2Inputs.into()
         );
     }
 

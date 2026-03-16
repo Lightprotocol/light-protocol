@@ -24,7 +24,7 @@ use solana_sdk::{
 
 #[serial]
 #[tokio::test]
-async fn test_compact_nullify_validation_and_success() {
+async fn test_nullify_2_validation_and_success() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
         .await
         .unwrap();
@@ -139,7 +139,7 @@ async fn test_compact_nullify_validation_and_success() {
     let result = rpc
         .create_and_send_transaction(&[malformed_ix], &forester.pubkey(), &[&forester])
         .await;
-    assert_rpc_error(result, 0, RegistryError::InvalidCompactNullifyInputs.into()).unwrap();
+    assert_rpc_error(result, 0, RegistryError::InvalidNullify2Inputs.into()).unwrap();
 
     rpc.create_and_send_transaction(&[valid_ix], &forester.pubkey(), &[&forester])
         .await
