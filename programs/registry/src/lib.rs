@@ -420,7 +420,7 @@ pub mod light_registry {
         )
     }
 
-    pub fn nullify_with_proof_accounts<'info>(
+    pub fn nullify_2<'info>(
         ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
         bump: u8,
         change_log_indices: Vec<u64>,
@@ -436,7 +436,7 @@ pub mod light_registry {
             DEFAULT_WORK_V1,
         )?;
 
-        process_nullify_from_remaining_accounts(
+        process_nullify_2(
             &ctx,
             bump,
             change_log_indices,

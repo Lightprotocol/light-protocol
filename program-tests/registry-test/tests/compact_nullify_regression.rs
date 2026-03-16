@@ -10,8 +10,7 @@ use light_program_test::{
 };
 use light_registry::{
     account_compression_cpi::sdk::{
-        create_nullify_instruction, create_nullify_with_proof_accounts_instruction,
-        CreateNullifyInstructionInputs,
+        create_nullify_2_instruction, create_nullify_instruction, CreateNullifyInstructionInputs,
     },
     errors::RegistryError,
 };
@@ -98,7 +97,7 @@ async fn test_compact_nullify_validation_and_success() {
     .unwrap();
     let change_log_index = onchain_tree.changelog_index() as u64;
 
-    let valid_ix = create_nullify_with_proof_accounts_instruction(
+    let valid_ix = create_nullify_2_instruction(
         CreateNullifyInstructionInputs {
             authority: forester.pubkey(),
             nullifier_queue: state_tree_bundle.accounts.nullifier_queue,
@@ -129,7 +128,7 @@ async fn test_compact_nullify_validation_and_success() {
     let malformed_ix = Instruction {
         program_id: light_registry::ID,
         accounts: valid_ix.accounts.clone(),
-        data: light_registry::instruction::NullifyWithProofAccounts {
+        data: light_registry::instruction::Nullify2 {
             bump: 255,
             change_log_indices: vec![change_log_index, change_log_index + 1],
             leaves_queue_indices: vec![queue_index],

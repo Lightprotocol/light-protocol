@@ -62,7 +62,7 @@ pub fn create_nullify_instruction(
     }
 }
 
-pub fn create_nullify_with_proof_accounts_instruction(
+pub fn create_nullify_2_instruction(
     inputs: CreateNullifyInstructionInputs,
     epoch: u64,
 ) -> Instruction {
@@ -73,7 +73,7 @@ pub fn create_nullify_with_proof_accounts_instruction(
         Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
     };
     let (cpi_authority, bump) = get_cpi_authority_pda();
-    let instruction_data = crate::instruction::NullifyWithProofAccounts {
+    let instruction_data = crate::instruction::Nullify2 {
         bump,
         change_log_indices: inputs.change_log_indices,
         leaves_queue_indices: inputs.leaves_queue_indices,
@@ -632,7 +632,7 @@ mod tests {
     }
 
     #[test]
-    fn create_nullify_with_proof_accounts_instruction_uses_compact_payload_and_remaining_accounts()
+    fn create_nullify_2_instruction_uses_compact_payload_and_remaining_accounts()
     {
         let authority = Pubkey::new_unique();
         let derivation = Pubkey::new_unique();
@@ -645,7 +645,7 @@ mod tests {
                 node
             })
             .collect::<Vec<_>>();
-        let ix = create_nullify_with_proof_accounts_instruction(
+        let ix = create_nullify_2_instruction(
             CreateNullifyInstructionInputs {
                 authority,
                 nullifier_queue,
@@ -670,7 +670,7 @@ mod tests {
 
         assert_eq!(
             &ix.data[..8],
-            crate::instruction::NullifyWithProofAccounts::DISCRIMINATOR
+            crate::instruction::Nullify2::DISCRIMINATOR
         );
         // 8-byte discriminator + 31-byte compact payload.
         assert_eq!(ix.data.len(), 39);

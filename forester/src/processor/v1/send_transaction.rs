@@ -115,11 +115,10 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         max_concurrent_sends
     );
 
-    let tree_id_str = tree_accounts.merkle_tree.to_string();
+    // Blockhash expires after ~150 blocks (~60s). Refresh every 30s to stay safe.
+    const BLOCKHASH_REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
     let mut recent_blockhash = data.recent_blockhash;
     let mut last_valid_block_height = data.last_valid_block_height;
-
-    const BLOCKHASH_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
     let mut last_blockhash_refresh = Instant::now();
 
     for work_chunk in data.work_items.chunks(WORK_ITEM_BATCH_SIZE) {
@@ -132,16 +131,22 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             break;
         }
 
+        // Refresh blockhash if it's getting stale
         if last_blockhash_refresh.elapsed() > BLOCKHASH_REFRESH_INTERVAL {
-            match fetch_latest_blockhash(&pool, &tree_id_str).await {
-                Ok((new_hash, new_height)) => {
-                    recent_blockhash = new_hash;
-                    last_valid_block_height = new_height;
-                    last_blockhash_refresh = Instant::now();
-                    debug!(tree = %tree_accounts.merkle_tree, "Refreshed blockhash");
-                }
+            match pool.get_connection().await {
+                Ok(mut rpc) => match rpc.get_latest_blockhash().await {
+                    Ok((new_hash, new_height)) => {
+                        recent_blockhash = new_hash;
+                        last_valid_block_height = new_height;
+                        last_blockhash_refresh = Instant::now();
+                        debug!(tree = %tree_accounts.merkle_tree, "Refreshed blockhash");
+                    }
+                    Err(e) => {
+                        warn!(tree = %tree_accounts.merkle_tree, "Failed to refresh blockhash: {:?}", e);
+                    }
+                },
                 Err(e) => {
-                    warn!(tree = %tree_accounts.merkle_tree, "Failed to refresh blockhash: {:?}", e);
+                    warn!(tree = %tree_accounts.merkle_tree, "Failed to get RPC for blockhash refresh: {:?}", e);
                 }
             }
         }
@@ -264,14 +269,18 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
         return Ok(None); // Return None to indicate no work
     }
 
-    let (priority_fee, recent_blockhash, last_valid_block_height) = {
-        let rpc = pool.get_connection().await.map_err(|e| {
+    let (recent_blockhash, last_valid_block_height, priority_fee) = {
+        let mut rpc = pool.get_connection().await.map_err(|e| {
             error!(
                 tree = %tree_id_str,
-                "Failed to get RPC for priority fee: {:?}",
+                "Failed to get RPC for blockhash/priority fee: {:?}",
                 e
             );
             ForesterError::RpcPool(e)
+        })?;
+        let r_blockhash = rpc.get_latest_blockhash().await.map_err(|e| {
+            error!(tree = %tree_id_str, "Failed to get latest blockhash: {:?}", e);
+            ForesterError::Rpc(e)
         })?;
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(derivation, transaction_builder.epoch()).0;
@@ -287,11 +296,7 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
         }
         .resolve(&*rpc, account_keys)
         .await?;
-
-        let (recent_blockhash, last_valid_block_height) =
-            fetch_latest_blockhash(pool, &tree_id_str).await?;
-
-        (priority_fee, recent_blockhash, last_valid_block_height)
+        (r_blockhash.0, r_blockhash.1, priority_fee)
     };
 
     let work_items: Vec<WorkItem> = queue_item_data
@@ -311,24 +316,6 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
         priority_fee,
         timeout_deadline,
     }))
-}
-
-async fn fetch_latest_blockhash<R: Rpc>(
-    pool: &Arc<SolanaRpcPool<R>>,
-    tree_id_str: &str,
-) -> std::result::Result<(Hash, u64), ForesterError> {
-    let mut rpc = pool.get_connection().await.map_err(|e| {
-        error!(
-            tree = %tree_id_str,
-            "Failed to get RPC for blockhash fetch: {:?}",
-            e
-        );
-        ForesterError::RpcPool(e)
-    })?;
-    rpc.get_latest_blockhash().await.map_err(|e| {
-        error!(tree = %tree_id_str, "Failed to get latest blockhash: {:?}", e);
-        ForesterError::Rpc(e)
-    })
 }
 
 fn compute_effective_max_concurrent_sends(

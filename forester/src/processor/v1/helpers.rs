@@ -11,7 +11,7 @@ use forester_utils::{rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
-    create_nullify_with_proof_accounts_instruction, create_update_address_merkle_tree_instruction,
+    create_nullify_2_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
 use solana_program::instruction::Instruction;
@@ -388,7 +388,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
         proofs.push(MerkleProofType::StateProof(proof.clone()));
 
-        let instruction = create_nullify_with_proof_accounts_instruction(
+        let instruction = create_nullify_2_instruction(
             CreateNullifyInstructionInputs {
                 nullifier_queue: item.tree_account.queue,
                 merkle_tree: item.tree_account.merkle_tree,
