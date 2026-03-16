@@ -502,9 +502,15 @@ impl StreamingAddressQueue {
         for (name, len) in [
             ("addresses", data.addresses.len()),
             ("low_element_values", data.low_element_values.len()),
-            ("low_element_next_values", data.low_element_next_values.len()),
+            (
+                "low_element_next_values",
+                data.low_element_next_values.len(),
+            ),
             ("low_element_indices", data.low_element_indices.len()),
-            ("low_element_next_indices", data.low_element_next_indices.len()),
+            (
+                "low_element_next_indices",
+                data.low_element_next_indices.len(),
+            ),
         ] {
             if len < actual_end {
                 return Err(anyhow!(
@@ -545,9 +551,11 @@ impl StreamingAddressQueue {
             low_element_next_values: data.low_element_next_values[start..actual_end].to_vec(),
             low_element_indices: data.low_element_indices[start..actual_end].to_vec(),
             low_element_next_indices: data.low_element_next_indices[start..actual_end].to_vec(),
-            low_element_proofs: data.reconstruct_proofs::<HEIGHT>(start..actual_end).map_err(
-                |error| anyhow!("incomplete batch data: failed to reconstruct proofs: {error}"),
-            )?,
+            low_element_proofs: data
+                .reconstruct_proofs::<HEIGHT>(start..actual_end)
+                .map_err(|error| {
+                    anyhow!("incomplete batch data: failed to reconstruct proofs: {error}")
+                })?,
             addresses,
             leaves_hashchain,
         }))

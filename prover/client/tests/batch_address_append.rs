@@ -38,40 +38,39 @@ async fn prove_batch_address_append() {
         IndexedMerkleTree::<Poseidon, usize>::new(DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize, 0)
             .unwrap();
 
-    let collect_non_inclusion_data =
-        |tree: &IndexedMerkleTree<Poseidon, usize>, values: &[BigUint]| {
-            let mut low_element_values = Vec::with_capacity(values.len());
-            let mut low_element_indices = Vec::with_capacity(values.len());
-            let mut low_element_next_indices = Vec::with_capacity(values.len());
-            let mut low_element_next_values = Vec::with_capacity(values.len());
-            let mut low_element_proofs: Vec<
-                [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize],
-            > = Vec::with_capacity(values.len());
+    let collect_non_inclusion_data = |tree: &IndexedMerkleTree<Poseidon, usize>,
+                                      values: &[BigUint]| {
+        let mut low_element_values = Vec::with_capacity(values.len());
+        let mut low_element_indices = Vec::with_capacity(values.len());
+        let mut low_element_next_indices = Vec::with_capacity(values.len());
+        let mut low_element_next_values = Vec::with_capacity(values.len());
+        let mut low_element_proofs: Vec<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]> =
+            Vec::with_capacity(values.len());
 
-            for new_element_value in values {
-                let non_inclusion_proof = tree.get_non_inclusion_proof(new_element_value).unwrap();
+        for new_element_value in values {
+            let non_inclusion_proof = tree.get_non_inclusion_proof(new_element_value).unwrap();
 
-                low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
-                low_element_indices.push(non_inclusion_proof.leaf_index);
-                low_element_next_indices.push(non_inclusion_proof.next_index);
-                low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
-                low_element_proofs.push(
-                    non_inclusion_proof
-                        .merkle_proof
-                        .as_slice()
-                        .try_into()
-                        .unwrap(),
-                );
-            }
+            low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
+            low_element_indices.push(non_inclusion_proof.leaf_index);
+            low_element_next_indices.push(non_inclusion_proof.next_index);
+            low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
+            low_element_proofs.push(
+                non_inclusion_proof
+                    .merkle_proof
+                    .as_slice()
+                    .try_into()
+                    .unwrap(),
+            );
+        }
 
-            (
-                low_element_values,
-                low_element_indices,
-                low_element_next_indices,
-                low_element_next_values,
-                low_element_proofs,
-            )
-        };
+        (
+            low_element_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_next_values,
+            low_element_proofs,
+        )
+    };
 
     let initial_start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
     let initial_root = relayer_merkle_tree.root();

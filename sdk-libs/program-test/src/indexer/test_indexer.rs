@@ -2073,8 +2073,9 @@ impl TestIndexer {
 
 #[cfg(all(test, feature = "v2"))]
 mod tests {
-    use super::*;
     use light_compressed_account::compressed_account::CompressedAccount;
+
+    use super::*;
 
     fn queued_account(
         owner: [u8; 32],
