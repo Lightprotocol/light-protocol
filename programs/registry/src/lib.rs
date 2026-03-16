@@ -18,6 +18,9 @@ pub use account_compression_cpi::{
     rollover_batched_address_tree::*, rollover_batched_state_tree::*, rollover_state_tree::*,
     update_address_tree::*,
 };
+use account_compression_cpi::nullify::{
+    extract_proof_nodes_from_remaining_accounts, validate_nullify_2_inputs,
+};
 pub use compressible::{
     claim::*, compress_and_close::*, create_config::*, create_config_counter::*, update_config::*,
     withdraw_funding_pool::*,
@@ -436,12 +439,22 @@ pub mod light_registry {
             DEFAULT_WORK_V1,
         )?;
 
-        process_nullify_2(
+        validate_nullify_2_inputs(
+            &change_log_indices,
+            &leaves_queue_indices,
+            &indices,
+            ctx.remaining_accounts.len(),
+        )?;
+        let proof_nodes =
+            extract_proof_nodes_from_remaining_accounts(ctx.remaining_accounts);
+
+        process_nullify(
             &ctx,
             bump,
             change_log_indices,
             leaves_queue_indices,
             indices,
+            vec![proof_nodes],
         )
     }
 

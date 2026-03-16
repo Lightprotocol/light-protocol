@@ -64,33 +64,7 @@ pub fn process_nullify(
     )
 }
 
-pub fn process_nullify_2(
-    ctx: &Context<NullifyLeaves>,
-    bump: u8,
-    change_log_indices: Vec<u64>,
-    leaves_queue_indices: Vec<u16>,
-    indices: Vec<u64>,
-) -> Result<()> {
-    validate_nullify_2_inputs(
-        &change_log_indices,
-        &leaves_queue_indices,
-        &indices,
-        ctx.remaining_accounts.len(),
-    )?;
-
-    let proof_nodes = extract_proof_nodes_from_remaining_accounts(ctx.remaining_accounts);
-
-    process_nullify(
-        ctx,
-        bump,
-        change_log_indices,
-        leaves_queue_indices,
-        indices,
-        vec![proof_nodes],
-    )
-}
-
-fn extract_proof_nodes_from_remaining_accounts(
+pub(crate) fn extract_proof_nodes_from_remaining_accounts(
     remaining_accounts: &[AccountInfo<'_>],
 ) -> Vec<[u8; 32]> {
     remaining_accounts

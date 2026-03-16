@@ -73,13 +73,13 @@
        │ (authority, merkle_tree, queue...)            │ account pubkeys (key = node bytes)
        │                                              │
        ▼                                              ▼
-  process_nullify()                            process_nullify_2()
+  process_nullify()                            nullify_2 instruction
   (proofs from ix data)                        - validate: 1 change, 1 queue, 1 index
                                                - validate: exactly 16 proof accounts
                                                - extract_proof_nodes_from_remaining_accounts
                                                - process_nullify(..., vec![proof_nodes])
 
-  Forester V1 uses V2 only (create_nullify_with_proof_accounts_instruction).
+  Forester V1 uses nullify_2 only (create_nullify_2_instruction).
 ```
 
 ## 3. Forester V1 State Nullify Pairing Flow
