@@ -150,7 +150,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             })
             .collect();
 
-        // Add items with short timeout (30 seconds) for processing
+        // Add items with a short timeout (15 seconds) for processing.
         for item in &work_items {
             let hash_str = bs58::encode(&item.queue_item_data.hash).into_string();
             cache.add_with_timeout(&hash_str, Duration::from_secs(15));
