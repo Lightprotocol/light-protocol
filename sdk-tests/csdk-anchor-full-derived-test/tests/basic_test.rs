@@ -472,13 +472,12 @@ async fn test_create_pdas_and_mint_auto() {
         .await
         .expect("create_load_instructions should succeed");
 
-    println!("all_instructions.len() = {:?}", all_instructions);
-
-    // Expected: 1 PDA+Token ix + 2 ATA ixs (1 create_ata + 1 decompress) + 1 mint ix = 4
+    // Expected: 1 mint load, 1 grouped PDA/token load, and 2 ATA instructions
+    // (create ATA + Transfer2 decompression) = 4 total.
     assert_eq!(
         all_instructions.len(),
-        6,
-        "Should have 6 instructions: 1 PDA, 1 Token, 2 create_ata, 1 decompress_ata, 1 mint"
+        4,
+        "Should have 4 instructions: 1 mint, 1 grouped PDA/token load, 1 create_ata, 1 ATA Transfer2"
     );
 
     // Capture rent sponsor balance before decompression

@@ -1,13 +1,13 @@
 use std::{
     io::{Read, Write},
     net::{TcpStream, ToSocketAddrs},
-    process::{Command, Stdio},
+    process::Command,
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 
-use tracing::info;
 use tokio::time::sleep;
+use tracing::info;
 
 use crate::{
     constants::{HEALTH_CHECK, SERVER_ADDRESS},
@@ -16,6 +16,18 @@ use crate::{
 };
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
+const STARTUP_HEALTH_CHECK_RETRIES: usize = 300;
+
+fn has_http_ok_status(response: &[u8]) -> bool {
+    response
+        .split(|&byte| byte == b'\n')
+        .next()
+        .map(|status_line| {
+            status_line.starts_with(b"HTTP/")
+                && status_line.windows(5).any(|window| window == b" 200 ")
+        })
+        .unwrap_or(false)
+}
 
 pub(crate) fn build_http_client() -> Result<reqwest::Client, ProverClientError> {
     reqwest::Client::builder()
@@ -59,7 +71,7 @@ fn health_check_once(timeout: Duration) -> bool {
         return health_check_once_with_curl(timeout);
     }
 
-    let mut response = [0u8; 512];
+    let mut response = [0_u8; 512];
     let bytes_read = match stream.read(&mut response) {
         Ok(bytes_read) => bytes_read,
         Err(error) => {
@@ -68,14 +80,8 @@ fn health_check_once(timeout: Duration) -> bool {
         }
     };
 
-    if bytes_read == 0 {
-        return false;
-    }
-
-    let response = std::str::from_utf8(&response[..bytes_read]).unwrap_or_default();
-    response.contains("200 OK")
-        || response.contains("{\"status\":\"ok\"}")
-        || health_check_once_with_curl(timeout)
+    bytes_read > 0
+        && (has_http_ok_status(&response[..bytes_read]) || health_check_once_with_curl(timeout))
 }
 
 fn prover_listener_present() -> bool {
@@ -117,15 +123,15 @@ fn health_check_once_with_curl(timeout: Duration) -> bool {
 
 pub async fn spawn_prover() {
     if let Some(_project_root) = get_project_root() {
-        let prover_path: &str = {
+        let prover_path = {
             #[cfg(feature = "devenv")]
             {
-                &format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
+                format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
             }
             #[cfg(not(feature = "devenv"))]
             {
                 println!("Running in production mode, using prover binary");
-                "light"
+                "light".to_string()
             }
         };
 
@@ -137,50 +143,23 @@ pub async fn spawn_prover() {
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .is_err()
         {
-            if health_check(120, 1).await {
+            if health_check(STARTUP_HEALTH_CHECK_RETRIES, 1).await {
                 return;
             }
             panic!("Failed to start prover, health check failed.");
         }
 
         let spawn_result = async {
-            let mut command = Command::new(prover_path);
-            command.arg("start-prover").stdout(Stdio::piped()).stderr(Stdio::piped());
-            let mut child = command.spawn().expect("Failed to start prover process");
-            let mut child_exit_status = None;
+            Command::new(&prover_path)
+                .arg("start-prover")
+                .spawn()
+                .unwrap_or_else(|error| panic!("Failed to start prover process: {error}"));
 
-            for _ in 0..120 {
-                if health_check(1, 1).await {
-                    info!("Prover started successfully");
-                    return;
-                }
-
-                if child_exit_status.is_none() {
-                    match child.try_wait() {
-                        Ok(Some(status)) => {
-                            tracing::warn!(
-                                ?status,
-                                "prover launcher exited before health check succeeded; continuing to poll for detached prover"
-                            );
-                            child_exit_status = Some(status);
-                        }
-                        Ok(None) => {}
-                        Err(error) => {
-                            tracing::error!(?error, "failed to poll prover child process");
-                        }
-                    }
-                }
-
-                sleep(Duration::from_secs(1)).await;
+            if health_check(STARTUP_HEALTH_CHECK_RETRIES, 1).await {
+                info!("Prover started successfully");
+            } else {
+                panic!("Failed to start prover, health check failed.");
             }
-
-            if let Some(status) = child_exit_status {
-                panic!(
-                    "Failed to start prover, health check failed after launcher exited with status {status}."
-                );
-            }
-
-            panic!("Failed to start prover, health check failed.");
         }
         .await;
 
