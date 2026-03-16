@@ -395,20 +395,26 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                 change_log_index: proof.root_seq % STATE_MERKLE_TREE_CHANGELOG,
                 leaves_queue_index: item.queue_item_data.index as u16,
                 index: proof.leaf_index,
-                proof: proof.proof.clone().try_into().map_err(|_| ForesterError::General {
-                    error: "Failed to convert state proof to fixed array".to_string(),
-                })?,
+                proof: proof
+                    .proof
+                    .clone()
+                    .try_into()
+                    .map_err(|_| ForesterError::General {
+                        error: "Failed to convert state proof to fixed array".to_string(),
+                    })?,
                 authority,
                 derivation,
                 is_metadata_forester: false,
             },
             epoch,
         );
-        instructions.push(PreparedV1Instruction::StateNullify(StateNullifyInstruction {
-            instruction,
-            proof_nodes: proof.proof,
-            leaf_index: proof.leaf_index,
-        }));
+        instructions.push(PreparedV1Instruction::StateNullify(
+            StateNullifyInstruction {
+                instruction,
+                proof_nodes: proof.proof,
+                leaf_index: proof.leaf_index,
+            },
+        ));
     }
 
     Ok((proofs, instructions))

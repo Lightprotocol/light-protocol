@@ -2,8 +2,10 @@ use std::{sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_trait::async_trait;
+use bincode::serialized_size;
 use forester_utils::rpc_pool::SolanaRpcPool;
 use light_client::rpc::Rpc;
+use mwmatching::{Matching, SENTINEL};
 use solana_program::hash::Hash;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -19,15 +21,14 @@ use crate::{
         v1::{
             config::BuildTransactionBatchConfig,
             helpers::{
-                fetch_proofs_and_create_instructions, PreparedV1Instruction, StateNullifyInstruction,
+                fetch_proofs_and_create_instructions, PreparedV1Instruction,
+                StateNullifyInstruction,
             },
         },
     },
     smart_transaction::{create_smart_transaction, CreateSmartTransactionConfig},
     Result,
 };
-use bincode::serialized_size;
-use mwmatching::{Matching, SENTINEL};
 
 const MAX_PAIRING_INSTRUCTIONS: usize = 96;
 const MAX_PAIR_CANDIDATES: usize = 2_000;
@@ -361,13 +362,13 @@ async fn pair_state_nullify_batches(
         if mate != SENTINEL && mate > i && mate < n {
             used[i] = true;
             used[mate] = true;
-            let (left, right) =
-                if state_nullify_instructions[i].leaf_index <= state_nullify_instructions[mate].leaf_index
-                {
-                    (i, mate)
-                } else {
-                    (mate, i)
-                };
+            let (left, right) = if state_nullify_instructions[i].leaf_index
+                <= state_nullify_instructions[mate].leaf_index
+            {
+                (i, mate)
+            } else {
+                (mate, i)
+            };
             let min_leaf = state_nullify_instructions[left].leaf_index;
             paired_batches.push((
                 min_leaf,
@@ -502,8 +503,14 @@ mod tests {
 
     #[test]
     fn remaining_blocks_guard_is_strictly_greater_than_threshold() {
-        assert!(!remaining_blocks_allows_pairing(MIN_REMAINING_BLOCKS_FOR_PAIRING - 1));
-        assert!(!remaining_blocks_allows_pairing(MIN_REMAINING_BLOCKS_FOR_PAIRING));
-        assert!(remaining_blocks_allows_pairing(MIN_REMAINING_BLOCKS_FOR_PAIRING + 1));
+        assert!(!remaining_blocks_allows_pairing(
+            MIN_REMAINING_BLOCKS_FOR_PAIRING - 1
+        ));
+        assert!(!remaining_blocks_allows_pairing(
+            MIN_REMAINING_BLOCKS_FOR_PAIRING
+        ));
+        assert!(remaining_blocks_allows_pairing(
+            MIN_REMAINING_BLOCKS_FOR_PAIRING + 1
+        ));
     }
 }

@@ -4,14 +4,12 @@ use forester_utils::account_zero_copy::{get_concurrent_merkle_tree, get_hash_set
 use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_program_test::{
-    program_test::LightProgramTest,
-    utils::assert::assert_rpc_error,
-    ProgramTestConfig,
+    program_test::LightProgramTest, utils::assert::assert_rpc_error, ProgramTestConfig,
 };
 use light_registry::{
     account_compression_cpi::sdk::{
-        create_nullify_2_instruction, create_nullify_instruction,
-        CreateNullify2InstructionInputs, CreateNullifyInstructionInputs,
+        create_nullify_2_instruction, create_nullify_instruction, CreateNullify2InstructionInputs,
+        CreateNullifyInstructionInputs,
     },
     errors::RegistryError,
 };
@@ -64,9 +62,10 @@ async fn test_nullify_2_validation_and_success() {
         (e2e_env.rpc, e2e_env.indexer.state_merkle_trees[0].clone())
     };
 
-    let nullifier_queue =
-        unsafe { get_hash_set::<QueueAccount, _>(&mut rpc, state_tree_bundle.accounts.nullifier_queue).await }
-            .unwrap();
+    let nullifier_queue = unsafe {
+        get_hash_set::<QueueAccount, _>(&mut rpc, state_tree_bundle.accounts.nullifier_queue).await
+    }
+    .unwrap();
     let mut queue_index = None;
     let mut account_hash = None;
     for i in 0..nullifier_queue.get_capacity() {
@@ -90,12 +89,13 @@ async fn test_nullify_2_validation_and_success() {
         .get_proof_of_leaf(leaf_index as usize, false)
         .unwrap();
     let proof_depth = proof.len();
-    let onchain_tree = get_concurrent_merkle_tree::<account_compression::StateMerkleTreeAccount, _, Poseidon, 26>(
-        &mut rpc,
-        state_tree_bundle.accounts.merkle_tree,
-    )
-    .await
-    .unwrap();
+    let onchain_tree =
+        get_concurrent_merkle_tree::<account_compression::StateMerkleTreeAccount, _, Poseidon, 26>(
+            &mut rpc,
+            state_tree_bundle.accounts.merkle_tree,
+        )
+        .await
+        .unwrap();
     let change_log_index = onchain_tree.changelog_index() as u64;
 
     let valid_ix = create_nullify_2_instruction(
@@ -118,11 +118,7 @@ async fn test_nullify_2_validation_and_success() {
         .accounts
         .truncate(empty_proof_accounts_ix.accounts.len() - proof_depth);
     let result = rpc
-        .create_and_send_transaction(
-            &[empty_proof_accounts_ix],
-            &forester.pubkey(),
-            &[&forester],
-        )
+        .create_and_send_transaction(&[empty_proof_accounts_ix], &forester.pubkey(), &[&forester])
         .await;
     assert_rpc_error(result, 0, RegistryError::EmptyProofAccounts.into()).unwrap();
 
@@ -187,9 +183,10 @@ async fn test_legacy_nullify_still_succeeds() {
             .unwrap();
         (e2e_env.rpc, e2e_env.indexer.state_merkle_trees[0].clone())
     };
-    let nullifier_queue =
-        unsafe { get_hash_set::<QueueAccount, _>(&mut rpc, state_tree_bundle.accounts.nullifier_queue).await }
-            .unwrap();
+    let nullifier_queue = unsafe {
+        get_hash_set::<QueueAccount, _>(&mut rpc, state_tree_bundle.accounts.nullifier_queue).await
+    }
+    .unwrap();
     let mut queue_index = None;
     let mut account_hash = None;
     for i in 0..nullifier_queue.get_capacity() {
@@ -212,12 +209,13 @@ async fn test_legacy_nullify_still_succeeds() {
         .merkle_tree
         .get_proof_of_leaf(leaf_index as usize, false)
         .unwrap();
-    let onchain_tree = get_concurrent_merkle_tree::<account_compression::StateMerkleTreeAccount, _, Poseidon, 26>(
-        &mut rpc,
-        state_tree_bundle.accounts.merkle_tree,
-    )
-    .await
-    .unwrap();
+    let onchain_tree =
+        get_concurrent_merkle_tree::<account_compression::StateMerkleTreeAccount, _, Poseidon, 26>(
+            &mut rpc,
+            state_tree_bundle.accounts.merkle_tree,
+        )
+        .await
+        .unwrap();
     let change_log_index = onchain_tree.changelog_index() as u64;
 
     let legacy_ix = create_nullify_instruction(

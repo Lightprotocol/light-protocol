@@ -11,15 +11,15 @@ use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 
 pub mod account_compression_cpi;
 pub mod errors;
+use account_compression_cpi::nullify::{
+    extract_proof_nodes_from_remaining_accounts, validate_nullify_2_inputs,
+};
 pub use account_compression_cpi::{
     batch_append::*, batch_nullify::*, batch_update_address_tree::*,
     initialize_batched_address_tree::*, initialize_batched_state_tree::*,
     initialize_tree_and_queue::*, migrate_state::*, nullify::*, register_program::*,
     rollover_batched_address_tree::*, rollover_batched_state_tree::*, rollover_state_tree::*,
     update_address_tree::*,
-};
-use account_compression_cpi::nullify::{
-    extract_proof_nodes_from_remaining_accounts, validate_nullify_2_inputs,
 };
 pub use compressible::{
     claim::*, compress_and_close::*, create_config::*, create_config_counter::*, update_config::*,
@@ -445,8 +445,7 @@ pub mod light_registry {
             &indices,
             ctx.remaining_accounts.len(),
         )?;
-        let proof_nodes =
-            extract_proof_nodes_from_remaining_accounts(ctx.remaining_accounts);
+        let proof_nodes = extract_proof_nodes_from_remaining_accounts(ctx.remaining_accounts);
 
         process_nullify(
             &ctx,

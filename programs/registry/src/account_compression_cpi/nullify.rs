@@ -79,10 +79,7 @@ pub(crate) fn validate_nullify_2_inputs(
     indices: &[u64],
     proof_accounts_len: usize,
 ) -> Result<()> {
-    if change_log_indices.len() != 1
-        || leaves_queue_indices.len() != 1
-        || indices.len() != 1
-    {
+    if change_log_indices.len() != 1 || leaves_queue_indices.len() != 1 || indices.len() != 1 {
         return err!(RegistryError::InvalidNullify2Inputs);
     }
     if proof_accounts_len == 0 {
