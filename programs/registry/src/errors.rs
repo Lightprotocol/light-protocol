@@ -38,8 +38,6 @@ pub enum RegistryError {
     InvalidTokenAccountData,
     #[msg("Indices array cannot be empty")]
     EmptyIndices,
-    #[msg("Proof accounts cannot be empty")]
-    EmptyProofAccounts,
     #[msg("Nullify2 proof accounts length is invalid")]
     InvalidProofAccountsLength,
     #[msg("Nullify2 supports exactly one change, queue index, and leaf index")]

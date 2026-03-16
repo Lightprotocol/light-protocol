@@ -173,7 +173,7 @@ pub fn collect_priority_fee_accounts(payer: Pubkey, instructions: &[Instruction]
     account_keys
 }
 
-fn with_compute_budget_instructions(
+pub(crate) fn with_compute_budget_instructions(
     mut instructions: Vec<Instruction>,
     compute_budget: ComputeBudgetConfig,
 ) -> Vec<Instruction> {

@@ -5,6 +5,7 @@ pub mod cli;
 pub mod compressible;
 pub mod config;
 pub mod epoch_manager;
+pub(crate) mod matching;
 pub mod errors;
 pub mod forester_status;
 pub mod health_check;

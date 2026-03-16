@@ -82,9 +82,6 @@ pub(crate) fn validate_nullify_2_inputs(
     if change_log_indices.len() != 1 || leaves_queue_indices.len() != 1 || indices.len() != 1 {
         return err!(RegistryError::InvalidNullify2Inputs);
     }
-    if proof_accounts_len == 0 {
-        return err!(RegistryError::EmptyProofAccounts);
-    }
     if proof_accounts_len != NULLIFY_2_PROOF_ACCOUNTS_LEN {
         return err!(RegistryError::InvalidProofAccountsLength);
     }
@@ -107,7 +104,7 @@ mod tests {
         let result = validate_nullify_2_inputs(&[1], &[1], &[42], 0);
         assert_eq!(
             result.err().unwrap(),
-            RegistryError::EmptyProofAccounts.into()
+            RegistryError::InvalidProofAccountsLength.into()
         );
     }
 

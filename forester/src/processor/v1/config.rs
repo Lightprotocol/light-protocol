@@ -28,4 +28,8 @@ pub struct BuildTransactionBatchConfig {
     pub compute_unit_limit: Option<u32>,
     pub enable_priority_fees: bool,
     pub max_concurrent_sends: Option<usize>,
+    /// When `true`, only emit paired state-nullify transactions.
+    /// Unpaired (single) nullifies are dropped.  The caller sets this based
+    /// on queue fullness: `pairs_only = queue_pending < MAX_QUEUE_FULLNESS`.
+    pub pairs_only: bool,
 }

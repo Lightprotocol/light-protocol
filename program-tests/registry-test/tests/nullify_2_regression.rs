@@ -120,7 +120,7 @@ async fn test_nullify_2_validation_and_success() {
     let result = rpc
         .create_and_send_transaction(&[empty_proof_accounts_ix], &forester.pubkey(), &[&forester])
         .await;
-    assert_rpc_error(result, 0, RegistryError::EmptyProofAccounts.into()).unwrap();
+    assert_rpc_error(result, 0, RegistryError::InvalidProofAccountsLength.into()).unwrap();
 
     let malformed_ix = Instruction {
         program_id: light_registry::ID,

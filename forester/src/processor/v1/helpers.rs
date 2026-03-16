@@ -43,6 +43,7 @@ pub struct StateNullifyInstruction {
     pub instruction: Instruction,
     pub proof_nodes: Vec<[u8; 32]>,
     pub leaf_index: u64,
+    pub merkle_tree: Pubkey,
 }
 
 /// Work items should be of only one type and tree
@@ -413,6 +414,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                 instruction,
                 proof_nodes: proof.proof,
                 leaf_index: proof.leaf_index,
+                merkle_tree: item.tree_account.merkle_tree,
             },
         ));
     }

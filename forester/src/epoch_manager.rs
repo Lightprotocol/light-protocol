@@ -2993,6 +2993,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 compute_unit_limit: Some(self.config.transaction_config.cu_limit),
                 enable_priority_fees: self.config.transaction_config.enable_priority_fees,
                 max_concurrent_sends: Some(self.config.transaction_config.max_concurrent_sends),
+                pairs_only: false,
             },
             queue_config: self.config.queue_config,
             retry_config: RetryConfig {
