@@ -12,7 +12,7 @@ use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_2_instruction, create_update_address_merkle_tree_instruction,
-    CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+    CreateNullify2InstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
 use solana_program::instruction::Instruction;
 use tokio::time::Instant;
@@ -389,13 +389,15 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         proofs.push(MerkleProofType::StateProof(proof.clone()));
 
         let instruction = create_nullify_2_instruction(
-            CreateNullifyInstructionInputs {
+            CreateNullify2InstructionInputs {
                 nullifier_queue: item.tree_account.queue,
                 merkle_tree: item.tree_account.merkle_tree,
-                change_log_indices: vec![proof.root_seq % STATE_MERKLE_TREE_CHANGELOG],
-                leaves_queue_indices: vec![item.queue_item_data.index as u16],
-                indices: vec![proof.leaf_index],
-                proofs: vec![proof.proof.clone()],
+                change_log_index: proof.root_seq % STATE_MERKLE_TREE_CHANGELOG,
+                leaves_queue_index: item.queue_item_data.index as u16,
+                index: proof.leaf_index,
+                proof: proof.proof.clone().try_into().map_err(|_| ForesterError::General {
+                    error: "Failed to convert state proof to fixed array".to_string(),
+                })?,
                 authority,
                 derivation,
                 is_metadata_forester: false,

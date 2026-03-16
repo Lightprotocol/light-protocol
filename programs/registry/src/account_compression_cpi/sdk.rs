@@ -26,6 +26,18 @@ pub struct CreateNullifyInstructionInputs {
     pub is_metadata_forester: bool,
 }
 
+pub struct CreateNullify2InstructionInputs {
+    pub authority: Pubkey,
+    pub nullifier_queue: Pubkey,
+    pub merkle_tree: Pubkey,
+    pub change_log_index: u64,
+    pub leaves_queue_index: u16,
+    pub index: u64,
+    pub proof: [[u8; 32]; 16],
+    pub derivation: Pubkey,
+    pub is_metadata_forester: bool,
+}
+
 pub fn create_nullify_instruction(
     inputs: CreateNullifyInstructionInputs,
     epoch: u64,
@@ -63,7 +75,7 @@ pub fn create_nullify_instruction(
 }
 
 pub fn create_nullify_2_instruction(
-    inputs: CreateNullifyInstructionInputs,
+    inputs: CreateNullify2InstructionInputs,
     epoch: u64,
 ) -> Instruction {
     let register_program_pda = get_registered_program_pda(&crate::ID);
@@ -75,9 +87,9 @@ pub fn create_nullify_2_instruction(
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::Nullify2 {
         bump,
-        change_log_indices: inputs.change_log_indices,
-        leaves_queue_indices: inputs.leaves_queue_indices,
-        indices: inputs.indices,
+        change_log_indices: vec![inputs.change_log_index],
+        leaves_queue_indices: vec![inputs.leaves_queue_index],
+        indices: vec![inputs.index],
     };
 
     let base_accounts = crate::accounts::NullifyLeaves {
@@ -91,13 +103,11 @@ pub fn create_nullify_2_instruction(
         account_compression_program: account_compression::ID,
     };
     let mut accounts = base_accounts.to_account_metas(Some(true));
-    for proof in inputs.proofs {
-        for node in proof {
-            accounts.push(AccountMeta::new_readonly(
-                Pubkey::new_from_array(node),
-                false,
-            ));
-        }
+    for node in inputs.proof {
+        accounts.push(AccountMeta::new_readonly(
+            Pubkey::new_from_array(node),
+            false,
+        ));
     }
 
     Instruction {
@@ -646,14 +656,14 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let ix = create_nullify_2_instruction(
-            CreateNullifyInstructionInputs {
+            CreateNullify2InstructionInputs {
                 authority,
                 nullifier_queue,
                 merkle_tree,
-                change_log_indices: vec![7],
-                leaves_queue_indices: vec![11],
-                indices: vec![42],
-                proofs: vec![proof.clone()],
+                change_log_index: 7,
+                leaves_queue_index: 11,
+                index: 42,
+                proof: proof.clone().try_into().unwrap(),
                 derivation,
                 is_metadata_forester: false,
             },

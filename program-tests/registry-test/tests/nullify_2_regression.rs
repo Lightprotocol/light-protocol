@@ -10,7 +10,8 @@ use light_program_test::{
 };
 use light_registry::{
     account_compression_cpi::sdk::{
-        create_nullify_2_instruction, create_nullify_instruction, CreateNullifyInstructionInputs,
+        create_nullify_2_instruction, create_nullify_instruction,
+        CreateNullify2InstructionInputs, CreateNullifyInstructionInputs,
     },
     errors::RegistryError,
 };
@@ -98,14 +99,14 @@ async fn test_nullify_2_validation_and_success() {
     let change_log_index = onchain_tree.changelog_index() as u64;
 
     let valid_ix = create_nullify_2_instruction(
-        CreateNullifyInstructionInputs {
+        CreateNullify2InstructionInputs {
             authority: forester.pubkey(),
             nullifier_queue: state_tree_bundle.accounts.nullifier_queue,
             merkle_tree: state_tree_bundle.accounts.merkle_tree,
-            change_log_indices: vec![change_log_index],
-            leaves_queue_indices: vec![queue_index],
-            indices: vec![leaf_index],
-            proofs: vec![proof],
+            change_log_index,
+            leaves_queue_index: queue_index,
+            index: leaf_index,
+            proof: proof.try_into().unwrap(),
             derivation: forester.pubkey(),
             is_metadata_forester: true,
         },
