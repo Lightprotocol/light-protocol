@@ -221,8 +221,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             last_valid_block_height,
             priority_fee,
             config.compute_unit_limit,
-        )
-        .await?;
+        )?;
 
         for instruction_chunk in instruction_batches {
             let (transaction, _) = create_smart_transaction(CreateSmartTransactionConfig {
@@ -253,7 +252,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn build_instruction_batches(
+fn build_instruction_batches(
     prepared_instructions: Vec<PreparedV1Instruction>,
     batch_size: usize,
     allow_pairing: bool,
