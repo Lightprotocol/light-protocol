@@ -8,6 +8,7 @@ use light_client::rpc::Rpc;
 use mwmatching::{Matching, SENTINEL};
 use solana_program::hash::Hash;
 use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
@@ -323,12 +324,9 @@ async fn pair_state_nullify_batches(
                 &state_nullify_instructions[j].instruction,
                 payer,
                 recent_blockhash,
-                last_valid_block_height,
                 priority_fee,
                 compute_unit_limit,
-            )
-            .await?
-            {
+            ) {
                 continue;
             }
             let overlap = state_nullify_instructions[i]
@@ -413,24 +411,32 @@ fn remaining_blocks_allows_pairing(remaining_blocks: u64) -> bool {
     remaining_blocks > MIN_REMAINING_BLOCKS_FOR_PAIRING
 }
 
-async fn pair_fits_transaction_size(
+fn pair_fits_transaction_size(
     ix_a: &solana_program::instruction::Instruction,
     ix_b: &solana_program::instruction::Instruction,
     payer: &Keypair,
     recent_blockhash: &Hash,
-    last_valid_block_height: u64,
     priority_fee: Option<u64>,
     compute_unit_limit: Option<u32>,
 ) -> Result<bool> {
-    let (tx, _) = create_smart_transaction(CreateSmartTransactionConfig {
-        payer: payer.insecure_clone(),
-        instructions: vec![ix_a.clone(), ix_b.clone()],
-        recent_blockhash: *recent_blockhash,
-        compute_unit_price: priority_fee,
-        compute_unit_limit,
-        last_valid_block_height,
-    })
-    .await?;
+    let mut instructions = Vec::with_capacity(
+        2 + usize::from(priority_fee.is_some()) + usize::from(compute_unit_limit.is_some()),
+    );
+    if let Some(price) = priority_fee {
+        instructions.push(ComputeBudgetInstruction::set_compute_unit_price(price));
+    }
+    if let Some(limit) = compute_unit_limit {
+        instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(limit));
+    }
+    instructions.push(ix_a.clone());
+    instructions.push(ix_b.clone());
+
+    let mut tx = Transaction::new_with_payer(&instructions, Some(&payer.pubkey()));
+    tx.message.recent_blockhash = *recent_blockhash;
+    tx.signatures = vec![
+        solana_sdk::signature::Signature::default();
+        tx.message.header.num_required_signatures as usize
+    ];
 
     let tx_bytes = serialized_size(&tx)? as usize;
     Ok(tx_bytes <= 1232)
