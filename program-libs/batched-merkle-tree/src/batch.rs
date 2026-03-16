@@ -1,4 +1,4 @@
-use light_bloom_filter::BloomFilter;
+use light_bloom_filter::{BloomFilter, BloomFilterRef};
 use light_hasher::{Hasher, Poseidon};
 use light_zero_copy::vec::ZeroCopyVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
@@ -390,6 +390,20 @@ impl Batch {
         store: &mut [u8],
     ) -> Result<(), BatchedMerkleTreeError> {
         let mut bloom_filter = BloomFilter::new(num_iters, bloom_filter_capacity, store)?;
+        if bloom_filter.contains(value) {
+            return Err(BatchedMerkleTreeError::NonInclusionCheckFailed);
+        }
+        Ok(())
+    }
+
+    /// Immutable version of `check_non_inclusion` using `BloomFilterRef`.
+    pub fn check_non_inclusion_ref(
+        num_iters: usize,
+        bloom_filter_capacity: u64,
+        value: &[u8; 32],
+        store: &[u8],
+    ) -> Result<(), BatchedMerkleTreeError> {
+        let bloom_filter = BloomFilterRef::new(num_iters, bloom_filter_capacity, store)?;
         if bloom_filter.contains(value) {
             return Err(BatchedMerkleTreeError::NonInclusionCheckFailed);
         }

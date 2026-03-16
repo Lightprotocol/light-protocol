@@ -174,6 +174,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_data: &'a mut [u8],
         pubkey: &Pubkey,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
+        light_account_checks::checks::check_discriminator::<Self>(account_data)?;
         Self::from_bytes::<ADDRESS_MERKLE_TREE_TYPE_V2>(account_data, pubkey)
     }
 

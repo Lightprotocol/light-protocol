@@ -183,10 +183,9 @@ solana-keygen new -o ~/.config/solana/id.json
 
 Program tests are located in program-tests.
 Many tests start a local prover server.
-To avoid conflicts between local prover servers run program tests with `--test-threads=1` so that tests are executed in sequence.
 
 ```bash
-cargo test-sbf -p account-compression-test -- --test-threads=1
+cargo test-sbf -p account-compression-test
 ```
 
 ### SDK tests
