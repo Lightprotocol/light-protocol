@@ -1,4 +1,10 @@
-use std::{collections::HashMap, fmt::Debug, time::Duration};
+use std::{
+    any::Any,
+    collections::HashMap,
+    fmt::Debug,
+    panic::{catch_unwind, AssertUnwindSafe},
+    time::Duration,
+};
 
 #[cfg(feature = "devenv")]
 use account_compression::{
@@ -94,6 +100,37 @@ use crate::accounts::{
     state_tree_v2::create_batched_state_merkle_tree,
 };
 use crate::indexer::TestIndexerExtensions;
+
+fn panic_payload_message(payload: &(dyn Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_string()
+    } else {
+        "non-string panic payload".to_string()
+    }
+}
+
+fn build_compressed_proof(body: &str) -> Result<CompressedProof, IndexerError> {
+    let proof_json = deserialize_gnark_proof_json(body)
+        .map_err(|error| IndexerError::CustomError(error.to_string()))?;
+    let (proof_a, proof_b, proof_c) = catch_unwind(AssertUnwindSafe(|| {
+        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+        compress_proof(&proof_a, &proof_b, &proof_c)
+    }))
+    .map_err(|payload| {
+        IndexerError::CustomError(format!(
+            "failed to parse prover proof payload: {}",
+            panic_payload_message(payload.as_ref())
+        ))
+    })?;
+
+    Ok(CompressedProof {
+        a: proof_a,
+        b: proof_b,
+        c: proof_c,
+    })
+}
 
 #[derive(Debug)]
 pub struct TestIndexer {
@@ -2584,20 +2621,10 @@ impl TestIndexer {
                         })?;
 
                         if status.is_success() {
-                            let proof_json = deserialize_gnark_proof_json(&body)
-                                .map_err(|error| IndexerError::CustomError(error.to_string()))?;
-                            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-                            let (proof_a, proof_b, proof_c) =
-                                compress_proof(&proof_a, &proof_b, &proof_c);
                             return Ok(ValidityProofWithContext {
                                 accounts: account_proof_inputs,
                                 addresses: address_proof_inputs,
-                                proof: CompressedProof {
-                                    a: proof_a,
-                                    b: proof_b,
-                                    c: proof_c,
-                                }
-                                .into(),
+                                proof: build_compressed_proof(&body)?.into(),
                             });
                         }
 
