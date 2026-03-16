@@ -31,8 +31,8 @@ use crate::{
     Result,
 };
 
-const MAX_PAIRING_INSTRUCTIONS: usize = 96;
-const MAX_PAIR_CANDIDATES: usize = 2_000;
+const MAX_PAIRING_INSTRUCTIONS: usize = 100;
+const MAX_PAIR_CANDIDATES: usize = 4_950;
 const MIN_REMAINING_BLOCKS_FOR_PAIRING: u64 = 25;
 
 #[async_trait]
@@ -252,6 +252,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn build_instruction_batches(
     prepared_instructions: Vec<PreparedV1Instruction>,
     batch_size: usize,
@@ -285,11 +286,9 @@ async fn build_instruction_batches(
             state_nullify_instructions,
             payer,
             recent_blockhash,
-            last_valid_block_height,
             priority_fee,
             compute_unit_limit,
-        )
-        .await?
+        )?
     } else {
         state_nullify_instructions
             .into_iter()
@@ -300,11 +299,10 @@ async fn build_instruction_batches(
     Ok(batches)
 }
 
-async fn pair_state_nullify_batches(
+fn pair_state_nullify_batches(
     state_nullify_instructions: Vec<StateNullifyInstruction>,
     payer: &Keypair,
     recent_blockhash: &Hash,
-    last_valid_block_height: u64,
     priority_fee: Option<u64>,
     compute_unit_limit: Option<u32>,
 ) -> Result<Vec<Vec<solana_program::instruction::Instruction>>> {
@@ -326,7 +324,7 @@ async fn pair_state_nullify_batches(
                 recent_blockhash,
                 priority_fee,
                 compute_unit_limit,
-            ) {
+            )? {
                 continue;
             }
             let overlap = state_nullify_instructions[i]
@@ -489,7 +487,7 @@ mod tests {
 
     #[test]
     fn pairing_precheck_enforces_instruction_and_candidate_limits() {
-        let max_count_by_candidate_limit = 63; // 63 * 62 / 2 = 1953
+        let max_count_by_candidate_limit = 100; // 100 * 99 / 2 = 4950
         assert!(!pairing_precheck_passes(1, pairing_candidate_count(1)));
         assert!(pairing_precheck_passes(2, pairing_candidate_count(2)));
         assert!(pairing_precheck_passes(
@@ -500,11 +498,15 @@ mod tests {
             max_count_by_candidate_limit + 1,
             pairing_candidate_count(max_count_by_candidate_limit + 1)
         ));
+        assert!(pairing_precheck_passes(
+            MAX_PAIRING_INSTRUCTIONS,
+            pairing_candidate_count(MAX_PAIRING_INSTRUCTIONS)
+        ));
         assert!(!pairing_precheck_passes(
             MAX_PAIRING_INSTRUCTIONS + 1,
             pairing_candidate_count(MAX_PAIRING_INSTRUCTIONS + 1)
         ));
-        assert!(!pairing_precheck_passes(90, MAX_PAIR_CANDIDATES + 1));
+        assert!(!pairing_precheck_passes(100, MAX_PAIR_CANDIDATES + 1));
     }
 
     #[test]
