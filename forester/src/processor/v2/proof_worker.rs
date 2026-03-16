@@ -164,7 +164,9 @@ impl ProofClients {
     }
 }
 
-pub fn spawn_proof_workers(config: &ProverConfig) -> crate::Result<async_channel::Sender<ProofJob>> {
+pub fn spawn_proof_workers(
+    config: &ProverConfig,
+) -> crate::Result<async_channel::Sender<ProofJob>> {
     let (job_tx, job_rx) = async_channel::bounded::<ProofJob>(256);
     let clients = Arc::new(ProofClients::new(config)?);
     tokio::spawn(async move { run_proof_pipeline(job_rx, clients).await });
