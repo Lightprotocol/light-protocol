@@ -73,7 +73,6 @@ use account_compression::{
 use anchor_lang::{prelude::AccountMeta, AnchorSerialize, Discriminator};
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
-    account_zero_copy::AccountZeroCopy,
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
     forester_epoch::{Epoch, Forester, TreeAccounts},
     utils::airdrop_lamports,
@@ -194,6 +193,7 @@ use crate::{
     },
     test_batch_forester::{perform_batch_append, perform_batch_nullify},
     test_forester::{empty_address_queue_test, nullify_compressed_accounts},
+    AccountZeroCopy,
 };
 
 pub struct User {
@@ -748,70 +748,67 @@ where
                                     .with_address_queue(None, Some(batch.batch_size as u16));
                                 let result = self
                                     .indexer
-                                    .get_queue_elements(merkle_tree_pubkey.to_bytes(), options, None)
+                                    .get_queue_elements(
+                                        merkle_tree_pubkey.to_bytes(),
+                                        options,
+                                        None,
+                                    )
                                     .await
                                     .unwrap();
-                                let addresses = result
-                                    .value
-                                    .address_queue
-                                    .map(|aq| aq.addresses)
-                                    .unwrap_or_default();
+                                let address_queue = result.value.address_queue.unwrap();
+                                let low_element_proofs = address_queue
+                                    .reconstruct_all_proofs::<{
+                                        DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize
+                                    }>()
+                                    .unwrap();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
-                                let start_index = merkle_tree.next_index as usize;
+                                let start_index = address_queue.tree_next_insertion_index as usize;
                                 assert!(
                                     start_index >= 2,
                                     "start index should be greater than 2 else tree is not inited"
                                 );
                                 let current_root = *merkle_tree.root_history.last().unwrap();
-                                let mut low_element_values = Vec::new();
-                                let mut low_element_indices = Vec::new();
-                                let mut low_element_next_indices = Vec::new();
-                                let mut low_element_next_values = Vec::new();
-                                let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
-                                let non_inclusion_proofs = self
-                                    .indexer
-                                    .get_multiple_new_address_proofs(
-                                        merkle_tree_pubkey.to_bytes(),
-                                        addresses.clone(),
-                                        None,
-                                    )
-                                    .await
-                                    .unwrap();
-                                for non_inclusion_proof in &non_inclusion_proofs.value.items {
-                                    low_element_values.push(non_inclusion_proof.low_address_value);
-                                    low_element_indices
-                                        .push(non_inclusion_proof.low_address_index as usize);
-                                    low_element_next_indices
-                                        .push(non_inclusion_proof.low_address_next_index as usize);
-                                    low_element_next_values
-                                        .push(non_inclusion_proof.low_address_next_value);
+                                assert_eq!(address_queue.initial_root, current_root);
+                                let light_client::indexer::AddressQueueData {
+                                    addresses,
+                                    low_element_values,
+                                    low_element_next_values,
+                                    low_element_indices,
+                                    low_element_next_indices,
+                                    subtrees,
+                                    ..
+                                } = address_queue;
+                                let mut sparse_merkle_tree = SparseMerkleTree::<
+                                    Poseidon,
+                                    { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
+                                >::new(
+                                    subtrees.as_slice().try_into().unwrap(),
+                                    start_index,
+                                );
 
-                                    low_element_proofs
-                                        .push(non_inclusion_proof.low_address_proof.to_vec());
-                                }
-
-                                let subtrees =   self.indexer
-                                    .get_subtrees(merkle_tree_pubkey.to_bytes(), None)
-                                    .await
-                                    .unwrap();
-                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees.value.items).unwrap(), start_index);
-
-                                let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
-                                let mut indexed_changelog: Vec<IndexedChangelogEntry<usize, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
+                                let mut changelog: Vec<
+                                    ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>,
+                                > = Vec::new();
+                                let mut indexed_changelog: Vec<
+                                    IndexedChangelogEntry<
+                                        usize,
+                                        { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
+                                    >,
+                                > = Vec::new();
 
                                 let inputs = get_batch_address_append_circuit_inputs::<
                                     { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
                                 >(
                                     start_index,
                                     current_root,
-                                    low_element_values,
-                                    low_element_next_values,
-                                    low_element_indices,
-                                    low_element_next_indices,
-                                    low_element_proofs,
-                                    addresses,
+                                    &low_element_values,
+                                    &low_element_next_values,
+                                    &low_element_indices,
+                                    &low_element_next_indices,
+                                    &low_element_proofs,
+                                    &addresses,
                                     &mut sparse_merkle_tree,
                                     leaves_hash_chain,
                                     batch.zkp_batch_size as usize,
@@ -834,9 +831,13 @@ where
 
                                 if response_result.status().is_success() {
                                     let body = response_result.text().await.unwrap();
-                                    let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-                                    let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-                                    let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+                                    let proof_json = deserialize_gnark_proof_json(&body)
+                                        .map_err(|error| RpcError::CustomError(error.to_string()))
+                                        .unwrap();
+                                    let (proof_a, proof_b, proof_c) =
+                                        proof_from_json_struct(proof_json);
+                                    let (proof_a, proof_b, proof_c) =
+                                        compress_proof(&proof_a, &proof_b, &proof_c);
                                     let instruction_data = InstructionDataBatchNullifyInputs {
                                         new_root: circuit_inputs_new_root,
                                         compressed_proof: CompressedProof {

@@ -2,7 +2,7 @@ use std::{fmt::Debug, time::Duration};
 
 use async_trait::async_trait;
 use bs58;
-use light_sdk_types::constants::STATE_MERKLE_TREE_CANOPY_DEPTH;
+use light_sdk_types::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT};
 use photon_api::apis::configuration::Configuration;
 use solana_pubkey::Pubkey;
 use tracing::{error, trace, warn};
@@ -1142,17 +1142,26 @@ impl Indexer for PhotonIndexer {
                 .value
                 .iter()
                 .map(|x| {
-                    let mut proof_vec = x.proof.clone();
-                    if proof_vec.len() < STATE_MERKLE_TREE_CANOPY_DEPTH {
+                    let expected_siblings =
+                        STATE_MERKLE_TREE_HEIGHT - STATE_MERKLE_TREE_CANOPY_DEPTH;
+                    let expected_total = STATE_MERKLE_TREE_CANOPY_DEPTH + expected_siblings;
+                    if x.proof.len() != expected_total {
                         return Err(IndexerError::InvalidParameters(format!(
-                            "Merkle proof length ({}) is less than canopy depth ({})",
-                            proof_vec.len(),
-                            STATE_MERKLE_TREE_CANOPY_DEPTH,
+                            "Merkle proof length ({}) does not match expected total proof length ({})",
+                            x.proof.len(),
+                            expected_total,
                         )));
                     }
-                    proof_vec.truncate(proof_vec.len() - STATE_MERKLE_TREE_CANOPY_DEPTH);
+                    let proof_len = x.proof.len() - STATE_MERKLE_TREE_CANOPY_DEPTH;
+                    if proof_len != expected_siblings {
+                        return Err(IndexerError::InvalidParameters(format!(
+                            "Merkle proof sibling count ({}) does not match expected sibling count ({})",
+                            proof_len,
+                            expected_siblings,
+                        )));
+                    }
 
-                    let proof = proof_vec
+                    let proof = x.proof[..proof_len]
                         .iter()
                         .map(|s| Hash::from_base58(s))
                         .collect::<Result<Vec<[u8; 32]>, IndexerError>>()
@@ -1682,6 +1691,7 @@ impl Indexer for PhotonIndexer {
                         .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                         .collect::<Result<Vec<_>, _>>()?,
                     start_index: aq.start_index,
+                    tree_next_insertion_index: aq.start_index,
                     root_seq: aq.root_seq,
                 })
             } else {
@@ -1703,15 +1713,13 @@ impl Indexer for PhotonIndexer {
 
     async fn get_subtrees(
         &self,
-        _merkle_tree_pubkey: [u8; 32],
+        merkle_tree_pubkey: [u8; 32],
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Items<[u8; 32]>>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!();
-        #[cfg(feature = "v2")]
-        {
-            todo!();
-        }
+        Err(IndexerError::NotImplemented(format!(
+            "PhotonIndexer::get_subtrees is not implemented for merkle tree {}",
+            solana_pubkey::Pubkey::new_from_array(merkle_tree_pubkey)
+        )))
     }
 }
 

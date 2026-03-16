@@ -126,7 +126,7 @@ pub struct DecompressCtx<'a, AI: AccountInfoTrait + Clone> {
     #[cfg(feature = "token")]
     pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
     #[cfg(feature = "token")]
-    pub token_seeds: Vec<Vec<u8>>,
+    pub token_seeds: Vec<Vec<Vec<u8>>>,
 }
 
 // ============================================================================
@@ -296,7 +296,7 @@ pub struct DecompressAccountsBuilt<'a, AI: AccountInfoTrait + Clone> {
     pub cpi_context: bool,
     pub in_token_data: Vec<MultiInputTokenDataWithContext>,
     pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
-    pub token_seeds: Vec<Vec<u8>>,
+    pub token_seeds: Vec<Vec<Vec<u8>>>,
 }
 
 /// Validates accounts, dispatches all variants, and collects CPI inputs for
@@ -649,13 +649,20 @@ where
             .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
         } else {
             // At least one regular token account - use invoke_signed with PDA seeds
-            let signer_seed_refs: Vec<&[u8]> = token_seeds.iter().map(|s| s.as_slice()).collect();
+            let signer_seed_storage: Vec<Vec<&[u8]>> = token_seeds
+                .iter()
+                .map(|seed_group| seed_group.iter().map(|seed| seed.as_slice()).collect())
+                .collect();
+            let signer_seed_refs: Vec<&[&[u8]]> = signer_seed_storage
+                .iter()
+                .map(|seed_group| seed_group.as_slice())
+                .collect();
             AI::invoke_cpi(
                 &LIGHT_TOKEN_PROGRAM_ID,
                 &transfer2_data,
                 &account_metas,
                 remaining_accounts,
-                &[signer_seed_refs.as_slice()],
+                signer_seed_refs.as_slice(),
             )
             .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
         }

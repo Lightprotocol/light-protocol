@@ -121,7 +121,7 @@ impl AddressStagingTree {
         low_element_next_values: &[[u8; 32]],
         low_element_indices: &[u64],
         low_element_next_indices: &[u64],
-        low_element_proofs: &[Vec<[u8; 32]>],
+        low_element_proofs: &[[[u8; 32]; HEIGHT]],
         leaves_hashchain: [u8; 32],
         zkp_batch_size: usize,
         epoch: u64,
@@ -145,15 +145,12 @@ impl AddressStagingTree {
         let inputs = get_batch_address_append_circuit_inputs::<HEIGHT>(
             next_index,
             old_root,
-            low_element_values.to_vec(),
-            low_element_next_values.to_vec(),
-            low_element_indices.iter().map(|v| *v as usize).collect(),
-            low_element_next_indices
-                .iter()
-                .map(|v| *v as usize)
-                .collect(),
-            low_element_proofs.to_vec(),
-            addresses.to_vec(),
+            low_element_values,
+            low_element_next_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_proofs,
+            addresses,
             &mut self.sparse_tree,
             leaves_hashchain,
             zkp_batch_size,
