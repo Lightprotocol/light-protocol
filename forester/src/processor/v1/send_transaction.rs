@@ -35,6 +35,8 @@ use crate::{
 
 struct PreparedBatchData {
     work_items: Vec<WorkItem>,
+    recent_blockhash: Hash,
+    last_valid_block_height: u64,
     priority_fee: Option<u64>,
     timeout_deadline: Instant,
 }
@@ -114,8 +116,11 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
     );
 
     let tree_id_str = tree_accounts.merkle_tree.to_string();
-    let (mut recent_blockhash, mut last_valid_block_height) =
-        fetch_latest_blockhash(&pool, &tree_id_str).await?;
+    let mut recent_blockhash = data.recent_blockhash;
+    let mut last_valid_block_height = data.last_valid_block_height;
+
+    const BLOCKHASH_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
+    let mut last_blockhash_refresh = Instant::now();
 
     for work_chunk in data.work_items.chunks(WORK_ITEM_BATCH_SIZE) {
         if operation_cancel_signal.load(Ordering::SeqCst) {
@@ -127,25 +132,24 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             break;
         }
 
-        match fetch_latest_blockhash(&pool, &tree_id_str).await {
-            Ok((new_hash, new_height)) => {
-                recent_blockhash = new_hash;
-                last_valid_block_height = new_height;
-                debug!(tree = %tree_accounts.merkle_tree, "Fetched fresh blockhash for chunk build");
-            }
-            Err(e) => {
-                warn!(
-                    tree = %tree_accounts.merkle_tree,
-                    "Failed to fetch fresh blockhash for chunk build, using last known value: {:?}",
-                    e
-                );
+        if last_blockhash_refresh.elapsed() > BLOCKHASH_REFRESH_INTERVAL {
+            match fetch_latest_blockhash(&pool, &tree_id_str).await {
+                Ok((new_hash, new_height)) => {
+                    recent_blockhash = new_hash;
+                    last_valid_block_height = new_height;
+                    last_blockhash_refresh = Instant::now();
+                    debug!(tree = %tree_accounts.merkle_tree, "Refreshed blockhash");
+                }
+                Err(e) => {
+                    warn!(tree = %tree_accounts.merkle_tree, "Failed to refresh blockhash: {:?}", e);
+                }
             }
         }
 
         trace!(tree = %tree_accounts.merkle_tree, "Processing chunk of size {}", work_chunk.len());
         let build_start_time = Instant::now();
 
-        let (mut transactions_to_send, chunk_last_valid_block_height) = match transaction_builder
+        let (transactions_to_send, chunk_last_valid_block_height) = match transaction_builder
             .build_signed_transaction_batch(
                 payer,
                 derivation,
@@ -175,28 +179,6 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             continue;
         }
 
-        let mut send_last_valid_block_height = chunk_last_valid_block_height;
-        match fetch_latest_blockhash(&pool, &tree_id_str).await {
-            Ok((send_blockhash, send_last_valid)) => {
-                if let Err(e) = resign_transactions(&mut transactions_to_send, payer, send_blockhash) {
-                    warn!(
-                        tree = %tree_accounts.merkle_tree,
-                        "Failed to re-sign chunk with freshest blockhash, skipping chunk: {:?}",
-                        e
-                    );
-                    continue;
-                }
-                send_last_valid_block_height = send_last_valid;
-            }
-            Err(e) => {
-                warn!(
-                    tree = %tree_accounts.merkle_tree,
-                    "Failed to fetch fresh blockhash before send; using build-time blockhash: {:?}",
-                    e
-                );
-            }
-        }
-
         let send_context = ChunkSendContext {
             pool: Arc::clone(&pool),
             max_concurrent_sends: effective_max_concurrent_sends,
@@ -211,7 +193,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
 
         if let Err(e) = execute_transaction_chunk_sending(
             transactions_to_send,
-            send_last_valid_block_height,
+            chunk_last_valid_block_height,
             &send_context,
         )
         .await
@@ -282,7 +264,7 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
         return Ok(None); // Return None to indicate no work
     }
 
-    let priority_fee = {
+    let (priority_fee, recent_blockhash, last_valid_block_height) = {
         let rpc = pool.get_connection().await.map_err(|e| {
             error!(
                 tree = %tree_id_str,
@@ -299,12 +281,17 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
             tree_accounts.queue,
             tree_accounts.merkle_tree,
         ];
-        PriorityFeeConfig {
+        let priority_fee = PriorityFeeConfig {
             compute_unit_price: config.build_transaction_batch_config.compute_unit_price,
             enable_priority_fees: config.build_transaction_batch_config.enable_priority_fees,
         }
         .resolve(&*rpc, account_keys)
-        .await?
+        .await?;
+
+        let (recent_blockhash, last_valid_block_height) =
+            fetch_latest_blockhash(pool, &tree_id_str).await?;
+
+        (priority_fee, recent_blockhash, last_valid_block_height)
     };
 
     let work_items: Vec<WorkItem> = queue_item_data
@@ -319,6 +306,8 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
 
     Ok(Some(PreparedBatchData {
         work_items,
+        recent_blockhash,
+        last_valid_block_height,
         priority_fee,
         timeout_deadline,
     }))
@@ -340,75 +329,6 @@ async fn fetch_latest_blockhash<R: Rpc>(
         error!(tree = %tree_id_str, "Failed to get latest blockhash: {:?}", e);
         ForesterError::Rpc(e)
     })
-}
-
-fn resign_transactions(
-    transactions: &mut [Transaction],
-    payer: &Keypair,
-    recent_blockhash: Hash,
-) -> std::result::Result<(), ForesterError> {
-    for tx in transactions.iter_mut() {
-        tx.try_sign(&[payer], recent_blockhash)
-            .map_err(|e| ForesterError::General {
-                error: format!("failed to re-sign transaction: {}", e),
-            })?;
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::resign_transactions;
-    use crate::errors::ForesterError;
-    use solana_sdk::{
-        hash::Hash,
-        instruction::{AccountMeta, Instruction},
-        pubkey::Pubkey,
-        signature::{Keypair, Signer},
-        transaction::Transaction,
-    };
-
-    #[test]
-    fn resign_transactions_updates_signature_with_new_blockhash() {
-        let payer = Keypair::new();
-        let ix = Instruction {
-            program_id: Pubkey::new_unique(),
-            accounts: vec![AccountMeta::new(payer.pubkey(), true)],
-            data: vec![],
-        };
-        let mut tx = Transaction::new_with_payer(&[ix], Some(&payer.pubkey()));
-        let initial_hash = Hash::new_unique();
-        tx.try_sign(&[&payer], initial_hash).unwrap();
-        let old_signature = tx.signatures[0];
-
-        let mut txs = vec![tx];
-        resign_transactions(&mut txs, &payer, Hash::new_unique()).unwrap();
-
-        assert_ne!(txs[0].signatures[0], old_signature);
-    }
-
-    #[test]
-    fn resign_transactions_fails_when_extra_signer_is_required() {
-        let payer = Keypair::new();
-        let extra_signer = Keypair::new();
-        let ix = Instruction {
-            program_id: Pubkey::new_unique(),
-            accounts: vec![
-                AccountMeta::new(payer.pubkey(), true),
-                AccountMeta::new_readonly(extra_signer.pubkey(), true),
-            ],
-            data: vec![],
-        };
-        let mut tx = Transaction::new_with_payer(&[ix], Some(&payer.pubkey()));
-        tx.try_sign(&[&payer, &extra_signer], Hash::new_unique())
-            .unwrap();
-
-        let mut txs = vec![tx];
-        let err = resign_transactions(&mut txs, &payer, Hash::new_unique())
-            .expect_err("re-sign should fail when required signer is missing");
-
-        assert!(matches!(err, ForesterError::General { .. }));
-    }
 }
 
 fn compute_effective_max_concurrent_sends(
