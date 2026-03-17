@@ -1,0 +1,17 @@
+[package]
+name = "kora-light-client"
+version = "0.1.0"
+edition = "2021"
+description = "Standalone Light Protocol instruction builders for solana-sdk 3.0 consumers"
+license = "Apache-2.0"
+
+[dependencies]
+solana-pubkey = { version = "3.0", features = ["std", "sha2", "curve25519"] }
+solana-instruction = "3.0"
+solana-system-interface = "2.0"
+solana-compute-budget-interface = "3.0"
+borsh = { version = "1.5", features = ["derive"] }
+thiserror = "2.0"
+
+[dev-dependencies]
+hex = "0.4"
