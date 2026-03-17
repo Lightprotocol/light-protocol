@@ -218,7 +218,6 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             allow_pairing,
             payer,
             recent_blockhash,
-            last_valid_block_height,
             priority_fee,
             config.compute_unit_limit,
         )?;
@@ -258,7 +257,6 @@ fn build_instruction_batches(
     allow_pairing: bool,
     payer: &Keypair,
     recent_blockhash: &Hash,
-    last_valid_block_height: u64,
     priority_fee: Option<u64>,
     compute_unit_limit: Option<u32>,
 ) -> Result<Vec<Vec<solana_program::instruction::Instruction>>> {
