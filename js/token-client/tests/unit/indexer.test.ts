@@ -151,7 +151,7 @@ describe('PhotonIndexer', () => {
         }
     });
 
-    it('throws IndexerError for V1 tree type in account response', async () => {
+    it('accepts V1 tree type in account response', async () => {
         globalThis.fetch = vi.fn().mockResolvedValue(
             mockResponse({
                 jsonrpc: '2.0',
@@ -179,22 +179,10 @@ describe('PhotonIndexer', () => {
         );
 
         const indexer = new PhotonIndexer(ENDPOINT);
-
+        // V1 trees should not throw — they are accepted
         await expect(
             indexer.getCompressedAccount(new Uint8Array(32)),
-        ).rejects.toThrow(IndexerError);
-
-        try {
-            await indexer.getCompressedAccount(new Uint8Array(32));
-        } catch (e) {
-            expect(e).toBeInstanceOf(IndexerError);
-            expect((e as IndexerError).code).toBe(
-                IndexerErrorCode.InvalidResponse,
-            );
-            expect((e as IndexerError).message).toContain(
-                'V1 tree types are not supported',
-            );
-        }
+        ).resolves.not.toThrow();
     });
 
     it('successfully parses a valid compressed account response', async () => {

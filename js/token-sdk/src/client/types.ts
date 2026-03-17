@@ -280,19 +280,25 @@ export class IndexerError extends Error {
 // ============================================================================
 
 /**
- * Assert that tree is V2. Throws if V1.
+ * Validate that a tree type is recognized.
  *
- * The SDK only supports V2 trees. V1 trees from the indexer response
- * must be rejected to ensure proper protocol compatibility.
+ * Both V1 and V2 trees are supported. Only unknown/invalid tree types
+ * are rejected.
  *
  * @param treeType - The tree type to validate
- * @throws IndexerError if tree type is V1
+ * @throws IndexerError if tree type is unknown
  */
 export function assertV2Tree(treeType: TreeType): void {
-    if (treeType === TreeType.StateV1 || treeType === TreeType.AddressV1) {
+    const known = [
+        TreeType.StateV1,
+        TreeType.AddressV1,
+        TreeType.StateV2,
+        TreeType.AddressV2,
+    ];
+    if (!known.includes(treeType)) {
         throw new IndexerError(
             IndexerErrorCode.InvalidResponse,
-            `V1 tree types are not supported. Got: ${TreeType[treeType]}`,
+            `Unknown tree type: ${treeType}`,
         );
     }
 }

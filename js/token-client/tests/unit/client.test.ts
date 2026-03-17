@@ -42,35 +42,16 @@ describe('IndexerError', () => {
 });
 
 describe('assertV2Tree', () => {
-    it('throws for StateV1 tree type', () => {
-        expect(() => assertV2Tree(TreeType.StateV1)).toThrow(IndexerError);
-        expect(() => assertV2Tree(TreeType.StateV1)).toThrow(
-            'V1 tree types are not supported',
-        );
-    });
-
-    it('throws for AddressV1 tree type', () => {
-        expect(() => assertV2Tree(TreeType.AddressV1)).toThrow(IndexerError);
-        expect(() => assertV2Tree(TreeType.AddressV1)).toThrow(
-            'V1 tree types are not supported',
-        );
-    });
-
-    it('passes for V2 tree types', () => {
+    it('accepts all known tree types', () => {
+        expect(() => assertV2Tree(TreeType.StateV1)).not.toThrow();
+        expect(() => assertV2Tree(TreeType.AddressV1)).not.toThrow();
         expect(() => assertV2Tree(TreeType.StateV2)).not.toThrow();
         expect(() => assertV2Tree(TreeType.AddressV2)).not.toThrow();
     });
 
-    it('throws InvalidResponse error code for V1 trees', () => {
-        try {
-            assertV2Tree(TreeType.StateV1);
-            expect.fail('Expected assertV2Tree to throw');
-        } catch (e) {
-            expect(e).toBeInstanceOf(IndexerError);
-            expect((e as IndexerError).code).toBe(
-                IndexerErrorCode.InvalidResponse,
-            );
-        }
+    it('throws for unknown tree types', () => {
+        expect(() => assertV2Tree(99 as TreeType)).toThrow(IndexerError);
+        expect(() => assertV2Tree(99 as TreeType)).toThrow('Unknown tree type');
     });
 });
 
