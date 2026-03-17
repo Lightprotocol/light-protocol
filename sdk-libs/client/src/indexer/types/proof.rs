@@ -189,26 +189,30 @@ pub struct PackedTreeInfos {
 }
 
 impl ValidityProofWithContext {
+    pub fn pack_state_tree_infos(
+        &self,
+        packed_accounts: &mut PackedAccounts,
+    ) -> Vec<PackedStateTreeInfo> {
+        self.accounts
+            .iter()
+            .map(|account| PackedStateTreeInfo {
+                root_index: account.root_index.root_index().unwrap_or_default(),
+                merkle_tree_pubkey_index: packed_accounts.insert_or_get(account.tree_info.tree),
+                queue_pubkey_index: packed_accounts.insert_or_get(account.tree_info.queue),
+                leaf_index: account.leaf_index as u32,
+                prove_by_index: account.root_index.proof_by_index(),
+            })
+            .collect()
+    }
+
     pub fn pack_tree_infos(
         &self,
         packed_accounts: &mut PackedAccounts,
     ) -> Result<PackedTreeInfos, IndexerError> {
-        let mut packed_tree_infos = Vec::new();
+        let packed_tree_infos = self.pack_state_tree_infos(packed_accounts);
         let mut address_trees = Vec::new();
         let mut output_tree_index = None;
         for account in self.accounts.iter() {
-            // Pack TreeInfo
-            let merkle_tree_pubkey_index = packed_accounts.insert_or_get(account.tree_info.tree);
-            let queue_pubkey_index = packed_accounts.insert_or_get(account.tree_info.queue);
-            let tree_info_packed = PackedStateTreeInfo {
-                root_index: account.root_index.root_index,
-                merkle_tree_pubkey_index,
-                queue_pubkey_index,
-                leaf_index: account.leaf_index as u32,
-                prove_by_index: account.root_index.proof_by_index(),
-            };
-            packed_tree_infos.push(tree_info_packed);
-
             // If a next Merkle tree exists the Merkle tree is full -> use the next Merkle tree for new state.
             // Else use the current Merkle tree for new state.
             if let Some(next) = account.tree_info.next_tree_info {

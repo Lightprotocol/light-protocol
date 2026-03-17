@@ -367,7 +367,9 @@ async fn transfer_compressed_tokens(
         .await?
         .value;
 
-    let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let packed_tree_info = rpc_result
+        .pack_tree_infos(&mut remaining_accounts)
+        .map_err(|error| RpcError::CustomError(format!("Failed to pack tree infos: {error}")))?;
     let output_tree_index = packed_tree_info
         .state_trees
         .as_ref()
@@ -433,7 +435,9 @@ async fn decompress_compressed_tokens(
         .await?
         .value;
 
-    let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let packed_tree_info = rpc_result
+        .pack_tree_infos(&mut remaining_accounts)
+        .map_err(|error| RpcError::CustomError(format!("Failed to pack tree infos: {error}")))?;
     let output_tree_index = packed_tree_info
         .state_trees
         .as_ref()

@@ -110,10 +110,7 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
                 .stderr(Stdio::inherit())
                 .spawn()
                 .expect("Failed to start server process");
-            let status = child
-                .wait()
-                .await
-                .expect("Failed to wait for CLI process");
+            let status = child.wait().await.expect("Failed to wait for CLI process");
             assert!(status.success(), "CLI exited with error: {}", status);
         } else {
             let _child = Command::new("sh")

@@ -670,8 +670,8 @@ fn parse_tree_status(
             let fullness = next_index as f64 / capacity as f64 * 100.0;
 
             let (queue_len, queue_cap) = queue_account
-                .map(|acc| {
-                    match unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) } {
+                .map(
+                    |acc| match unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) } {
                         Ok(hs) => {
                             let len = hs
                                 .iter()
@@ -684,8 +684,8 @@ fn parse_tree_status(
                             warn!(?error, "Failed to parse StateV1 queue hash set");
                             (None, None)
                         }
-                    }
-                })
+                    },
+                )
                 .unwrap_or((None, None));
 
             (
@@ -727,8 +727,8 @@ fn parse_tree_status(
             let fullness = next_index as f64 / capacity as f64 * 100.0;
 
             let (queue_len, queue_cap) = queue_account
-                .map(|acc| {
-                    match unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) } {
+                .map(
+                    |acc| match unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) } {
                         Ok(hs) => {
                             let len = hs
                                 .iter()
@@ -741,8 +741,8 @@ fn parse_tree_status(
                             warn!(?error, "Failed to parse AddressV1 queue hash set");
                             (None, None)
                         }
-                    }
-                })
+                    },
+                )
                 .unwrap_or((None, None));
 
             (
