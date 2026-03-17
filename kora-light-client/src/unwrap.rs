@@ -158,33 +158,63 @@ pub fn create_unwrap_instruction(
 
 #[cfg(test)]
 mod tests {
+    use borsh::BorshDeserialize;
+
     use super::*;
+    use crate::types::{CompressedTokenInstructionDataTransfer2, CompressionMode};
+
+    fn make_unwrap_ix() -> Instruction {
+        let spl = SplInterfaceInfo {
+            spl_interface_pda: Pubkey::new_unique(),
+            bump: 255,
+            pool_index: 0,
+            token_program: Pubkey::new_unique(),
+        };
+        create_unwrap_instruction(
+            &Pubkey::new_unique(),
+            &Pubkey::new_unique(),
+            &Pubkey::new_unique(),
+            &Pubkey::new_unique(),
+            1000,
+            6,
+            &Pubkey::new_unique(),
+            &spl,
+        )
+        .unwrap()
+    }
 
     #[test]
     fn test_unwrap_instruction_builds() {
-        let source = Pubkey::new_unique();
-        let destination = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let payer = Pubkey::new_unique();
-        let pool_pda = Pubkey::new_unique();
-        let token_program = Pubkey::new_unique();
-
-        let spl = SplInterfaceInfo {
-            spl_interface_pda: pool_pda,
-            bump: 255,
-            pool_index: 0,
-            token_program,
-        };
-
-        let ix =
-            create_unwrap_instruction(&source, &destination, &owner, &mint, 1000, 6, &payer, &spl)
-                .unwrap();
-
+        let ix = make_unwrap_ix();
         assert_eq!(ix.program_id, LIGHT_TOKEN_PROGRAM_ID);
         assert_eq!(ix.data[0], TRANSFER2_DISCRIMINATOR);
         assert_eq!(ix.accounts.len(), 10);
         assert_eq!(ix.accounts[0].pubkey, CPI_AUTHORITY_PDA);
+    }
+
+    #[test]
+    fn test_unwrap_compression_payload() {
+        let ix = make_unwrap_ix();
+        let data = CompressedTokenInstructionDataTransfer2::try_from_slice(&ix.data[1..]).unwrap();
+
+        let compressions = data.compressions.expect("unwrap must have compressions");
+        assert_eq!(compressions.len(), 2, "unwrap needs compress + decompress");
+
+        // First: Compress from light-token (reverse of wrap)
+        assert_eq!(compressions[0].mode, CompressionMode::Compress);
+        assert_eq!(compressions[0].amount, 1000);
+        assert_eq!(compressions[0].source_or_recipient, 2); // source index
+        assert_eq!(compressions[0].authority, 1); // owner index
+
+        // Second: Decompress to SPL
+        assert_eq!(compressions[1].mode, CompressionMode::Decompress);
+        assert_eq!(compressions[1].amount, 1000);
+        assert_eq!(compressions[1].source_or_recipient, 3); // destination index
+
+        // No compressed inputs/outputs
+        assert!(data.in_token_data.is_empty());
+        assert!(data.out_token_data.is_empty());
+        assert!(data.proof.is_none());
     }
 
     #[test]
@@ -224,5 +254,71 @@ mod tests {
         assert_eq!(wrap_ix.accounts.len(), unwrap_ix.accounts.len());
         // Data should differ (different compression modes)
         assert_ne!(wrap_ix.data, unwrap_ix.data);
+    }
+
+    #[test]
+    fn test_wrap_unwrap_roundtrip_compression_modes() {
+        let source = Pubkey::new_unique();
+        let destination = Pubkey::new_unique();
+        let owner = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let payer = Pubkey::new_unique();
+        let spl = SplInterfaceInfo {
+            spl_interface_pda: Pubkey::new_unique(),
+            bump: 255,
+            pool_index: 0,
+            token_program: Pubkey::new_unique(),
+        };
+        let amount = 5000u64;
+
+        let wrap_ix = crate::wrap::create_wrap_instruction(
+            &source,
+            &destination,
+            &owner,
+            &mint,
+            amount,
+            6,
+            &payer,
+            &spl,
+        )
+        .unwrap();
+        let unwrap_ix = create_unwrap_instruction(
+            &source,
+            &destination,
+            &owner,
+            &mint,
+            amount,
+            6,
+            &payer,
+            &spl,
+        )
+        .unwrap();
+
+        let wrap_data =
+            CompressedTokenInstructionDataTransfer2::try_from_slice(&wrap_ix.data[1..]).unwrap();
+        let unwrap_data =
+            CompressedTokenInstructionDataTransfer2::try_from_slice(&unwrap_ix.data[1..]).unwrap();
+
+        let wrap_c = wrap_data.compressions.unwrap();
+        let unwrap_c = unwrap_data.compressions.unwrap();
+
+        // Wrap: Compress(SPL) → Decompress(light-token)
+        assert_eq!(wrap_c[0].mode, CompressionMode::Compress);
+        assert_eq!(wrap_c[1].mode, CompressionMode::Decompress);
+
+        // Unwrap: Compress(light-token) → Decompress(SPL)
+        assert_eq!(unwrap_c[0].mode, CompressionMode::Compress);
+        assert_eq!(unwrap_c[1].mode, CompressionMode::Decompress);
+
+        // Same amounts
+        assert_eq!(wrap_c[0].amount, amount);
+        assert_eq!(wrap_c[1].amount, amount);
+        assert_eq!(unwrap_c[0].amount, amount);
+        assert_eq!(unwrap_c[1].amount, amount);
+
+        // Wrap has SPL pool info on decompress (pool_index, bump, decimals = 0 for light-token)
+        // Unwrap has SPL pool info on decompress (pool_index, bump, decimals set for SPL)
+        assert_eq!(wrap_c[1].pool_account_index, 0); // light-token decompress: no pool
+        assert_ne!(unwrap_c[1].pool_account_index, 0); // SPL decompress: has pool
     }
 }

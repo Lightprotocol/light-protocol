@@ -309,9 +309,59 @@ fn test_extension_enum_discriminators() {
         compression_authority: [0u8; 32],
         rent_sponsor: [0u8; 32],
         last_claimed_slot: 0,
+        rent_exemption_paid: 0,
+        _reserved: 0,
+        rent_config: RentConfig {
+            base_rent: 0,
+            compression_cost: 0,
+            lamports_per_byte_per_epoch: 0,
+            max_funded_epochs: 0,
+            max_top_up: 0,
+        },
     });
     let bytes = borsh::to_vec(&ext).unwrap();
     assert_eq!(bytes[0], 32, "Compressible discriminator = 32");
+}
+
+/// Verify CompressionInfo serializes to 96 bytes (matching on-chain layout).
+#[test]
+fn test_compression_info_size() {
+    let info = CompressionInfo {
+        config_account_version: 1,
+        compress_to_pubkey: 0,
+        account_version: 0,
+        lamports_per_write: 766,
+        compression_authority: [0xAA; 32],
+        rent_sponsor: [0xBB; 32],
+        last_claimed_slot: 42,
+        rent_exemption_paid: 1_000_000,
+        _reserved: 0,
+        rent_config: RentConfig {
+            base_rent: 100,
+            compression_cost: 50,
+            lamports_per_byte_per_epoch: 1,
+            max_funded_epochs: 16,
+            max_top_up: 5000,
+        },
+    };
+    let bytes = borsh::to_vec(&info).unwrap();
+    assert_eq!(
+        bytes.len(),
+        96,
+        "CompressionInfo must be 96 bytes (matching on-chain)"
+    );
+
+    // Verify field layout: last 8 bytes = RentConfig
+    // rent_exemption_paid (u32 LE) at offset 80
+    assert_eq!(&bytes[80..84], &1_000_000u32.to_le_bytes());
+    // _reserved (u32 LE) at offset 84
+    assert_eq!(&bytes[84..88], &0u32.to_le_bytes());
+    // RentConfig starts at offset 88
+    assert_eq!(&bytes[88..90], &100u16.to_le_bytes()); // base_rent
+    assert_eq!(&bytes[90..92], &50u16.to_le_bytes()); // compression_cost
+    assert_eq!(bytes[92], 1); // lamports_per_byte_per_epoch
+    assert_eq!(bytes[93], 16); // max_funded_epochs
+    assert_eq!(&bytes[94..96], &5000u16.to_le_bytes()); // max_top_up
 }
 
 /// Verify the discriminator + Transfer2 data round-trip (serialize → deserialize).

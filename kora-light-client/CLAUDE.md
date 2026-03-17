@@ -352,7 +352,7 @@ All types must remain byte-identical to the on-chain program. Verified by golden
 | `ExtensionInstructionData` (enum, 33 variants) | variable | `program-libs/token-interface/src/instructions/extensions/` |
 | `TokenMetadataInstructionData` | variable | same as above (variant 19) |
 | `CompressedOnlyExtensionInstructionData` | 21 | same as above (variant 31) |
-| `CompressionInfo` | 80 | `program-libs/compressible/` (variant 32) |
+| `CompressionInfo` | 96 | `program-libs/compressible/` (variant 32) |
 | `CreateAssociatedTokenAccountInstructionData` | variable | `program-libs/token-interface/src/instructions/create_associated_token_account.rs` |
 | `CompressibleExtensionInstructionData` | variable | `program-libs/token-interface/src/instructions/extensions/compressible.rs` |
 | `CompressToPubkey` | variable | same as above |

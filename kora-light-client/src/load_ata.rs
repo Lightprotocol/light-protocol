@@ -101,8 +101,11 @@ pub fn create_load_ata_batches(input: LoadAtaInput) -> Result<Vec<LoadBatch>, Ko
     let mut wrap_count = 0;
 
     if input.needs_ata_creation {
-        setup_instructions
-            .push(CreateAta::new(input.payer, input.owner, input.mint).idempotent().instruction()?);
+        setup_instructions.push(
+            CreateAta::new(input.payer, input.owner, input.mint)
+                .idempotent()
+                .instruction()?,
+        );
     }
 
     if let Some(wrap) = &input.spl_wrap {

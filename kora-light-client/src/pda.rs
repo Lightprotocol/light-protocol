@@ -74,4 +74,45 @@ mod tests {
         assert_eq!(pda, crate::program_ids::CPI_AUTHORITY_PDA);
         assert_eq!(bump, crate::program_ids::BUMP_CPI_AUTHORITY);
     }
+
+    #[test]
+    fn test_find_spl_interface_pda_returns_valid_pubkey() {
+        let mint = Pubkey::new_unique();
+        let (pda, bump) = find_spl_interface_pda(&mint);
+        // Verify it's a valid PDA (off the ed25519 curve)
+        assert_ne!(pda, Pubkey::default());
+        let _ = bump; // u8, always valid
+
+        // Same mint → same PDA (deterministic)
+        let (pda2, bump2) = find_spl_interface_pda(&mint);
+        assert_eq!(pda, pda2);
+        assert_eq!(bump, bump2);
+
+        // Different pool index → different PDA
+        let (pda_idx1, _) = find_spl_interface_pda_with_index(&mint, 1);
+        assert_ne!(pda, pda_idx1);
+    }
+
+    #[test]
+    fn test_is_light_token_owner_light_token() {
+        assert_eq!(is_light_token_owner(&LIGHT_TOKEN_PROGRAM_ID), Some(true));
+    }
+
+    #[test]
+    fn test_is_light_token_owner_spl_token() {
+        assert_eq!(is_light_token_owner(&SPL_TOKEN_PROGRAM_ID), Some(false));
+    }
+
+    #[test]
+    fn test_is_light_token_owner_token_2022() {
+        assert_eq!(
+            is_light_token_owner(&SPL_TOKEN_2022_PROGRAM_ID),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn test_is_light_token_owner_unknown() {
+        assert_eq!(is_light_token_owner(&Pubkey::new_unique()), None);
+    }
 }

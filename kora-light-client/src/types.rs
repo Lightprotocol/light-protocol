@@ -342,7 +342,19 @@ pub struct CompressedOnlyExtensionInstructionData {
     pub owner_index: u8,
 }
 
-/// Compressible extension data (index 32) — compression info.
+/// Rent configuration parameters.
+/// Ported from `program-libs/compressible/src/rent/config.rs`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, BorshSerialize, BorshDeserialize)]
+pub struct RentConfig {
+    pub base_rent: u16,
+    pub compression_cost: u16,
+    pub lamports_per_byte_per_epoch: u8,
+    pub max_funded_epochs: u8,
+    pub max_top_up: u16,
+}
+
+/// Compressible extension data (index 32) — compression info (96 bytes).
+/// Ported from `program-libs/compressible/src/compression_info.rs`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct CompressionInfo {
     pub config_account_version: u16,
@@ -352,6 +364,9 @@ pub struct CompressionInfo {
     pub compression_authority: [u8; 32],
     pub rent_sponsor: [u8; 32],
     pub last_claimed_slot: u64,
+    pub rent_exemption_paid: u32,
+    pub _reserved: u32,
+    pub rent_config: RentConfig,
 }
 
 // ---------------------------------------------------------------------------
