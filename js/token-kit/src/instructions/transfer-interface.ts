@@ -5,17 +5,8 @@
 import type { Address } from '@solana/addresses';
 import type { Instruction } from '@solana/instructions';
 
-import { determineTransferType } from '../utils/validation.js';
+import { determineTransferType, type TransferType } from '../utils/validation.js';
 import { createTransferInstruction } from './transfer.js';
-
-/**
- * Transfer type for routing.
- */
-export type TransferType =
-    | 'light-to-light'
-    | 'light-to-spl'
-    | 'spl-to-light'
-    | 'spl-to-spl';
 
 /**
  * Parameters for transfer interface.

@@ -37,6 +37,8 @@ import {
     createClaimInstruction,
     createWithdrawFundingPoolInstruction,
     createMintActionInstruction,
+    createWrapInstruction,
+    createUnwrapInstruction,
 
     // Compression factory functions
     createCompress,
@@ -54,6 +56,7 @@ import {
     DISCRIMINATOR,
     SYSTEM_PROGRAM_ID,
     ACCOUNT_COMPRESSION_PROGRAM_ID,
+    SPL_TOKEN_PROGRAM_ID,
     COMPRESSION_MODE,
 
     // Codecs
@@ -61,6 +64,9 @@ import {
     getCheckedInstructionCodec,
     getDiscriminatorOnlyCodec,
     decodeMaxTopUp,
+
+    // Types
+    type SplInterfaceInfo,
 } from '../../src/index.js';
 
 // ============================================================================
@@ -249,6 +255,17 @@ describe('createTransferInstruction', () => {
         const decoded = codec.decode(ix.data);
         expect(decoded.amount).toBe(largeAmount);
     });
+
+    it('throws when source equals destination', () => {
+        expect(() =>
+            createTransferInstruction({
+                source: TEST_SOURCE,
+                destination: TEST_SOURCE,
+                amount: 1000n,
+                authority: TEST_AUTHORITY,
+            }),
+        ).toThrow('Source and destination must be different accounts');
+    });
 });
 
 // ============================================================================
@@ -426,6 +443,19 @@ describe('createTransferCheckedInstruction', () => {
                 decimals: -1,
             }),
         ).toThrow('Decimals must be an integer between 0 and 255');
+    });
+
+    it('throws when source equals destination', () => {
+        expect(() =>
+            createTransferCheckedInstruction({
+                source: TEST_SOURCE,
+                destination: TEST_SOURCE,
+                mint: TEST_MINT,
+                amount: 1000n,
+                authority: TEST_AUTHORITY,
+                decimals: 6,
+            }),
+        ).toThrow('Source and destination must be different accounts');
     });
 });
 
@@ -2460,5 +2490,252 @@ describe('createMintActionInstruction', () => {
         // Account 4: cpiContext (writable — program writes CPI data to it)
         expect(ix.accounts[4].address).toBe(cpiContext);
         expect(ix.accounts[4].role).toBe(AccountRole.WRITABLE);
+    });
+});
+
+// ============================================================================
+// TEST: createCompress / createDecompress with tokenProgramIndex
+// ============================================================================
+
+describe('Compression factory with tokenProgramIndex', () => {
+    it('createCompress: tokenProgramIndex sets poolAccountIndex', () => {
+        const comp = createCompress({
+            amount: 5000n,
+            mintIndex: 0,
+            sourceIndex: 2,
+            authorityIndex: 1,
+            tokenProgramIndex: 6,
+        });
+        expect(comp.mode).toBe(COMPRESSION_MODE.COMPRESS);
+        expect(comp.amount).toBe(5000n);
+        expect(comp.mint).toBe(0);
+        expect(comp.sourceOrRecipient).toBe(2);
+        expect(comp.authority).toBe(1);
+        expect(comp.poolAccountIndex).toBe(6);
+        expect(comp.poolIndex).toBe(0);
+        expect(comp.bump).toBe(0);
+        expect(comp.decimals).toBe(0);
+    });
+
+    it('createCompress: defaults poolAccountIndex to 0 without tokenProgramIndex', () => {
+        const comp = createCompress({
+            amount: 1000n,
+            mintIndex: 0,
+            sourceIndex: 2,
+            authorityIndex: 1,
+        });
+        expect(comp.poolAccountIndex).toBe(0);
+    });
+
+    it('createDecompress: tokenProgramIndex sets poolAccountIndex', () => {
+        const comp = createDecompress({
+            amount: 3000n,
+            mintIndex: 0,
+            recipientIndex: 3,
+            tokenProgramIndex: 6,
+        });
+        expect(comp.mode).toBe(COMPRESSION_MODE.DECOMPRESS);
+        expect(comp.amount).toBe(3000n);
+        expect(comp.mint).toBe(0);
+        expect(comp.sourceOrRecipient).toBe(3);
+        expect(comp.authority).toBe(0);
+        expect(comp.poolAccountIndex).toBe(6);
+        expect(comp.poolIndex).toBe(0);
+        expect(comp.bump).toBe(0);
+        expect(comp.decimals).toBe(0);
+    });
+
+    it('createDecompress: defaults poolAccountIndex to 0 without tokenProgramIndex', () => {
+        const comp = createDecompress({
+            amount: 1000n,
+            mintIndex: 0,
+            recipientIndex: 3,
+        });
+        expect(comp.poolAccountIndex).toBe(0);
+    });
+});
+
+// ============================================================================
+// TEST: createWrapInstruction
+// ============================================================================
+
+describe('createWrapInstruction', () => {
+    const TEST_POOL = address('BPFLoaderUpgradeab1e11111111111111111111111');
+    const splInterfaceInfo: SplInterfaceInfo = {
+        poolAddress: TEST_POOL,
+        tokenProgram: SPL_TOKEN_PROGRAM_ID,
+        poolIndex: 0,
+        bump: 254,
+        isInitialized: true,
+    };
+
+    it('has correct program address', () => {
+        const ix = createWrapInstruction({
+            source: TEST_SOURCE,
+            destination: TEST_DEST,
+            owner: TEST_OWNER,
+            mint: TEST_MINT,
+            amount: 1000n,
+            splInterfaceInfo,
+            decimals: 9,
+        });
+        expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
+    });
+
+    it('has 10 accounts in correct order (Path A)', () => {
+        const ix = createWrapInstruction({
+            source: TEST_SOURCE,
+            destination: TEST_DEST,
+            owner: TEST_OWNER,
+            mint: TEST_MINT,
+            amount: 1000n,
+            splInterfaceInfo,
+            decimals: 9,
+        });
+        expect(ix.accounts).toHaveLength(10);
+
+        // Path A prefix
+        expect(ix.accounts[0].address).toBe(CPI_AUTHORITY);
+        expect(ix.accounts[0].role).toBe(AccountRole.READONLY);
+        expect(ix.accounts[1].address).toBe(TEST_OWNER); // feePayer defaults to owner
+        expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE_SIGNER);
+
+        // Packed accounts
+        expect(ix.accounts[2].address).toBe(TEST_MINT); // mint (index 0)
+        expect(ix.accounts[2].role).toBe(AccountRole.READONLY);
+        expect(ix.accounts[3].address).toBe(TEST_OWNER); // owner (index 1)
+        expect(ix.accounts[3].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[4].address).toBe(TEST_SOURCE); // source (index 2)
+        expect(ix.accounts[4].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[5].address).toBe(TEST_DEST); // destination (index 3)
+        expect(ix.accounts[5].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[6].address).toBe(TEST_POOL); // pool (index 4)
+        expect(ix.accounts[6].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[7].address).toBe(SPL_TOKEN_PROGRAM_ID); // tokenProgram (index 5)
+        expect(ix.accounts[7].role).toBe(AccountRole.READONLY);
+        expect(ix.accounts[8].address).toBe(LIGHT_TOKEN_PROGRAM_ID); // ctoken program (index 6)
+        expect(ix.accounts[8].role).toBe(AccountRole.READONLY);
+        expect(ix.accounts[9].address).toBe(SYSTEM_PROGRAM_ID); // system program (index 7)
+        expect(ix.accounts[9].role).toBe(AccountRole.READONLY);
+    });
+
+    it('has discriminator 101 (Transfer2)', () => {
+        const ix = createWrapInstruction({
+            source: TEST_SOURCE,
+            destination: TEST_DEST,
+            owner: TEST_OWNER,
+            mint: TEST_MINT,
+            amount: 1000n,
+            splInterfaceInfo,
+            decimals: 9,
+        });
+        expect(ix.data[0]).toBe(DISCRIMINATOR.TRANSFER2);
+    });
+
+    it('with feePayer: uses separate feePayer', () => {
+        const feePayer = address('Vote111111111111111111111111111111111111111');
+        const ix = createWrapInstruction({
+            source: TEST_SOURCE,
+            destination: TEST_DEST,
+            owner: TEST_OWNER,
+            mint: TEST_MINT,
+            amount: 1000n,
+            splInterfaceInfo,
+            decimals: 9,
+            feePayer,
+        });
+        expect(ix.accounts[1].address).toBe(feePayer);
+        expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE_SIGNER);
+        expect(ix.accounts[3].address).toBe(TEST_OWNER);
+        expect(ix.accounts[3].role).toBe(AccountRole.READONLY_SIGNER);
+    });
+});
+
+// ============================================================================
+// TEST: createUnwrapInstruction
+// ============================================================================
+
+describe('createUnwrapInstruction', () => {
+    const TEST_POOL = address('BPFLoaderUpgradeab1e11111111111111111111111');
+    const splInterfaceInfo: SplInterfaceInfo = {
+        poolAddress: TEST_POOL,
+        tokenProgram: SPL_TOKEN_PROGRAM_ID,
+        poolIndex: 0,
+        bump: 254,
+        isInitialized: true,
+    };
+
+    it('has correct program address', () => {
+        const ix = createUnwrapInstruction({
+            source: TEST_SOURCE,
+            destination: TEST_DEST,
+            owner: TEST_OWNER,
+            mint: TEST_MINT,
+            amount: 1000n,
+            splInterfaceInfo,
+            decimals: 9,
+        });
+        expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
+    });
+
+    it('has 10 accounts matching wrap layout', () => {
+        const ix = createUnwrapInstruction({
+            source: TEST_SOURCE,
+            destination: TEST_DEST,
+            owner: TEST_OWNER,
+            mint: TEST_MINT,
+            amount: 1000n,
+            splInterfaceInfo,
+            decimals: 9,
+        });
+        expect(ix.accounts).toHaveLength(10);
+
+        // Path A prefix
+        expect(ix.accounts[0].address).toBe(CPI_AUTHORITY);
+        expect(ix.accounts[0].role).toBe(AccountRole.READONLY);
+        expect(ix.accounts[1].address).toBe(TEST_OWNER);
+        expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE_SIGNER);
+
+        // Packed accounts — same layout as wrap
+        expect(ix.accounts[2].address).toBe(TEST_MINT);
+        expect(ix.accounts[3].address).toBe(TEST_OWNER);
+        expect(ix.accounts[4].address).toBe(TEST_SOURCE);
+        expect(ix.accounts[4].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[5].address).toBe(TEST_DEST);
+        expect(ix.accounts[5].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[6].address).toBe(TEST_POOL);
+        expect(ix.accounts[6].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[7].address).toBe(SPL_TOKEN_PROGRAM_ID);
+        expect(ix.accounts[8].address).toBe(LIGHT_TOKEN_PROGRAM_ID);
+        expect(ix.accounts[9].address).toBe(SYSTEM_PROGRAM_ID);
+    });
+
+    it('has discriminator 101 (Transfer2)', () => {
+        const ix = createUnwrapInstruction({
+            source: TEST_SOURCE,
+            destination: TEST_DEST,
+            owner: TEST_OWNER,
+            mint: TEST_MINT,
+            amount: 1000n,
+            splInterfaceInfo,
+            decimals: 9,
+        });
+        expect(ix.data[0]).toBe(DISCRIMINATOR.TRANSFER2);
+    });
+
+    it('with feePayer: uses separate feePayer', () => {
+        const feePayer = address('Vote111111111111111111111111111111111111111');
+        const ix = createUnwrapInstruction({
+            source: TEST_SOURCE,
+            destination: TEST_DEST,
+            owner: TEST_OWNER,
+            mint: TEST_MINT,
+            amount: 1000n,
+            splInterfaceInfo,
+            decimals: 9,
+            feePayer,
+        });
+        expect(ix.accounts[1].address).toBe(feePayer);
+        expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE_SIGNER);
     });
 });

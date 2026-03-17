@@ -17,10 +17,6 @@ import {
     SYSTEM_PROGRAM_ID,
 } from '../constants.js';
 
-// ============================================================================
-// WITHDRAW FUNDING POOL INSTRUCTION
-// ============================================================================
-
 /**
  * Parameters for withdrawing from a funding pool.
  */

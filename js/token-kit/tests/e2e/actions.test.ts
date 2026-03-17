@@ -11,6 +11,7 @@ import {
     createCompressedMint,
     mintCompressedTokens,
     toKitAddress,
+    ensureValidatorRunning,
     type Signer,
     type Rpc,
 } from './helpers/setup.js';
@@ -30,6 +31,7 @@ describe('buildCompressedTransfer e2e', () => {
     let indexer: PhotonIndexer;
 
     beforeAll(async () => {
+        await ensureValidatorRunning();
         rpc = getTestRpc();
         payer = await fundAccount(rpc);
 
@@ -53,7 +55,8 @@ describe('buildCompressedTransfer e2e', () => {
 
         const transferAmount = 3_000n;
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({
+            indexer,
             owner: ownerAddr,
             mint: mintAddr,
             amount: transferAmount,

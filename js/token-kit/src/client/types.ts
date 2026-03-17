@@ -38,7 +38,7 @@ export interface TreeInfo {
     /** CPI context (optional) */
     cpiContext?: Address;
     /** Next tree info (when current tree is full) */
-    nextTreeInfo?: TreeInfo | null;
+    nextTreeInfo?: TreeInfo;
 }
 
 // ============================================================================
@@ -288,7 +288,7 @@ export class IndexerError extends Error {
  * @param treeType - The tree type to validate
  * @throws IndexerError if tree type is unknown
  */
-export function assertV2Tree(treeType: TreeType): void {
+export function assertValidTreeType(treeType: TreeType): void {
     const known = [
         TreeType.StateV1,
         TreeType.AddressV1,
@@ -301,4 +301,43 @@ export function assertV2Tree(treeType: TreeType): void {
             `Unknown tree type: ${treeType}`,
         );
     }
+}
+
+/** @deprecated Use assertValidTreeType instead. */
+export const assertV2Tree = assertValidTreeType;
+
+// ============================================================================
+// BALANCE / HOLDER TYPES
+// ============================================================================
+
+/**
+ * Token balance for a specific mint.
+ */
+export interface TokenBalance {
+    /** Token mint address */
+    mint: Address;
+    /** Total balance across all compressed accounts */
+    balance: bigint;
+}
+
+/**
+ * Token holder with balance.
+ */
+export interface TokenHolder {
+    /** Owner address */
+    owner: Address;
+    /** Balance */
+    balance: bigint;
+}
+
+/**
+ * Signature info for token operations.
+ */
+export interface SignatureInfo {
+    /** Transaction signature */
+    signature: string;
+    /** Slot the transaction was confirmed in */
+    slot: bigint;
+    /** Block time (optional) */
+    blockTime: bigint | null;
 }

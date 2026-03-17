@@ -6,56 +6,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { address } from '@solana/addresses';
 
 import { selectAccountsForAmount, DEFAULT_MAX_INPUTS } from '../../src/index.js';
-
-import {
-    type CompressedTokenAccount,
-    type CompressedAccount,
-    type TreeInfo,
-    TreeType,
-    AccountState,
-} from '../../src/index.js';
-
-// ============================================================================
-// TEST HELPERS
-// ============================================================================
-
-function createMockTokenAccount(amount: bigint): CompressedTokenAccount {
-    const mockTreeInfo: TreeInfo = {
-        tree: address('amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx'),
-        queue: address('SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7'),
-        treeType: TreeType.StateV2,
-    };
-    const mockAccount: CompressedAccount = {
-        hash: new Uint8Array(32),
-        address: null,
-        owner: address('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
-        lamports: 0n,
-        data: null,
-        leafIndex: 0,
-        treeInfo: mockTreeInfo,
-        proveByIndex: false,
-        seq: null,
-        slotCreated: 0n,
-    };
-    return {
-        token: {
-            mint: address('So11111111111111111111111111111111111111112'),
-            owner: address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
-            amount,
-            delegate: null,
-            state: AccountState.Initialized,
-            tlv: null,
-        },
-        account: mockAccount,
-    };
-}
-
-// ============================================================================
-// TESTS
-// ============================================================================
+import { createMockTokenAccount } from './helpers.js';
 
 describe('selectAccountsForAmount', () => {
     it('selects single large account when sufficient', () => {

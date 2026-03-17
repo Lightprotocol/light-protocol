@@ -67,7 +67,7 @@ describe('Transfer2 e2e (compressed)', () => {
             rpc, payer.publicKey, mint,
         );
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({ indexer,
             owner: ownerAddr,
             mint: mintAddr,
             amount: transferAmount,
@@ -102,7 +102,7 @@ describe('Transfer2 e2e (compressed)', () => {
         // Transfer less than total to force change output
         const transferAmount = 300n;
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({ indexer,
             owner: ownerAddr,
             mint: mintAddr,
             amount: transferAmount,
@@ -155,7 +155,7 @@ describe('Transfer2 e2e (compressed)', () => {
         // Transfer 400 → needs at least 4 inputs
         const transferAmount = 400n;
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({ indexer,
             owner: ownerAddr,
             mint: mintAddr,
             amount: transferAmount,
@@ -185,7 +185,7 @@ describe('Transfer2 e2e (compressed)', () => {
         const recipientAddr = toKitAddress(recipient.publicKey);
         const mintAddr = toKitAddress(mint);
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({ indexer,
             owner: ownerAddr,
             mint: mintAddr,
             amount: 100n,

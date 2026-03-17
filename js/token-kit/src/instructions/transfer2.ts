@@ -167,6 +167,8 @@ interface CompressParams {
     mintIndex: number;
     sourceIndex: number;
     authorityIndex: number;
+    /** Token program index in packed accounts — for CToken compress via CPI */
+    tokenProgramIndex?: number;
 }
 
 /**
@@ -186,6 +188,8 @@ interface DecompressParams {
     amount: bigint;
     mintIndex: number;
     recipientIndex: number;
+    /** Token program index in packed accounts — for CToken decompress via CPI */
+    tokenProgramIndex?: number;
 }
 
 /**
@@ -221,7 +225,7 @@ export function createCompress(params: CompressParams): Compression {
         mint: params.mintIndex,
         sourceOrRecipient: params.sourceIndex,
         authority: params.authorityIndex,
-        poolAccountIndex: 0,
+        poolAccountIndex: params.tokenProgramIndex ?? 0,
         poolIndex: 0,
         bump: 0,
         decimals: 0,
@@ -255,7 +259,7 @@ export function createDecompress(params: DecompressParams): Compression {
         mint: params.mintIndex,
         sourceOrRecipient: params.recipientIndex,
         authority: 0,
-        poolAccountIndex: 0,
+        poolAccountIndex: params.tokenProgramIndex ?? 0,
         poolIndex: 0,
         bump: 0,
         decimals: 0,

@@ -7,6 +7,20 @@
 // Types
 export * from './types.js';
 
+// Borsh helpers
+export {
+    writeU8,
+    writeU16,
+    writeU32,
+    writeU64,
+    writeBool,
+    writeOption,
+    writeVecBytes,
+    concatBytes,
+    getVecEncoder,
+    getVecDecoder,
+} from './borsh-helpers.js';
+
 // Transfer2 codecs
 export {
     getCompressionEncoder,
@@ -69,6 +83,14 @@ export {
     type CheckedInstructionData,
     type DiscriminatorOnlyData,
 } from './instructions.js';
+
+// Mint deserializer
+export {
+    deserializeCompressedMint,
+    type BaseMint,
+    type DeserializedMintContext,
+    type DeserializedCompressedMint,
+} from './mint-deserialize.js';
 
 // MintAction codecs
 export {

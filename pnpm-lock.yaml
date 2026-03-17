@@ -437,6 +437,9 @@ importers:
 
   js/token-kit:
     dependencies:
+      '@noble/hashes':
+        specifier: ^1.4.0
+        version: 1.5.0
       '@solana/addresses':
         specifier: ^2.1.0
         version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
@@ -446,15 +449,6 @@ importers:
       '@solana/instructions':
         specifier: ^2.1.0
         version: 2.3.0(typescript@5.9.3)
-      '@solana/keys':
-        specifier: ^2.1.0
-        version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
-      '@solana/signers':
-        specifier: ^2.1.0
-        version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
-      '@solana/transaction-messages':
-        specifier: ^2.1.0
-        version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
     devDependencies:
       '@codama/nodes':
         specifier: ^1.4.1

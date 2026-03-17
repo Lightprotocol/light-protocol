@@ -15,3 +15,6 @@ export * from './transfer-interface.js';
 export * from './mint-action.js';
 export * from './claim.js';
 export * from './withdraw-funding-pool.js';
+export { buildInstructionDataWithMaxTopUp } from './helpers.js';
+export * from './wrap-unwrap.js';
+export * from './spl-interface.js';

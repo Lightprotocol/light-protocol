@@ -211,3 +211,6 @@ export const TRANSFER_FEE_ACCOUNT_EXTENSION_SIZE = 9;
 
 /** Transfer hook account extension size */
 export const TRANSFER_HOOK_ACCOUNT_EXTENSION_SIZE = 2;
+
+/** V2 token account version (ShaFlat hashing) */
+export const TOKEN_ACCOUNT_VERSION_V2 = 3;

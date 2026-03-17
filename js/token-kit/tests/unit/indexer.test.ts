@@ -6,9 +6,13 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-import { PhotonIndexer, isLightIndexerAvailable } from '../../src/index.js';
-
-import { IndexerError, IndexerErrorCode, TreeType } from '../../src/index.js';
+import {
+    PhotonIndexer,
+    isLightIndexerAvailable,
+    IndexerError,
+    IndexerErrorCode,
+    TreeType,
+} from '../../src/index.js';
 
 // ============================================================================
 // SETUP

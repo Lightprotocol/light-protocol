@@ -7,12 +7,14 @@ import {
     getAddressCodec,
     getProgramDerivedAddress,
 } from '@solana/addresses';
+import { keccak_256 } from '@noble/hashes/sha3';
 
 import {
     LIGHT_TOKEN_PROGRAM_ID,
     COMPRESSED_MINT_SEED,
     POOL_SEED,
     RESTRICTED_POOL_SEED,
+    MINT_ADDRESS_TREE,
 } from '../constants.js';
 
 // ============================================================================
@@ -123,6 +125,12 @@ export async function derivePoolAddress(
     index = 0,
     restricted = false,
 ): Promise<{ address: Address; bump: number }> {
+    if (!Number.isInteger(index) || index < 0 || index > 4) {
+        throw new Error(
+            `Pool index must be an integer between 0 and 4, got ${index}`,
+        );
+    }
+
     const mintBytes = getAddressCodec().encode(mint);
     const seeds: Uint8Array[] = [
         new TextEncoder().encode(POOL_SEED),
@@ -144,4 +152,54 @@ export async function derivePoolAddress(
     });
 
     return { address: derivedAddress, bump };
+}
+
+// ============================================================================
+// COMPRESSED ADDRESS DERIVATION
+// ============================================================================
+
+/**
+ * Derives a compressed account address using keccak256.
+ *
+ * Hash: keccak256(seed || addressTree || programId || 0xff), then clears the
+ * high bit to ensure the result is a valid BN254 field element.
+ *
+ * @param seed - The derivation seed bytes
+ * @param addressTree - The address tree pubkey
+ * @param programId - The owning program ID
+ * @returns 32-byte compressed address
+ */
+export function deriveCompressedAddress(
+    seed: Uint8Array,
+    addressTree: Address,
+    programId: Address,
+): Uint8Array {
+    const codec = getAddressCodec();
+    const hasher = keccak_256.create();
+    hasher.update(seed);
+    hasher.update(new Uint8Array(codec.encode(addressTree)));
+    hasher.update(new Uint8Array(codec.encode(programId)));
+    hasher.update(Uint8Array.from([255]));
+    const hash = hasher.digest();
+    // Clear the high bit so the result fits in the BN254 field
+    hash[0] = 0;
+    return hash;
+}
+
+/**
+ * Derives the compressed mint address for a given mint signer.
+ *
+ * Uses MINT_ADDRESS_TREE and LIGHT_TOKEN_PROGRAM_ID as defaults.
+ *
+ * @param mintSigner - The mint signer address
+ * @param addressTree - The address tree (defaults to MINT_ADDRESS_TREE)
+ * @returns 32-byte compressed mint address
+ */
+export function deriveCompressedMintAddress(
+    mintSigner: Address,
+    addressTree: Address = MINT_ADDRESS_TREE,
+): Uint8Array {
+    const codec = getAddressCodec();
+    const seed = new Uint8Array(codec.encode(mintSigner));
+    return deriveCompressedAddress(seed, addressTree, LIGHT_TOKEN_PROGRAM_ID);
 }

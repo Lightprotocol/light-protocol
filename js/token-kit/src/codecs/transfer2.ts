@@ -19,12 +19,8 @@ import {
     getU64Encoder,
     getBooleanDecoder,
     getBooleanEncoder,
-    getArrayDecoder,
-    getArrayEncoder,
     getBytesDecoder,
     getBytesEncoder,
-    addDecoderSizePrefix,
-    addEncoderSizePrefix,
     getOptionEncoder,
     getOptionDecoder,
     fixEncoderSize,
@@ -34,6 +30,18 @@ import {
 import type { Address } from '@solana/addresses';
 import { getAddressCodec } from '@solana/addresses';
 import type { ReadonlyUint8Array } from '@solana/codecs';
+
+import {
+    writeU16,
+    writeU32,
+    writeU64,
+    writeBool,
+    writeOption,
+    writeVecBytes,
+    concatBytes,
+    getVecEncoder,
+    getVecDecoder,
+} from './borsh-helpers.js';
 
 import type {
     Compression,
@@ -50,7 +58,7 @@ import type {
     RentConfig,
 } from './types.js';
 
-import { DISCRIMINATOR } from '../constants.js';
+import { DISCRIMINATOR, EXTENSION_DISCRIMINANT } from '../constants.js';
 
 // ============================================================================
 // COMPRESSION CODEC
@@ -222,28 +230,6 @@ export const getCompressedProofCodec = (): Codec<CompressedProof> =>
     combineCodec(getCompressedProofEncoder(), getCompressedProofDecoder());
 
 // ============================================================================
-// VECTOR CODECS (with u32 length prefix for Borsh compatibility)
-// ============================================================================
-
-/**
- * Creates an encoder for a Vec type (Borsh style: u32 element count prefix).
- *
- * Note: getArrayEncoder defaults to { size: getU32Encoder() } which is the
- * Borsh Vec format (u32 count + items). Do NOT wrap with addEncoderSizePrefix
- * which would add a byte-count prefix on top.
- */
-function getVecEncoder<T>(itemEncoder: Encoder<T>): Encoder<T[]> {
-    return getArrayEncoder(itemEncoder) as Encoder<T[]>;
-}
-
-/**
- * Creates a decoder for a Vec type (Borsh style: u32 element count prefix).
- */
-function getVecDecoder<T>(itemDecoder: Decoder<T>): Decoder<T[]> {
-    return getArrayDecoder(itemDecoder) as Decoder<T[]>;
-}
-
-// ============================================================================
 // TRANSFER2 INSTRUCTION DATA CODEC (Base fields only)
 // Note: TLV fields require manual serialization due to complex nested structures
 // ============================================================================
@@ -403,55 +389,6 @@ function encodeTlv(
     return concatBytes(chunks);
 }
 
-function writeU32(value: number): Uint8Array {
-    const buf = new Uint8Array(4);
-    new DataView(buf.buffer).setUint32(0, value, true);
-    return buf;
-}
-
-function writeU16(value: number): Uint8Array {
-    const buf = new Uint8Array(2);
-    new DataView(buf.buffer).setUint16(0, value, true);
-    return buf;
-}
-
-function writeU64(value: bigint): Uint8Array {
-    const buf = new Uint8Array(8);
-    new DataView(buf.buffer).setBigUint64(0, value, true);
-    return buf;
-}
-
-function writeBool(value: boolean): Uint8Array {
-    return new Uint8Array([value ? 1 : 0]);
-}
-
-/** Borsh Vec<u8> encoding: u32 length + bytes */
-function writeVecBytes(bytes: ReadonlyUint8Array): Uint8Array {
-    return concatBytes([writeU32(bytes.length), new Uint8Array(bytes)]);
-}
-
-/** Borsh Option encoding: 0x00 for None, 0x01 + data for Some */
-function writeOption(
-    value: unknown | null,
-    encoder: (v: unknown) => Uint8Array,
-): Uint8Array {
-    if (value === null || value === undefined) {
-        return new Uint8Array([0]);
-    }
-    return concatBytes([new Uint8Array([1]), encoder(value)]);
-}
-
-function concatBytes(arrays: Uint8Array[]): Uint8Array {
-    const totalLen = arrays.reduce((sum, a) => sum + a.length, 0);
-    const result = new Uint8Array(totalLen);
-    let offset = 0;
-    for (const arr of arrays) {
-        result.set(arr, offset);
-        offset += arr.length;
-    }
-    return result;
-}
-
 /**
  * Encodes a single ExtensionInstructionData with its Borsh enum discriminant.
  */
@@ -461,29 +398,25 @@ export function encodeExtensionInstructionData(
     switch (ext.type) {
         case 'TokenMetadata':
             return concatBytes([
-                new Uint8Array([19]), // discriminant
+                new Uint8Array([EXTENSION_DISCRIMINANT.TOKEN_METADATA]),
                 encodeTokenMetadata(ext.data),
             ]);
         case 'PausableAccount':
-            // Marker extension: discriminant only, zero data bytes
-            return new Uint8Array([27]);
+            return new Uint8Array([EXTENSION_DISCRIMINANT.PAUSABLE_ACCOUNT]);
         case 'PermanentDelegateAccount':
-            // Marker extension: discriminant only, zero data bytes
-            return new Uint8Array([28]);
+            return new Uint8Array([EXTENSION_DISCRIMINANT.PERMANENT_DELEGATE_ACCOUNT]);
         case 'TransferFeeAccount':
-            // Rust Placeholder29: unit variant, discriminant only (no data)
-            return new Uint8Array([29]);
+            return new Uint8Array([EXTENSION_DISCRIMINANT.TRANSFER_FEE_ACCOUNT]);
         case 'TransferHookAccount':
-            // Rust Placeholder30: unit variant, discriminant only (no data)
-            return new Uint8Array([30]);
+            return new Uint8Array([EXTENSION_DISCRIMINANT.TRANSFER_HOOK_ACCOUNT]);
         case 'CompressedOnly':
             return concatBytes([
-                new Uint8Array([31]), // discriminant
+                new Uint8Array([EXTENSION_DISCRIMINANT.COMPRESSED_ONLY]),
                 encodeCompressedOnly(ext.data),
             ]);
         case 'Compressible':
             return concatBytes([
-                new Uint8Array([32]), // discriminant
+                new Uint8Array([EXTENSION_DISCRIMINANT.COMPRESSIBLE]),
                 encodeCompressionInfo(ext.data),
             ]);
     }
@@ -494,8 +427,8 @@ function encodeTokenMetadata(data: TokenMetadataExtension): Uint8Array {
 
     // Option<Pubkey> - update_authority
     chunks.push(
-        writeOption(data.updateAuthority, (v) =>
-            new Uint8Array(getAddressCodec().encode(v as Address)),
+        writeOption(data.updateAuthority, (v: Address) =>
+            new Uint8Array(getAddressCodec().encode(v)),
         ),
     );
 
@@ -506,11 +439,7 @@ function encodeTokenMetadata(data: TokenMetadataExtension): Uint8Array {
 
     // Option<Vec<AdditionalMetadata>>
     chunks.push(
-        writeOption(data.additionalMetadata, (v) => {
-            const items = v as Array<{
-                key: ReadonlyUint8Array;
-                value: ReadonlyUint8Array;
-            }>;
+        writeOption(data.additionalMetadata, (items: Array<{ key: ReadonlyUint8Array; value: ReadonlyUint8Array }>) => {
             const parts: Uint8Array[] = [writeU32(items.length)];
             for (const item of items) {
                 parts.push(writeVecBytes(item.key));

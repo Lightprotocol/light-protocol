@@ -18,8 +18,8 @@ import { validatePositiveAmount, validateDecimals } from '../utils/validation.js
 import {
     getAmountInstructionEncoder,
     getCheckedInstructionEncoder,
-    encodeMaxTopUp,
 } from '../codecs/instructions.js';
+import { buildInstructionDataWithMaxTopUp } from './helpers.js';
 
 /**
  * Parameters for CToken transfer.
@@ -54,8 +54,10 @@ export function createTransferInstruction(
         params;
 
     validatePositiveAmount(amount);
+    if (source === destination) {
+        throw new Error('Source and destination must be different accounts');
+    }
 
-    // Build accounts
     const accounts: AccountMeta[] = [
         { address: source, role: AccountRole.WRITABLE },
         { address: destination, role: AccountRole.WRITABLE },
@@ -67,29 +69,19 @@ export function createTransferInstruction(
         },
         { address: SYSTEM_PROGRAM_ID, role: AccountRole.READONLY },
     ];
-
-    // Add fee payer if provided
     if (feePayer) {
         accounts.push({ address: feePayer, role: AccountRole.WRITABLE_SIGNER });
     }
 
-    // Build instruction data: discriminator + amount [+ maxTopUp]
     const baseBytes = getAmountInstructionEncoder().encode({
         discriminator: DISCRIMINATOR.TRANSFER,
         amount,
     });
-    const maxTopUpBytes = encodeMaxTopUp(maxTopUp);
-
-    const data = new Uint8Array(baseBytes.length + maxTopUpBytes.length);
-    data.set(new Uint8Array(baseBytes), 0);
-    if (maxTopUpBytes.length > 0) {
-        data.set(maxTopUpBytes, baseBytes.length);
-    }
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
         accounts,
-        data,
+        data: buildInstructionDataWithMaxTopUp(baseBytes, maxTopUp),
     };
 }
 
@@ -127,8 +119,10 @@ export function createTransferCheckedInstruction(
 
     validatePositiveAmount(amount);
     validateDecimals(decimals);
+    if (source === destination) {
+        throw new Error('Source and destination must be different accounts');
+    }
 
-    // Build accounts
     const accounts: AccountMeta[] = [
         { address: source, role: AccountRole.WRITABLE },
         { address: mint, role: AccountRole.READONLY },
@@ -141,29 +135,19 @@ export function createTransferCheckedInstruction(
         },
         { address: SYSTEM_PROGRAM_ID, role: AccountRole.READONLY },
     ];
-
-    // Add fee payer if provided
     if (feePayer) {
         accounts.push({ address: feePayer, role: AccountRole.WRITABLE_SIGNER });
     }
 
-    // Build instruction data: discriminator + amount + decimals [+ maxTopUp]
     const baseBytes = getCheckedInstructionEncoder().encode({
         discriminator: DISCRIMINATOR.TRANSFER_CHECKED,
         amount,
         decimals,
     });
-    const maxTopUpBytes = encodeMaxTopUp(maxTopUp);
-
-    const data = new Uint8Array(baseBytes.length + maxTopUpBytes.length);
-    data.set(new Uint8Array(baseBytes), 0);
-    if (maxTopUpBytes.length > 0) {
-        data.set(maxTopUpBytes, baseBytes.length);
-    }
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
         accounts,
-        data,
+        data: buildInstructionDataWithMaxTopUp(baseBytes, maxTopUp),
     };
 }

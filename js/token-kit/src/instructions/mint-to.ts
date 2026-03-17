@@ -18,8 +18,8 @@ import { validatePositiveAmount, validateDecimals } from '../utils/validation.js
 import {
     getAmountInstructionEncoder,
     getCheckedInstructionEncoder,
-    encodeMaxTopUp,
 } from '../codecs/instructions.js';
+import { buildInstructionDataWithMaxTopUp } from './helpers.js';
 
 /**
  * Parameters for minting tokens.
@@ -60,7 +60,6 @@ export function createMintToInstruction(params: MintToParams): Instruction {
 
     validatePositiveAmount(amount);
 
-    // Build accounts
     const accounts: AccountMeta[] = [
         { address: mint, role: AccountRole.WRITABLE },
         { address: tokenAccount, role: AccountRole.WRITABLE },
@@ -72,29 +71,19 @@ export function createMintToInstruction(params: MintToParams): Instruction {
         },
         { address: SYSTEM_PROGRAM_ID, role: AccountRole.READONLY },
     ];
-
-    // Add fee payer if provided
     if (feePayer) {
         accounts.push({ address: feePayer, role: AccountRole.WRITABLE_SIGNER });
     }
 
-    // Build instruction data: discriminator + amount [+ maxTopUp]
     const baseBytes = getAmountInstructionEncoder().encode({
         discriminator: DISCRIMINATOR.MINT_TO,
         amount,
     });
-    const maxTopUpBytes = encodeMaxTopUp(maxTopUp);
-
-    const data = new Uint8Array(baseBytes.length + maxTopUpBytes.length);
-    data.set(new Uint8Array(baseBytes), 0);
-    if (maxTopUpBytes.length > 0) {
-        data.set(maxTopUpBytes, baseBytes.length);
-    }
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
         accounts,
-        data,
+        data: buildInstructionDataWithMaxTopUp(baseBytes, maxTopUp),
     };
 }
 
@@ -130,7 +119,6 @@ export function createMintToCheckedInstruction(
     validatePositiveAmount(amount);
     validateDecimals(decimals);
 
-    // Build accounts
     const accounts: AccountMeta[] = [
         { address: mint, role: AccountRole.WRITABLE },
         { address: tokenAccount, role: AccountRole.WRITABLE },
@@ -142,29 +130,19 @@ export function createMintToCheckedInstruction(
         },
         { address: SYSTEM_PROGRAM_ID, role: AccountRole.READONLY },
     ];
-
-    // Add fee payer if provided
     if (feePayer) {
         accounts.push({ address: feePayer, role: AccountRole.WRITABLE_SIGNER });
     }
 
-    // Build instruction data: discriminator + amount + decimals [+ maxTopUp]
     const baseBytes = getCheckedInstructionEncoder().encode({
         discriminator: DISCRIMINATOR.MINT_TO_CHECKED,
         amount,
         decimals,
     });
-    const maxTopUpBytes = encodeMaxTopUp(maxTopUp);
-
-    const data = new Uint8Array(baseBytes.length + maxTopUpBytes.length);
-    data.set(new Uint8Array(baseBytes), 0);
-    if (maxTopUpBytes.length > 0) {
-        data.set(maxTopUpBytes, baseBytes.length);
-    }
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
         accounts,
-        data,
+        data: buildInstructionDataWithMaxTopUp(baseBytes, maxTopUp),
     };
 }

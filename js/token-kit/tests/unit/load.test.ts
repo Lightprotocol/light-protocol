@@ -11,6 +11,8 @@
  * - getOutputTreeInfo
  * - needsValidityProof
  * - buildCompressedTransfer
+ * - loadMintContext
+ * - getMintDecimals
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -25,84 +27,33 @@ import {
     getValidityProofForAccounts,
     getOutputTreeInfo,
     needsValidityProof,
-    type LightIndexer,
-} from '../../src/index.js';
-
-import {
     buildCompressedTransfer,
-} from '../../src/index.js';
-
-import {
+    loadMintContext,
+    getMintDecimals,
+    getMintInterface,
+    getAtaInterface,
+    deserializeCompressedMint,
     IndexerError,
     IndexerErrorCode,
     TreeType,
-    AccountState,
     DISCRIMINATOR,
-    type TreeInfo,
-    type CompressedTokenAccount,
+    EXTENSION_DISCRIMINANT,
+    type LightIndexer,
     type CompressedAccount,
+    type CompressedTokenAccount,
 } from '../../src/index.js';
-
-// ============================================================================
-// TEST HELPERS
-// ============================================================================
-
-const MOCK_OWNER = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-const MOCK_MINT = address('So11111111111111111111111111111111111111112');
-
-function createMockIndexer(overrides?: Partial<LightIndexer>): LightIndexer {
-    return {
-        getCompressedAccount: vi.fn(),
-        getCompressedAccountByHash: vi.fn(),
-        getCompressedTokenAccountsByOwner: vi.fn(),
-        getMultipleCompressedAccounts: vi.fn(),
-        getValidityProof: vi.fn(),
-        ...overrides,
-    };
-}
-
-function createMockTokenAccount(amount: bigint): CompressedTokenAccount {
-    const mockTreeInfo: TreeInfo = {
-        tree: address('amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx'),
-        queue: address('SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7'),
-        treeType: TreeType.StateV2,
-    };
-    const mockAccount: CompressedAccount = {
-        hash: new Uint8Array(32),
-        address: null,
-        owner: address('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
-        lamports: 0n,
-        data: null,
-        leafIndex: 0,
-        treeInfo: mockTreeInfo,
-        proveByIndex: false,
-        seq: null,
-        slotCreated: 0n,
-    };
-    return {
-        token: {
-            mint: MOCK_MINT,
-            owner: MOCK_OWNER,
-            amount,
-            delegate: null,
-            state: AccountState.Initialized,
-            tlv: null,
-        },
-        account: mockAccount,
-    };
-}
-
-function createMockTreeInfo(
-    treeType: TreeType,
-    nextTree?: TreeInfo,
-): TreeInfo {
-    return {
-        tree: address('amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx'),
-        queue: address('SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7'),
-        treeType,
-        nextTreeInfo: nextTree,
-    };
-}
+import {
+    createMockTokenAccount,
+    createMockTreeInfo,
+    createMockIndexer,
+    createMockCompressedMintData,
+    createBase64MintData,
+    createMockAccountWithHash,
+    createProofInput,
+    MOCK_OWNER,
+    MOCK_MINT,
+    MOCK_CTOKEN_PROGRAM,
+} from './helpers.js';
 
 // ============================================================================
 // TESTS: loadTokenAccountsForTransfer
@@ -142,7 +93,6 @@ describe('loadTokenAccountsForTransfer', () => {
         expect(result.proof).toBe(mockProof);
         expect(result.totalAmount).toBe(800n);
 
-        // Verify each input has merkleContext
         for (const input of result.inputs) {
             expect(input.merkleContext).toBeDefined();
             expect(input.merkleContext.tree).toBeDefined();
@@ -271,7 +221,6 @@ describe('loadAllTokenAccounts', () => {
     });
 
     it('throws after exceeding maximum page limit', async () => {
-        // Always return a cursor to trigger infinite pagination
         const mockFn = vi.fn().mockResolvedValue({
             context: { slot: 100n },
             value: { items: [createMockTokenAccount(1n)], cursor: 'next' },
@@ -441,7 +390,6 @@ describe('getValidityProofForAccounts', () => {
         const result = await getValidityProofForAccounts(indexer, [account1, account2]);
 
         expect(result).toBe(mockProof);
-        // Verify it was called with the correct hashes
         expect(getValidityProofFn).toHaveBeenCalledTimes(1);
         const calledHashes = getValidityProofFn.mock.calls[0][0];
         expect(calledHashes).toHaveLength(2);
@@ -545,29 +493,6 @@ describe('buildCompressedTransfer', () => {
     const ALT_TREE = address('Vote111111111111111111111111111111111111111');
     const ALT_QUEUE = address('11111111111111111111111111111111');
 
-    function createMockAccountWithHash(
-        amount: bigint,
-        hashByte: number,
-        leafIndex: number,
-        delegate: ReturnType<typeof address> | null = null,
-    ): CompressedTokenAccount {
-        const account = createMockTokenAccount(amount);
-        account.account.hash = new Uint8Array(32).fill(hashByte);
-        account.account.leafIndex = leafIndex;
-        account.token.delegate = delegate;
-        return account;
-    }
-
-    function createProofInput(hashByte: number, rootIndex: number) {
-        return {
-            hash: new Uint8Array(32).fill(hashByte),
-            root: new Uint8Array(32),
-            rootIndex: { rootIndex, proveByIndex: false },
-            leafIndex: 0,
-            treeInfo: createMockTreeInfo(TreeType.StateV2),
-        };
-    }
-
     function decodeTransfer2OutputQueueIndex(data: Uint8Array): number {
         return data[5];
     }
@@ -595,7 +520,8 @@ describe('buildCompressedTransfer', () => {
             }),
         });
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({
+            indexer,
             owner: MOCK_OWNER,
             mint: MOCK_MINT,
             amount: 500n,
@@ -625,7 +551,8 @@ describe('buildCompressedTransfer', () => {
             }),
         });
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({
+            indexer,
             owner: MOCK_OWNER,
             mint: MOCK_MINT,
             amount: 500n,
@@ -654,7 +581,8 @@ describe('buildCompressedTransfer', () => {
             }),
         });
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({
+            indexer,
             owner: MOCK_OWNER,
             mint: MOCK_MINT,
             amount: 500n,
@@ -690,7 +618,8 @@ describe('buildCompressedTransfer', () => {
             }),
         });
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({
+            indexer,
             owner: MOCK_OWNER,
             mint: MOCK_MINT,
             amount: 500n,
@@ -713,7 +642,6 @@ describe('buildCompressedTransfer', () => {
             createMockAccountWithHash(600n, 0x11, 1),
             createMockAccountWithHash(400n, 0x22, 2),
         ];
-        // Reverse order on purpose to verify hash-based mapping, not position-based.
         const mockProof = {
             proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
             accounts: [createProofInput(0x22, 6), createProofInput(0x11, 5)],
@@ -730,7 +658,8 @@ describe('buildCompressedTransfer', () => {
             }),
         });
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({
+            indexer,
             owner: MOCK_OWNER,
             mint: MOCK_MINT,
             amount: 800n,
@@ -766,7 +695,8 @@ describe('buildCompressedTransfer', () => {
         });
 
         await expect(
-            buildCompressedTransfer(indexer, {
+            buildCompressedTransfer({
+                indexer,
                 owner: MOCK_OWNER,
                 mint: MOCK_MINT,
                 amount: 700n,
@@ -799,7 +729,8 @@ describe('buildCompressedTransfer', () => {
             }),
         });
 
-        const result = await buildCompressedTransfer(indexer, {
+        const result = await buildCompressedTransfer({
+            indexer,
             owner: MOCK_OWNER,
             mint: MOCK_MINT,
             amount: 300n,
@@ -830,7 +761,8 @@ describe('buildCompressedTransfer', () => {
         });
 
         await expect(
-            buildCompressedTransfer(indexer, {
+            buildCompressedTransfer({
+                indexer,
                 owner: MOCK_OWNER,
                 mint: MOCK_MINT,
                 amount: 100n,
@@ -853,7 +785,8 @@ describe('buildCompressedTransfer', () => {
         });
 
         await expect(
-            buildCompressedTransfer(indexer, {
+            buildCompressedTransfer({
+                indexer,
                 owner: MOCK_OWNER,
                 mint: MOCK_MINT,
                 amount: 1000n,
@@ -861,5 +794,306 @@ describe('buildCompressedTransfer', () => {
                 feePayer: FEE_PAYER,
             }),
         ).rejects.toThrow(IndexerError);
+    });
+});
+
+// ============================================================================
+// TESTS: loadMintContext
+// ============================================================================
+
+describe('loadMintContext', () => {
+    const MINT_SIGNER = address('GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy');
+
+    function createMockMintData(): Uint8Array {
+        // Create a minimal 149-byte compressed mint data buffer
+        const data = new Uint8Array(149);
+        const view = new DataView(data.buffer);
+        // mintAuthorityOption = 1 (has authority)
+        view.setUint32(0, 1, true);
+        // supply
+        view.setBigUint64(36, 1000000n, true);
+        // decimals
+        data[44] = 9;
+        // isInitialized
+        data[45] = 1;
+        // MintContext at offset 82
+        data[82] = 0; // version
+        data[83] = 0; // cmintDecompressed
+        data[148] = 255; // bump
+        return data;
+    }
+
+    it('loads and deserializes a compressed mint', async () => {
+        const mintData = createMockMintData();
+        const mockAccount: CompressedAccount = {
+            hash: new Uint8Array(32).fill(0xaa),
+            address: new Uint8Array(32).fill(0xbb),
+            owner: address('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
+            lamports: 0n,
+            data: {
+                discriminator: new Uint8Array(8),
+                data: mintData,
+                dataHash: new Uint8Array(32),
+            },
+            leafIndex: 42,
+            treeInfo: createMockTreeInfo(TreeType.StateV2),
+            proveByIndex: true,
+            seq: 5n,
+            slotCreated: 100n,
+        };
+
+        const indexer = createMockIndexer({
+            getCompressedAccount: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockAccount,
+            }),
+        });
+
+        const ctx = await loadMintContext(indexer, MINT_SIGNER);
+
+        expect(ctx.leafIndex).toBe(42);
+        expect(ctx.proveByIndex).toBe(true);
+        expect(ctx.mint.base.decimals).toBe(9);
+        expect(ctx.mint.base.supply).toBe(1000000n);
+        expect(ctx.mintSigner).toBe(MINT_SIGNER);
+        // prove-by-index means no proof fetch
+        expect(ctx.proof).toBeNull();
+    });
+
+    it('throws when mint not found', async () => {
+        const indexer = createMockIndexer({
+            getCompressedAccount: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: null,
+            }),
+        });
+
+        await expect(
+            loadMintContext(indexer, MINT_SIGNER),
+        ).rejects.toThrow(IndexerError);
+    });
+});
+
+// ============================================================================
+// TESTS: getMintDecimals
+// ============================================================================
+
+describe('getMintDecimals', () => {
+    it('returns decimals from on-chain mint', async () => {
+        // Create a minimal SPL mint buffer (82 bytes)
+        const mintBytes = new Uint8Array(82);
+        mintBytes[44] = 6; // decimals = 6
+
+        const base64Data = btoa(String.fromCharCode(...mintBytes));
+
+        const mockRpc = {
+            getAccountInfo: vi.fn().mockResolvedValue({
+                value: {
+                    owner: address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+                    data: [base64Data, 'base64'],
+                },
+            }),
+        };
+
+        const result = await getMintDecimals(mockRpc, MOCK_MINT);
+        expect(result).toBe(6);
+    });
+
+    it('throws when mint not found', async () => {
+        const mockRpc = {
+            getAccountInfo: vi.fn().mockResolvedValue({ value: null }),
+        };
+
+        await expect(
+            getMintDecimals(mockRpc, MOCK_MINT),
+        ).rejects.toThrow('Mint account not found');
+    });
+});
+
+// ============================================================================
+// TESTS: deserializeCompressedMint
+// ============================================================================
+
+describe('deserializeCompressedMint', () => {
+    it('parses valid 149-byte buffer', () => {
+        const data = createMockCompressedMintData(6, 500000n);
+        const result = deserializeCompressedMint(data);
+
+        expect(result.base.decimals).toBe(6);
+        expect(result.base.supply).toBe(500000n);
+        expect(result.base.mintAuthorityOption).toBe(1);
+        expect(result.base.isInitialized).toBe(true);
+    });
+
+    it('parses mintContext fields', () => {
+        const data = createMockCompressedMintData();
+        const result = deserializeCompressedMint(data);
+
+        expect(result.mintContext.version).toBe(0);
+        expect(result.mintContext.cmintDecompressed).toBe(false);
+        expect(result.mintContext.bump).toBe(254);
+        expect(result.mintContext.splMint).toEqual(new Uint8Array(32).fill(0x22));
+        expect(result.mintContext.mintSigner).toEqual(new Uint8Array(32).fill(0x33));
+    });
+
+    it('throws on data < 149 bytes', () => {
+        const shortData = new Uint8Array(100);
+        expect(() => deserializeCompressedMint(shortData)).toThrow(
+            'Compressed mint data too short',
+        );
+    });
+
+    it('returns metadataExtensionIndex = -1 when no extensions', () => {
+        const data = createMockCompressedMintData();
+        const result = deserializeCompressedMint(data);
+
+        expect(result.metadataExtensionIndex).toBe(-1);
+    });
+
+    it('finds TOKEN_METADATA extension when present', () => {
+        // Create data with extensions: 4-byte vec len + 2-byte discriminant
+        const base = createMockCompressedMintData();
+        const extData = new Uint8Array(base.length + 6);
+        extData.set(base);
+
+        const extView = new DataView(extData.buffer);
+        // Vec length = 1 extension
+        extView.setUint32(149, 1, true);
+        // TOKEN_METADATA discriminant = 19
+        extView.setUint16(153, EXTENSION_DISCRIMINANT.TOKEN_METADATA, true);
+
+        const result = deserializeCompressedMint(extData);
+        expect(result.metadataExtensionIndex).toBe(0);
+    });
+});
+
+// ============================================================================
+// TESTS: getMintInterface
+// ============================================================================
+
+describe('getMintInterface', () => {
+    it('returns exists=false when RPC returns null', async () => {
+        const mockRpc = {
+            getAccountInfo: vi.fn().mockResolvedValue({ value: null }),
+        };
+
+        const result = await getMintInterface(mockRpc, MOCK_MINT);
+
+        expect(result.exists).toBe(false);
+        expect(result.decimals).toBe(0);
+        expect(result.supply).toBe(0n);
+        expect(result.hasFreezeAuthority).toBe(false);
+    });
+
+    it('parses decimals, supply, freezeAuthority from valid mint data', async () => {
+        const mintData = createBase64MintData(9, 5000000n, true);
+        const mockRpc = {
+            getAccountInfo: vi.fn().mockResolvedValue({
+                value: {
+                    owner: address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+                    data: mintData,
+                },
+            }),
+        };
+
+        const result = await getMintInterface(mockRpc, MOCK_MINT);
+
+        expect(result.exists).toBe(true);
+        expect(result.decimals).toBe(9);
+        expect(result.supply).toBe(5000000n);
+        expect(result.hasFreezeAuthority).toBe(true);
+    });
+
+    it('handles data < 82 bytes gracefully', async () => {
+        const shortData = btoa(String.fromCharCode(...new Uint8Array(40)));
+        const mockRpc = {
+            getAccountInfo: vi.fn().mockResolvedValue({
+                value: {
+                    owner: address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+                    data: [shortData, 'base64'],
+                },
+            }),
+        };
+
+        const result = await getMintInterface(mockRpc, MOCK_MINT);
+
+        expect(result.exists).toBe(true);
+        expect(result.decimals).toBe(0);
+        expect(result.supply).toBe(0n);
+    });
+});
+
+// ============================================================================
+// TESTS: getAtaInterface
+// ============================================================================
+
+describe('getAtaInterface', () => {
+    it('aggregates hot + cold + spl balances', async () => {
+        // Build a mock 72-byte account with balance=500 at offset 64
+        const accountBytes = new Uint8Array(72);
+        const view = new DataView(accountBytes.buffer);
+        view.setBigUint64(64, 500n, true);
+        const base64 = btoa(String.fromCharCode(...accountBytes));
+
+        const hotAddr = address('Vote111111111111111111111111111111111111111');
+        const splAddr = address('11111111111111111111111111111111');
+
+        const mockRpc = {
+            getAccountInfo: vi.fn().mockResolvedValue({
+                value: {
+                    owner: MOCK_CTOKEN_PROGRAM,
+                    data: [base64, 'base64'],
+                },
+            }),
+        };
+
+        const coldAccount = createMockTokenAccount(300n);
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: [coldAccount], cursor: null },
+            }),
+        });
+
+        const result = await getAtaInterface(
+            mockRpc,
+            indexer,
+            MOCK_OWNER,
+            MOCK_MINT,
+            hotAddr,
+            splAddr,
+        );
+
+        expect(result.hotBalance).toBe(500n);
+        expect(result.splBalance).toBe(500n);
+        expect(result.coldBalance).toBe(300n);
+        expect(result.totalBalance).toBe(1300n);
+        expect(result.coldAccountCount).toBe(1);
+    });
+
+    it('returns zeros when no accounts found and no hot/spl provided', async () => {
+        const mockRpc = {
+            getAccountInfo: vi.fn().mockResolvedValue({ value: null }),
+        };
+
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: [], cursor: null },
+            }),
+        });
+
+        const result = await getAtaInterface(
+            mockRpc,
+            indexer,
+            MOCK_OWNER,
+            MOCK_MINT,
+        );
+
+        expect(result.hotBalance).toBe(0n);
+        expect(result.coldBalance).toBe(0n);
+        expect(result.splBalance).toBe(0n);
+        expect(result.totalBalance).toBe(0n);
+        expect(result.sources).toHaveLength(0);
     });
 });

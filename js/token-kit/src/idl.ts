@@ -65,14 +65,13 @@ export const DISCRIMINATOR = {
     TRANSFER2: 101,
     CREATE_ATA_IDEMPOTENT: 102,
     MINT_ACTION: 103,
+    CLAIM: 104,
+    WITHDRAW_FUNDING_POOL: 105,
 } as const;
 
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
-
-/** Compression mode enum for Transfer2 */
-const _compressionModeType = numberTypeNode('u8');
 
 /** Compression struct for Transfer2 */
 const compressionStructType = structTypeNode([
@@ -105,31 +104,6 @@ const packedMerkleContextType = structTypeNode([
     }),
     structFieldTypeNode({ name: 'leafIndex', type: numberTypeNode('u32') }),
     structFieldTypeNode({ name: 'proveByIndex', type: booleanTypeNode() }),
-]);
-
-/** Input token data with context */
-const _multiInputTokenDataType = structTypeNode([
-    structFieldTypeNode({ name: 'owner', type: numberTypeNode('u8') }),
-    structFieldTypeNode({ name: 'amount', type: numberTypeNode('u64') }),
-    structFieldTypeNode({ name: 'hasDelegate', type: booleanTypeNode() }),
-    structFieldTypeNode({ name: 'delegate', type: numberTypeNode('u8') }),
-    structFieldTypeNode({ name: 'mint', type: numberTypeNode('u8') }),
-    structFieldTypeNode({ name: 'version', type: numberTypeNode('u8') }),
-    structFieldTypeNode({
-        name: 'merkleContext',
-        type: packedMerkleContextType,
-    }),
-    structFieldTypeNode({ name: 'rootIndex', type: numberTypeNode('u16') }),
-]);
-
-/** Output token data */
-const _multiTokenOutputDataType = structTypeNode([
-    structFieldTypeNode({ name: 'owner', type: numberTypeNode('u8') }),
-    structFieldTypeNode({ name: 'amount', type: numberTypeNode('u64') }),
-    structFieldTypeNode({ name: 'hasDelegate', type: booleanTypeNode() }),
-    structFieldTypeNode({ name: 'delegate', type: numberTypeNode('u8') }),
-    structFieldTypeNode({ name: 'mint', type: numberTypeNode('u8') }),
-    structFieldTypeNode({ name: 'version', type: numberTypeNode('u8') }),
 ]);
 
 /** CPI context */

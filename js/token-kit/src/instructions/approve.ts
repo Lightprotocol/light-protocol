@@ -14,8 +14,8 @@ import { validatePositiveAmount } from '../utils/validation.js';
 import {
     getAmountInstructionEncoder,
     getDiscriminatorOnlyEncoder,
-    encodeMaxTopUp,
 } from '../codecs/instructions.js';
+import { buildInstructionDataWithMaxTopUp } from './helpers.js';
 
 /**
  * Parameters for approving a delegate.
@@ -29,7 +29,7 @@ export interface ApproveParams {
     owner: Address;
     /** Amount to delegate */
     amount: bigint;
-    /** Maximum lamports for rent top-up in units of 1,000 lamports (optional) */
+    /** Maximum lamports for rent top-up (optional, 0 = no limit) */
     maxTopUp?: number;
 }
 
@@ -54,30 +54,21 @@ export function createApproveInstruction(params: ApproveParams): Instruction {
 
     validatePositiveAmount(amount);
 
-    // Build accounts - owner is always WRITABLE_SIGNER (payer at index 2)
     const accounts: AccountMeta[] = [
         { address: tokenAccount, role: AccountRole.WRITABLE },
         { address: delegate, role: AccountRole.READONLY },
         { address: owner, role: AccountRole.WRITABLE_SIGNER },
     ];
 
-    // Build instruction data: discriminator + amount [+ maxTopUp]
     const baseBytes = getAmountInstructionEncoder().encode({
         discriminator: DISCRIMINATOR.APPROVE,
         amount,
     });
-    const maxTopUpBytes = encodeMaxTopUp(maxTopUp);
-
-    const data = new Uint8Array(baseBytes.length + maxTopUpBytes.length);
-    data.set(new Uint8Array(baseBytes), 0);
-    if (maxTopUpBytes.length > 0) {
-        data.set(maxTopUpBytes, baseBytes.length);
-    }
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
         accounts,
-        data,
+        data: buildInstructionDataWithMaxTopUp(baseBytes, maxTopUp),
     };
 }
 
@@ -89,7 +80,7 @@ export interface RevokeParams {
     tokenAccount: Address;
     /** Owner of the token account - must be signer and payer */
     owner: Address;
-    /** Maximum lamports for rent top-up in units of 1,000 lamports (optional) */
+    /** Maximum lamports for rent top-up (optional, 0 = no limit) */
     maxTopUp?: number;
 }
 
@@ -111,27 +102,18 @@ export interface RevokeParams {
 export function createRevokeInstruction(params: RevokeParams): Instruction {
     const { tokenAccount, owner, maxTopUp } = params;
 
-    // Build accounts - owner is always WRITABLE_SIGNER (payer at index 1)
     const accounts: AccountMeta[] = [
         { address: tokenAccount, role: AccountRole.WRITABLE },
         { address: owner, role: AccountRole.WRITABLE_SIGNER },
     ];
 
-    // Build instruction data: discriminator [+ maxTopUp]
     const baseBytes = getDiscriminatorOnlyEncoder().encode({
         discriminator: DISCRIMINATOR.REVOKE,
     });
-    const maxTopUpBytes = encodeMaxTopUp(maxTopUp);
-
-    const data = new Uint8Array(baseBytes.length + maxTopUpBytes.length);
-    data.set(new Uint8Array(baseBytes), 0);
-    if (maxTopUpBytes.length > 0) {
-        data.set(maxTopUpBytes, baseBytes.length);
-    }
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
         accounts,
-        data,
+        data: buildInstructionDataWithMaxTopUp(baseBytes, maxTopUp),
     };
 }

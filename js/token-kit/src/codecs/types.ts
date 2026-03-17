@@ -212,22 +212,6 @@ export interface CompressionInfo {
 }
 
 /**
- * Transfer fee account extension data.
- */
-export interface TransferFeeAccountExtension {
-    /** Withheld transfer fee amount */
-    withheldAmount: bigint;
-}
-
-/**
- * Transfer hook account extension data.
- */
-export interface TransferHookAccountExtension {
-    /** Reentrancy guard (always 0 at rest in Light Protocol) */
-    transferring: number;
-}
-
-/**
  * Extension instruction data (union type).
  */
 export type ExtensionInstructionData =

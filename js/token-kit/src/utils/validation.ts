@@ -6,6 +6,15 @@ import type { Address } from '@solana/addresses';
 import { LIGHT_TOKEN_PROGRAM_ID } from '../constants.js';
 import { deriveAssociatedTokenAddress } from './derivation.js';
 
+/**
+ * Transfer type for routing between Light and SPL accounts.
+ */
+export type TransferType =
+    | 'light-to-light'
+    | 'light-to-spl'
+    | 'spl-to-light'
+    | 'spl-to-spl';
+
 // ============================================================================
 // ACCOUNT TYPE DETECTION
 // ============================================================================
@@ -30,7 +39,7 @@ export function isLightTokenAccount(owner: Address): boolean {
 export function determineTransferType(
     sourceOwner: Address,
     destOwner: Address,
-): 'light-to-light' | 'light-to-spl' | 'spl-to-light' | 'spl-to-spl' {
+): TransferType {
     const sourceIsLight = isLightTokenAccount(sourceOwner);
     const destIsLight = isLightTokenAccount(destOwner);
 

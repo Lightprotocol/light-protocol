@@ -21,16 +21,14 @@
         }
     },
     "files": [
-        "dist",
-        "src"
+        "dist"
     ],
     "scripts": {
         "generate": "tsx scripts/generate-clients.ts && tsx scripts/fix-generated-extensions.ts",
         "build": "pnpm run generate && tsc",
         "clean": "rm -rf dist",
         "test": "vitest run tests/unit/",
-        "test:unit": "vitest run tests/unit/",
-        "test:e2e": "LIGHT_PROTOCOL_VERSION=V2 LIGHT_PROTOCOL_BETA=true vitest run --config vitest.e2e.config.ts",
+        "test:e2e": "vitest run --config vitest.e2e.config.ts",
         "test:watch": "vitest",
         "lint": "eslint .",
         "format": "prettier --write .",
@@ -40,12 +38,10 @@
         "@solana/kit": "^2.1.0"
     },
     "dependencies": {
+        "@noble/hashes": "^1.4.0",
         "@solana/addresses": "^2.1.0",
         "@solana/codecs": "^2.1.0",
-        "@solana/instructions": "^2.1.0",
-        "@solana/signers": "^2.1.0",
-        "@solana/transaction-messages": "^2.1.0",
-        "@solana/keys": "^2.1.0"
+        "@solana/instructions": "^2.1.0"
     },
     "devDependencies": {
         "@codama/nodes": "^1.4.1",

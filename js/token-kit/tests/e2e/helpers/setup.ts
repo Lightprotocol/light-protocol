@@ -437,6 +437,72 @@ export async function getCompressedAccountCount(
 }
 
 // ============================================================================
+// SPL ASSOCIATED TOKEN ACCOUNT HELPERS
+// ============================================================================
+
+const ASSOCIATED_TOKEN_PROGRAM_ID = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
+const SPL_TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+const SYS_PROGRAM = '11111111111111111111111111111111';
+
+/**
+ * Create an SPL associated token account for a given owner and mint.
+ * Returns the associated token account public key.
+ */
+export async function createSplAssociatedTokenAccount(
+    rpc: Rpc,
+    payer: Signer,
+    mint: any,
+    owner: any,
+    tokenProgramId?: string,
+): Promise<any> {
+    const tokenProg = pk(tokenProgramId ?? SPL_TOKEN_PROGRAM);
+
+    // Derive the associated token account address
+    const [ataAddress] = await (async () => {
+        // Use PublicKey.findProgramAddress
+        const associatedProg = pk(ASSOCIATED_TOKEN_PROGRAM_ID);
+        return PubKey.findProgramAddress(
+            [owner.toBuffer(), tokenProg.toBuffer(), mint.toBuffer()],
+            associatedProg,
+        );
+    })();
+
+    // Build the create ATA instruction (SPL Associated Token Account program)
+    const ix = {
+        programId: pk(ASSOCIATED_TOKEN_PROGRAM_ID),
+        keys: [
+            { pubkey: (payer as any).publicKey, isSigner: true, isWritable: true },
+            { pubkey: ataAddress, isSigner: false, isWritable: true },
+            { pubkey: owner, isSigner: false, isWritable: false },
+            { pubkey: mint, isSigner: false, isWritable: false },
+            { pubkey: pk(SYS_PROGRAM), isSigner: false, isWritable: false },
+            { pubkey: tokenProg, isSigner: false, isWritable: false },
+        ],
+        data: Buffer.alloc(0),
+    };
+
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const tx = buildAndSignTx([ix as any], payer as any, blockhash);
+    await sendAndConfirmTx(rpc, tx);
+
+    return ataAddress;
+}
+
+/**
+ * Read the balance of an SPL token account (amount at offset 64 in the account data).
+ */
+export async function getSplTokenBalance(
+    rpc: Rpc,
+    tokenAccount: any,
+): Promise<bigint> {
+    const info = await rpc.getAccountInfo(tokenAccount);
+    if (!info || !info.data || info.data.length < 72) {
+        throw new Error('SPL token account not found or too small');
+    }
+    return info.data.readBigUInt64LE(64);
+}
+
+// ============================================================================
 // INSTRUCTION CONVERSION
 // ============================================================================
 

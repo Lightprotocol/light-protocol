@@ -9,6 +9,7 @@ import {
     createCompressedMint,
     mintCompressedTokens,
     toKitAddress,
+    ensureValidatorRunning,
     type Signer,
     type Rpc,
 } from './helpers/setup.js';
@@ -31,6 +32,7 @@ describe('PhotonIndexer e2e', () => {
     let indexer: PhotonIndexer;
 
     beforeAll(async () => {
+        await ensureValidatorRunning();
         rpc = getTestRpc();
         payer = await fundAccount(rpc);
 

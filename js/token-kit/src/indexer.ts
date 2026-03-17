@@ -18,6 +18,9 @@ import {
     type AddressWithTree,
     type TreeInfo,
     type TokenData,
+    type TokenBalance,
+    type TokenHolder,
+    type SignatureInfo,
     type CompressedAccountData,
     type AccountProofInputs,
     type AddressProofInputs,
@@ -26,7 +29,7 @@ import {
     AccountState,
     IndexerError,
     IndexerErrorCode,
-    assertV2Tree,
+    assertValidTreeType,
 } from './client/index.js';
 
 // ============================================================================
@@ -93,6 +96,52 @@ export interface LightIndexer {
         hashes: Uint8Array[],
         newAddresses?: AddressWithTree[],
     ): Promise<IndexerResponse<ValidityProofWithContext>>;
+
+    /**
+     * Fetch compressed token balances grouped by mint for an owner.
+     *
+     * @param owner - Owner address
+     * @param options - Optional filters
+     * @returns Paginated list of token balances
+     */
+    getCompressedTokenBalancesByOwner(
+        owner: Address,
+        options?: GetCompressedTokenAccountsOptions,
+    ): Promise<IndexerResponse<ItemsWithCursor<TokenBalance>>>;
+
+    /**
+     * Fetch token holders for a given mint.
+     *
+     * @param mint - Token mint address
+     * @param options - Optional pagination
+     * @returns Paginated list of token holders
+     */
+    getCompressedMintTokenHolders(
+        mint: Address,
+        options?: { cursor?: string; limit?: number },
+    ): Promise<IndexerResponse<ItemsWithCursor<TokenHolder>>>;
+
+    /**
+     * Fetch balance of a single compressed token account by hash.
+     *
+     * @param hash - 32-byte account hash
+     * @returns Token balance info or null
+     */
+    getCompressedTokenAccountBalance(
+        hash: Uint8Array,
+    ): Promise<IndexerResponse<TokenBalance | null>>;
+
+    /**
+     * Fetch transaction signatures for a token owner.
+     *
+     * @param owner - Owner address
+     * @param options - Optional pagination
+     * @returns Paginated list of signatures
+     */
+    getSignaturesForTokenOwner(
+        owner: Address,
+        options?: { cursor?: string; limit?: number },
+    ): Promise<IndexerResponse<ItemsWithCursor<SignatureInfo>>>;
 }
 
 // ============================================================================
@@ -133,10 +182,8 @@ interface JsonRpcResponse<T> {
  */
 export class PhotonIndexer implements LightIndexer {
     private requestId = 0;
-    // base58Encoder: string -> Uint8Array (for decoding base58 strings FROM API)
-    private readonly base58Encoder = getBase58Encoder();
-    // base58Decoder: Uint8Array -> string (for encoding bytes TO base58 for API)
-    private readonly base58Decoder = getBase58Decoder();
+    private readonly base58ToBytes_ = getBase58Encoder();
+    private readonly bytesToBase58_ = getBase58Decoder();
 
     /**
      * Create a new PhotonIndexer.
@@ -251,6 +298,105 @@ export class PhotonIndexer implements LightIndexer {
         };
     }
 
+    async getCompressedTokenBalancesByOwner(
+        owner: Address,
+        options?: GetCompressedTokenAccountsOptions,
+    ): Promise<IndexerResponse<ItemsWithCursor<TokenBalance>>> {
+        const params: Record<string, unknown> = { owner: owner.toString() };
+        if (options?.mint) params.mint = options.mint.toString();
+        if (options?.cursor) params.cursor = options.cursor;
+        if (options?.limit !== undefined) params.limit = options.limit;
+
+        const response = await this.rpcCall<PhotonTokenBalanceListV2>(
+            'getCompressedTokenBalancesByOwnerV2',
+            params,
+        );
+
+        return {
+            context: { slot: BigInt(response.context.slot) },
+            value: {
+                items: response.value.items.map((item) => ({
+                    mint: createAddress(item.mint),
+                    balance: BigInt(item.balance),
+                })),
+                cursor: response.value.cursor,
+            },
+        };
+    }
+
+    async getCompressedMintTokenHolders(
+        mint: Address,
+        options?: { cursor?: string; limit?: number },
+    ): Promise<IndexerResponse<ItemsWithCursor<TokenHolder>>> {
+        const params: Record<string, unknown> = { mint: mint.toString() };
+        if (options?.cursor) params.cursor = options.cursor;
+        if (options?.limit !== undefined) params.limit = options.limit;
+
+        const response = await this.rpcCall<PhotonTokenHolderListV2>(
+            'getCompressedMintTokenHoldersV2',
+            params,
+        );
+
+        return {
+            context: { slot: BigInt(response.context.slot) },
+            value: {
+                items: response.value.items.map((item) => ({
+                    owner: createAddress(item.owner),
+                    balance: BigInt(item.balance),
+                })),
+                cursor: response.value.cursor,
+            },
+        };
+    }
+
+    async getCompressedTokenAccountBalance(
+        hash: Uint8Array,
+    ): Promise<IndexerResponse<TokenBalance | null>> {
+        const hashB58 = this.bytesToBase58(hash);
+        const response = await this.rpcCall<PhotonTokenBalanceV2 | null>(
+            'getCompressedTokenAccountBalanceV2',
+            { hash: hashB58 },
+        );
+
+        return {
+            context: { slot: BigInt(response.context.slot) },
+            value: response.value
+                ? {
+                      mint: createAddress(response.value.mint),
+                      balance: BigInt(response.value.balance),
+                  }
+                : null,
+        };
+    }
+
+    async getSignaturesForTokenOwner(
+        owner: Address,
+        options?: { cursor?: string; limit?: number },
+    ): Promise<IndexerResponse<ItemsWithCursor<SignatureInfo>>> {
+        const params: Record<string, unknown> = { owner: owner.toString() };
+        if (options?.cursor) params.cursor = options.cursor;
+        if (options?.limit !== undefined) params.limit = options.limit;
+
+        const response = await this.rpcCall<PhotonSignatureListV2>(
+            'getSignaturesForTokenOwnerV2',
+            params,
+        );
+
+        return {
+            context: { slot: BigInt(response.context.slot) },
+            value: {
+                items: response.value.items.map((item) => ({
+                    signature: item.signature,
+                    slot: BigInt(item.slot),
+                    blockTime: item.blockTime !== null
+                        ? BigInt(item.blockTime)
+                        : null,
+                })),
+                cursor: response.value.cursor,
+            },
+        };
+    }
+
     // ========================================================================
     // PRIVATE HELPERS
     // ========================================================================
@@ -328,7 +474,7 @@ export class PhotonIndexer implements LightIndexer {
 
     private parseTreeInfo(ctx: PhotonMerkleContextV2): TreeInfo {
         // Validate V2-only tree types
-        assertV2Tree(ctx.treeType as TreeType);
+        assertValidTreeType(ctx.treeType as TreeType);
 
         const info: TreeInfo = {
             tree: createAddress(ctx.tree),
@@ -442,21 +588,12 @@ export class PhotonIndexer implements LightIndexer {
         };
     }
 
-    /**
-     * Convert bytes to base58 string.
-     * Uses the decoder because it decodes bytes FROM internal format TO base58 string.
-     */
     private bytesToBase58(bytes: Uint8Array): string {
-        return this.base58Decoder.decode(bytes);
+        return this.bytesToBase58_.decode(bytes);
     }
 
-    /**
-     * Convert base58 string to bytes.
-     * Uses the encoder because it encodes base58 string TO internal byte format.
-     */
     private base58ToBytes(str: string): Uint8Array {
-        // The encoder returns ReadonlyUint8Array, so we need to copy to mutable Uint8Array
-        return Uint8Array.from(this.base58Encoder.encode(str));
+        return Uint8Array.from(this.base58ToBytes_.encode(str));
     }
 
     private base64Decode(str: string): Uint8Array {
@@ -552,6 +689,37 @@ interface PhotonAddressProofInputs {
     root: string;
     rootIndex: number;
     merkleContext: PhotonMerkleContextV2;
+}
+
+interface PhotonTokenBalanceV2 {
+    mint: string;
+    balance: string | number;
+}
+
+interface PhotonTokenBalanceListV2 {
+    items: PhotonTokenBalanceV2[];
+    cursor: string | null;
+}
+
+interface PhotonTokenHolderV2 {
+    owner: string;
+    balance: string | number;
+}
+
+interface PhotonTokenHolderListV2 {
+    items: PhotonTokenHolderV2[];
+    cursor: string | null;
+}
+
+interface PhotonSignatureV2 {
+    signature: string;
+    slot: string | number;
+    blockTime: string | number | null;
+}
+
+interface PhotonSignatureListV2 {
+    items: PhotonSignatureV2[];
+    cursor: string | null;
 }
 
 interface PhotonCompressedProof {

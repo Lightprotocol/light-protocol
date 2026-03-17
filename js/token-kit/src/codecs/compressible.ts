@@ -15,8 +15,6 @@ import {
     getU32Encoder,
     getBytesDecoder,
     getBytesEncoder,
-    getArrayDecoder,
-    getArrayEncoder,
     addDecoderSizePrefix,
     addEncoderSizePrefix,
     getOptionEncoder,
@@ -26,6 +24,8 @@ import {
 } from '@solana/codecs';
 import { getAddressCodec, type Address } from '@solana/addresses';
 
+import { getVecEncoder, getVecDecoder } from './borsh-helpers.js';
+
 import type {
     CompressToPubkey,
     CompressibleExtensionInstructionData,
@@ -34,21 +34,6 @@ import type {
 } from './types.js';
 
 import { DISCRIMINATOR } from '../constants.js';
-
-// ============================================================================
-// VEC CODEC (Borsh-style: u32 length prefix)
-// ============================================================================
-
-function getVecEncoder<T>(itemEncoder: Encoder<T>): Encoder<T[]> {
-    return addEncoderSizePrefix(
-        getArrayEncoder(itemEncoder),
-        getU32Encoder(),
-    ) as Encoder<T[]>;
-}
-
-function getVecDecoder<T>(itemDecoder: Decoder<T>): Decoder<T[]> {
-    return addDecoderSizePrefix(getArrayDecoder(itemDecoder), getU32Decoder());
-}
 
 // ============================================================================
 // COMPRESS TO PUBKEY CODEC

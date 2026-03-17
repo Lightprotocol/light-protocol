@@ -17,6 +17,9 @@ import {
     type GetCompressedTokenAccountsOptions,
     type TreeInfo,
 } from './client/index.js';
+import { deriveCompressedMintAddress } from './utils/derivation.js';
+import { deserializeCompressedMint, type DeserializedCompressedMint } from './codecs/mint-deserialize.js';
+import type { CompressedProof } from './codecs/types.js';
 
 // ============================================================================
 // ACCOUNT INTERFACE TYPES
@@ -115,7 +118,7 @@ export async function loadTokenAccountsForTransfer(
     if (options?.mint) {
         fetchOptions.mint = options.mint;
     }
-    if (options?.limit) {
+    if (options?.limit !== undefined) {
         fetchOptions.limit = options.limit;
     }
 
@@ -378,4 +381,108 @@ export function getTreeInfo(account: CompressedAccount): TreeInfo {
  */
 export function getOutputTreeInfo(treeInfo: TreeInfo): TreeInfo {
     return treeInfo.nextTreeInfo ?? treeInfo;
+}
+
+// ============================================================================
+// MINT CONTEXT
+// ============================================================================
+
+/**
+ * Fully-resolved mint context for use in high-level builders.
+ *
+ * Contains all the merkle internals that builders need so the user
+ * doesn't have to fetch them manually.
+ */
+export interface MintContext {
+    /** The compressed mint account */
+    account: CompressedAccount;
+    /** Deserialized mint data */
+    mint: DeserializedCompressedMint;
+    /** Mint signer address (from mintContext.mintSigner) */
+    mintSigner: Address;
+    /** Leaf index in the merkle tree */
+    leafIndex: number;
+    /** Root index from validity proof */
+    rootIndex: number;
+    /** Whether to prove by index */
+    proveByIndex: boolean;
+    /** Merkle tree address */
+    merkleTree: Address;
+    /** Output queue address */
+    outOutputQueue: Address;
+    /** Validity proof (null if prove-by-index) */
+    proof: CompressedProof | null;
+    /** Index of TokenMetadata extension, or -1 */
+    metadataExtensionIndex: number;
+}
+
+/**
+ * Load and resolve all mint context needed for MintAction builders.
+ *
+ * 1. Derives the compressed mint address from the mint signer address
+ * 2. Fetches the compressed account via indexer
+ * 3. Deserializes the mint data
+ * 4. Fetches a validity proof (unless prove-by-index)
+ * 5. Returns all fields builders need
+ *
+ * @param indexer - Light indexer client
+ * @param mintSigner - The mint signer address
+ * @returns Fully resolved MintContext
+ * @throws IndexerError if the mint is not found
+ */
+export async function loadMintContext(
+    indexer: LightIndexer,
+    mintSigner: Address,
+): Promise<MintContext> {
+    // 1. Derive compressed address
+    const compressedAddress = deriveCompressedMintAddress(mintSigner);
+
+    // 2. Fetch the compressed account
+    const response = await indexer.getCompressedAccount(compressedAddress);
+    const account = response.value;
+    if (!account) {
+        throw new IndexerError(
+            IndexerErrorCode.NotFound,
+            `Compressed mint not found for signer ${mintSigner}`,
+        );
+    }
+
+    // 3. Deserialize
+    if (!account.data?.data) {
+        throw new IndexerError(
+            IndexerErrorCode.InvalidResponse,
+            'Compressed mint account has no data',
+        );
+    }
+    const deserialized = deserializeCompressedMint(account.data.data);
+
+    // 4. Get output tree info (rollover-aware)
+    const outputTreeInfo = getOutputTreeInfo(account.treeInfo);
+
+    // 5. Fetch validity proof
+    let proof: CompressedProof | null = null;
+    let rootIndex = 0;
+    const proveByIndex = account.proveByIndex;
+
+    if (!proveByIndex) {
+        const proofResponse = await indexer.getValidityProof([account.hash]);
+        proof = proofResponse.value.proof;
+        if (proofResponse.value.accounts.length > 0) {
+            rootIndex =
+                proofResponse.value.accounts[0].rootIndex.rootIndex;
+        }
+    }
+
+    return {
+        account,
+        mint: deserialized,
+        mintSigner,
+        leafIndex: account.leafIndex,
+        rootIndex,
+        proveByIndex,
+        merkleTree: account.treeInfo.tree,
+        outOutputQueue: outputTreeInfo.queue,
+        proof,
+        metadataExtensionIndex: deserialized.metadataExtensionIndex,
+    };
 }

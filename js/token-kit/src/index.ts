@@ -84,6 +84,7 @@ export {
     COMPRESSED_ONLY_EXTENSION_SIZE,
     TRANSFER_FEE_ACCOUNT_EXTENSION_SIZE,
     TRANSFER_HOOK_ACCOUNT_EXTENSION_SIZE,
+    TOKEN_ACCOUNT_VERSION_V2,
 } from './constants.js';
 
 // ============================================================================
@@ -96,13 +97,24 @@ export {
     getAssociatedTokenAddressWithBump,
     deriveMintAddress,
     derivePoolAddress,
+    deriveCompressedAddress,
+    deriveCompressedMintAddress,
 
     // Validation
     isLightTokenAccount,
     determineTransferType,
+    type TransferType,
     validateAtaDerivation,
     validatePositiveAmount,
     validateDecimals,
+
+    // SPL interface
+    type SplInterfaceInfo,
+    getSplInterfaceInfo,
+    getSplInterfaceInfos,
+    selectSplInterfaceInfo,
+    selectSplInterfaceInfosForDecompression,
+    deriveSplInterfaceInfo,
 } from './utils/index.js';
 
 // ============================================================================
@@ -119,8 +131,6 @@ export {
     type CompressedProof,
     type TokenMetadataExtension,
     type CompressedOnlyExtension,
-    type TransferFeeAccountExtension,
-    type TransferHookAccountExtension,
     type RentConfig,
     type CompressionInfo,
     type ExtensionInstructionData,
@@ -129,6 +139,12 @@ export {
     type CompressibleExtensionInstructionData,
     type CreateAtaInstructionData,
     type CreateTokenAccountInstructionData,
+
+    // Mint deserializer
+    deserializeCompressedMint,
+    type BaseMint,
+    type DeserializedMintContext,
+    type DeserializedCompressedMint,
 
     // Transfer2 codecs
     getCompressionCodec,
@@ -141,7 +157,6 @@ export {
     type Transfer2BaseInstructionData,
 
     // Compressible codecs
-    getCompressToPubkeyCodec,
     getCompressibleExtensionDataCodec,
     getCreateAtaDataCodec,
     getCreateTokenAccountDataCodec,
@@ -190,7 +205,6 @@ export {
     requiresCompression,
     type TransferParams,
     type TransferCheckedParams,
-    type TransferType,
     type TransferInterfaceParams,
     type TransferInterfaceResult,
 
@@ -217,6 +231,7 @@ export {
     type BurnCheckedParams,
     type FreezeParams,
     type ThawParams,
+    type FreezeThawParams,
 
     // Mint
     createMintToInstruction,
@@ -238,12 +253,26 @@ export {
     // MintAction (compressed mint management)
     createMintActionInstruction,
     type MintActionParams,
+    type MintActionCpiContextAccounts,
 
     // Rent management
     createClaimInstruction,
     type ClaimParams,
     createWithdrawFundingPoolInstruction,
     type WithdrawFundingPoolParams,
+
+    // Wrap/Unwrap (SPL ↔ Light Token)
+    createWrapInstruction,
+    createUnwrapInstruction,
+    type WrapParams,
+    type UnwrapParams,
+
+    // SPL interface PDA
+    createSplInterfaceInstruction,
+    addSplInterfacesInstruction,
+    type CreateSplInterfaceParams,
+    type CreateSplInterfaceResult,
+    type AddSplInterfacesParams,
 } from './instructions/index.js';
 
 // ============================================================================
@@ -252,6 +281,7 @@ export {
 
 export {
     // Validation
+    assertValidTreeType,
     assertV2Tree,
 
     // Types
@@ -274,6 +304,9 @@ export {
     type ResponseContext,
     type IndexerResponse,
     type ItemsWithCursor,
+    type TokenBalance,
+    type TokenHolder,
+    type SignatureInfo,
 } from './client/index.js';
 
 // ============================================================================
@@ -298,6 +331,7 @@ export {
     type LoadedTokenAccounts,
     type LoadTokenAccountsOptions,
     type SelectedAccounts,
+    type MintContext,
 
     // Load functions
     loadTokenAccountsForTransfer,
@@ -305,6 +339,7 @@ export {
     loadAllTokenAccounts,
     loadCompressedAccount,
     loadCompressedAccountByHash,
+    loadMintContext,
 
     // Account selection
     selectAccountsForAmount,
@@ -322,6 +357,60 @@ export {
 // ============================================================================
 
 export {
+    // Transfer
     buildCompressedTransfer,
+    buildTransferDelegated,
+    buildTransferInterface,
+
+    // Compress / Decompress
+    buildCompress,
+    buildDecompress,
+    buildCompressSplTokenAccount,
+    buildDecompressInterface,
+
+    // Wrap / Unwrap
+    buildWrap,
+    buildUnwrap,
+
+    // Mint management
+    buildCreateMint,
+    buildUpdateMintAuthority,
+    buildUpdateFreezeAuthority,
+    buildUpdateMetadataField,
+    buildUpdateMetadataAuthority,
+    buildRemoveMetadataKey,
+    buildDecompressMint,
+
+    // Mint to
+    buildMintToCompressed,
+    buildMintToInterface,
+    buildApproveAndMintTo,
+
+    // ATA
+    buildCreateAta,
+    buildCreateAtaIdempotent,
+    buildGetOrCreateAta,
+
+    // Load
+    buildLoadAta,
+
+    // Types
     type BuildTransferResult,
+    type BuilderRpc,
+    type MetadataFieldType,
+    type MintRecipientParam,
 } from './actions.js';
+
+// ============================================================================
+// QUERIES
+// ============================================================================
+
+export {
+    getAtaInterface,
+    getMintInterface,
+    getMintDecimals,
+    type QueryRpc,
+    type AtaInterface,
+    type MintInterface,
+    type TokenAccountSource,
+} from './queries.js';

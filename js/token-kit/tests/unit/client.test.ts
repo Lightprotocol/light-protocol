@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
-    assertV2Tree,
+    assertValidTreeType,
     TreeType,
     IndexerError,
     IndexerErrorCode,
@@ -41,17 +41,17 @@ describe('IndexerError', () => {
     });
 });
 
-describe('assertV2Tree', () => {
+describe('assertValidTreeType', () => {
     it('accepts all known tree types', () => {
-        expect(() => assertV2Tree(TreeType.StateV1)).not.toThrow();
-        expect(() => assertV2Tree(TreeType.AddressV1)).not.toThrow();
-        expect(() => assertV2Tree(TreeType.StateV2)).not.toThrow();
-        expect(() => assertV2Tree(TreeType.AddressV2)).not.toThrow();
+        expect(() => assertValidTreeType(TreeType.StateV1)).not.toThrow();
+        expect(() => assertValidTreeType(TreeType.AddressV1)).not.toThrow();
+        expect(() => assertValidTreeType(TreeType.StateV2)).not.toThrow();
+        expect(() => assertValidTreeType(TreeType.AddressV2)).not.toThrow();
     });
 
     it('throws for unknown tree types', () => {
-        expect(() => assertV2Tree(99 as TreeType)).toThrow(IndexerError);
-        expect(() => assertV2Tree(99 as TreeType)).toThrow('Unknown tree type');
+        expect(() => assertValidTreeType(99 as TreeType)).toThrow(IndexerError);
+        expect(() => assertValidTreeType(99 as TreeType)).toThrow('Unknown tree type');
     });
 });
 

@@ -14,12 +14,15 @@ import {
     getAssociatedTokenAddressWithBump,
     deriveMintAddress,
     derivePoolAddress,
+    deriveCompressedAddress,
+    deriveCompressedMintAddress,
     validatePositiveAmount,
     validateDecimals,
     validateAtaDerivation,
     isLightTokenAccount,
     determineTransferType,
     LIGHT_TOKEN_PROGRAM_ID,
+    MINT_ADDRESS_TREE,
 } from '../../src/index.js';
 
 // ============================================================================
@@ -27,7 +30,7 @@ import {
 // ============================================================================
 
 describe('deriveAssociatedTokenAddress', () => {
-    it('6.1 derives correct ATA address', async () => {
+    it('derives correct ATA address', async () => {
         const owner = address('11111111111111111111111111111111');
         const mint = address('So11111111111111111111111111111111111111112');
 
@@ -39,7 +42,7 @@ describe('deriveAssociatedTokenAddress', () => {
         expect(result.bump).toBeLessThanOrEqual(255);
     });
 
-    it('6.1.1 produces consistent results for same inputs', async () => {
+    it('produces consistent results for same inputs', async () => {
         const owner = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
         const mint = address('So11111111111111111111111111111111111111112');
 
@@ -50,7 +53,7 @@ describe('deriveAssociatedTokenAddress', () => {
         expect(result1.bump).toBe(result2.bump);
     });
 
-    it('6.1.2 produces different addresses for different owners', async () => {
+    it('produces different addresses for different owners', async () => {
         const owner1 = address('11111111111111111111111111111111');
         const owner2 = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
         const mint = address('So11111111111111111111111111111111111111112');
@@ -61,7 +64,7 @@ describe('deriveAssociatedTokenAddress', () => {
         expect(result1.address).not.toBe(result2.address);
     });
 
-    it('6.1.3 produces different addresses for different mints', async () => {
+    it('produces different addresses for different mints', async () => {
         const owner = address('11111111111111111111111111111111');
         const mint1 = address('So11111111111111111111111111111111111111112');
         const mint2 = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
@@ -74,7 +77,7 @@ describe('deriveAssociatedTokenAddress', () => {
 });
 
 describe('getAssociatedTokenAddressWithBump', () => {
-    it('6.2 returns address when bump matches', async () => {
+    it('returns address when bump matches', async () => {
         const owner = address('11111111111111111111111111111111');
         const mint = address('So11111111111111111111111111111111111111112');
 
@@ -92,7 +95,7 @@ describe('getAssociatedTokenAddressWithBump', () => {
         expect(result).toBe(expectedAddress);
     });
 
-    it('6.2.1 throws when bump does not match', async () => {
+    it('throws when bump does not match', async () => {
         const owner = address('11111111111111111111111111111111');
         const mint = address('So11111111111111111111111111111111111111112');
 
@@ -112,7 +115,7 @@ describe('getAssociatedTokenAddressWithBump', () => {
 });
 
 describe('deriveMintAddress', () => {
-    it('6.3 derives correct mint address', async () => {
+    it('derives correct mint address', async () => {
         const mintSigner = address('11111111111111111111111111111111');
 
         const result = await deriveMintAddress(mintSigner);
@@ -123,7 +126,7 @@ describe('deriveMintAddress', () => {
         expect(result.bump).toBeLessThanOrEqual(255);
     });
 
-    it('6.3.1 produces consistent results', async () => {
+    it('produces consistent results', async () => {
         const mintSigner = address(
             'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
         );
@@ -137,7 +140,7 @@ describe('deriveMintAddress', () => {
 });
 
 describe('derivePoolAddress', () => {
-    it('6.4 derives correct pool address without index', async () => {
+    it('derives correct pool address without index', async () => {
         const mint = address('So11111111111111111111111111111111111111112');
 
         const result = await derivePoolAddress(mint);
@@ -146,7 +149,7 @@ describe('derivePoolAddress', () => {
         expect(typeof result.bump).toBe('number');
     });
 
-    it('6.4.1 derives correct pool address with index', async () => {
+    it('derives correct pool address with index', async () => {
         const mint = address('So11111111111111111111111111111111111111112');
 
         const result = await derivePoolAddress(mint, 0);
@@ -155,7 +158,7 @@ describe('derivePoolAddress', () => {
         expect(typeof result.bump).toBe('number');
     });
 
-    it('6.4.2 different indices produce different addresses', async () => {
+    it('different indices produce different addresses', async () => {
         const mint = address('So11111111111111111111111111111111111111112');
 
         const result0 = await derivePoolAddress(mint, 0);
@@ -164,7 +167,7 @@ describe('derivePoolAddress', () => {
         expect(result0.address).not.toBe(result1.address);
     });
 
-    it('6.4.3 no index equals index 0 (both omit index from seeds)', async () => {
+    it('no index equals index 0 (both omit index from seeds)', async () => {
         const mint = address('So11111111111111111111111111111111111111112');
 
         const resultNoIndex = await derivePoolAddress(mint);
@@ -174,7 +177,7 @@ describe('derivePoolAddress', () => {
         expect(resultNoIndex.address).toBe(resultIndex0.address);
     });
 
-    it('6.4.4 restricted pool differs from regular pool', async () => {
+    it('restricted pool differs from regular pool', async () => {
         const mint = address('So11111111111111111111111111111111111111112');
 
         const regular = await derivePoolAddress(mint, 0, false);
@@ -183,13 +186,108 @@ describe('derivePoolAddress', () => {
         expect(regular.address).not.toBe(restricted.address);
     });
 
-    it('6.4.5 restricted pool with index differs from without', async () => {
+    it('restricted pool with index differs from without', async () => {
         const mint = address('So11111111111111111111111111111111111111112');
 
         const restricted0 = await derivePoolAddress(mint, 0, true);
         const restricted1 = await derivePoolAddress(mint, 1, true);
 
         expect(restricted0.address).not.toBe(restricted1.address);
+    });
+
+    it('throws for index > 4', async () => {
+        const mint = address('So11111111111111111111111111111111111111112');
+        await expect(derivePoolAddress(mint, 5)).rejects.toThrow(
+            'Pool index must be an integer between 0 and 4',
+        );
+        await expect(derivePoolAddress(mint, 255)).rejects.toThrow(
+            'Pool index must be an integer between 0 and 4',
+        );
+    });
+
+    it('throws for negative index', async () => {
+        const mint = address('So11111111111111111111111111111111111111112');
+        await expect(derivePoolAddress(mint, -1)).rejects.toThrow(
+            'Pool index must be an integer between 0 and 4',
+        );
+    });
+
+    it('throws for non-integer index', async () => {
+        const mint = address('So11111111111111111111111111111111111111112');
+        await expect(derivePoolAddress(mint, 1.5)).rejects.toThrow(
+            'Pool index must be an integer between 0 and 4',
+        );
+    });
+});
+
+// ============================================================================
+// TEST: Compressed Address Derivation
+// ============================================================================
+
+describe('deriveCompressedAddress', () => {
+    it('produces a 32-byte result with high bit cleared', () => {
+        const seed = new Uint8Array(32).fill(0x42);
+        const tree = address('amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx');
+        const programId = LIGHT_TOKEN_PROGRAM_ID;
+
+        const result = deriveCompressedAddress(seed, tree, programId);
+
+        expect(result).toBeInstanceOf(Uint8Array);
+        expect(result.length).toBe(32);
+        // High bit must be cleared for BN254 field
+        expect(result[0] & 0x80).toBe(0);
+    });
+
+    it('produces consistent results for same inputs', () => {
+        const seed = new Uint8Array(32).fill(0x01);
+        const tree = address('amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx');
+        const programId = LIGHT_TOKEN_PROGRAM_ID;
+
+        const result1 = deriveCompressedAddress(seed, tree, programId);
+        const result2 = deriveCompressedAddress(seed, tree, programId);
+
+        expect(result1).toEqual(result2);
+    });
+
+    it('produces different results for different seeds', () => {
+        const seed1 = new Uint8Array(32).fill(0x01);
+        const seed2 = new Uint8Array(32).fill(0x02);
+        const tree = address('amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx');
+        const programId = LIGHT_TOKEN_PROGRAM_ID;
+
+        const result1 = deriveCompressedAddress(seed1, tree, programId);
+        const result2 = deriveCompressedAddress(seed2, tree, programId);
+
+        expect(result1).not.toEqual(result2);
+    });
+});
+
+describe('deriveCompressedMintAddress', () => {
+    it('produces a 32-byte result', () => {
+        const mintSigner = address('11111111111111111111111111111111');
+        const result = deriveCompressedMintAddress(mintSigner);
+
+        expect(result).toBeInstanceOf(Uint8Array);
+        expect(result.length).toBe(32);
+        expect(result[0] & 0x80).toBe(0);
+    });
+
+    it('produces consistent results', () => {
+        const mintSigner = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+
+        const result1 = deriveCompressedMintAddress(mintSigner);
+        const result2 = deriveCompressedMintAddress(mintSigner);
+
+        expect(result1).toEqual(result2);
+    });
+
+    it('uses MINT_ADDRESS_TREE as default', () => {
+        const mintSigner = address('11111111111111111111111111111111');
+
+        const withDefault = deriveCompressedMintAddress(mintSigner);
+        const withExplicit = deriveCompressedMintAddress(mintSigner, MINT_ADDRESS_TREE);
+
+        expect(withDefault).toEqual(withExplicit);
     });
 });
 
@@ -198,7 +296,7 @@ describe('derivePoolAddress', () => {
 // ============================================================================
 
 describe('validatePositiveAmount', () => {
-    it('7.1 passes for positive amount', () => {
+    it('passes for positive amount', () => {
         expect(() => validatePositiveAmount(1n)).not.toThrow();
         expect(() => validatePositiveAmount(100n)).not.toThrow();
         expect(() =>
@@ -206,13 +304,13 @@ describe('validatePositiveAmount', () => {
         ).not.toThrow();
     });
 
-    it('7.1.1 throws for zero', () => {
+    it('throws for zero', () => {
         expect(() => validatePositiveAmount(0n)).toThrow(
             'Amount must be positive',
         );
     });
 
-    it('7.1.2 throws for negative', () => {
+    it('throws for negative', () => {
         expect(() => validatePositiveAmount(-1n)).toThrow(
             'Amount must be positive',
         );
@@ -223,26 +321,26 @@ describe('validatePositiveAmount', () => {
 });
 
 describe('validateDecimals', () => {
-    it('7.2 passes for valid decimals', () => {
+    it('passes for valid decimals', () => {
         expect(() => validateDecimals(0)).not.toThrow();
         expect(() => validateDecimals(6)).not.toThrow();
         expect(() => validateDecimals(9)).not.toThrow();
         expect(() => validateDecimals(255)).not.toThrow();
     });
 
-    it('7.2.1 throws for negative decimals', () => {
+    it('throws for negative decimals', () => {
         expect(() => validateDecimals(-1)).toThrow(
             'Decimals must be an integer between 0 and 255',
         );
     });
 
-    it('7.2.2 throws for decimals > 255', () => {
+    it('throws for decimals > 255', () => {
         expect(() => validateDecimals(256)).toThrow(
             'Decimals must be an integer between 0 and 255',
         );
     });
 
-    it('7.2.3 throws for non-integer decimals', () => {
+    it('throws for non-integer decimals', () => {
         expect(() => validateDecimals(1.5)).toThrow(
             'Decimals must be an integer between 0 and 255',
         );
@@ -253,7 +351,7 @@ describe('validateDecimals', () => {
 });
 
 describe('validateAtaDerivation', () => {
-    it('7.3 validates correct ATA derivation', async () => {
+    it('validates correct ATA derivation', async () => {
         const owner = address('11111111111111111111111111111111');
         const mint = address('So11111111111111111111111111111111111111112');
 
@@ -267,7 +365,7 @@ describe('validateAtaDerivation', () => {
         expect(isValid).toBe(true);
     });
 
-    it('7.3.1 returns false for wrong ATA', async () => {
+    it('returns false for wrong ATA', async () => {
         const owner = address('11111111111111111111111111111111');
         const mint = address('So11111111111111111111111111111111111111112');
         const wrongAta = address(
@@ -281,11 +379,11 @@ describe('validateAtaDerivation', () => {
 });
 
 describe('isLightTokenAccount', () => {
-    it('7.4 correctly identifies Light token accounts', () => {
+    it('correctly identifies Light token accounts', () => {
         expect(isLightTokenAccount(LIGHT_TOKEN_PROGRAM_ID)).toBe(true);
     });
 
-    it('7.4.1 returns false for non-Light accounts', () => {
+    it('returns false for non-Light accounts', () => {
         const splToken = address(
             'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
         );
@@ -300,25 +398,25 @@ describe('determineTransferType', () => {
     const lightProgram = LIGHT_TOKEN_PROGRAM_ID;
     const splProgram = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
-    it('7.5 returns light-to-light for both Light accounts', () => {
+    it('returns light-to-light for both Light accounts', () => {
         expect(determineTransferType(lightProgram, lightProgram)).toBe(
             'light-to-light',
         );
     });
 
-    it('7.5.1 returns light-to-spl for Light source, SPL dest', () => {
+    it('returns light-to-spl for Light source, SPL dest', () => {
         expect(determineTransferType(lightProgram, splProgram)).toBe(
             'light-to-spl',
         );
     });
 
-    it('7.5.2 returns spl-to-light for SPL source, Light dest', () => {
+    it('returns spl-to-light for SPL source, Light dest', () => {
         expect(determineTransferType(splProgram, lightProgram)).toBe(
             'spl-to-light',
         );
     });
 
-    it('7.5.3 returns spl-to-spl for both SPL accounts', () => {
+    it('returns spl-to-spl for both SPL accounts', () => {
         expect(determineTransferType(splProgram, splProgram)).toBe(
             'spl-to-spl',
         );

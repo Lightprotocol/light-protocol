@@ -2,10 +2,8 @@
  * Light Token SDK Client Types
  *
  * Types for interacting with the Light Protocol indexer (Photon).
- * Implementation moved to @lightprotocol/token-client package.
  */
 
-// Types only - implementation in @lightprotocol/token-client
 export {
     // Tree types
     TreeType,
@@ -36,6 +34,12 @@ export {
     IndexerErrorCode,
     IndexerError,
 
+    // Balance/holder types
+    type TokenBalance,
+    type TokenHolder,
+    type SignatureInfo,
+
     // Validation
+    assertValidTreeType,
     assertV2Tree,
 } from './types.js';

@@ -12,10 +12,6 @@ import {
 import { DISCRIMINATOR, LIGHT_TOKEN_PROGRAM_ID } from '../constants.js';
 import { getDiscriminatorOnlyEncoder } from '../codecs/instructions.js';
 
-// ============================================================================
-// CLAIM INSTRUCTION
-// ============================================================================
-
 /**
  * Parameters for claiming rent from compressible accounts.
  */
