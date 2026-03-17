@@ -6,20 +6,19 @@
 //!
 //! Ported from TypeScript `create-decompress-interface-instruction.ts`.
 
-use std::collections::HashMap;
-
-use borsh::BorshSerialize;
 #[cfg(test)]
 use borsh::BorshDeserialize;
+use borsh::BorshSerialize;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
 use crate::{
     error::KoraLightError,
+    packed_accounts::PackedAccountsBuilder,
     program_ids::{
         ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA,
-        LIGHT_SYSTEM_PROGRAM_ID, LIGHT_TOKEN_PROGRAM_ID, REGISTERED_PROGRAM_PDA, SYSTEM_PROGRAM_ID,
-        TRANSFER2_DISCRIMINATOR,
+        DEFAULT_MAX_TOP_UP, LIGHT_SYSTEM_PROGRAM_ID, LIGHT_TOKEN_PROGRAM_ID,
+        REGISTERED_PROGRAM_PDA, SYSTEM_PROGRAM_ID, TRANSFER2_DISCRIMINATOR,
     },
     types::{
         CompressedProof, CompressedTokenAccountInput, CompressedTokenInstructionDataTransfer2,
@@ -28,22 +27,70 @@ use crate::{
     },
 };
 
-/// Default max top-up (u16::MAX = no limit)
-const DEFAULT_MAX_TOP_UP: u16 = u16::MAX;
+/// Decompress compressed tokens to an on-chain account.
+///
+/// Builds a Transfer2 instruction with a `Compression::Decompress` operation.
+/// Routes between light-token decompress (`spl_interface = None`) and SPL
+/// decompress (`spl_interface = Some(...)`). Creates a change output if
+/// `amount < input_total`.
+///
+/// # Example
+/// ```rust,ignore
+/// use kora_light_client::Decompress;
+///
+/// let ix = Decompress {
+///     payer,
+///     owner,
+///     mint,
+///     inputs: &accounts,
+///     proof: &proof,
+///     destination,
+///     amount: 1_000,
+///     decimals: 6,
+///     spl_interface: None, // light-token destination
+/// }.instruction()?;
+/// ```
+#[derive(Debug, Clone)]
+pub struct Decompress<'a> {
+    /// Fee payer (signer).
+    pub payer: Pubkey,
+    /// Token account owner (signer).
+    pub owner: Pubkey,
+    /// Token mint.
+    pub mint: Pubkey,
+    /// Compressed token accounts to decompress.
+    pub inputs: &'a [CompressedTokenAccountInput],
+    /// Validity proof from the RPC.
+    pub proof: &'a CompressedProof,
+    /// Destination token account (light-token ATA or SPL ATA).
+    pub destination: Pubkey,
+    /// Amount to decompress.
+    pub amount: u64,
+    /// Token decimals.
+    pub decimals: u8,
+    /// SPL pool info. `None` for light-token, `Some` for SPL destinations.
+    pub spl_interface: Option<&'a SplInterfaceInfo>,
+}
+
+impl<'a> Decompress<'a> {
+    /// Build the decompress instruction.
+    pub fn instruction(&self) -> Result<Instruction, KoraLightError> {
+        create_decompress_instruction(
+            &self.payer,
+            &self.owner,
+            &self.mint,
+            self.inputs,
+            self.proof,
+            &self.destination,
+            self.amount,
+            self.decimals,
+            self.spl_interface,
+        )
+    }
+}
 
 /// Build a decompress instruction that moves compressed tokens to an on-chain
 /// light-token or SPL token account.
-///
-/// # Arguments
-/// * `payer` - Fee payer (signer)
-/// * `owner` - Token account owner
-/// * `mint` - Token mint
-/// * `inputs` - Compressed token accounts to decompress
-/// * `proof` - Validity proof from the RPC
-/// * `destination` - Destination token account (light-token ATA or SPL ATA)
-/// * `amount` - Total amount to decompress
-/// * `decimals` - Token decimals
-/// * `spl_interface` - If decompressing to SPL, provides pool info. None for light-token.
 #[allow(clippy::too_many_arguments)]
 pub fn create_decompress_instruction(
     payer: &Pubkey,
@@ -61,69 +108,39 @@ pub fn create_decompress_instruction(
     }
 
     // Build packed accounts array — deduplicate pubkeys
-    let mut packed_indices: HashMap<Pubkey, u8> = HashMap::new();
-    let mut packed_accounts: Vec<(Pubkey, bool, bool)> = Vec::new(); // (pubkey, is_signer, is_writable)
-
-    let mut insert_or_get = |pubkey: Pubkey, is_signer: bool, is_writable: bool| -> u8 {
-        if let Some(&idx) = packed_indices.get(&pubkey) {
-            // Update flags if needed
-            if is_writable {
-                packed_accounts[idx as usize].2 = true;
-            }
-            if is_signer {
-                packed_accounts[idx as usize].1 = true;
-            }
-            idx
-        } else {
-            let idx = packed_accounts.len() as u8;
-            packed_indices.insert(pubkey, idx);
-            packed_accounts.push((pubkey, is_signer, is_writable));
-            idx
-        }
-    };
+    let mut builder = PackedAccountsBuilder::new();
 
     // 1. Add all unique merkle trees (writable)
     for input in inputs {
-        insert_or_get(input.tree, false, true);
+        builder.insert_or_get(input.tree, false, true);
     }
 
     // 2. Add all unique queues (writable)
-    let first_queue_index;
-    {
-        let mut first = true;
-        first_queue_index = {
-            let mut fqi = 0u8;
-            for input in inputs {
-                let idx = insert_or_get(input.queue, false, true);
-                if first {
-                    fqi = idx;
-                    first = false;
-                }
-            }
-            fqi
-        };
+    for input in inputs {
+        builder.insert_or_get(input.queue, false, true);
     }
+    let first_queue_index = builder.get_index(&inputs[0].queue);
 
     // 3. Add mint (readonly)
-    let mint_index = insert_or_get(*mint, false, false);
+    let mint_index = builder.insert_or_get(*mint, false, false);
 
     // 4. Add owner (signer)
-    let owner_index = insert_or_get(*owner, true, false);
+    let owner_index = builder.insert_or_get(*owner, true, false);
 
     // 5. Add destination (writable)
-    let destination_index = insert_or_get(*destination, false, true);
+    let destination_index = builder.insert_or_get(*destination, false, true);
 
     // 6. Add delegates if any
     for input in inputs {
         if let Some(delegate) = &input.delegate {
-            insert_or_get(*delegate, false, false);
+            builder.insert_or_get(*delegate, false, false);
         }
     }
 
     // 7. For SPL destinations: add pool and token program
     let (pool_account_index, pool_index_val, bump_val) = if let Some(spl) = spl_interface {
-        let pool_idx = insert_or_get(spl.spl_interface_pda, false, true);
-        let _token_prog_idx = insert_or_get(spl.token_program, false, false);
+        let pool_idx = builder.insert_or_get(spl.spl_interface_pda, false, true);
+        let _token_prog_idx = builder.insert_or_get(spl.token_program, false, false);
         (pool_idx, spl.pool_index, spl.bump)
     } else {
         (0u8, 0u8, 0u8)
@@ -133,9 +150,9 @@ pub fn create_decompress_instruction(
     let in_token_data: Vec<MultiInputTokenDataWithContext> = inputs
         .iter()
         .map(|input| {
-            let tree_idx = packed_indices[&input.tree];
-            let queue_idx = packed_indices[&input.queue];
-            let delegate_idx = input.delegate.map(|d| packed_indices[&d]).unwrap_or(0);
+            let tree_idx = builder.get_index(&input.tree);
+            let queue_idx = builder.get_index(&input.queue);
+            let delegate_idx = input.delegate.map(|d| builder.get_index(&d)).unwrap_or(0);
 
             MultiInputTokenDataWithContext {
                 owner: owner_index,
@@ -156,7 +173,10 @@ pub fn create_decompress_instruction(
         .collect();
 
     // Calculate change amount
-    let input_total: u64 = inputs.iter().map(|i| i.amount).sum();
+    let input_total: u64 = inputs
+        .iter()
+        .try_fold(0u64, |acc, i| acc.checked_add(i.amount))
+        .ok_or(KoraLightError::ArithmeticOverflow)?;
     let change_amount =
         input_total
             .checked_sub(amount)
@@ -204,7 +224,11 @@ pub fn create_decompress_instruction(
         max_top_up: DEFAULT_MAX_TOP_UP,
         cpi_context: None,
         compressions: Some(vec![compression]),
-        proof: if inputs.iter().all(|i| i.prove_by_index) { None } else { Some(*proof) },
+        proof: if inputs.iter().all(|i| i.prove_by_index) {
+            None
+        } else {
+            Some(*proof)
+        },
         in_token_data,
         out_token_data,
         in_lamports: None,
@@ -230,19 +254,7 @@ pub fn create_decompress_instruction(
     ];
 
     // Append packed accounts
-    for (pubkey, is_signer, is_writable) in &packed_accounts {
-        if *is_writable {
-            if *is_signer {
-                accounts.push(AccountMeta::new(*pubkey, true));
-            } else {
-                accounts.push(AccountMeta::new(*pubkey, false));
-            }
-        } else if *is_signer {
-            accounts.push(AccountMeta::new_readonly(*pubkey, true));
-        } else {
-            accounts.push(AccountMeta::new_readonly(*pubkey, false));
-        }
-    }
+    accounts.extend(builder.build_account_metas());
 
     Ok(Instruction {
         program_id: LIGHT_TOKEN_PROGRAM_ID,
@@ -480,13 +492,24 @@ mod tests {
         let proof = CompressedProof::default();
 
         let ix = create_decompress_instruction(
-            &payer, &owner, &mint, &inputs, &proof, &destination, 1000, 6, None,
+            &payer,
+            &owner,
+            &mint,
+            &inputs,
+            &proof,
+            &destination,
+            1000,
+            6,
+            None,
         )
         .unwrap();
 
         // Deserialize and verify proof is None
         let data = CompressedTokenInstructionDataTransfer2::try_from_slice(&ix.data[1..]).unwrap();
-        assert!(data.proof.is_none(), "proof must be None when all inputs use prove_by_index");
+        assert!(
+            data.proof.is_none(),
+            "proof must be None when all inputs use prove_by_index"
+        );
     }
 
     #[test]
@@ -508,15 +531,73 @@ mod tests {
                 ..make_input(500, tree, queue, owner, mint)
             },
         ];
-        let proof = CompressedProof { a: [1; 32], b: [2; 64], c: [3; 32] };
+        let proof = CompressedProof {
+            a: [1; 32],
+            b: [2; 64],
+            c: [3; 32],
+        };
 
         let ix = create_decompress_instruction(
-            &payer, &owner, &mint, &inputs, &proof, &destination, 1000, 6, None,
+            &payer,
+            &owner,
+            &mint,
+            &inputs,
+            &proof,
+            &destination,
+            1000,
+            6,
+            None,
         )
         .unwrap();
 
         let data = CompressedTokenInstructionDataTransfer2::try_from_slice(&ix.data[1..]).unwrap();
-        assert!(data.proof.is_some(), "proof must be Some when any input does not use prove_by_index");
+        assert!(
+            data.proof.is_some(),
+            "proof must be Some when any input does not use prove_by_index"
+        );
         assert_eq!(data.proof.unwrap(), proof);
+    }
+
+    #[test]
+    fn test_decompress_with_delegate() {
+        let payer = Pubkey::new_unique();
+        let owner = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let tree = Pubkey::new_unique();
+        let queue = Pubkey::new_unique();
+        let destination = Pubkey::new_unique();
+        let delegate = Pubkey::new_unique();
+
+        let inputs = vec![CompressedTokenAccountInput {
+            delegate: Some(delegate),
+            ..make_input(1000, tree, queue, owner, mint)
+        }];
+        let proof = CompressedProof::default();
+
+        let ix = create_decompress_instruction(
+            &payer,
+            &owner,
+            &mint,
+            &inputs,
+            &proof,
+            &destination,
+            1000,
+            6,
+            None,
+        )
+        .unwrap();
+
+        // 7 static + packed (tree, queue, mint, owner, destination, delegate)
+        assert_eq!(ix.accounts.len(), 7 + 6);
+
+        // Verify delegate is in packed accounts
+        let delegate_account = &ix.accounts[7 + 5];
+        assert_eq!(delegate_account.pubkey, delegate);
+        assert!(!delegate_account.is_signer);
+
+        // Verify instruction data has delegate set
+        let data = CompressedTokenInstructionDataTransfer2::try_from_slice(&ix.data[1..]).unwrap();
+        assert!(data.in_token_data[0].has_delegate);
+        assert_eq!(data.in_token_data[0].delegate, 5); // delegate is 6th packed account
     }
 }

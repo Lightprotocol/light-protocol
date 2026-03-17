@@ -53,14 +53,11 @@ pub const BUMP_CPI_AUTHORITY: u8 = 254;
 /// Pool seed for SPL token pool accounts
 pub const POOL_SEED: &[u8] = b"pool";
 
-/// Maximum number of pool accounts per mint
-pub const NUM_MAX_POOL_ACCOUNTS: u8 = 5;
-
 /// Transfer2 instruction discriminator
 pub const TRANSFER2_DISCRIMINATOR: u8 = 101;
 
-/// Token compressed account discriminator
-pub const TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR: [u8; 8] = [2, 0, 0, 0, 0, 0, 0, 0];
+/// Default max top-up (u16::MAX = no limit)
+pub const DEFAULT_MAX_TOP_UP: u16 = u16::MAX;
 
 /// Wrapped SOL mint
 pub const WSOL_MINT: Pubkey = Pubkey::from_str_const("So11111111111111111111111111111111111111112");
@@ -76,6 +73,6 @@ pub const REGISTERED_PROGRAM_PDA: Pubkey =
 pub const LIGHT_LUT_MAINNET: Pubkey =
     Pubkey::from_str_const("9NYFyEqPeWQHiS8Jv4VjZcjKBMPRCJ3KbEbaBcy4Mza");
 
-/// Light Token devnet LUT address
+/// Light Token devnet LUT address (currently same as mainnet)
 pub const LIGHT_LUT_DEVNET: Pubkey =
     Pubkey::from_str_const("9NYFyEqPeWQHiS8Jv4VjZcjKBMPRCJ3KbEbaBcy4Mza");

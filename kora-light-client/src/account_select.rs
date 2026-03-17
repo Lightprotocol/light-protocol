@@ -53,8 +53,22 @@ pub fn select_input_accounts(
         });
     }
 
-    // Select up to MAX_INPUT_ACCOUNTS, but at least count_needed
+    // Clamp to MAX_INPUT_ACCOUNTS
     let select_count = count_needed.min(MAX_INPUT_ACCOUNTS).min(sorted.len());
+
+    // If we had to clamp, verify the top accounts still satisfy the target
+    if count_needed > MAX_INPUT_ACCOUNTS {
+        let top_sum: u64 = sorted[..select_count]
+            .iter()
+            .try_fold(0u64, |acc, a| acc.checked_add(a.amount))
+            .ok_or(KoraLightError::ArithmeticOverflow)?;
+        if top_sum < target_amount {
+            return Err(KoraLightError::InsufficientBalance {
+                needed: target_amount,
+                available: top_sum,
+            });
+        }
+    }
 
     Ok(sorted[..select_count]
         .iter()
@@ -136,11 +150,26 @@ mod tests {
 
     #[test]
     fn test_select_respects_max_limit() {
-        // Create 10 accounts of 100 each
+        // 10 accounts of 100 each, target 900: top 8 = 800 < 900 → InsufficientBalance
         let accounts: Vec<_> = (0..10).map(|_| make_account(100)).collect();
-        let selected = select_input_accounts(&accounts, 900).unwrap();
-        // Should return at most MAX_INPUT_ACCOUNTS (8)
-        assert!(selected.len() <= MAX_INPUT_ACCOUNTS);
+        let result = select_input_accounts(&accounts, 900);
+        assert!(matches!(
+            result,
+            Err(KoraLightError::InsufficientBalance {
+                needed: 900,
+                available: 800,
+            })
+        ));
+    }
+
+    #[test]
+    fn test_select_max_limit_sufficient() {
+        // 10 accounts of 100 each, target 800: top 8 = 800 >= 800 → success
+        let accounts: Vec<_> = (0..10).map(|_| make_account(100)).collect();
+        let selected = select_input_accounts(&accounts, 800).unwrap();
+        assert_eq!(selected.len(), MAX_INPUT_ACCOUNTS);
+        let total: u64 = selected.iter().map(|a| a.amount).sum();
+        assert_eq!(total, 800);
     }
 
     #[test]

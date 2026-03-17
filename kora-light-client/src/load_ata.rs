@@ -8,11 +8,11 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     account_select::MAX_INPUT_ACCOUNTS,
-    create_ata::create_ata_idempotent_instruction,
-    decompress::create_decompress_instruction,
+    create_ata::CreateAta,
+    decompress::Decompress,
     error::KoraLightError,
     types::{CompressedProof, CompressedTokenAccountInput, SplInterfaceInfo},
-    wrap::create_wrap_instruction,
+    wrap::Wrap,
 };
 
 /// Compute unit constants for load operations
@@ -101,24 +101,24 @@ pub fn create_load_ata_batches(input: LoadAtaInput) -> Result<Vec<LoadBatch>, Ko
     let mut wrap_count = 0;
 
     if input.needs_ata_creation {
-        setup_instructions.push(create_ata_idempotent_instruction(
-            &input.payer,
-            &input.owner,
-            &input.mint,
-        )?);
+        setup_instructions
+            .push(CreateAta::new(input.payer, input.owner, input.mint).idempotent().instruction()?);
     }
 
     if let Some(wrap) = &input.spl_wrap {
-        setup_instructions.push(create_wrap_instruction(
-            &wrap.source_ata,
-            &input.destination,
-            &input.owner,
-            &input.mint,
-            wrap.amount,
-            input.decimals,
-            &input.payer,
-            &wrap.spl_interface,
-        )?);
+        setup_instructions.push(
+            Wrap {
+                source: wrap.source_ata,
+                destination: input.destination,
+                owner: input.owner,
+                mint: input.mint,
+                amount: wrap.amount,
+                decimals: input.decimals,
+                payer: input.payer,
+                spl_interface: &wrap.spl_interface,
+            }
+            .instruction()?,
+        );
         wrap_count += 1;
     }
 
@@ -165,29 +165,33 @@ pub fn create_load_ata_batches(input: LoadAtaInput) -> Result<Vec<LoadBatch>, Ko
             batch_wrap_count = wrap_count;
         } else if input.needs_ata_creation {
             // Subsequent batches: idempotent ATA creation (no-op if exists)
-            batch_instructions.push(create_ata_idempotent_instruction(
-                &input.payer,
-                &input.owner,
-                &input.mint,
-            )?);
+            batch_instructions.push(
+                CreateAta::new(input.payer, input.owner, input.mint)
+                    .idempotent()
+                    .instruction()?,
+            );
             batch_has_ata = true;
         }
 
         // Calculate chunk amount
-        let chunk_amount: u64 = chunk.iter().map(|a| a.amount).sum();
+        let chunk_amount: u64 = chunk
+            .iter()
+            .try_fold(0u64, |acc, a| acc.checked_add(a.amount))
+            .ok_or(KoraLightError::ArithmeticOverflow)?;
 
         // Build decompress instruction for this chunk
-        let decompress_ix = create_decompress_instruction(
-            &input.payer,
-            &input.owner,
-            &input.mint,
-            chunk,
+        let decompress_ix = Decompress {
+            payer: input.payer,
+            owner: input.owner,
+            mint: input.mint,
+            inputs: chunk,
             proof,
-            &input.destination,
-            chunk_amount,
-            input.decimals,
-            input.spl_interface.as_ref(),
-        )?;
+            destination: input.destination,
+            amount: chunk_amount,
+            decimals: input.decimals,
+            spl_interface: input.spl_interface.as_ref(),
+        }
+        .instruction()?;
         batch_instructions.push(decompress_ix);
 
         // Check if any account needs full proof
@@ -370,5 +374,47 @@ mod tests {
         // With ATA creation
         let cu_with_ata = calculate_compute_units(1, true, 0, true);
         assert!(cu_with_ata > cu);
+    }
+
+    #[test]
+    fn test_load_with_wrap_and_decompress() {
+        // 10 compressed accounts (2 batches: 8 + 2) plus a wrap
+        let accounts: Vec<_> = (0..10).map(|_| make_account(100)).collect();
+        let proofs = vec![CompressedProof::default(), CompressedProof::default()];
+
+        let spl_interface = SplInterfaceInfo {
+            spl_interface_pda: Pubkey::new_unique(),
+            bump: 255,
+            pool_index: 0,
+            token_program: Pubkey::new_unique(),
+        };
+
+        let input = LoadAtaInput {
+            payer: Pubkey::new_unique(),
+            owner: Pubkey::new_unique(),
+            mint: Pubkey::new_unique(),
+            decimals: 6,
+            destination: Pubkey::new_unique(),
+            needs_ata_creation: true,
+            compressed_accounts: accounts,
+            proofs,
+            spl_interface: None,
+            spl_wrap: Some(WrapSource {
+                source_ata: Pubkey::new_unique(),
+                amount: 500,
+                spl_interface,
+            }),
+        };
+
+        let batches = create_load_ata_batches(input).unwrap();
+        assert_eq!(batches.len(), 2);
+        // First batch: ATA creation + wrap + decompress
+        assert!(batches[0].has_ata_creation);
+        assert_eq!(batches[0].wrap_count, 1);
+        assert_eq!(batches[0].num_compressed_accounts, 8);
+        // Second batch: idempotent ATA + decompress (no wrap)
+        assert!(batches[1].has_ata_creation);
+        assert_eq!(batches[1].wrap_count, 0);
+        assert_eq!(batches[1].num_compressed_accounts, 2);
     }
 }

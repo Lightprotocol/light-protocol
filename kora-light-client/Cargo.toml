@@ -12,6 +12,3 @@ solana-system-interface = "2.0"
 solana-compute-budget-interface = "3.0"
 borsh = { version = "1.5", features = ["derive"] }
 thiserror = "2.0"
-
-[dev-dependencies]
-hex = "0.4"

@@ -65,12 +65,12 @@ End-to-end flow for using this crate:
    find_spl_interface_pda(mint)                  → SPL pool PDA (for wrap/unwrap/SPL decompress)
 
 5. Build instruction(s)
-   create_transfer2_instruction(...)             → compressed-to-compressed
-   create_decompress_instruction(...)            → compressed → on-chain account
-   create_wrap_instruction(...)                  → SPL → light-token
-   create_unwrap_instruction(...)                → light-token → SPL
-   create_ata_idempotent_instruction(...)        → create ATA
-   create_transfer_checked_instruction(...)      → ATA-to-ATA
+   Transfer2 { ... }.instruction()               → compressed-to-compressed
+   Decompress { ... }.instruction()              → compressed → on-chain account
+   Wrap { ... }.instruction()                    → SPL → light-token
+   Unwrap { ... }.instruction()                  → light-token → SPL
+   CreateAta::new(...).idempotent().instruction() → create ATA
+   TransferChecked { ... }.instruction()         → ATA-to-ATA
 
 6. Set compute budget
    Use constants from load_ata.rs or create_load_ata_batches() for automatic estimation
@@ -136,120 +136,100 @@ Packed accounts for wrap/unwrap use fixed indices (not HashMap):
 
 ## Public API — Instruction builders
 
-### create_transfer2_instruction
+All builders follow the same pattern: struct with named fields + `.instruction() -> Result<Instruction, KoraLightError>`.
+
+### Transfer2
 
 ```rust
-fn create_transfer2_instruction(
-    payer: &Pubkey,           // fee payer (signer)
-    authority: &Pubkey,       // token owner or delegate (signer)
-    mint: &Pubkey,            // token mint
-    inputs: &[CompressedTokenAccountInput],  // source compressed accounts
-    proof: &CompressedProof,  // validity proof from RPC
-    destination_owner: &Pubkey, // owner of destination compressed account
-    amount: u64,              // amount to transfer
-) -> Result<Instruction, KoraLightError>
+Transfer2 {
+    payer,               // fee payer (signer)
+    authority,           // token owner or delegate (signer)
+    mint,                // token mint
+    inputs: &accounts,   // source compressed accounts
+    proof: &proof,       // validity proof from RPC
+    destination_owner,   // owner of destination compressed account
+    amount: 1_000,
+}.instruction()?
 ```
 
 - **discriminator:** 101 (`TRANSFER2_DISCRIMINATOR`)
 - **layout:** standard (7 static + packed)
 - **path:** `src/transfer.rs`
 
-Builds a Transfer2 instruction for compressed-to-compressed token transfers. Automatically creates a change output if `amount < input_total`. Omits the proof from instruction data when all inputs use `prove_by_index`.
+Compressed-to-compressed token transfer. Automatically creates a change output if `amount < input_total`. Omits the proof when all inputs use `prove_by_index`.
 
-Signers: payer, authority.
-
-### create_decompress_instruction
+### Decompress
 
 ```rust
-fn create_decompress_instruction(
-    payer: &Pubkey,
-    owner: &Pubkey,
-    mint: &Pubkey,
-    inputs: &[CompressedTokenAccountInput],
-    proof: &CompressedProof,
-    destination: &Pubkey,     // on-chain token account (light-token ATA or SPL ATA)
-    amount: u64,
-    decimals: u8,
-    spl_interface: Option<&SplInterfaceInfo>, // None for light-token, Some for SPL
-) -> Result<Instruction, KoraLightError>
+Decompress {
+    payer, owner, mint,
+    inputs: &accounts,
+    proof: &proof,
+    destination,         // light-token ATA or SPL ATA
+    amount: 1_000,
+    decimals: 6,
+    spl_interface: None, // None for light-token, Some(&info) for SPL
+}.instruction()?
 ```
 
 - **discriminator:** 101 (Transfer2 with `Compression::Decompress`)
 - **layout:** standard (7 static + packed)
 - **path:** `src/decompress.rs`
 
-Routes between light-token decompress (no pool, `spl_interface=None`) and SPL decompress (with pool account and token program added to packed accounts). Creates a change output if `amount < input_total`.
+Routes between light-token decompress (`spl_interface=None`) and SPL decompress (with pool + token_program). Creates change output if `amount < input_total`.
 
-Signers: payer, owner. Packed accounts include pool (writable) and token_program when `spl_interface` is provided.
-
-### create_wrap_instruction
+### Wrap
 
 ```rust
-fn create_wrap_instruction(
-    source: &Pubkey,          // SPL token account (writable)
-    destination: &Pubkey,     // light-token account (writable)
-    owner: &Pubkey,           // token owner (signer)
-    mint: &Pubkey,
-    amount: u64,
-    decimals: u8,
-    payer: &Pubkey,           // fee payer (signer)
-    spl_interface: &SplInterfaceInfo,
-) -> Result<Instruction, KoraLightError>
+Wrap {
+    source: spl_ata,
+    destination: light_token_ata,
+    owner, mint,
+    amount: 1_000,
+    decimals: 6,
+    payer,
+    spl_interface: &spl_info,
+}.instruction()?
 ```
 
 - **discriminator:** 101 (Transfer2 with two compressions)
 - **layout:** decompressed-only (2 static + fixed packed)
 - **path:** `src/wrap.rs`
 
-Uses two compression operations: `Compress(SPL)` moves tokens from SPL source to pool, then `Decompress(light-token)` moves them from pool to light-token destination. No compressed inputs or outputs (empty vecs), no proof needed.
+SPL → light-token via dual compression. Total accounts: 10.
 
-Signers: payer, owner. Total accounts: 10 (2 static + 6 packed + 2 appended programs).
-
-### create_unwrap_instruction
+### Unwrap
 
 ```rust
-fn create_unwrap_instruction(
-    source: &Pubkey,          // light-token account (writable)
-    destination: &Pubkey,     // SPL token account (writable)
-    owner: &Pubkey,           // token owner (signer)
-    mint: &Pubkey,
-    amount: u64,
-    decimals: u8,
-    payer: &Pubkey,           // fee payer (signer)
-    spl_interface: &SplInterfaceInfo,
-) -> Result<Instruction, KoraLightError>
+Unwrap {
+    source: light_token_ata,
+    destination: spl_ata,
+    owner, mint,
+    amount: 1_000,
+    decimals: 6,
+    payer,
+    spl_interface: &spl_info,
+}.instruction()?
 ```
 
 - **discriminator:** 101 (Transfer2 with two compressions)
 - **layout:** decompressed-only (2 static + fixed packed)
 - **path:** `src/unwrap.rs`
 
-Reverse of wrap: `Compress(light-token)` then `Decompress(SPL)`. Same account layout and structure as wrap with different compression modes.
+Reverse of Wrap: light-token → SPL via dual compression.
 
-### CreateAta / create_ata_idempotent_instruction
+### CreateAta
 
 ```rust
-struct CreateAta {
-    payer: Pubkey,
-    owner: Pubkey,
-    mint: Pubkey,
-    idempotent: bool,                // default: false
-    compressible_config: Pubkey,     // default: LIGHT_TOKEN_CONFIG
-    rent_sponsor: Pubkey,            // default: RENT_SPONSOR_V1
-    pre_pay_num_epochs: u8,          // default: 16
-    write_top_up: u32,               // default: 766 lamports
-    compression_only: bool,          // default: true
-}
-
-// Builder usage
-CreateAta::new(payer, owner, mint).idempotent().instruction()
-
-// Convenience function
-fn create_ata_idempotent_instruction(payer, owner, mint) -> Result<Instruction>
+CreateAta::new(payer, owner, mint)
+    .idempotent()
+    .instruction()?
 ```
 
-- **discriminator:** 100 (CreateATA) or 102 (CreateATA idempotent)
+- **discriminator:** 100 (CreateATA) or 102 (idempotent)
 - **path:** `src/create_ata.rs`
+
+Builder fields: `compressible_config`, `rent_sponsor`, `pre_pay_num_epochs`, `write_top_up`, `compression_only` all have sensible defaults.
 
 Accounts (7, fixed order):
 
@@ -263,28 +243,24 @@ Accounts (7, fixed order):
 | 5 | compressible_config | | |
 | 6 | rent_sponsor | | yes |
 
-ATA address is derived from `get_associated_token_address(owner, mint)`.
-
-### create_transfer_checked_instruction
+### TransferChecked
 
 ```rust
-fn create_transfer_checked_instruction(
-    source_ata: &Pubkey,
-    destination_ata: &Pubkey,
-    mint: &Pubkey,
-    owner: &Pubkey,           // signer
-    amount: u64,
-    decimals: u8,
-    payer: &Pubkey,           // signer, only added if != owner
-) -> Result<Instruction, KoraLightError>
+TransferChecked {
+    source_ata,
+    destination_ata,
+    mint,
+    owner,
+    amount: 1_000,
+    decimals: 6,
+    payer,
+}.instruction()?
 ```
 
 - **discriminator:** 12
 - **path:** `src/transfer.rs`
 
-For decompressed (on-chain) light-token ATA-to-ATA transfers. Not for compressed accounts. Data format: discriminator(1) + amount(8 LE) + decimals(1) = 10 bytes.
-
-Accounts: source(writable), mint, destination(writable), owner(signer), SystemProgram, [payer(signer) if payer != owner].
+Decompressed (on-chain) light-token ATA-to-ATA transfers. Not for compressed accounts.
 
 ## Public API — Utilities
 
@@ -424,12 +400,11 @@ All types must remain byte-identical to the on-chain program. Verified by golden
 | Constant | Value | Purpose |
 |----------|-------|---------|
 | `TRANSFER2_DISCRIMINATOR` | `101` | Transfer2 instruction discriminator |
-| `TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR` | `[2,0,0,0,0,0,0,0]` | Compressed token account discriminator |
+| `DEFAULT_MAX_TOP_UP` | `u16::MAX` | Default max top-up for Transfer2 (no limit) |
 | `WSOL_MINT` | `So11111111111111111111111111111111111111112` | Wrapped SOL mint |
 | `CPI_AUTHORITY_PDA_SEED` | `b"cpi_authority"` | Seed for CPI authority derivation |
 | `BUMP_CPI_AUTHORITY` | `254` | Known bump for CPI authority PDA |
 | `POOL_SEED` | `b"pool"` | Seed for SPL pool PDA derivation |
-| `NUM_MAX_POOL_ACCOUNTS` | `5` | Maximum pool accounts per mint |
 | `LIGHT_LUT_MAINNET` | `9NYFyEqPeWQHiS8Jv4VjZcjKBMPRCJ3KbEbaBcy4Mza` | Mainnet address lookup table |
 | `LIGHT_LUT_DEVNET` | `9NYFyEqPeWQHiS8Jv4VjZcjKBMPRCJ3KbEbaBcy4Mza` | Devnet address lookup table |
 
@@ -452,34 +427,34 @@ All types must remain byte-identical to the on-chain program. Verified by golden
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `src/transfer.rs` | 416 | Transfer2 (compressed-to-compressed) and TransferChecked (ATA-to-ATA) |
-| `src/decompress.rs` | 523 | Decompress via Transfer2 with Compression operation |
-| `src/wrap.rs` | 153 | SPL → light-token via dual-compression Transfer2 (decompressed_accounts_only layout) |
-| `src/unwrap.rs` | 187 | Light-token → SPL via dual-compression Transfer2 (decompressed_accounts_only layout) |
-| `src/create_ata.rs` | 183 | CreateAssociatedTokenAccount builder with compressible config |
+| `src/transfer.rs` | 448 | Transfer2 (compressed-to-compressed) and TransferChecked (ATA-to-ATA) |
+| `src/decompress.rs` | 554 | Decompress via Transfer2 with Compression operation |
+| `src/wrap.rs` | 150 | SPL → light-token via dual-compression Transfer2 (decompressed_accounts_only layout) |
+| `src/unwrap.rs` | 184 | Light-token → SPL via dual-compression Transfer2 (decompressed_accounts_only layout) |
+| `src/create_ata.rs` | 182 | CreateAssociatedTokenAccount builder with compressible config |
 
 ### Utilities
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `src/account_select.rs` | 161 | Greedy descending account selection (max 8, `MAX_INPUT_ACCOUNTS`) |
-| `src/load_ata.rs` | 375 | Multi-transaction batch orchestration with compute budget estimation |
+| `src/account_select.rs` | 160 | Greedy descending account selection (max 8, `MAX_INPUT_ACCOUNTS`) |
+| `src/load_ata.rs` | 416 | Multi-transaction batch orchestration with compute budget estimation |
 
 ### Core
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `src/lib.rs` | 44 | Module declarations and re-exports |
-| `src/types.rs` | 560 | All Borsh-serializable types (on-chain mirrors + client-only) |
-| `src/program_ids.rs` | 82 | 31 constants (program IDs, PDAs, seeds, LUT addresses) |
-| `src/pda.rs` | 78 | 6 PDA derivation functions |
-| `src/error.rs` | 23 | `KoraLightError` enum (6 variants) |
+| `src/lib.rs` | 43 | Module declarations and re-exports |
+| `src/types.rs` | 559 | All Borsh-serializable types (on-chain mirrors + client-only) |
+| `src/program_ids.rs` | 78 | Constants (program IDs, PDAs, seeds, LUT addresses) |
+| `src/pda.rs` | 77 | 6 PDA derivation functions |
+| `src/error.rs` | 22 | `KoraLightError` enum (6 variants) |
 
 ### Tests
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `tests/golden_bytes.rs` | 382 | Borsh serialization cross-verification against on-chain format |
+| `tests/golden_bytes.rs` | 381 | Borsh serialization cross-verification against on-chain format |
 | `src/types.rs` (inline) | ~60 | Borsh verification gates (proof=128B, context=7B, compression=16B, input=22B, output=13B) |
 | `src/` (inline per module) | ~200 | Unit tests per module (account order, deduplication, error paths, round-trips) |
 

@@ -12,28 +12,70 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::KoraLightError,
     program_ids::{
-        CPI_AUTHORITY_PDA, LIGHT_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID, TRANSFER2_DISCRIMINATOR,
+        CPI_AUTHORITY_PDA, DEFAULT_MAX_TOP_UP, LIGHT_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
+        TRANSFER2_DISCRIMINATOR,
     },
     types::{CompressedTokenInstructionDataTransfer2, Compression, SplInterfaceInfo},
 };
 
-/// Default max top-up
-const DEFAULT_MAX_TOP_UP: u16 = u16::MAX;
+/// Wrap SPL/T22 tokens into a light-token account.
+///
+/// Builds a Transfer2 instruction with two compression operations:
+/// compress from SPL source, then decompress to light-token destination.
+/// Uses the `decompressed_accounts_only` layout.
+///
+/// # Example
+/// ```rust,ignore
+/// use kora_light_client::Wrap;
+///
+/// let ix = Wrap {
+///     source: spl_ata,
+///     destination: light_token_ata,
+///     owner,
+///     mint,
+///     amount: 1_000,
+///     decimals: 6,
+///     payer,
+///     spl_interface: &spl_info,
+/// }.instruction()?;
+/// ```
+#[derive(Debug, Clone)]
+pub struct Wrap<'a> {
+    /// Source SPL token account (writable).
+    pub source: Pubkey,
+    /// Destination light-token account (writable).
+    pub destination: Pubkey,
+    /// Token owner (signer).
+    pub owner: Pubkey,
+    /// Token mint.
+    pub mint: Pubkey,
+    /// Amount to wrap.
+    pub amount: u64,
+    /// Token decimals.
+    pub decimals: u8,
+    /// Fee payer (signer).
+    pub payer: Pubkey,
+    /// SPL pool info for the compress operation.
+    pub spl_interface: &'a SplInterfaceInfo,
+}
+
+impl<'a> Wrap<'a> {
+    /// Build the wrap instruction.
+    pub fn instruction(&self) -> Result<Instruction, KoraLightError> {
+        create_wrap_instruction(
+            &self.source,
+            &self.destination,
+            &self.owner,
+            &self.mint,
+            self.amount,
+            self.decimals,
+            &self.payer,
+            self.spl_interface,
+        )
+    }
+}
 
 /// Build a wrap instruction: SPL → light-token.
-///
-/// Takes tokens from an SPL token account and deposits them into a light-token account.
-/// Uses the `decompressed_accounts_only` Transfer2 layout.
-///
-/// # Arguments
-/// * `source` - SPL token account (writable)
-/// * `destination` - Light-token account (writable)
-/// * `owner` - Token owner (signer)
-/// * `mint` - Token mint
-/// * `amount` - Amount to wrap
-/// * `decimals` - Token decimals
-/// * `payer` - Fee payer (signer)
-/// * `spl_interface` - SPL pool info for the compress operation
 #[allow(clippy::too_many_arguments)]
 pub fn create_wrap_instruction(
     source: &Pubkey,

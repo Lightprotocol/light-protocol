@@ -12,28 +12,70 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::KoraLightError,
     program_ids::{
-        CPI_AUTHORITY_PDA, LIGHT_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID, TRANSFER2_DISCRIMINATOR,
+        CPI_AUTHORITY_PDA, DEFAULT_MAX_TOP_UP, LIGHT_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID,
+        TRANSFER2_DISCRIMINATOR,
     },
     types::{CompressedTokenInstructionDataTransfer2, Compression, SplInterfaceInfo},
 };
 
-/// Default max top-up
-const DEFAULT_MAX_TOP_UP: u16 = u16::MAX;
+/// Unwrap light-token to SPL/T22 token account.
+///
+/// Builds a Transfer2 instruction with two compression operations:
+/// compress from light-token source, then decompress to SPL destination.
+/// Uses the `decompressed_accounts_only` layout. Reverse of [`Wrap`](crate::Wrap).
+///
+/// # Example
+/// ```rust,ignore
+/// use kora_light_client::Unwrap;
+///
+/// let ix = Unwrap {
+///     source: light_token_ata,
+///     destination: spl_ata,
+///     owner,
+///     mint,
+///     amount: 1_000,
+///     decimals: 6,
+///     payer,
+///     spl_interface: &spl_info,
+/// }.instruction()?;
+/// ```
+#[derive(Debug, Clone)]
+pub struct Unwrap<'a> {
+    /// Source light-token account (writable).
+    pub source: Pubkey,
+    /// Destination SPL token account (writable).
+    pub destination: Pubkey,
+    /// Token owner (signer).
+    pub owner: Pubkey,
+    /// Token mint.
+    pub mint: Pubkey,
+    /// Amount to unwrap.
+    pub amount: u64,
+    /// Token decimals.
+    pub decimals: u8,
+    /// Fee payer (signer).
+    pub payer: Pubkey,
+    /// SPL pool info for the decompress operation.
+    pub spl_interface: &'a SplInterfaceInfo,
+}
+
+impl<'a> Unwrap<'a> {
+    /// Build the unwrap instruction.
+    pub fn instruction(&self) -> Result<Instruction, KoraLightError> {
+        create_unwrap_instruction(
+            &self.source,
+            &self.destination,
+            &self.owner,
+            &self.mint,
+            self.amount,
+            self.decimals,
+            &self.payer,
+            self.spl_interface,
+        )
+    }
+}
 
 /// Build an unwrap instruction: light-token → SPL.
-///
-/// Takes tokens from a light-token account and deposits them into an SPL token account.
-/// Uses the `decompressed_accounts_only` Transfer2 layout.
-///
-/// # Arguments
-/// * `source` - Light-token account (writable)
-/// * `destination` - SPL token account (writable)
-/// * `owner` - Token owner (signer)
-/// * `mint` - Token mint
-/// * `amount` - Amount to unwrap
-/// * `decimals` - Token decimals
-/// * `payer` - Fee payer (signer)
-/// * `spl_interface` - SPL pool info for the decompress operation
 #[allow(clippy::too_many_arguments)]
 pub fn create_unwrap_instruction(
     source: &Pubkey,
