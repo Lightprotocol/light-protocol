@@ -432,10 +432,12 @@ fn build_transfer2(
 
     for (i, ctx) in contexts.iter().enumerate() {
         let token = &ctx.compressed.token;
-        let tree = tree_infos.get(i).ok_or(LoadAccountsError::TreeInfoIndexOutOfBounds {
-            index: i,
-            len: tree_infos.len(),
-        })?;
+        let tree = tree_infos
+            .get(i)
+            .ok_or(LoadAccountsError::TreeInfoIndexOutOfBounds {
+                index: i,
+                len: tree_infos.len(),
+            })?;
 
         let owner_idx = packed.insert_or_get_config(ctx.wallet_owner, true, false);
         let ata_idx = packed.insert_or_get(derive_token_ata(&ctx.wallet_owner, &ctx.mint));

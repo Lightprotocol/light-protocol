@@ -169,13 +169,23 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     payer: Pubkey,
     should_filter_zero_outputs: bool,
 ) -> Result<Instruction, TokenSdkError> {
-    // // Get a single shared output queue for ALL compress/compress-and-close operations
-    // // This prevents reordering issues caused by the sort_by_key at the end
-    // let shared_output_queue = rpc
-    //     .get_random_state_tree_info()
-    //     .unwrap()
-    //     .get_output_pubkey()
-    //     .unwrap();
+    // Transfer2 supports a single output queue per instruction. Legacy helpers accept
+    // per-action queues, but normalize them down to one shared queue for the IX.
+    let mut explicit_output_queue = None;
+    for action in &actions {
+        let candidate = match action {
+            Transfer2InstructionType::Compress(input) => Some(input.output_queue),
+            Transfer2InstructionType::CompressAndClose(input) => Some(input.output_queue),
+            Transfer2InstructionType::Decompress(_)
+            | Transfer2InstructionType::Transfer(_)
+            | Transfer2InstructionType::Approve(_) => None,
+        };
+        if let Some(candidate) = candidate {
+            if explicit_output_queue.is_none() {
+                explicit_output_queue = Some(candidate);
+            }
+        }
+    }
 
     let mut hashes = Vec::new();
     actions.iter().for_each(|account| match account {
@@ -210,26 +220,16 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         .value;
 
     let mut packed_tree_accounts = PackedAccounts::default();
-    // tree infos must be packed before packing the token input accounts
-    let packed_tree_infos = rpc_proof_result
-        .pack_tree_infos(&mut packed_tree_accounts)
-        .unwrap();
+    // Pack only input state tree infos. Grouped transfer2 proofs can span multiple output trees.
+    let packed_tree_infos = rpc_proof_result.pack_state_tree_infos(&mut packed_tree_accounts);
 
-    // We use a single shared output queue for all compress/compress-and-close operations to avoid ordering failures.
-    let shared_output_queue = if packed_tree_infos.address_trees.is_empty() {
-        let shared_output_queue = rpc
-            .get_random_state_tree_info()
+    let shared_output_queue = explicit_output_queue.unwrap_or_else(|| {
+        rpc.get_random_state_tree_info()
             .unwrap()
             .get_output_pubkey()
-            .unwrap();
-        packed_tree_accounts.insert_or_get(shared_output_queue)
-    } else {
-        packed_tree_infos
-            .state_trees
-            .as_ref()
             .unwrap()
-            .output_tree_index
-    };
+    });
+    let shared_output_queue = packed_tree_accounts.insert_or_get(shared_output_queue);
 
     let mut inputs_offset = 0;
     let mut in_lamports = Vec::new();
@@ -245,12 +245,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         let token_data = input_token_account
                             .iter()
                             .zip(
-                                packed_tree_infos
-                                    .state_trees
-                                    .as_ref()
-                                    .unwrap()
-                                    .packed_tree_infos[inputs_offset..]
-                                    .iter(),
+                                packed_tree_infos[inputs_offset..].iter(),
                             )
                             .map(|(account, rpc_account)| {
                                 if input.to != account.token.owner {
@@ -393,14 +388,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let token_data = input
                     .compressed_token_account
                     .iter()
-                    .zip(
-                        packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .packed_tree_infos[inputs_offset..]
-                            .iter(),
-                    )
+                    .zip(packed_tree_infos[inputs_offset..].iter())
                     .map(|(account, rpc_account)| {
                         pack_input_token_account(
                             account,
@@ -462,14 +450,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let token_data = input
                     .compressed_token_account
                     .iter()
-                    .zip(
-                        packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .packed_tree_infos[inputs_offset..]
-                            .iter(),
-                    )
+                    .zip(packed_tree_infos[inputs_offset..].iter())
                     .map(|(account, rpc_account)| {
                         pack_input_token_account(
                             account,
@@ -544,14 +525,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let token_data = input
                     .compressed_token_account
                     .iter()
-                    .zip(
-                        packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .packed_tree_infos[inputs_offset..]
-                            .iter(),
-                    )
+                    .zip(packed_tree_infos[inputs_offset..].iter())
                     .map(|(account, rpc_account)| {
                         pack_input_token_account(
                             account,

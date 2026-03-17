@@ -242,7 +242,10 @@ where
     // Process PDAs first, then tokens, to match on-chain split_at(token_accounts_offset).
     for &i in pda_indices.iter().chain(token_indices.iter()) {
         let (acc, data) = &cold_accounts[i];
-        let proof_tree_info = tree_infos.get(i).copied().ok_or("tree info index out of bounds")?;
+        let proof_tree_info = tree_infos
+            .get(i)
+            .copied()
+            .ok_or("tree info index out of bounds")?;
         let queue_index = remaining_accounts.insert_or_get(acc.tree_info.queue);
         let tree_info = PackedStateTreeInfo {
             queue_pubkey_index: queue_index,

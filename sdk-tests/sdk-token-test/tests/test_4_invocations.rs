@@ -47,7 +47,9 @@ fn pack_selected_output_tree_index(
         .next_tree_info
         .map(|next| next.pack_output_tree_index(remaining_accounts))
         .unwrap_or_else(|| tree_info.pack_output_tree_index(remaining_accounts))
-        .map_err(|error| RpcError::CustomError(format!("Failed to pack output tree index: {error}")))
+        .map_err(|error| {
+            RpcError::CustomError(format!("Failed to pack output tree index: {error}"))
+        })
 }
 
 #[ignore = "fix cpi context usage"]
@@ -525,8 +527,10 @@ async fn test_four_invokes_instruction(
         )
         .await?
         .value;
-    let output_tree_index =
-        pack_selected_output_tree_index(mint2_token_account.account.tree_info, &mut remaining_accounts)?;
+    let output_tree_index = pack_selected_output_tree_index(
+        mint2_token_account.account.tree_info,
+        &mut remaining_accounts,
+    )?;
     let packed_tree_infos = pack_input_state_tree_infos(&rpc_result, &mut remaining_accounts);
 
     // Create token metas from compressed accounts - each uses its respective tree info index
