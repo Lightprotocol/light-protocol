@@ -23,9 +23,7 @@ use light_compressed_account::{
 use light_compressed_token::process_transfer::{
     transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
 };
-use light_token::compat::TokenDataWithMerkleContext;
 use light_program_test::accounts::test_accounts::TestAccounts;
-use light_prover_client::prover::spawn_prover;
 use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     utils::get_protocol_config_pda_address,
@@ -34,6 +32,7 @@ use light_test_utils::{
     conversions::sdk_to_program_token_data, spl::create_mint_helper_with_keypair,
     system_program::create_invoke_instruction,
 };
+use light_token::compat::TokenDataWithMerkleContext;
 use rand::{prelude::SliceRandom, rngs::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
@@ -87,7 +86,6 @@ async fn test_state_indexer_async_batched() {
         validator_args: vec![],
     }))
     .await;
-    spawn_prover().await;
 
     let env = TestAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
@@ -306,10 +304,7 @@ async fn wait_for_slot(rpc: &mut LightClient, target_slot: u64) {
             return;
         }
         Err(e) => {
-            println!(
-                "warp_to_slot unavailable ({}), falling back to polling",
-                e
-            );
+            println!("warp_to_slot unavailable ({}), falling back to polling", e);
         }
     }
     while rpc.get_slot().await.unwrap() < target_slot {

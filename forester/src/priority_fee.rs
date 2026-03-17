@@ -208,7 +208,7 @@ pub async fn request_priority_fee_estimate(
         .map_err(|error| PriorityFeeEstimateError::ClientBuild(error.clone()))?;
 
     let response = http_client
-        .post(url.clone())
+        .post(url.as_str())
         .header("Content-Type", "application/json")
         .json(&rpc_request)
         .send()

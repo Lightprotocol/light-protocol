@@ -142,7 +142,10 @@ where
     let pda_key = pda_account.key();
     let address = derive_address(&pda_key, &ctx.light_config.address_space[0], ctx.program_id);
 
-    // 10. Build CompressedAccountInfo for CPI
+    // 10. Build CompressedAccountInfo for CPI.
+    // Input nullifiers must keep their original queue basis. The later system-program path
+    // groups nullifiers by queue index, so rewriting mixed PDA+token inputs onto a shared
+    // output queue drops whole tree/queue pairs from insertion.
     let input = InAccountInfo {
         data_hash: input_data_hash,
         lamports: 0,

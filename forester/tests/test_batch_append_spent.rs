@@ -328,21 +328,32 @@ async fn run_forester(config: &ForesterConfig, duration: Duration) {
         tokio::sync::broadcast::channel(1);
     let (work_report_sender, _) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline::<LightClient>(
-        Arc::from(config.clone()),
-        None,
-        None,
-        shutdown_receiver,
-        Some(shutdown_compressible_receiver),
-        None, // shutdown_bootstrap
-        work_report_sender,
-    ));
+    let config = Arc::new(config.clone());
+    let service_handle = tokio::task::spawn_blocking(move || {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()?;
+        runtime.block_on(run_pipeline::<LightClient>(
+            config,
+            None,
+            None,
+            shutdown_receiver,
+            Some(shutdown_compressible_receiver),
+            None, // shutdown_bootstrap
+            work_report_sender,
+        ))
+    });
 
     tokio::time::sleep(duration).await;
 
     let _ = shutdown_sender.send(());
     let _ = shutdown_compressible_sender.send(());
-    let _ = timeout(Duration::from_secs(5), service_handle).await;
+    let join_result = timeout(Duration::from_secs(5), service_handle)
+        .await
+        .expect("forester service did not shut down within timeout");
+    let service_result = join_result.expect("forester service task panicked");
+    service_result.expect("run_pipeline::<LightClient>() failed");
 }
 
 async fn get_onchain_root(rpc: &LightClient, tree_pubkey: Pubkey) -> (String, u64, u64) {

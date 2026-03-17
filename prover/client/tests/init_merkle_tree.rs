@@ -221,7 +221,7 @@ pub fn non_inclusion_new_with_public_inputs_v2(
             .collect(),
         path_index: merkle_inputs
             .index_hashed_indexed_element_leaf
-            .to_u32()
+            .to_u64()
             .unwrap(),
         leaf_lower_range_value: big_int_to_string(&merkle_inputs.leaf_lower_range_value),
         leaf_higher_range_value: big_int_to_string(&merkle_inputs.leaf_higher_range_value),

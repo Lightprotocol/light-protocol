@@ -1,11 +1,14 @@
 //! Helper for initializing config with sensible defaults.
 
 #[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use anchor_lang::AnchorSerialize;
 #[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use borsh::BorshSerialize as AnchorSerialize;
+use light_account::InitializeLightConfigParams;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
+
+use crate::interface::instructions::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR;
 
 /// Default address tree v2 pubkey.
 pub const ADDRESS_TREE_V2: Pubkey =
@@ -13,16 +16,6 @@ pub const ADDRESS_TREE_V2: Pubkey =
 
 /// Default write top-up value (5000 lamports).
 pub const DEFAULT_INIT_WRITE_TOP_UP: u32 = 5_000;
-
-/// Instruction data format matching anchor-generated `initialize_compression_config`.
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct InitializeCompressionConfigAnchorData {
-    pub write_top_up: u32,
-    pub rent_sponsor: Pubkey,
-    pub compression_authority: Pubkey,
-    pub rent_config: light_compressible::rent::RentConfig,
-    pub address_space: Vec<Pubkey>,
-}
 
 /// Builder for `initialize_compression_config` instruction with sensible defaults.
 pub struct InitializeRentFreeConfig {
@@ -107,24 +100,27 @@ impl InitializeRentFreeConfig {
             ), // system_program
         ];
 
-        let instruction_data = InitializeCompressionConfigAnchorData {
-            write_top_up: self.write_top_up,
-            rent_sponsor: self.rent_sponsor,
-            compression_authority: self.compression_authority,
+        let instruction_data = InitializeLightConfigParams {
+            rent_sponsor: self.rent_sponsor.to_bytes(),
+            compression_authority: self.compression_authority.to_bytes(),
             rent_config: self.rent_config,
-            address_space: self.address_space,
+            write_top_up: self.write_top_up,
+            address_space: self
+                .address_space
+                .iter()
+                .map(|pubkey| pubkey.to_bytes())
+                .collect(),
+            config_bump: self.config_bump,
         };
-
-        // Anchor discriminator for "initialize_compression_config"
-        // SHA256("global:initialize_compression_config")[..8]
-        const DISCRIMINATOR: [u8; 8] = [133, 228, 12, 169, 56, 76, 222, 61];
 
         let serialized_data = instruction_data
             .try_to_vec()
             .expect("Failed to serialize instruction data");
 
-        let mut data = Vec::with_capacity(DISCRIMINATOR.len() + serialized_data.len());
-        data.extend_from_slice(&DISCRIMINATOR);
+        let mut data = Vec::with_capacity(
+            INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR.len() + serialized_data.len(),
+        );
+        data.extend_from_slice(&INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR);
         data.extend_from_slice(&serialized_data);
 
         let instruction = Instruction {
