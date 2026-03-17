@@ -42,14 +42,14 @@ fn pack_input_state_tree_infos(
 fn pack_selected_output_tree_index(
     tree_info: light_client::indexer::TreeInfo,
     remaining_accounts: &mut PackedAccounts,
-) -> Result<u8, RpcError> {
+) -> Result<u8, Box<RpcError>> {
     tree_info
         .next_tree_info
         .map(|next| next.pack_output_tree_index(remaining_accounts))
         .unwrap_or_else(|| tree_info.pack_output_tree_index(remaining_accounts))
-        .map_err(|error| {
+        .map_err(|error| Box::new(
             RpcError::CustomError(format!("Failed to pack output tree index: {error}"))
-        })
+        ))
 }
 
 #[ignore = "fix cpi context usage"]
@@ -530,7 +530,8 @@ async fn test_four_invokes_instruction(
     let output_tree_index = pack_selected_output_tree_index(
         mint2_token_account.account.tree_info,
         &mut remaining_accounts,
-    )?;
+    )
+    .map_err(|error| *error)?;
     let packed_tree_infos = pack_input_state_tree_infos(&rpc_result, &mut remaining_accounts);
 
     // Create token metas from compressed accounts - each uses its respective tree info index
