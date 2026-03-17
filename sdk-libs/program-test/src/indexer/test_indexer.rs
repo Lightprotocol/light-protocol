@@ -2372,7 +2372,8 @@ impl TestIndexer {
                     Some(
                         BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
                             &non_inclusion_proof_inputs,
-                        ),
+                        )
+                        .map_err(|error| IndexerError::CustomError(error.to_string()))?,
                     ),
                     None,
                 )

@@ -19,6 +19,8 @@ pub struct BatchAddressAppendInputsJson {
     pub low_element_indices: Vec<String>,
     #[serde(rename = "lowElementNextValues")]
     pub low_element_next_values: Vec<String>,
+    #[serde(rename = "lowElementNextIndices")]
+    pub low_element_next_indices: Vec<String>,
     #[serde(rename = "lowElementProofs")]
     pub low_element_proofs: Vec<Vec<String>>,
     #[serde(rename = "newElementValues")]
@@ -61,6 +63,11 @@ impl BatchAddressAppendInputsJson {
                 .collect(),
             low_element_next_values: inputs
                 .low_element_next_values
+                .iter()
+                .map(big_uint_to_string)
+                .collect(),
+            low_element_next_indices: inputs
+                .low_element_next_indices
                 .iter()
                 .map(big_uint_to_string)
                 .collect(),

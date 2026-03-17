@@ -65,8 +65,7 @@ async fn test_indexer_interface_scenarios() {
         validator_args: vec![],
         use_surfpool: true,
     })
-    .await
-    .unwrap();
+    .await;
 
     let mut rpc = LightClient::new(LightClientConfig::local())
         .await

@@ -128,6 +128,19 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
     batch_size: u32,
     previous_changelogs: &[ChangelogEntry<HEIGHT>],
 ) -> Result<(BatchAppendsCircuitInputs, Vec<ChangelogEntry<HEIGHT>>), ProverClientError> {
+    let batch_len = batch_size as usize;
+    for (name, len) in [
+        ("old_leaves", old_leaves.len()),
+        ("leaves", leaves.len()),
+        ("merkle_proofs", merkle_proofs.len()),
+    ] {
+        if len != batch_len {
+            return Err(ProverClientError::GenericError(format!(
+                "invalid batch append inputs: {name} len {len} != batch_size {batch_len}"
+            )));
+        }
+    }
+
     let mut new_root = [0u8; 32];
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);

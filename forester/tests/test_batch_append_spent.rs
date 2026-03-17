@@ -349,7 +349,11 @@ async fn run_forester(config: &ForesterConfig, duration: Duration) {
 
     let _ = shutdown_sender.send(());
     let _ = shutdown_compressible_sender.send(());
-    let _ = timeout(Duration::from_secs(5), service_handle).await;
+    let join_result = timeout(Duration::from_secs(5), service_handle)
+        .await
+        .expect("forester service did not shut down within timeout");
+    let service_result = join_result.expect("forester service task panicked");
+    service_result.expect("run_pipeline::<LightClient>() failed");
 }
 
 async fn get_onchain_root(rpc: &LightClient, tree_pubkey: Pubkey) -> (String, u64, u64) {

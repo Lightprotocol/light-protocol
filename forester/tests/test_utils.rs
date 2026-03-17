@@ -36,7 +36,7 @@ pub async fn init(config: Option<LightValidatorConfig>) {
 #[allow(dead_code)]
 pub async fn spawn_test_validator(config: Option<LightValidatorConfig>) {
     let config = config.unwrap_or_default();
-    spawn_validator(config).await.unwrap();
+    spawn_validator(config).await;
 }
 
 #[allow(dead_code)]

@@ -321,6 +321,8 @@ pub struct EpochManager<R: Rpc + Indexer> {
     /// Per-epoch registration trackers to coordinate re-finalization when new foresters register mid-epoch
     registration_trackers: Arc<DashMap<u64, Arc<RegistrationTracker>>>,
     new_tree_workers: Arc<Mutex<Vec<NewTreeWorker>>>,
+    shutdown_requested: Arc<AtomicBool>,
+    shutdown_notify: Arc<tokio::sync::Notify>,
 }
 
 impl<R: Rpc + Indexer> Clone for EpochManager<R> {
@@ -352,6 +354,8 @@ impl<R: Rpc + Indexer> Clone for EpochManager<R> {
             run_id: self.run_id.clone(),
             registration_trackers: self.registration_trackers.clone(),
             new_tree_workers: self.new_tree_workers.clone(),
+            shutdown_requested: self.shutdown_requested.clone(),
+            shutdown_notify: self.shutdown_notify.clone(),
         }
     }
 }
@@ -402,7 +406,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             run_id: Arc::<str>::from(run_id),
             registration_trackers: Arc::new(DashMap::new()),
             new_tree_workers: Arc::new(Mutex::new(Vec::new())),
+            shutdown_requested: Arc::new(AtomicBool::new(false)),
+            shutdown_notify: Arc::new(tokio::sync::Notify::new()),
         })
+    }
+
+    fn request_shutdown(&self) {
+        if !self.shutdown_requested.swap(true, Ordering::AcqRel) {
+            self.shutdown_notify.notify_waiters();
+        }
     }
 
     fn join_new_tree_worker_with_run_id(run_id: Arc<str>, worker: NewTreeWorker) {
@@ -575,7 +587,24 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         let mut epoch_tasks = FuturesUnordered::new();
         let result = loop {
+            if self.shutdown_requested.load(Ordering::Acquire) {
+                info!(
+                    event = "epoch_manager_shutdown_requested",
+                    run_id = %self.run_id,
+                    "Stopping EpochManager after shutdown request"
+                );
+                break Ok(());
+            }
+
             tokio::select! {
+                _ = self.shutdown_notify.notified() => {
+                    info!(
+                        event = "epoch_manager_shutdown_requested",
+                        run_id = %self.run_id,
+                        "Stopping EpochManager after shutdown request"
+                    );
+                    break Ok(());
+                }
                 Some((epoch, result)) = epoch_tasks.next(), if !epoch_tasks.is_empty() => {
                     match result {
                         Ok(Ok(())) => {
@@ -2179,6 +2208,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             );
 
             if registration_tracker.try_claim_refinalize() {
+                let completion_weight = Arc::new(AtomicU64::new(cached_weight));
+                let guard_tracker = registration_tracker.clone();
+                let guard_weight = completion_weight.clone();
+                let _refinalize_guard = scopeguard::guard((), move |_| {
+                    guard_tracker.complete_refinalize(guard_weight.load(Ordering::Acquire));
+                });
+
                 // This task sends the finalize_registration tx
                 let ix = create_finalize_registration_instruction(
                     &self.config.payer_keypair.pubkey(),
@@ -2200,7 +2236,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         active_phase_end_slot = epoch_info.phases.active.end,
                         "Skipping re-finalization because not enough active-phase time remains for confirmation"
                     );
-                    registration_tracker.complete_refinalize(cached_weight);
                     return Ok((forester_epoch_pda, tree_schedule));
                 };
                 let payer = self.config.payer_keypair.pubkey();
@@ -2241,11 +2276,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             new_weight = post_finalize_weight,
                             "Re-finalized registration on-chain"
                         );
-                        registration_tracker.complete_refinalize(post_finalize_weight);
+                        completion_weight.store(post_finalize_weight, Ordering::Release);
                     }
                     Err(e) => {
-                        // Release the claim so a future check can retry
-                        registration_tracker.complete_refinalize(cached_weight);
                         return Err(e.into());
                     }
                 }
@@ -4772,16 +4805,20 @@ pub async fn run_service<R: Rpc + Indexer>(
                             retry_count + 1
                         );
 
+                        let run_future = epoch_manager.clone().run();
+                        tokio::pin!(run_future);
+
                         let result = tokio::select! {
-                            result = epoch_manager.run() => result,
-                            _ = shutdown => {
+                            result = &mut run_future => result,
+                            _ = &mut shutdown => {
                                 info!(
                                     event = "shutdown_received",
                                     run_id = %run_id_for_logs,
                                     phase = "service_run",
                                     "Received shutdown signal. Stopping the service."
                                 );
-                                Ok(())
+                                epoch_manager.request_shutdown();
+                                run_future.await
                             }
                         };
 

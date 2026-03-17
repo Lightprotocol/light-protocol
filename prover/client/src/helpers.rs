@@ -2,7 +2,7 @@ use std::process::Command;
 
 use light_hasher::{Hasher, Poseidon};
 use light_sparse_merkle_tree::changelog::ChangelogEntry;
-use num_bigint::{BigInt, BigUint};
+use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::{Num, ToPrimitive};
 use serde::Serialize;
 
@@ -35,10 +35,17 @@ pub fn convert_endianness_128(bytes: &[u8]) -> Vec<u8> {
         .collect::<Vec<u8>>()
 }
 
-pub fn bigint_to_u8_32(n: &BigInt) -> Result<[u8; 32], Box<dyn std::error::Error>> {
-    let (_, bytes_be) = n.to_bytes_be();
+pub fn bigint_to_u8_32(n: &BigInt) -> Result<[u8; 32], ProverClientError> {
+    let (sign, bytes_be) = n.to_bytes_be();
+    if sign == Sign::Minus {
+        return Err(ProverClientError::InvalidProofData(
+            "negative integers are not valid field elements".to_string(),
+        ));
+    }
     if bytes_be.len() > 32 {
-        Err("Number too large to fit in [u8; 32]")?;
+        return Err(ProverClientError::InvalidProofData(
+            "number too large to fit in [u8; 32]".to_string(),
+        ));
     }
     let mut array = [0; 32];
     let bytes = &bytes_be[..bytes_be.len()];

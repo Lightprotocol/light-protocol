@@ -277,7 +277,7 @@ async fn e2e_test() {
             validator_args: vec![],
         }))
         .await;
-        spawn_prover().await.unwrap();
+        spawn_prover().await;
     }
 
     let mut rpc = setup_rpc_connection(&env.protocol.forester).await;

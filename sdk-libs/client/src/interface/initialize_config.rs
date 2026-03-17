@@ -1,9 +1,10 @@
 //! Helper for initializing config with sensible defaults.
 
 #[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use anchor_lang::AnchorSerialize;
 #[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use borsh::BorshSerialize as AnchorSerialize;
+use light_account::InitializeLightConfigParams;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
@@ -15,16 +16,6 @@ pub const ADDRESS_TREE_V2: Pubkey =
 
 /// Default write top-up value (5000 lamports).
 pub const DEFAULT_INIT_WRITE_TOP_UP: u32 = 5_000;
-
-/// Instruction data format matching anchor-generated `initialize_compression_config`.
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct InitializeCompressionConfigAnchorData {
-    pub write_top_up: u32,
-    pub rent_sponsor: Pubkey,
-    pub compression_authority: Pubkey,
-    pub rent_config: light_compressible::rent::RentConfig,
-    pub address_space: Vec<Pubkey>,
-}
 
 /// Builder for `initialize_compression_config` instruction with sensible defaults.
 pub struct InitializeRentFreeConfig {
@@ -109,12 +100,13 @@ impl InitializeRentFreeConfig {
             ), // system_program
         ];
 
-        let instruction_data = InitializeCompressionConfigAnchorData {
-            write_top_up: self.write_top_up,
-            rent_sponsor: self.rent_sponsor,
-            compression_authority: self.compression_authority,
+        let instruction_data = InitializeLightConfigParams {
+            rent_sponsor: self.rent_sponsor.to_bytes(),
+            compression_authority: self.compression_authority.to_bytes(),
             rent_config: self.rent_config,
-            address_space: self.address_space,
+            write_top_up: self.write_top_up,
+            address_space: self.address_space.iter().map(|pubkey| pubkey.to_bytes()).collect(),
+            config_bump: self.config_bump,
         };
 
         let serialized_data = instruction_data
