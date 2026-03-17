@@ -435,77 +435,7 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1(@types/node@22.16.5)(terser@5.43.1)
 
-  js/token-client:
-    dependencies:
-      '@lightprotocol/token-sdk':
-        specifier: workspace:*
-        version: link:../token-sdk
-      '@solana/addresses':
-        specifier: ^2.1.0
-        version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
-      '@solana/codecs':
-        specifier: ^2.1.0
-        version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
-      '@solana/instructions':
-        specifier: ^2.1.0
-        version: 2.3.0(typescript@5.9.3)
-      '@solana/kit':
-        specifier: ^2.1.0
-        version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-    devDependencies:
-      '@lightprotocol/compressed-token':
-        specifier: workspace:*
-        version: link:../compressed-token
-      '@lightprotocol/stateless.js':
-        specifier: workspace:*
-        version: link:../stateless.js
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.8
-        version: 2.1.9(@types/node@22.16.5)(terser@5.43.1)
-
-  js/token-idl:
-    devDependencies:
-      '@codama/nodes':
-        specifier: ^1.4.1
-        version: 1.5.0
-      '@codama/renderers-js':
-        specifier: ^1.2.8
-        version: 1.5.5(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
-      '@codama/visitors':
-        specifier: ^1.4.1
-        version: 1.5.0
-      '@codama/visitors-core':
-        specifier: ^1.4.1
-        version: 1.5.0
-      '@eslint/js':
-        specifier: 9.36.0
-        version: 9.36.0
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.44.0
-        version: 8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)
-      '@typescript-eslint/parser':
-        specifier: ^8.44.0
-        version: 8.44.0(eslint@9.36.0)(typescript@5.9.3)
-      codama:
-        specifier: ^1.4.1
-        version: 1.5.0
-      eslint:
-        specifier: ^9.36.0
-        version: 9.36.0
-      prettier:
-        specifier: ^3.3.3
-        version: 3.6.2
-      tsx:
-        specifier: ^4.19.2
-        version: 4.20.5
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-
-  js/token-sdk:
+  js/token-kit:
     dependencies:
       '@solana/addresses':
         specifier: ^2.1.0
@@ -526,9 +456,27 @@ importers:
         specifier: ^2.1.0
         version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
     devDependencies:
+      '@codama/nodes':
+        specifier: ^1.4.1
+        version: 1.5.0
+      '@codama/renderers-js':
+        specifier: ^1.2.8
+        version: 1.5.5(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@codama/visitors':
+        specifier: ^1.4.1
+        version: 1.5.0
+      '@codama/visitors-core':
+        specifier: ^1.4.1
+        version: 1.5.0
       '@eslint/js':
         specifier: 9.36.0
         version: 9.36.0
+      '@lightprotocol/compressed-token':
+        specifier: workspace:*
+        version: link:../compressed-token
+      '@lightprotocol/stateless.js':
+        specifier: workspace:*
+        version: link:../stateless.js
       '@solana/kit':
         specifier: ^2.1.0
         version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
@@ -538,12 +486,18 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.44.0
         version: 8.44.0(eslint@9.36.0)(typescript@5.9.3)
+      codama:
+        specifier: ^1.4.1
+        version: 1.5.0
       eslint:
         specifier: ^9.36.0
         version: 9.36.0
       prettier:
         specifier: ^3.3.3
         version: 3.6.2
+      tsx:
+        specifier: ^4.19.2
+        version: 4.20.5
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -3122,10 +3076,6 @@ packages:
   commander@13.1.0:
     resolution: {integrity: sha512-/rFeCpNJQbhSZjGVwO9RFV3xPqbnERS8MmIQzCtD/zl6gpJuV/bMLuN92oG3F7d8oDEHHRrujSXNUr8fpjntKw==}
     engines: {node: '>=18'}
-
-  commander@14.0.1:
-    resolution: {integrity: sha512-2JkV3gUZUVrbNA+1sjBOYLsMZ5cEEl8GTFP2a4AVz5hvasAMCQ1D2l2le/cX+pV4N6ZU17zjUahLpIXRrnWL8A==}
-    engines: {node: '>=20'}
 
   commander@14.0.2:
     resolution: {integrity: sha512-TywoWNNRbhoD0BXs1P3ZEScW8W5iKrnbithIl0YH+uCmBd0QpPOA8yc82DS3BIE5Ma6FnBVUsJ7wVUDz4dvOWQ==}
@@ -8257,19 +8207,19 @@ snapshots:
   '@solana/errors@2.3.0(typescript@4.9.5)':
     dependencies:
       chalk: 5.6.2
-      commander: 14.0.1
+      commander: 14.0.2
       typescript: 4.9.5
 
   '@solana/errors@2.3.0(typescript@5.9.2)':
     dependencies:
       chalk: 5.6.2
-      commander: 14.0.1
+      commander: 14.0.2
       typescript: 5.9.2
 
   '@solana/errors@2.3.0(typescript@5.9.3)':
     dependencies:
       chalk: 5.6.2
-      commander: 14.0.1
+      commander: 14.0.2
       typescript: 5.9.3
 
   '@solana/errors@5.4.0(typescript@5.9.3)':
@@ -9613,8 +9563,6 @@ snapshots:
   commander@12.1.0: {}
 
   commander@13.1.0: {}
-
-  commander@14.0.1: {}
 
   commander@14.0.2: {}
 

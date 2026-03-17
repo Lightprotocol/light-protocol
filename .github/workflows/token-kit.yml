@@ -3,17 +3,13 @@ on:
     branches:
       - main
     paths:
-      - "js/token-sdk/**"
-      - "js/token-client/**"
-      - "js/token-idl/**"
+      - "js/token-kit/**"
       - "pnpm-lock.yaml"
   pull_request:
     branches:
       - "*"
     paths:
-      - "js/token-sdk/**"
-      - "js/token-client/**"
-      - "js/token-idl/**"
+      - "js/token-kit/**"
       - "pnpm-lock.yaml"
     types:
       - opened
@@ -56,17 +52,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate token-sdk clients from IDL
-        run: cd js/token-idl && pnpm run generate
+      - name: Build token-kit
+        run: cd js/token-kit && pnpm build
 
-      - name: Build token-sdk
-        run: cd js/token-sdk && pnpm build
+      - name: Run token-kit unit tests
+        run: just js test-token-kit
 
-      - name: Run token-sdk unit tests
-        run: just js test-token-sdk
-
-      - name: Run token-client unit tests
-        run: just js test-token-client
-
-      - name: Lint token-sdk
+      - name: Lint token-kit
         run: just js lint-token-kit
