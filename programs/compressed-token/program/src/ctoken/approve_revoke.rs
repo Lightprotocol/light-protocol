@@ -10,13 +10,17 @@ use {
 
 use crate::shared::convert_pinocchio_token_error;
 
-/// Approve: 8-byte base (amount), payer at index 2
+/// Approve: 8-byte base (amount), owner at index 2, fee_payer at index 4 (optional)
 const APPROVE_BASE_LEN: usize = 8;
-const APPROVE_PAYER_IDX: usize = 2;
+const APPROVE_OWNER_IDX: usize = 2;
+// System program is index 3
+const APPROVE_FEE_PAYER_IDX: usize = 4;
 
-/// Revoke: 0-byte base, payer at index 1
+/// Revoke: 0-byte base, owner at index 1, fee_payer at index 3 (optional)
 const REVOKE_BASE_LEN: usize = 0;
-const REVOKE_PAYER_IDX: usize = 1;
+const REVOKE_OWNER_IDX: usize = 1;
+// System program is index 2
+const REVOKE_FEE_PAYER_IDX: usize = 3;
 
 /// Process CToken approve instruction.
 /// Handles compressible extension top-up after delegating to pinocchio.
@@ -37,7 +41,10 @@ pub fn process_ctoken_approve(
     }
     process_approve(accounts, &instruction_data[..APPROVE_BASE_LEN])
         .map_err(convert_pinocchio_token_error)?;
-    handle_compressible_top_up::<APPROVE_BASE_LEN, APPROVE_PAYER_IDX>(accounts, instruction_data)
+    handle_compressible_top_up::<APPROVE_BASE_LEN, APPROVE_OWNER_IDX, APPROVE_FEE_PAYER_IDX>(
+        accounts,
+        instruction_data,
+    )
 }
 
 /// Process CToken revoke instruction.
@@ -55,16 +62,24 @@ pub fn process_ctoken_revoke(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
     process_revoke(accounts).map_err(convert_pinocchio_token_error)?;
-    handle_compressible_top_up::<REVOKE_BASE_LEN, REVOKE_PAYER_IDX>(accounts, instruction_data)
+    handle_compressible_top_up::<REVOKE_BASE_LEN, REVOKE_OWNER_IDX, REVOKE_FEE_PAYER_IDX>(
+        accounts,
+        instruction_data,
+    )
 }
 
 /// Handle compressible extension top-up after pinocchio processing.
 ///
 /// # Type Parameters
 /// * `BASE_LEN` - Base instruction data length (8 for approve, 0 for revoke)
-/// * `PAYER_IDX` - Index of payer account (2 for approve, 1 for revoke)
+/// * `OWNER_IDX` - Index of owner account (2 for approve, 1 for revoke)
+/// * `FEE_PAYER_IDX` - Index of optional fee payer account (4 for approve, 3 for revoke)
 #[inline(always)]
-fn handle_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
+fn handle_compressible_top_up<
+    const BASE_LEN: usize,
+    const OWNER_IDX: usize,
+    const FEE_PAYER_IDX: usize,
+>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
@@ -75,17 +90,26 @@ fn handle_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
         return Ok(());
     }
 
-    process_compressible_top_up::<BASE_LEN, PAYER_IDX>(source, accounts, instruction_data)
+    process_compressible_top_up::<BASE_LEN, OWNER_IDX, FEE_PAYER_IDX>(
+        source,
+        accounts,
+        instruction_data,
+    )
 }
 
 /// Calculate and transfer compressible top-up for a single ctoken account.
 ///
 /// # Type Parameters
 /// * `BASE_LEN` - Base instruction data length (8 for approve, 0 for revoke)
-/// * `PAYER_IDX` - Index of payer account (2 for approve, 1 for revoke)
+/// * `OWNER_IDX` - Index of owner account (2 for approve, 1 for revoke)
+/// * `FEE_PAYER_IDX` - Index of optional fee payer account (4 for approve, 3 for revoke)
 #[cold]
 #[allow(unused)]
-fn process_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
+fn process_compressible_top_up<
+    const BASE_LEN: usize,
+    const OWNER_IDX: usize,
+    const FEE_PAYER_IDX: usize,
+>(
     account: &AccountInfo,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -93,7 +117,9 @@ fn process_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
     // Returns None if no Compressible extension, Some(amount) otherwise
     #[cfg(target_os = "solana")]
     {
-        let payer = accounts.get(PAYER_IDX);
+        let authority_payer = accounts.get(OWNER_IDX);
+        let fee_payer = accounts.get(FEE_PAYER_IDX);
+        let payer = fee_payer.or(authority_payer);
 
         // u16::MAX means no limit, 0 means no top-ups allowed
         let max_top_up = match instruction_data.len() {

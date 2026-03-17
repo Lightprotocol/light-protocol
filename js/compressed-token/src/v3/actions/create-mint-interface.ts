@@ -16,7 +16,7 @@ import {
     selectStateTreeInfo,
     getBatchAddressTreeInfo,
     DerivationMode,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     getDefaultAddressTreeInfo,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
@@ -31,19 +31,19 @@ import { createMint } from '../../actions/create-mint';
 export { TokenMetadataInstructionData };
 
 /**
- * Create and initialize a new mint for SPL/T22/c-token.
+ * Create and initialize a new mint for SPL/T22/light-token.
  *
  * @param rpc                   RPC connection to use
  * @param payer                 Fee payer
- * @param mintAuthority         Account that will control minting (signer for c-token mints)
+ * @param mintAuthority         Account that will control minting (signer for light-token mints)
  * @param freezeAuthority       Account that will control freeze and thaw (optional)
  * @param decimals              Location of the decimal place
  * @param keypair               Mint keypair (defaults to a random keypair)
  * @param confirmOptions        Confirm options
- * @param programId             Token program ID (defaults to CTOKEN_PROGRAM_ID)
- * @param tokenMetadata         Optional token metadata (c-token mints only)
- * @param outputStateTreeInfo   Optional output state tree info (c-token mints only)
- * @param addressTreeInfo       Optional address tree info (c-token mints only)
+ * @param programId             Token program ID (defaults to LIGHT_TOKEN_PROGRAM_ID)
+ * @param tokenMetadata         Optional token metadata (light-token mints only)
+ * @param outputStateTreeInfo   Optional output state tree info (light-token mints only)
+ * @param addressTreeInfo       Optional address tree info (light-token mints only)
  *
  * @returns Object with mint address and transaction signature
  */
@@ -55,7 +55,7 @@ export async function createMintInterface(
     decimals: number,
     keypair: Keypair = Keypair.generate(),
     confirmOptions?: ConfirmOptions,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     tokenMetadata?: TokenMetadataInstructionData,
     outputStateTreeInfo?: TreeInfo,
     addressTreeInfo?: AddressTreeInfo,
@@ -79,11 +79,9 @@ export async function createMintInterface(
         );
     }
 
-    // Default: compressed token mint creation
+    // Default: light-token mint creation
     if (!('secretKey' in mintAuthority)) {
-        throw new Error(
-            'mintAuthority must be a Signer for compressed token mints',
-        );
+        throw new Error('mintAuthority must be a Signer for light-token mints');
     }
     if (
         addressTreeInfo &&
@@ -141,7 +139,6 @@ export async function createMintInterface(
         additionalSigners,
     );
     const txId = await sendAndConfirmTx(rpc, tx);
-    console.log('txId', txId);
 
     const mint = findMintAddress(keypair.publicKey);
     return { mint: mint[0], transactionSignature: txId };

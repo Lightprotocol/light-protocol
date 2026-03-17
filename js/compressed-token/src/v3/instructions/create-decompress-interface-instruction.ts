@@ -4,7 +4,7 @@ import {
     SystemProgram,
 } from '@solana/web3.js';
 import {
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
     ParsedTokenAccount,
@@ -17,12 +17,128 @@ import {
     MultiInputTokenDataWithContext,
     COMPRESSION_MODE_DECOMPRESS,
     Compression,
+    Transfer2ExtensionData,
 } from '../layout/layout-transfer2';
-import { TokenDataVersion } from '../../constants';
+import { MAX_TOP_UP, TokenDataVersion } from '../../constants';
 import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
+
+const COMPRESSED_ONLY_DISC = 31;
+const COMPRESSED_ONLY_SIZE = 17; // u64 + u64 + u8
+
+interface ParsedCompressedOnly {
+    delegatedAmount: bigint;
+    withheldTransferFee: bigint;
+    isAta: boolean;
+}
+
+/**
+ * Parse CompressedOnly extension from a Borsh-serialized TLV buffer
+ * (Vec<ExtensionStruct>). Returns null if no CompressedOnly found.
+ * @internal
+ */
+function parseCompressedOnlyFromTlv(
+    tlv: Buffer | null,
+): ParsedCompressedOnly | null {
+    if (!tlv || tlv.length < 5) return null;
+    try {
+        let offset = 0;
+        const vecLen = tlv.readUInt32LE(offset);
+        offset += 4;
+        for (let i = 0; i < vecLen; i++) {
+            if (offset >= tlv.length) return null;
+            const disc = tlv[offset];
+            offset += 1;
+            if (disc === COMPRESSED_ONLY_DISC) {
+                if (offset + COMPRESSED_ONLY_SIZE > tlv.length) return null;
+                const loDA = BigInt(tlv.readUInt32LE(offset));
+                const hiDA = BigInt(tlv.readUInt32LE(offset + 4));
+                const delegatedAmount = loDA | (hiDA << BigInt(32));
+                const loFee = BigInt(tlv.readUInt32LE(offset + 8));
+                const hiFee = BigInt(tlv.readUInt32LE(offset + 12));
+                const withheldTransferFee = loFee | (hiFee << BigInt(32));
+                const isAta = tlv[offset + 16] !== 0;
+                return { delegatedAmount, withheldTransferFee, isAta };
+            }
+            const SIZES: Record<number, number | undefined> = {
+                29: 8,
+                30: 1,
+                31: 17,
+            };
+            const size = SIZES[disc];
+            if (size === undefined) {
+                throw new Error(
+                    `parseCompressedOnlyFromTlv: unknown TLV extension discriminant ${disc}`,
+                );
+            }
+            offset += size;
+        }
+    } catch {
+        // Ignoring unknown TLV extensions.
+        return null;
+    }
+    return null;
+}
+
+/**
+ * Build inTlv array for Transfer2 from input compressed accounts.
+ * For each account, if CompressedOnly TLV is present, converts it to
+ * the instruction format (enriched with is_frozen, compression_index,
+ * bump, owner_index). Returns null if no accounts have TLV.
+ * @internal
+ */
+function buildInTlv(
+    accounts: ParsedTokenAccount[],
+    ownerIndex: number,
+    owner: PublicKey,
+    mint: PublicKey,
+): Transfer2ExtensionData[][] | null {
+    let hasAny = false;
+    const result: Transfer2ExtensionData[][] = [];
+
+    for (const acc of accounts) {
+        const co = parseCompressedOnlyFromTlv(acc.parsed.tlv);
+        if (!co) {
+            result.push([]);
+            continue;
+        }
+        hasAny = true;
+        let bump = 0;
+        if (co.isAta) {
+            const seeds = [
+                owner.toBuffer(),
+                LIGHT_TOKEN_PROGRAM_ID.toBuffer(),
+                mint.toBuffer(),
+            ];
+            const [, b] = PublicKey.findProgramAddressSync(
+                seeds,
+                LIGHT_TOKEN_PROGRAM_ID,
+            );
+            bump = b;
+        }
+        const isFrozen = acc.parsed.state === 2;
+        result.push([
+            {
+                type: 'CompressedOnly',
+                data: {
+                    delegatedAmount: co.delegatedAmount,
+                    withheldTransferFee: co.withheldTransferFee,
+                    isFrozen,
+                    // This builder emits a single decompress compression per batch.
+                    // Keep index at 0 unless multi-compression output is added here.
+                    compressionIndex: 0,
+                    isAta: co.isAta,
+                    bump,
+                    ownerIndex,
+                },
+            },
+        ]);
+    }
+    return hasAny ? result : null;
+}
 
 /**
  * Get token data version from compressed account discriminator.
+ * @internal
  */
 function getVersionFromDiscriminator(
     discriminator: number[] | undefined,
@@ -52,6 +168,7 @@ function getVersionFromDiscriminator(
 
 /**
  * Build input token data for Transfer2 from parsed token accounts
+ * @internal
  */
 function buildInputTokenData(
     accounts: ParsedTokenAccount[],
@@ -92,19 +209,23 @@ function buildInputTokenData(
 }
 
 /**
- * Create decompressInterface instruction using Transfer2.
+ * Create decompress instruction using Transfer2.
  *
- * Supports decompressing to both c-token accounts and SPL token accounts:
- * - For c-token destinations: No splInterfaceInfo needed
+ * @internal Use createLoadAtaInstructions instead.
+ *
+ * Supports decompressing to both light-token accounts and SPL token accounts:
+ * - For light-token destinations: No splInterfaceInfo needed
  * - For SPL destinations: Provide splInterfaceInfo (token pool info) and decimals
  *
  * @param payer                        Fee payer public key
- * @param inputCompressedTokenAccounts Input compressed token accounts
- * @param toAddress                    Destination token account address (c-token or SPL ATA)
+ * @param inputCompressedTokenAccounts Input light-token accounts
+ * @param toAddress                    Destination token account address (light-token or SPL associated token account)
  * @param amount                       Amount to decompress
  * @param validityProof                Validity proof (contains compressedProof and rootIndices)
  * @param splInterfaceInfo             Optional: SPL interface info for SPL destinations
  * @param decimals                     Mint decimals (required for SPL destinations)
+ * @param maxTopUp                     Optional cap on rent top-up (units of 1k lamports; default no cap)
+ * @param authority                    Optional signer (owner or delegate). When omitted, owner is the signer.
  * @returns TransactionInstruction
  */
 export function createDecompressInterfaceInstruction(
@@ -115,16 +236,18 @@ export function createDecompressInterfaceInstruction(
     validityProof: ValidityProofWithContext,
     splInterfaceInfo: SplInterfaceInfo | undefined,
     decimals: number,
+    maxTopUp?: number,
+    authority?: PublicKey,
 ): TransactionInstruction {
     if (inputCompressedTokenAccounts.length === 0) {
-        throw new Error('No input compressed token accounts provided');
+        throw new Error('No input light-token accounts provided');
     }
 
     const mint = inputCompressedTokenAccounts[0].parsed.mint;
     const owner = inputCompressedTokenAccounts[0].parsed.owner;
 
     // Build packed accounts map
-    // Order: trees/queues first, then mint, owner, c-token account, c-token program
+    // Order: trees/queues first, then mint, owner, light-token account, light-token program
     const packedAccountIndices = new Map<string, number>();
     const packedAccounts: PublicKey[] = [];
 
@@ -163,10 +286,21 @@ export function createDecompressInterfaceInstruction(
     packedAccountIndices.set(owner.toBase58(), ownerIndex);
     packedAccounts.push(owner);
 
-    // Add destination token account (c-token or SPL)
+    // Add destination token account (light-token or SPL)
     const destinationIndex = packedAccounts.length;
     packedAccountIndices.set(toAddress.toBase58(), destinationIndex);
     packedAccounts.push(toAddress);
+
+    // Add unique delegate pubkeys from input accounts
+    for (const acc of inputCompressedTokenAccounts) {
+        if (acc.parsed.delegate) {
+            const delegateKey = acc.parsed.delegate.toBase58();
+            if (!packedAccountIndices.has(delegateKey)) {
+                packedAccountIndices.set(delegateKey, packedAccounts.length);
+                packedAccounts.push(acc.parsed.delegate);
+            }
+        }
+    }
 
     // For SPL decompression, add pool account and token program
     let poolAccountIndex = 0;
@@ -235,7 +369,7 @@ export function createDecompressInterfaceInstruction(
     }
 
     // Build decompress compression
-    // For c-token: pool values are 0 (unused)
+    // For light-token: pool values are 0 (unused)
     // For SPL: pool values point to SPL interface PDA
     const compressions: Compression[] = [
         {
@@ -258,7 +392,7 @@ export function createDecompressInterfaceInstruction(
         lamportsChangeAccountMerkleTreeIndex: 0,
         lamportsChangeAccountOwnerIndex: 0,
         outputQueue: firstQueueIndex, // First queue in packed accounts
-        maxTopUp: 0,
+        maxTopUp: maxTopUp ?? MAX_TOP_UP,
         cpiContext: null,
         compressions,
         proof: validityProof.compressedProof
@@ -272,7 +406,12 @@ export function createDecompressInterfaceInstruction(
         outTokenData,
         inLamports: null,
         outLamports: null,
-        inTlv: null,
+        inTlv: buildInTlv(
+            inputCompressedTokenAccounts,
+            ownerIndex,
+            owner,
+            mint,
+        ),
         outTlv: null,
     };
 
@@ -284,6 +423,18 @@ export function createDecompressInterfaceInstruction(
         registeredProgramPda,
         accountCompressionProgram,
     } = defaultStaticAccountsStruct();
+    const signerIndex = (() => {
+        if (!authority || authority.equals(owner)) {
+            return ownerIndex;
+        }
+        const authorityIndex = packedAccountIndices.get(authority.toBase58());
+        if (authorityIndex === undefined) {
+            throw new Error(
+                `Authority ${authority.toBase58()} is not present in packed accounts`,
+            );
+        }
+        return authorityIndex;
+    })();
 
     const keys = [
         // 0: light_system_program (non-mutable)
@@ -326,19 +477,14 @@ export function createDecompressInterfaceInstruction(
         },
         // 7+: packed_accounts (trees/queues come first)
         ...packedAccounts.map((pubkey, i) => {
-            // Trees need to be writable
             const isTreeOrQueue = i < treeSet.size + queueSet.size;
-            // Destination account needs to be writable
             const isDestination = pubkey.equals(toAddress);
-            // SPL interface PDA (pool) needs to be writable for SPL decompression
             const isPool =
                 splInterfaceInfo !== undefined &&
                 pubkey.equals(splInterfaceInfo.splInterfacePda);
-            // Owner must be marked as signer in packed accounts
-            const isOwner = i === ownerIndex;
             return {
                 pubkey,
-                isSigner: isOwner,
+                isSigner: i === signerIndex,
                 isWritable: isTreeOrQueue || isDestination || isPool,
             };
         }),

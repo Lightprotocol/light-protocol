@@ -13,7 +13,7 @@ use solana_message::AddressLookupTableAccount;
 use solana_pubkey::Pubkey;
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_signature::Signature;
-use solana_transaction::Transaction;
+use solana_transaction::{versioned::VersionedTransaction, Transaction};
 use solana_transaction_status_client_types::TransactionStatus;
 
 use super::client::RpcUrl;
@@ -80,8 +80,8 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         match error {
             // Do not retry transaction errors.
             RpcError::ClientError(error) => error.kind.get_transaction_error().is_none(),
-            // Do not retry signing errors.
-            RpcError::SigningError(_) => false,
+            // Do not retry local transaction construction/signing errors.
+            RpcError::SigningError(_) | RpcError::TransactionBuildError(_) => false,
             _ => true,
         }
     }
@@ -140,6 +140,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
 
     async fn get_balance(&self, pubkey: &Pubkey) -> Result<u64, RpcError>;
     async fn get_latest_blockhash(&mut self) -> Result<(Hash, u64), RpcError>;
+    async fn get_block_height(&self) -> Result<u64, RpcError>;
     async fn get_slot(&self) -> Result<u64, RpcError>;
     async fn get_transaction_slot(&self, signature: &Signature) -> Result<u64, RpcError>;
     async fn get_signature_statuses(
@@ -155,9 +156,20 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError>;
 
+    async fn send_versioned_transaction_with_config(
+        &self,
+        transaction: &VersionedTransaction,
+        config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError>;
+
     async fn process_transaction(
         &mut self,
         transaction: Transaction,
+    ) -> Result<Signature, RpcError>;
+
+    async fn process_versioned_transaction(
+        &mut self,
+        transaction: VersionedTransaction,
     ) -> Result<Signature, RpcError>;
 
     async fn process_transaction_with_context(

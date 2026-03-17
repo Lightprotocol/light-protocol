@@ -16,4 +16,9 @@ pub struct PdaCToken<'info> {
     pub light_token_program: UncheckedAccount<'info>,
     /// CHECK:
     pub light_token_cpi_authority: UncheckedAccount<'info>,
+    /// CHECK: CompressibleConfig account for rent_sponsor validation.
+    pub compressible_config: UncheckedAccount<'info>,
+    /// CHECK: Rent sponsor PDA that receives the mint creation fee.
+    #[account(mut)]
+    pub rent_sponsor: UncheckedAccount<'info>,
 }

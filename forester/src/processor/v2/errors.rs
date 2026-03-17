@@ -1,10 +1,15 @@
 use std::fmt;
 
+use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
 use solana_sdk::{instruction::InstructionError, pubkey::Pubkey, transaction::TransactionError};
 use thiserror::Error;
 
 /// Matches `light_verifier::VerifierError::ProofVerificationFailed`.
 const PROOF_VERIFICATION_FAILED_ERROR_CODE: u32 = 13006;
+
+fn batch_not_ready_error_code() -> u32 {
+    BatchedMerkleTreeError::BatchNotReady.into()
+}
 
 fn fmt_root_prefix(root: &[u8; 32]) -> String {
     format!(
@@ -37,8 +42,19 @@ pub enum V2Error {
         message: String,
     },
 
+    #[error("batch not ready for tree {tree}: code={code} {message}")]
+    BatchNotReady {
+        tree: Pubkey,
+        code: u32,
+        message: String,
+    },
+
     #[error("transaction failed for tree {tree}: {message}")]
-    TransactionFailed { tree: Pubkey, message: String },
+    TransactionFailed {
+        tree: Pubkey,
+        code: Option<u32>,
+        message: String,
+    },
 
     #[error("transaction {signature} timed out: {context}")]
     TransactionTimeout { signature: String, context: String },
@@ -60,11 +76,37 @@ impl V2Error {
             };
         }
 
-        V2Error::TransactionFailed { tree, message }
+        if matches!(custom_code, Some(code) if code == batch_not_ready_error_code()) {
+            return V2Error::BatchNotReady {
+                tree,
+                code: batch_not_ready_error_code(),
+                message,
+            };
+        }
+
+        V2Error::TransactionFailed {
+            tree,
+            code: custom_code,
+            message,
+        }
+    }
+
+    pub fn custom_error_code(&self) -> Option<u32> {
+        match self {
+            V2Error::CircuitConstraint { code, .. } | V2Error::TransactionFailed { code, .. } => {
+                *code
+            }
+            V2Error::BatchNotReady { code, .. } => Some(*code),
+            _ => None,
+        }
     }
 
     pub fn is_constraint(&self) -> bool {
         matches!(self, V2Error::CircuitConstraint { .. })
+    }
+
+    pub fn is_batch_not_ready(&self) -> bool {
+        matches!(self, V2Error::BatchNotReady { .. })
     }
 
     pub fn is_hashchain_mismatch(&self) -> bool {
@@ -139,3 +181,27 @@ impl fmt::Display for IndexerLagError {
 }
 
 impl std::error::Error for IndexerLagError {}
+
+#[cfg(test)]
+mod tests {
+    use solana_sdk::{instruction::InstructionError, transaction::TransactionError};
+
+    use super::*;
+
+    #[test]
+    fn maps_batch_not_ready_into_typed_variant() {
+        let tree = Pubkey::new_unique();
+        let error = TransactionError::InstructionError(
+            1,
+            InstructionError::Custom(batch_not_ready_error_code()),
+        );
+
+        let mapped = V2Error::from_transaction_error(tree, &error);
+
+        assert!(mapped.is_batch_not_ready());
+        assert_eq!(
+            mapped.custom_error_code(),
+            Some(batch_not_ready_error_code())
+        );
+    }
+}

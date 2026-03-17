@@ -10,6 +10,7 @@ pub struct NullifyLeaves<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
     pub registered_forester_pda: Option<Account<'info, ForesterEpochPda>>,
+    #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK: (seed constraints) used to invoke account compression program via cpi.
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
@@ -44,6 +45,7 @@ pub fn process_nullify(
         log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
         merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
         nullifier_queue: ctx.accounts.nullifier_queue.to_account_info(),
+        fee_payer: Some(ctx.accounts.authority.to_account_info()),
     };
     let cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.account_compression_program.to_account_info(),

@@ -269,7 +269,8 @@ pub async fn get_batched_nullify_ix_data<R: Rpc>(
         let proof = bundle.merkle_tree.get_proof_of_leaf(index, true).unwrap();
         merkle_proofs.push(proof.to_vec());
         bundle.input_leaf_indices.remove(0);
-        let index_bytes = index.to_be_bytes();
+        let mut index_bytes = [0u8; 32];
+        index_bytes[24..].copy_from_slice(&(index as u64).to_be_bytes());
         use light_hasher::Hasher;
         let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
 

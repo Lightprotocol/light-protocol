@@ -6,7 +6,7 @@ import {
     createRpc,
     VERSION,
     featureFlags,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import {
     TOKEN_PROGRAM_ID,
@@ -16,7 +16,7 @@ import {
     getAssociatedTokenAddressSync,
     ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { createMintInterface, decompressMint } from '../../src/v3/actions';
+import { createMintInterface } from '../../src/v3/actions';
 import {
     createAtaInterface,
     createAtaInterfaceIdempotent,
@@ -26,7 +26,7 @@ import { findMintAddress } from '../../src/v3/derivation';
 import {
     LIGHT_TOKEN_RENT_SPONSOR,
     TOTAL_COMPRESSION_COST,
-    COMPRESSIBLE_CTOKEN_RENT_PER_EPOCH,
+    COMPRESSIBLE_LIGHT_TOKEN_RENT_PER_EPOCH,
     DEFAULT_PREPAY_EPOCHS,
     calculateFeePayerCostAtCreation,
 } from '../../src/constants';
@@ -42,8 +42,8 @@ describe('createAtaInterface', () => {
         payer = await newAccountWithLamports(rpc, 10e9);
     });
 
-    describe('CToken (default programId)', () => {
-        it('should create CToken ATA with default programId', async () => {
+    describe('LightToken (default programId)', () => {
+        it('should create LightToken ATA with default programId', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();
@@ -57,9 +57,6 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
-
-            // Decompress mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, mintPda);
 
             const address = await createAtaInterface(
                 rpc,
@@ -77,11 +74,11 @@ describe('createAtaInterface', () => {
             const accountInfo = await rpc.getAccountInfo(address);
             expect(accountInfo).not.toBe(null);
             expect(accountInfo?.owner.toBase58()).toBe(
-                CTOKEN_PROGRAM_ID.toBase58(),
+                LIGHT_TOKEN_PROGRAM_ID.toBase58(),
             );
         });
 
-        it('should create CToken ATA with explicit CTOKEN_PROGRAM_ID', async () => {
+        it('should create LightToken ATA with explicit LIGHT_TOKEN_PROGRAM_ID', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();
@@ -96,9 +93,6 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
-            // Decompress mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, mintPda);
-
             const address = await createAtaInterface(
                 rpc,
                 payer,
@@ -106,14 +100,14 @@ describe('createAtaInterface', () => {
                 owner.publicKey,
                 false,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             const expectedAddress = getAssociatedTokenAddressInterface(
                 mintPda,
                 owner.publicKey,
                 false,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
             expect(address.toBase58()).toBe(expectedAddress.toBase58());
         });
@@ -132,9 +126,6 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
-
-            // Decompress mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, mintPda);
 
             // Get rent sponsor balance before ATA creation
             const rentSponsorBalanceBefore = await rpc.getBalance(
@@ -190,9 +181,6 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
-            // Decompress mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, mintPda);
-
             // Get balances before
             const rentSponsorBalanceBefore = await rpc.getBalance(
                 LIGHT_TOKEN_RENT_SPONSOR,
@@ -223,7 +211,7 @@ describe('createAtaInterface', () => {
             // The fee payer pays the compression_cost + prepaid rent portion
             const payerDiff = payerBalanceBefore - payerBalanceAfter;
             const expectedPrepaidRent =
-                DEFAULT_PREPAY_EPOCHS * COMPRESSIBLE_CTOKEN_RENT_PER_EPOCH; // 16 * 400 = 6,400
+                DEFAULT_PREPAY_EPOCHS * COMPRESSIBLE_LIGHT_TOKEN_RENT_PER_EPOCH; // 16 * 400 = 6,400
             const expectedFeePayerCost =
                 TOTAL_COMPRESSION_COST + expectedPrepaidRent; // 11,000 + 6,400 = 17,400
 
@@ -253,7 +241,7 @@ describe('createAtaInterface', () => {
             expect(ataBalance).toBe(actualExpectedAtaBalance);
         });
 
-        it('should fail creating CToken ATA twice (non-idempotent)', async () => {
+        it('should fail creating LightToken ATA twice (non-idempotent)', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();
@@ -267,9 +255,6 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
-
-            // Decompress mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, mintPda);
 
             await createAtaInterface(rpc, payer, mintPda, owner.publicKey);
 
@@ -278,7 +263,7 @@ describe('createAtaInterface', () => {
             ).rejects.toThrow();
         });
 
-        it('should create CToken ATA idempotently', async () => {
+        it('should create LightToken ATA idempotently', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();
@@ -292,9 +277,6 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
-
-            // Decompress mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, mintPda);
 
             const addr1 = await createAtaInterfaceIdempotent(
                 rpc,
@@ -321,7 +303,7 @@ describe('createAtaInterface', () => {
             expect(addr2.toBase58()).toBe(addr3.toBase58());
         });
 
-        it('should create CToken ATAs for multiple owners', async () => {
+        it('should create LightToken ATAs for multiple owners', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner1 = Keypair.generate();
@@ -336,9 +318,6 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
-
-            // Decompress mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, mintPda);
 
             const addr1 = await createAtaInterface(
                 rpc,
@@ -571,7 +550,7 @@ describe('createAtaInterface', () => {
     });
 
     describe('PDA owner (allowOwnerOffCurve)', () => {
-        it('should create CToken ATA for PDA owner with allowOwnerOffCurve=true', async () => {
+        it('should create LightToken ATA for PDA owner with allowOwnerOffCurve=true', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const [mintPda] = findMintAddress(mintSigner.publicKey);
@@ -579,7 +558,7 @@ describe('createAtaInterface', () => {
             // Create a PDA owner
             const [pdaOwner] = PublicKey.findProgramAddressSync(
                 [Buffer.from('test-pda-owner')],
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             await createMintInterface(
@@ -590,9 +569,6 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
-
-            // Decompress mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, mintPda);
 
             const address = await createAtaInterface(
                 rpc,
@@ -668,9 +644,9 @@ describe('createAtaInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            // Create CToken mint
+            // Create LightToken mint
             const mintSigner = Keypair.generate();
-            const [ctokenMint] = findMintAddress(mintSigner.publicKey);
+            const [lightTokenMint] = findMintAddress(mintSigner.publicKey);
             await createMintInterface(
                 rpc,
                 payer,
@@ -679,9 +655,6 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
-
-            // Decompress CToken mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, ctokenMint);
 
             // Create ATAs for both
             const splAta = await createAtaInterfaceIdempotent(
@@ -694,15 +667,15 @@ describe('createAtaInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            const ctokenAta = await createAtaInterfaceIdempotent(
+            const lightTokenAta = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
             );
 
             // ATAs should be different (different mints and programs)
-            expect(splAta.toBase58()).not.toBe(ctokenAta.toBase58());
+            expect(splAta.toBase58()).not.toBe(lightTokenAta.toBase58());
         });
 
         it('should match expected derivation for each program', async () => {
@@ -768,36 +741,36 @@ describe('createAtaInterface', () => {
             );
             expect(t22Ata.toBase58()).toBe(expectedT22Ata.toBase58());
 
-            // CToken
+            // LightToken
             const mintSigner = Keypair.generate();
-            const ctokenMintAuth = Keypair.generate();
-            const [ctokenMint] = findMintAddress(mintSigner.publicKey);
+            const lightTokenMintAuth = Keypair.generate();
+            const [lightTokenMint] = findMintAddress(mintSigner.publicKey);
             await createMintInterface(
                 rpc,
                 payer,
-                ctokenMintAuth,
+                lightTokenMintAuth,
                 null,
                 9,
                 mintSigner,
             );
-            // Decompress CToken mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, ctokenMint);
-            const ctokenAta = await createAtaInterfaceIdempotent(
+            const lightTokenAta = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
             );
-            const expectedCtokenAta = getAssociatedTokenAddressInterface(
-                ctokenMint,
+            const expectedLightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
                 owner.publicKey,
             );
-            expect(ctokenAta.toBase58()).toBe(expectedCtokenAta.toBase58());
+            expect(lightTokenAta.toBase58()).toBe(
+                expectedLightTokenAta.toBase58(),
+            );
         });
     });
 
     describe('concurrent calls', () => {
-        it('should handle concurrent idempotent calls for CToken', async () => {
+        it('should handle concurrent idempotent calls for LightToken', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();
@@ -811,9 +784,6 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
-
-            // Decompress mint so it exists on-chain (required for ATA creation)
-            await decompressMint(rpc, payer, mintPda);
 
             const promises = Array(3)
                 .fill(null)

@@ -212,7 +212,10 @@ async fn test_batch_state_merkle_tree() {
 
     let payer_pubkey = context.get_payer().pubkey();
     let payer = context.get_payer().insecure_clone();
-    let params = InitStateTreeAccountsInstructionData::test_default();
+    let mut params = InitStateTreeAccountsInstructionData::test_default();
+    // Use network_fee below reimbursement threshold since this test
+    // bypasses the system program (no fees accumulate in the queue).
+    params.network_fee = Some(1);
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
         params.output_queue_zkp_batch_size,
@@ -379,6 +382,7 @@ async fn test_batch_state_merkle_tree() {
         let new_keypair_queue = Keypair::new();
         let payer = context.get_payer().insecure_clone();
         create_batched_state_merkle_tree(
+            &payer,
             &payer,
             false,
             &mut context,
@@ -751,6 +755,7 @@ pub async fn perform_batch_append(
         log_wrapper: NOOP_PROGRAM_ID,
         merkle_tree: merkle_tree_pubkey,
         output_queue: output_queue_pubkey,
+        fee_payer: payer.pubkey(),
     };
 
     let instruction = Instruction {
@@ -2183,6 +2188,7 @@ pub async fn update_batch_address_tree(
         registered_program_pda: None,
         log_wrapper: NOOP_PROGRAM_ID,
         merkle_tree,
+        fee_payer: context.get_payer().pubkey(),
     };
     let instructions = if mode == UpdateBatchAddressTreeTestMode::UpdateTwice {
         vec![

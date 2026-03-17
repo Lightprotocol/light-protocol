@@ -325,30 +325,27 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
         .unwrap_or_default();
 
     if write_to_cpi_context {
-        // Check for MintToCToken actions
+        // Check for MintToCToken actions (not allowed in write mode)
         let has_mint_to_ctoken = instruction_data
             .actions
             .iter()
             .any(|action| matches!(action, Action::MintTo(_)));
 
-        // Check for MintToCompressed actions
-        let require_token_output_queue = instruction_data
+        // Check for DecompressMint actions (not allowed in write mode)
+        let has_decompress_mint = instruction_data
             .actions
             .iter()
-            .any(|action| matches!(action, Action::MintToCompressed(_)));
+            .any(|action| matches!(action, Action::DecompressMint(_)));
 
-        // mint_decompressed is only from metadata flag (matches AccountsConfig::new)
-        let mint_decompressed = instruction_data
-            .mint
-            .as_ref()
-            .unwrap()
-            .metadata
-            .mint_decompressed;
+        // cmint_decompressed (mint.is_none()) not allowed in write mode
+        let cmint_decompressed = instruction_data.mint.is_none();
 
         // Error conditions matching AccountsConfig::new:
         // 1. has_mint_to_ctoken (MintToCToken actions not allowed)
-        // 2. mint_decompressed && require_token_output_queue (mint decompressed + MintToCompressed not allowed)
-        has_mint_to_ctoken || (mint_decompressed && require_token_output_queue)
+        // 2. has_decompress_mint (DecompressMint not allowed)
+        // 3. cmint_decompressed (decompressed mint not allowed)
+        // Note: create_mint IS allowed in write mode (fee charged to rent_sponsor)
+        has_mint_to_ctoken || has_decompress_mint || cmint_decompressed
     } else {
         false
     }

@@ -49,3 +49,4 @@ light-bloom-filter = { workspace = true }
 pinocchio = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only", "pinocchio"] }
 light-zero-copy = { workspace = true }
+create-address-test-program = { path = "../create-address-test-program", features = ["cpi"] }

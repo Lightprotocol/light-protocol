@@ -36,7 +36,7 @@ pub struct StartArgs {
         env = "INDEXER_URL",
         help = "Photon indexer URL. API key can be included as query param: https://host?api-key=KEY"
     )]
-    pub indexer_url: Option<String>,
+    pub indexer_url: String,
 
     #[arg(long, env = "PROVER_URL")]
     pub prover_url: Option<String>,
@@ -102,7 +102,7 @@ pub struct StartArgs {
     #[arg(
         long,
         env = "MAX_CONCURRENT_SENDS",
-        default_value = "50",
+        default_value = "12",
         help = "Maximum number of concurrent transaction sends per batch"
     )]
     pub max_concurrent_sends: usize,
@@ -150,8 +150,23 @@ pub struct StartArgs {
     #[arg(long, env = "CU_LIMIT", default_value = "1000000")]
     pub cu_limit: u32,
 
-    #[arg(long, env = "ENABLE_PRIORITY_FEES", default_value = "false")]
+    #[arg(
+        long,
+        env = "ENABLE_PRIORITY_FEES",
+        default_value = "false",
+        conflicts_with = "priority_fee_microlamports",
+        help = "Enable dynamic priority fees via RPC estimation"
+    )]
     pub enable_priority_fees: bool,
+
+    #[arg(
+        long,
+        env = "PRIORITY_FEE_MICROLAMPORTS",
+        value_parser = clap::value_parser!(u64).range(1..),
+        conflicts_with = "enable_priority_fees",
+        help = "Fixed priority fee in micro-lamports per compute unit"
+    )]
+    pub priority_fee_microlamports: Option<u64>,
 
     #[arg(long, env = "RPC_POOL_SIZE", default_value = "100")]
     pub rpc_pool_size: u32,
@@ -170,6 +185,24 @@ pub struct StartArgs {
 
     #[arg(long, env = "RPC_POOL_MAX_RETRY_DELAY_MS", default_value = "16000")]
     pub rpc_pool_max_retry_delay_ms: u64,
+
+    #[arg(
+        long,
+        env = "RPC_POOL_FAILURE_THRESHOLD",
+        default_value = "3",
+        value_parser = clap::value_parser!(u64).range(1..),
+        help = "Consecutive health check failures before switching to fallback RPC"
+    )]
+    pub rpc_pool_failure_threshold: u64,
+
+    #[arg(
+        long,
+        env = "RPC_POOL_PRIMARY_PROBE_INTERVAL_SECS",
+        default_value = "30",
+        value_parser = clap::value_parser!(u64).range(1..),
+        help = "Interval in seconds between probes to check if primary RPC has recovered"
+    )]
+    pub rpc_pool_primary_probe_interval_secs: u64,
 
     #[arg(long, env = "SLOT_UPDATE_INTERVAL_SECONDS", default_value = "10")]
     pub slot_update_interval_seconds: u64,
@@ -272,6 +305,14 @@ pub struct StartArgs {
 
     #[arg(
         long,
+        env = "HELIUS_RPC",
+        help = "Use Helius getProgramAccountsV2 for compressible account queries (default: standard getProgramAccounts)",
+        default_value = "false"
+    )]
+    pub helius_rpc: bool,
+
+    #[arg(
+        long,
         env = "GROUP_AUTHORITY",
         help = "Filter trees by group authority pubkey. Only process trees owned by this authority."
     )]
@@ -283,6 +324,20 @@ pub struct StartArgs {
         help = "Prometheus server URL for querying metrics (e.g. http://prometheus:9090)"
     )]
     pub prometheus_url: Option<String>,
+
+    #[arg(
+        long,
+        env = "FALLBACK_RPC_URL",
+        help = "Fallback RPC URL, used when primary RPC is unreachable for new pool connections"
+    )]
+    pub fallback_rpc_url: Option<String>,
+
+    #[arg(
+        long,
+        env = "FALLBACK_INDEXER_URL",
+        help = "Fallback Photon indexer URL, used when primary indexer is unreachable"
+    )]
+    pub fallback_indexer_url: Option<String>,
 }
 
 #[derive(Parser, Clone, Debug)]
@@ -381,6 +436,14 @@ pub struct DashboardArgs {
         help = "Prometheus server URL for querying metrics (e.g. http://prometheus:9090)"
     )]
     pub prometheus_url: Option<String>,
+
+    #[arg(
+        long = "forester-api-url",
+        env = "FORESTER_API_URLS",
+        value_delimiter = ',',
+        help = "Forester API base URL(s) to aggregate compressible data from (e.g. http://forester-a:8080,http://forester-b:8080)"
+    )]
+    pub forester_api_urls: Vec<String>,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -438,6 +501,7 @@ mod tests {
             "forester",
             "--processor-mode", "v1",
             "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
             "--payer", "[1,2,3]",
             "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
         ]).unwrap();
@@ -448,6 +512,7 @@ mod tests {
             "forester",
             "--processor-mode", "v2",
             "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
             "--payer", "[1,2,3]",
             "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
         ]).unwrap();
@@ -457,6 +522,7 @@ mod tests {
         let args = StartArgs::try_parse_from([
             "forester",
             "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
             "--payer", "[1,2,3]",
             "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
         ]).unwrap();
@@ -467,8 +533,37 @@ mod tests {
             "forester",
             "--processor-mode", "invalid-mode",
             "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
             "--payer", "[1,2,3]",
             "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_priority_fee_parsing() {
+        let args = StartArgs::try_parse_from([
+            "forester",
+            "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
+            "--payer", "[1,2,3]",
+            "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]",
+            "--priority-fee-microlamports", "25000"
+        ]).unwrap();
+        assert_eq!(args.priority_fee_microlamports, Some(25_000));
+        assert!(!args.enable_priority_fees);
+    }
+
+    #[test]
+    fn test_priority_fee_modes_conflict() {
+        let result = StartArgs::try_parse_from([
+            "forester",
+            "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
+            "--payer", "[1,2,3]",
+            "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]",
+            "--enable-priority-fees", "true",
+            "--priority-fee-microlamports", "25000"
         ]);
         assert!(result.is_err());
     }

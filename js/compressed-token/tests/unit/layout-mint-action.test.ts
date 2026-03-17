@@ -7,6 +7,7 @@ import {
     Action,
     MINT_ACTION_DISCRIMINATOR,
 } from '../../src/v3/layout/layout-mint-action';
+import { MAX_TOP_UP } from '../../src/constants';
 
 describe('layout-mint-action', () => {
     describe('encodeMintActionInstructionData / decodeMintActionInstructionData', () => {
@@ -50,6 +51,40 @@ describe('layout-mint-action', () => {
             expect(decoded.maxTopUp).toBe(1000);
             expect(decoded.actions.length).toBe(0);
             expect(decoded.mint.decimals).toBe(9);
+        });
+
+        it('should encode and decode maxTopUp MAX_TOP_UP (65535) round-trip', () => {
+            const mint = Keypair.generate().publicKey;
+
+            const data: MintActionCompressedInstructionData = {
+                leafIndex: 0,
+                proveByIndex: false,
+                rootIndex: 0,
+                maxTopUp: MAX_TOP_UP,
+                createMint: null,
+                actions: [],
+                proof: null,
+                cpiContext: null,
+                mint: {
+                    supply: 0n,
+                    decimals: 9,
+                    metadata: {
+                        version: 1,
+                        cmintDecompressed: false,
+                        mint,
+                        mintSigner: Array.from(new Uint8Array(32).fill(0)),
+                        bump: 0,
+                    },
+                    mintAuthority: mint,
+                    freezeAuthority: null,
+                    extensions: null,
+                },
+            };
+
+            const encoded = encodeMintActionInstructionData(data);
+            const decoded = decodeMintActionInstructionData(encoded);
+
+            expect(decoded.maxTopUp).toBe(65535);
         });
 
         it('should encode and decode with mintToCompressed action', () => {
@@ -107,11 +142,11 @@ describe('layout-mint-action', () => {
             expect(action.mintToCompressed.recipients.length).toBe(2);
         });
 
-        it('should encode and decode with mintToCToken action', () => {
+        it('should encode and decode with mintToLightToken action', () => {
             const mint = Keypair.generate().publicKey;
 
-            const mintToCTokenAction: Action = {
-                mintToCToken: {
+            const mintToLightTokenAction: Action = {
+                mintToLightToken: {
                     accountIndex: 3,
                     amount: 1000000n,
                 },
@@ -123,7 +158,7 @@ describe('layout-mint-action', () => {
                 rootIndex: 0,
                 maxTopUp: 0,
                 createMint: null,
-                actions: [mintToCTokenAction],
+                actions: [mintToLightTokenAction],
                 proof: null,
                 cpiContext: null,
                 mint: {
@@ -145,12 +180,12 @@ describe('layout-mint-action', () => {
             const decoded = decodeMintActionInstructionData(encoded);
 
             expect(decoded.actions.length).toBe(1);
-            expect('mintToCToken' in decoded.actions[0]).toBe(true);
+            expect('mintToLightToken' in decoded.actions[0]).toBe(true);
 
             const action = decoded.actions[0] as {
-                mintToCToken: { accountIndex: number; amount: bigint };
+                mintToLightToken: { accountIndex: number; amount: bigint };
             };
-            expect(action.mintToCToken.accountIndex).toBe(3);
+            expect(action.mintToLightToken.accountIndex).toBe(3);
         });
 
         it('should encode and decode with updateMintAuthority action', () => {

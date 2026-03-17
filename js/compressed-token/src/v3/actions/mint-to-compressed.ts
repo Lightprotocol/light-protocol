@@ -11,16 +11,20 @@ import {
     sendAndConfirmTx,
     DerivationMode,
     bn,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     selectStateTreeInfo,
     TreeInfo,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { createMintToCompressedInstruction } from '../instructions/mint-to-compressed';
 import { getMintInterface } from '../get-mint-interface';
+import {
+    ERR_MINT_MISSING_MERKLE_CONTEXT,
+    ERR_MINT_MISSING_MINT_CONTEXT,
+} from '../errors';
 
 /**
- * Mint compressed tokens directly to compressed accounts.
+ * Mint light-tokens directly to compressed accounts.
  *
  * @param rpc                   RPC connection
  * @param payer                 Fee payer
@@ -29,6 +33,7 @@ import { getMintInterface } from '../get-mint-interface';
  * @param recipients            Array of recipients with amounts
  * @param outputStateTreeInfo   Optional output state tree info (auto-fetched if not provided)
  * @param tokenAccountVersion   Token account version (default: 3)
+ * @param maxTopUp              Optional: cap on rent top-up (units of 1k lamports; default no cap)
  * @param confirmOptions        Optional confirm options
  */
 export async function mintToCompressed(
@@ -39,6 +44,7 @@ export async function mintToCompressed(
     recipients: Array<{ recipient: PublicKey; amount: number | bigint }>,
     outputStateTreeInfo?: TreeInfo,
     tokenAccountVersion: number = 3,
+    maxTopUp?: number,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
@@ -47,12 +53,16 @@ export async function mintToCompressed(
         rpc,
         mint,
         confirmOptions?.commitment,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     if (!mintInfo.merkleContext) {
-        throw new Error('Mint does not have MerkleContext');
+        throw new Error(ERR_MINT_MISSING_MERKLE_CONTEXT);
     }
+    if (!mintInfo.mintContext) {
+        throw new Error(ERR_MINT_MISSING_MINT_CONTEXT);
+    }
+    const merkleContext = mintInfo.merkleContext;
 
     // Auto-fetch output state tree info if not provided
     if (!outputStateTreeInfo) {
@@ -63,10 +73,10 @@ export async function mintToCompressed(
     const validityProof = await rpc.getValidityProofV2(
         [
             {
-                hash: bn(mintInfo.merkleContext.hash),
-                leafIndex: mintInfo.merkleContext.leafIndex,
-                treeInfo: mintInfo.merkleContext.treeInfo,
-                proveByIndex: mintInfo.merkleContext.proveByIndex,
+                hash: bn(merkleContext.hash),
+                leafIndex: merkleContext.leafIndex,
+                treeInfo: merkleContext.treeInfo,
+                proveByIndex: merkleContext.proveByIndex,
             },
         ],
         [],
@@ -77,17 +87,17 @@ export async function mintToCompressed(
         authority.publicKey,
         payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
+        merkleContext,
         {
             supply: mintInfo.mint.supply,
             decimals: mintInfo.mint.decimals,
             mintAuthority: mintInfo.mint.mintAuthority,
             freezeAuthority: mintInfo.mint.freezeAuthority,
-            splMint: mintInfo.mintContext!.splMint,
-            cmintDecompressed: mintInfo.mintContext!.cmintDecompressed,
-            version: mintInfo.mintContext!.version,
-            mintSigner: mintInfo.mintContext!.mintSigner,
-            bump: mintInfo.mintContext!.bump,
+            splMint: mintInfo.mintContext.splMint,
+            cmintDecompressed: mintInfo.mintContext.cmintDecompressed,
+            version: mintInfo.mintContext.version,
+            mintSigner: mintInfo.mintContext.mintSigner,
+            bump: mintInfo.mintContext.bump,
             metadata: mintInfo.tokenMetadata
                 ? {
                       updateAuthority:
@@ -101,6 +111,7 @@ export async function mintToCompressed(
         recipients,
         outputStateTreeInfo,
         tokenAccountVersion,
+        maxTopUp,
     );
 
     const additionalSigners = authority.publicKey.equals(payer.publicKey)

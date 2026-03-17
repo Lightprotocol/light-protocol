@@ -21,7 +21,7 @@ fn test_close_account_instruction() {
         accounts: vec![
             AccountMeta::new(account, false), // account: writable, not signer
             AccountMeta::new(destination, false), // destination: writable, not signer
-            AccountMeta::new(owner, true),    // owner: writable, signer
+            AccountMeta::new_readonly(owner, true), // owner: readonly, signer
             AccountMeta::new(LIGHT_TOKEN_RENT_SPONSOR, false), // rent_sponsor: writable, not signer
         ],
         data: vec![9u8], // CloseAccount discriminator
@@ -54,7 +54,7 @@ fn test_close_account_custom_rent_sponsor() {
         accounts: vec![
             AccountMeta::new(account, false), // account: writable, not signer
             AccountMeta::new(destination, false), // destination: writable, not signer
-            AccountMeta::new(owner, true),    // owner: writable, signer
+            AccountMeta::new_readonly(owner, true), // owner: readonly, signer
             AccountMeta::new(custom_sponsor, false), // custom_sponsor: writable, not signer
         ],
         data: vec![9u8], // CloseAccount discriminator

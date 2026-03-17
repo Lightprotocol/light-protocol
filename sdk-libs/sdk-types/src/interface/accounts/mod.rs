@@ -5,3 +5,6 @@
 
 pub mod finalize;
 pub mod init_compressed_account;
+
+#[cfg(feature = "light-account")]
+pub mod create_accounts;

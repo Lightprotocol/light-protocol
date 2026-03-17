@@ -1246,6 +1246,7 @@ where
         println!("queue config: {:?}", queue_config);
         create_state_merkle_tree_and_queue_account(
             &self.payer,
+            &self.payer,
             true,
             &mut self.rpc,
             &merkle_tree_keypair,
@@ -1281,6 +1282,7 @@ where
                     .metadata
                     .rollover_metadata
                     .rollover_fee as i64,
+                network_fee: FeeConfig::default().network_fee,
                 accounts: StateMerkleTreeAccounts {
                     merkle_tree: merkle_tree_keypair.pubkey(),
                     nullifier_queue: nullifier_queue_keypair.pubkey(),
@@ -1547,6 +1549,7 @@ where
             TreeType::StateV2 => bundle.accounts.nullifier_queue,
             _ => panic!("Unsupported version"),
         };
+        let network_fee = bundle.network_fee;
         let recipients = vec![*to];
         let transaction_params = if self.keypair_action_config.fee_assert {
             let (inputs, is_v2) = if bundle.tree_type == TreeType::StateV2 {
@@ -1558,10 +1561,12 @@ where
                 num_new_addresses: 0,
                 v1_input_compressed_accounts: inputs,
                 v2_input_compressed_accounts: is_v2,
+                v1_output_compressed_accounts: if is_v2 { 0 } else { 1 },
                 num_output_compressed_accounts: 1u8,
                 compress: 0,
                 fee_config: FeeConfig {
                     state_merkle_tree_rollover: rollover_fee as u64,
+                    network_fee,
                     ..Default::default()
                 },
             })
@@ -1610,6 +1615,7 @@ where
                     num_new_addresses: 0,
                     v1_input_compressed_accounts: input_compressed_accounts.len() as u8,
                     v2_input_compressed_accounts: false,
+                    v1_output_compressed_accounts: 1,
                     num_output_compressed_accounts: num_output_merkle_trees as u8,
                     compress: 0,
                     fee_config: FeeConfig::default(),
@@ -1652,6 +1658,7 @@ where
                     num_new_addresses: 0,
                     v1_input_compressed_accounts: input_compressed_accounts.len() as u8,
                     v2_input_compressed_accounts: false,
+                    v1_output_compressed_accounts: 1,
                     num_output_compressed_accounts: 1u8,
                     compress: 0,
                     fee_config: FeeConfig::default(),
@@ -1700,6 +1707,7 @@ where
         };
         let bundle = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)].clone();
         let rollover_fee = bundle.rollover_fee;
+        let network_fee = bundle.network_fee;
         let output_merkle_tree = match bundle.tree_type {
             TreeType::StateV1 => bundle.accounts.merkle_tree,
             // Output queue for batched trees
@@ -1717,10 +1725,12 @@ where
                 num_new_addresses: 0,
                 v1_input_compressed_accounts: inputs,
                 v2_input_compressed_accounts: is_v2,
+                v1_output_compressed_accounts: if is_v2 { 0 } else { 1 },
                 num_output_compressed_accounts: 1u8,
                 compress: amount as i64,
                 fee_config: FeeConfig {
                     state_merkle_tree_rollover: rollover_fee as u64,
+                    network_fee,
                     ..Default::default()
                 },
             })
@@ -1761,6 +1771,7 @@ where
                 num_new_addresses: 0,
                 v1_input_compressed_accounts: input_compressed_accounts.len() as u8,
                 v2_input_compressed_accounts: false,
+                v1_output_compressed_accounts: 1,
                 num_output_compressed_accounts: 1u8,
                 compress: amount as i64,
                 fee_config: FeeConfig::default(),
@@ -1850,6 +1861,7 @@ where
                 num_new_addresses: num_addresses as u8,
                 v1_input_compressed_accounts: 0u8,
                 v2_input_compressed_accounts: false,
+                v1_output_compressed_accounts: 1,
                 num_output_compressed_accounts: num_addresses as u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -1930,6 +1942,7 @@ where
                 num_new_addresses: 0u8,
                 v1_input_compressed_accounts: token_accounts.len() as u8,
                 v2_input_compressed_accounts: false,
+                v1_output_compressed_accounts: 1,
                 num_output_compressed_accounts: output_merkle_tree_pubkeys.len() as u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -1990,6 +2003,7 @@ where
                 num_new_addresses: 0u8,
                 v1_input_compressed_accounts: token_accounts.len() as u8,
                 v2_input_compressed_accounts: false,
+                v1_output_compressed_accounts: 1,
                 num_output_compressed_accounts,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2044,6 +2058,7 @@ where
                 num_new_addresses: 0u8,
                 v1_input_compressed_accounts: token_accounts.len() as u8,
                 v2_input_compressed_accounts: false,
+                v1_output_compressed_accounts: 1,
                 num_output_compressed_accounts,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2094,6 +2109,11 @@ where
                 num_new_addresses: 0u8,
                 v1_input_compressed_accounts: token_accounts.len() as u8,
                 v2_input_compressed_accounts: false,
+                v1_output_compressed_accounts: if num_output_compressed_accounts > 0 {
+                    1
+                } else {
+                    0
+                },
                 num_output_compressed_accounts,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2145,6 +2165,7 @@ where
                 num_new_addresses: 0u8,
                 v1_input_compressed_accounts: token_accounts.len() as u8,
                 v2_input_compressed_accounts: false,
+                v1_output_compressed_accounts: 1,
                 num_output_compressed_accounts: token_accounts.len() as u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2184,6 +2205,7 @@ where
                 num_new_addresses: 0u8,
                 v1_input_compressed_accounts: token_accounts.len() as u8,
                 v2_input_compressed_accounts: false,
+                v1_output_compressed_accounts: 1,
                 num_output_compressed_accounts: token_accounts.len() as u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2244,6 +2266,7 @@ where
                     num_new_addresses: 0u8,
                     v1_input_compressed_accounts: 0u8,
                     v2_input_compressed_accounts: false,
+                    v1_output_compressed_accounts: 1,
                     num_output_compressed_accounts: 1u8,
                     compress: 0, // sol amount this is a spl compress test
                     fee_config: FeeConfig::default(),
@@ -2323,6 +2346,7 @@ where
                 num_new_addresses: 0u8,
                 v1_input_compressed_accounts: token_accounts.len() as u8,
                 v2_input_compressed_accounts: false,
+                v1_output_compressed_accounts: 1,
                 num_output_compressed_accounts: 1u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2406,6 +2430,7 @@ where
             .push(StateMerkleTreeBundle {
                 // TODO: fetch correct fee when this property is used
                 rollover_fee: 0,
+                network_fee: FeeConfig::default().network_fee,
                 accounts: StateMerkleTreeAccounts {
                     merkle_tree: new_merkle_tree_keypair.pubkey(),
                     nullifier_queue: new_nullifier_queue_keypair.pubkey(),

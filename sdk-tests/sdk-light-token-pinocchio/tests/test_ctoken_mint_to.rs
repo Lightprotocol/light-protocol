@@ -82,6 +82,86 @@ async fn test_ctoken_mint_to_invoke() {
     );
 }
 
+/// Test minting to Light Token with a separate fee_payer using CTokenMintToCpi::invoke()
+///
+/// Demonstrates that the mint authority (signer) and fee_payer are separate accounts.
+/// Setup uses payer as mint_authority. The actual CPI uses a separate funded fee_payer_keypair.
+#[tokio::test]
+async fn test_ctoken_mint_to_invoke_with_separate_fee_payer() {
+    use light_client::rpc::Rpc as _;
+    use solana_sdk::signature::Keypair;
+
+    let config = ProgramTestConfig::new_v2(
+        true,
+        Some(vec![("sdk_light_token_pinocchio_test", PROGRAM_ID)]),
+    );
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Separate keypair as the fee_payer (not the mint authority).
+    let fee_payer_keypair = Keypair::new();
+    rpc.airdrop_lamports(&fee_payer_keypair.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    // Setup with payer as mint_authority (setup signs correctly with payer + mint_seed).
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(), // payer is the mint authority
+        None,
+        9,
+        vec![(0, payer.pubkey())], // 0 tokens: skip initial MintTo for clarity
+    )
+    .await;
+
+    let ata = ata_pubkeys[0];
+    let mint_amount = 300u64;
+
+    let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
+
+    let mut instruction_data = vec![InstructionType::CTokenMintToInvokeWithFeePayer as u8];
+    let mint_data = MintToData {
+        amount: mint_amount,
+    };
+    mint_data.serialize(&mut instruction_data).unwrap();
+
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
+    let system_program = Pubkey::default();
+    let instruction = Instruction {
+        program_id: PROGRAM_ID,
+        accounts: vec![
+            AccountMeta::new(mint_pda, false),                     // mint
+            AccountMeta::new(ata, false),                          // destination
+            AccountMeta::new_readonly(payer.pubkey(), true),       // authority (readonly signer)
+            AccountMeta::new_readonly(system_program, false),      // system_program
+            AccountMeta::new_readonly(light_token_program, false), // light_token_program
+            AccountMeta::new(fee_payer_keypair.pubkey(), true),    // fee_payer (separate)
+        ],
+        data: instruction_data,
+    };
+
+    rpc.create_and_send_transaction(
+        &[instruction],
+        &payer.pubkey(),
+        &[&payer, &fee_payer_keypair],
+    )
+    .await
+    .unwrap();
+
+    let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
+
+    let mut expected_ctoken = ctoken_before;
+    expected_ctoken.amount = 300; // 0 + 300
+
+    assert_eq!(
+        ctoken_after, expected_ctoken,
+        "Light Token should match expected state after mint with separate fee payer"
+    );
+}
+
 /// Test minting to Light Token with PDA authority using CTokenMintToCpi::invoke_signed()
 ///
 /// This test:
@@ -234,9 +314,10 @@ async fn test_ctoken_mint_to_invoke_signed() {
         accounts: vec![
             AccountMeta::new(mint_pda, false),                     // mint
             AccountMeta::new(ata, false),                          // destination
-            AccountMeta::new(pda_mint_authority, false), // PDA authority (program signs, writable for top-up)
-            AccountMeta::new_readonly(system_program, false), // system_program
+            AccountMeta::new_readonly(pda_mint_authority, false), // PDA authority (program signs, readonly)
+            AccountMeta::new_readonly(system_program, false),     // system_program
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
+            AccountMeta::new(payer.pubkey(), true), // fee_payer (PDA authority != tx fee payer)
         ],
         data: instruction_data,
     };

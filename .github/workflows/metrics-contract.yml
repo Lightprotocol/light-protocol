@@ -1,0 +1,49 @@
+name: metrics-contract
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "forester/metrics-contract.json"
+      - "forester/src/metrics.rs"
+      - "forester/tests/metrics_contract_test.rs"
+      - ".github/workflows/metrics-contract.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "forester/metrics-contract.json"
+      - "forester/src/metrics.rs"
+      - "forester/tests/metrics_contract_test.rs"
+      - ".github/workflows/metrics-contract.yml"
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Verify metrics contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config build-essential protobuf-compiler
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-workspaces: .
+
+      - name: Run metrics contract test
+        run: cargo test --test metrics_contract_test -p forester

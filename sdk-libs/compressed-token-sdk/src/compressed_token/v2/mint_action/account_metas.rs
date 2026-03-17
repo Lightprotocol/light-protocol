@@ -23,12 +23,17 @@ pub struct MintActionMetaConfig {
 
 impl MintActionMetaConfig {
     /// Create a new MintActionMetaConfig for creating a new compressed mint.
+    /// `compressible_config` is required for on-chain rent_sponsor validation.
+    /// `rent_sponsor` is required because mint creation charges a creation fee
+    /// transferred to the rent sponsor PDA.
     pub fn new_create_mint(
         fee_payer: Pubkey,
         authority: Pubkey,
         mint_signer: Pubkey,
         address_tree: Pubkey,
         output_queue: Pubkey,
+        compressible_config: Pubkey,
+        rent_sponsor: Pubkey,
     ) -> Self {
         Self {
             fee_payer,
@@ -41,8 +46,8 @@ impl MintActionMetaConfig {
             cpi_context: None,
             token_accounts: Vec::new(),
             mint: None,
-            compressible_config: None,
-            rent_sponsor: None,
+            compressible_config: Some(compressible_config),
+            rent_sponsor: Some(rent_sponsor),
             mint_signer_must_sign: true,
         }
     }
@@ -235,6 +240,7 @@ pub struct MintActionMetaConfigCpiWrite {
     pub fee_payer: Pubkey,
     pub mint_signer: Option<Pubkey>, // Optional - only when creating mint
     pub authority: Pubkey,
+    pub rent_sponsor: Option<Pubkey>, // Optional - only when creating mint (write mode)
     pub cpi_context: Pubkey,
 }
 
@@ -258,6 +264,11 @@ pub fn get_mint_action_instruction_account_metas_cpi_write(
 
     metas.push(AccountMeta::new_readonly(config.authority, true));
 
+    // rent_sponsor (optional) - when creating mint in write mode
+    if let Some(rent_sponsor) = config.rent_sponsor {
+        metas.push(AccountMeta::new(rent_sponsor, false));
+    }
+
     metas.push(AccountMeta::new(config.fee_payer, true));
 
     metas.push(AccountMeta::new_readonly(
@@ -266,6 +277,16 @@ pub fn get_mint_action_instruction_account_metas_cpi_write(
     ));
 
     metas.push(AccountMeta::new(config.cpi_context, false));
+
+    // System program needed for fee transfer CPI when creating mint in write mode.
+    // Placed after all parsed accounts - the account iterator won't consume it,
+    // but it's available for the system program CPI.
+    if config.rent_sponsor.is_some() {
+        metas.push(AccountMeta::new_readonly(
+            default_pubkeys.system_program,
+            false,
+        ));
+    }
 
     metas
 }

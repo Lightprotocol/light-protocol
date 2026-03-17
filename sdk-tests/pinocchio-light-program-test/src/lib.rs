@@ -14,6 +14,8 @@ pub mod account_loader;
 pub mod all;
 pub mod ata;
 pub mod mint;
+pub mod multi_byte_pda;
+pub mod one_byte_pda;
 pub mod pda;
 pub mod state;
 pub mod token_account;
@@ -48,6 +50,27 @@ pub enum ProgramAccounts {
 
     #[light_account(pda::seeds = [RECORD_SEED, ctx.owner], pda::zero_copy)]
     ZeroCopyRecord(ZeroCopyRecord),
+
+    #[light_account(pda::seeds = [b"seven_byte_record", ctx.owner])]
+    SevenByteRecord(SevenByteRecord),
+
+    #[light_account(pda::seeds = [b"six_byte_record", ctx.owner])]
+    SixByteRecord(SixByteRecord),
+
+    #[light_account(pda::seeds = [b"five_byte_record", ctx.owner])]
+    FiveByteRecord(FiveByteRecord),
+
+    #[light_account(pda::seeds = [b"four_byte_record", ctx.owner])]
+    FourByteRecord(FourByteRecord),
+
+    #[light_account(pda::seeds = [b"three_byte_record", ctx.owner])]
+    ThreeByteRecord(ThreeByteRecord),
+
+    #[light_account(pda::seeds = [b"two_byte_record", ctx.owner])]
+    TwoByteRecord(TwoByteRecord),
+
+    #[light_account(pda::seeds = [b"one_byte_record", ctx.owner])]
+    OneByteRecord(OneByteRecord),
 }
 
 // ============================================================================
@@ -61,6 +84,10 @@ pub mod discriminators {
     pub const CREATE_MINT: [u8; 8] = [69, 44, 215, 132, 253, 214, 41, 45];
     pub const CREATE_TWO_MINTS: [u8; 8] = [222, 41, 188, 84, 174, 115, 236, 105];
     pub const CREATE_ALL: [u8; 8] = [149, 49, 144, 45, 208, 155, 177, 43];
+    /// Discriminator for CREATE_ONE_BYTE_RECORD instruction.
+    pub const CREATE_ONE_BYTE_RECORD: [u8; 8] = [1, 0, 0, 0, 0, 0, 0, 0];
+    /// Discriminator for CREATE_MULTI_BYTE_RECORDS instruction (sha256("global:create_multi_byte_records")[..8]).
+    pub const CREATE_MULTI_BYTE_RECORDS: [u8; 8] = [184, 194, 128, 69, 116, 76, 186, 170];
 }
 
 // ============================================================================
@@ -89,6 +116,10 @@ pub fn process_instruction(
         discriminators::CREATE_MINT => process_create_mint(accounts, data),
         discriminators::CREATE_TWO_MINTS => process_create_two_mints(accounts, data),
         discriminators::CREATE_ALL => process_create_all(accounts, data),
+        discriminators::CREATE_ONE_BYTE_RECORD => process_create_one_byte_record(accounts, data),
+        discriminators::CREATE_MULTI_BYTE_RECORDS => {
+            process_create_multi_byte_records(accounts, data)
+        }
         ProgramAccounts::INITIALIZE_COMPRESSION_CONFIG => {
             ProgramAccounts::process_initialize_config(accounts, data)
         }
@@ -270,8 +301,61 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
         let record: &mut state::ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);
         record.owner = params.owner;
     }
+    {
+        use light_account_pinocchio::LightDiscriminator;
+        let disc_len = state::OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+        let mut ob_data = ctx
+            .one_byte_record
+            .try_borrow_mut_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let mut ob_record = state::OneByteRecord::try_from_slice(&ob_data[disc_len..])
+            .map_err(|_| ProgramError::BorshIoError)?;
+        ob_record.owner = params.owner;
+        let serialized = borsh::to_vec(&ob_record).map_err(|_| ProgramError::BorshIoError)?;
+        ob_data[disc_len..disc_len + serialized.len()].copy_from_slice(&serialized);
+    }
 
     all::processor::process(&ctx, &params, remaining_accounts)
+        .map_err(|e| ProgramError::Custom(u32::from(e)))?;
+
+    Ok(())
+}
+
+fn process_create_multi_byte_records(
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> Result<(), ProgramError> {
+    use borsh::BorshDeserialize;
+    use multi_byte_pda::accounts::{CreateMultiByteRecords, CreateMultiByteRecordsParams};
+
+    let params = CreateMultiByteRecordsParams::deserialize(&mut &data[..])
+        .map_err(|_| ProgramError::BorshIoError)?;
+
+    let remaining_start = CreateMultiByteRecords::FIXED_LEN;
+    let (fixed_accounts, remaining_accounts) = accounts.split_at(remaining_start);
+    let ctx = CreateMultiByteRecords::parse(fixed_accounts, &params)?;
+
+    multi_byte_pda::processor::process(&ctx, &params, remaining_accounts)
+        .map_err(|e| ProgramError::Custom(u32::from(e)))?;
+
+    Ok(())
+}
+
+fn process_create_one_byte_record(
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> Result<(), ProgramError> {
+    use borsh::BorshDeserialize;
+    use one_byte_pda::accounts::{CreateOneByteRecord, CreateOneByteRecordParams};
+
+    let params = CreateOneByteRecordParams::deserialize(&mut &data[..])
+        .map_err(|_| ProgramError::BorshIoError)?;
+
+    let remaining_start = CreateOneByteRecord::FIXED_LEN;
+    let (fixed_accounts, remaining_accounts) = accounts.split_at(remaining_start);
+    let ctx = CreateOneByteRecord::parse(fixed_accounts, &params)?;
+
+    one_byte_pda::processor::process(&ctx, &params, remaining_accounts)
         .map_err(|e| ProgramError::Custom(u32::from(e)))?;
 
     Ok(())

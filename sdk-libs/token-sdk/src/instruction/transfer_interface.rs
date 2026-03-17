@@ -5,7 +5,8 @@ use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use super::{
-    transfer::Transfer, transfer_from_spl::TransferFromSpl, transfer_to_spl::TransferToSpl,
+    transfer_checked::TransferChecked, transfer_from_spl::TransferFromSpl,
+    transfer_to_spl::TransferToSpl,
 };
 use crate::error::LightTokenError;
 
@@ -93,6 +94,7 @@ pub struct SplInterfaceCpi<'info> {
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
 /// # let payer = Pubkey::new_unique();
+/// # let mint = Pubkey::new_unique();
 /// // For light -> light transfer (source_owner and destination_owner are LIGHT_TOKEN_PROGRAM_ID)
 /// let instruction = TransferInterface {
 ///     source,
@@ -101,8 +103,8 @@ pub struct SplInterfaceCpi<'info> {
 ///     decimals: 9,
 ///     authority,
 ///     payer,
+///     mint,
 ///     spl_interface: None,
-///     max_top_up: None,
 ///     source_owner: LIGHT_TOKEN_PROGRAM_ID,
 ///     destination_owner: LIGHT_TOKEN_PROGRAM_ID,
 /// }.instruction()?;
@@ -115,9 +117,8 @@ pub struct TransferInterface {
     pub decimals: u8,
     pub authority: Pubkey,
     pub payer: Pubkey,
+    pub mint: Pubkey,
     pub spl_interface: Option<SplInterface>,
-    /// Maximum lamports for rent and top-up combined (for light->light transfers)
-    pub max_top_up: Option<u16>,
     /// Owner of the source account (used to determine transfer type)
     pub source_owner: Pubkey,
     /// Owner of the destination account (used to determine transfer type)
@@ -128,13 +129,14 @@ impl TransferInterface {
     /// Build instruction based on detected transfer type
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         match determine_transfer_type(&self.source_owner, &self.destination_owner)? {
-            TransferType::LightToLight => Transfer {
+            TransferType::LightToLight => TransferChecked {
                 source: self.source,
+                mint: self.mint,
                 destination: self.destination,
                 amount: self.amount,
+                decimals: self.decimals,
                 authority: self.authority,
-                max_top_up: self.max_top_up,
-                fee_payer: None,
+                fee_payer: self.payer,
             }
             .instruction(),
 
@@ -211,8 +213,8 @@ impl<'info> From<&TransferInterfaceCpi<'info>> for TransferInterface {
             decimals: cpi.decimals,
             authority: *cpi.authority.key,
             payer: *cpi.payer.key,
+            mint: *cpi.mint.key,
             spl_interface: cpi.spl_interface.as_ref().map(SplInterface::from),
-            max_top_up: None,
             source_owner: *cpi.source_account.owner,
             destination_owner: *cpi.destination_account.owner,
         }
@@ -228,6 +230,7 @@ impl<'info> From<&TransferInterfaceCpi<'info>> for TransferInterface {
 /// # let authority: AccountInfo = todo!();
 /// # let payer: AccountInfo = todo!();
 /// # let compressed_token_program_authority: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
 /// # let system_program: AccountInfo = todo!();
 /// TransferInterfaceCpi::new(
 ///     100,    // amount
@@ -237,6 +240,7 @@ impl<'info> From<&TransferInterfaceCpi<'info>> for TransferInterface {
 ///     authority,
 ///     payer,
 ///     compressed_token_program_authority,
+///     mint,
 ///     system_program,
 /// )
 /// .invoke()?;
@@ -250,6 +254,7 @@ pub struct TransferInterfaceCpi<'info> {
     pub authority: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
     pub compressed_token_program_authority: AccountInfo<'info>,
+    pub mint: AccountInfo<'info>,
     pub spl_interface: Option<SplInterfaceCpi<'info>>,
     /// System program - required for compressible account lamport top-ups
     pub system_program: AccountInfo<'info>,
@@ -258,12 +263,13 @@ pub struct TransferInterfaceCpi<'info> {
 impl<'info> TransferInterfaceCpi<'info> {
     /// # Arguments
     /// * `amount` - Amount to transfer
-    /// * `decimals` - Token decimals (required for SPL transfers)
+    /// * `decimals` - Token decimals
     /// * `source_account` - Source token account (can be light or SPL)
     /// * `destination_account` - Destination token account (can be light or SPL)
     /// * `authority` - Authority for the transfer (must be signer)
     /// * `payer` - Payer for the transaction
     /// * `compressed_token_program_authority` - Light Token program authority
+    /// * `mint` - Token mint account
     /// * `system_program` - System program (required for compressible account lamport top-ups)
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -274,6 +280,7 @@ impl<'info> TransferInterfaceCpi<'info> {
         authority: AccountInfo<'info>,
         payer: AccountInfo<'info>,
         compressed_token_program_authority: AccountInfo<'info>,
+        mint: AccountInfo<'info>,
         system_program: AccountInfo<'info>,
     ) -> Self {
         Self {
@@ -284,6 +291,7 @@ impl<'info> TransferInterfaceCpi<'info> {
             decimals,
             payer,
             compressed_token_program_authority,
+            mint,
             spl_interface: None,
             system_program,
         }
@@ -342,8 +350,11 @@ impl<'info> TransferInterfaceCpi<'info> {
             TransferType::LightToLight => {
                 let account_infos = [
                     self.source_account,
+                    self.mint,
                     self.destination_account,
                     self.authority,
+                    self.system_program,
+                    self.payer,
                 ];
                 invoke(&instruction, &account_infos)
             }
@@ -412,8 +423,11 @@ impl<'info> TransferInterfaceCpi<'info> {
             TransferType::LightToLight => {
                 let account_infos = [
                     self.source_account,
+                    self.mint,
                     self.destination_account,
                     self.authority,
+                    self.system_program,
+                    self.payer,
                 ];
                 invoke_signed(&instruction, &account_infos, signer_seeds)
             }

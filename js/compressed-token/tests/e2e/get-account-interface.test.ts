@@ -9,18 +9,21 @@ import {
     TreeInfo,
     VERSION,
     featureFlags,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
+    buildAndSignTx,
+    sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import {
     createMint as createSplMint,
     getOrCreateAssociatedTokenAccount,
     mintTo as splMintTo,
+    createApproveInstruction,
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
     TokenAccountNotFoundError,
 } from '@solana/spl-token';
-import { createMint, mintTo } from '../../src/actions';
+import { createMint, mintTo, approve } from '../../src/actions';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
@@ -34,7 +37,7 @@ import {
 } from '../../src/v3/get-account-interface';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
-import { decompressInterface } from '../../src/v3/actions/decompress-interface';
+import { loadAta } from '../../src/index';
 
 featureFlags.version = VERSION.V2;
 
@@ -46,9 +49,9 @@ describe('get-account-interface', () => {
     let mintAuthority: Keypair;
     let stateTreeInfo: TreeInfo;
 
-    // c-token mint
-    let ctokenMint: PublicKey;
-    let ctokenPoolInfos: TokenPoolInfo[];
+    // light-token mint
+    let lightTokenMint: PublicKey;
+    let lightTokenPoolInfos: TokenPoolInfo[];
 
     // SPL mint
     let splMint: PublicKey;
@@ -64,18 +67,18 @@ describe('get-account-interface', () => {
         mintAuthority = Keypair.generate();
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
 
-        // Create c-token mint
-        const ctokenMintKeypair = Keypair.generate();
-        ctokenMint = (
+        // Create light-token mint
+        const lightTokenMintKeypair = Keypair.generate();
+        lightTokenMint = (
             await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
                 TEST_TOKEN_DECIMALS,
-                ctokenMintKeypair,
+                lightTokenMintKeypair,
             )
         ).mint;
-        ctokenPoolInfos = await getTokenPoolInfos(rpc, ctokenMint);
+        lightTokenPoolInfos = await getTokenPoolInfos(rpc, lightTokenMint);
 
         // Create SPL mint
         splMintAuthority = Keypair.generate();
@@ -229,50 +232,53 @@ describe('get-account-interface', () => {
             });
         });
 
-        describe('c-token hot (CTOKEN_PROGRAM_ID)', () => {
-            it('should fetch c-token hot account with explicit programId', async () => {
+        describe('light-token hot (LIGHT_TOKEN_PROGRAM_ID)', () => {
+            it('should fetch light-token hot account with explicit programId', async () => {
                 const owner = await newAccountWithLamports(rpc, 1e9);
                 const amount = bn(10000);
 
-                // Create c-token ATA and mint compressed, then decompress to make it hot
+                // Create light-token ATA and mint compressed, then decompress to make it hot
                 await createAtaInterfaceIdempotent(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
                 );
 
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     amount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                // Decompress to make it hot
-                await decompressInterface(rpc, payer, owner, ctokenMint);
-
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
+                await loadAta(rpc, lightTokenAta, owner, lightTokenMint, payer);
 
                 const result = await getAccountInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     'confirmed',
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
 
                 expect(result.parsed.address.toBase58()).toBe(
-                    ctokenAta.toBase58(),
+                    lightTokenAta.toBase58(),
                 );
                 expect(result.parsed.mint.toBase58()).toBe(
-                    ctokenMint.toBase58(),
+                    lightTokenMint.toBase58(),
                 );
                 expect(result.parsed.owner.toBase58()).toBe(
                     owner.publicKey.toBase58(),
@@ -283,12 +289,20 @@ describe('get-account-interface', () => {
                 expect(result._sources).toBeDefined();
                 expect(result._sources?.length).toBe(1);
                 expect(result._sources?.[0].type).toBe(
-                    TokenAccountSourceType.CTokenHot,
+                    TokenAccountSourceType.LightTokenHot,
                 );
+
+                // Parsed field correctness (COption layout regression)
+                expect(result.parsed.isInitialized).toBe(true);
+                expect(result.parsed.isFrozen).toBe(false);
+                expect(result.parsed.delegatedAmount).toBe(0n);
+                expect(result.parsed.delegate).toBeNull();
+                expect(result.parsed.isNative).toBe(false);
+                expect(result.parsed.closeAuthority).toBeNull();
             });
         });
 
-        describe('c-token cold (compressed)', () => {
+        describe('light-token cold (compressed)', () => {
             it('minted compressed tokens require getAtaInterface (indexed by owner+mint)', async () => {
                 // Note: Tokens minted compressed via mintTo are indexed by owner+mint,
                 // NOT by a derived address from the ATA. For these, use getAtaInterface.
@@ -301,16 +315,16 @@ describe('get-account-interface', () => {
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     amount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
 
@@ -318,24 +332,24 @@ describe('get-account-interface', () => {
                 await expect(
                     getAccountInterface(
                         rpc,
-                        ctokenAta,
+                        lightTokenAta,
                         'confirmed',
-                        CTOKEN_PROGRAM_ID,
+                        LIGHT_TOKEN_PROGRAM_ID,
                     ),
                 ).rejects.toThrow();
 
                 // Use getAtaInterface with owner+mint for minted-compressed tokens
                 const result = await getAtaInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
-                    ctokenMint,
+                    lightTokenMint,
                     'confirmed',
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
 
                 expect(result.parsed.mint.toBase58()).toBe(
-                    ctokenMint.toBase58(),
+                    lightTokenMint.toBase58(),
                 );
                 expect(result.parsed.owner.toBase58()).toBe(
                     owner.publicKey.toBase58(),
@@ -344,52 +358,56 @@ describe('get-account-interface', () => {
                 expect(result.isCold).toBe(true);
                 expect(result.loadContext).toBeDefined();
                 expect(result._sources?.[0].type).toBe(
-                    TokenAccountSourceType.CTokenCold,
+                    TokenAccountSourceType.LightTokenCold,
                 );
             });
         });
 
         describe('auto-detect mode (no programId)', () => {
-            it('should auto-detect c-token hot account', async () => {
+            it('should auto-detect light-token hot account', async () => {
                 const owner = await newAccountWithLamports(rpc, 1e9);
                 const amount = bn(3000);
 
                 await createAtaInterfaceIdempotent(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
                 );
 
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     amount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                await decompressInterface(rpc, payer, owner, ctokenMint);
-
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
+                await loadAta(rpc, lightTokenAta, owner, lightTokenMint, payer);
 
                 // No programId - should auto-detect
                 const result = await getAccountInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     'confirmed',
                 );
 
                 expect(result.parsed.amount).toBe(BigInt(amount.toString()));
                 expect(result.isCold).toBe(false);
                 expect(result._sources?.[0].type).toBe(
-                    TokenAccountSourceType.CTokenHot,
+                    TokenAccountSourceType.LightTokenHot,
                 );
             });
 
@@ -403,39 +421,101 @@ describe('get-account-interface', () => {
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     amount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
 
                 // getAccountInterface auto-detect cannot find minted-compressed tokens
                 await expect(
-                    getAccountInterface(rpc, ctokenAta, 'confirmed'),
+                    getAccountInterface(rpc, lightTokenAta, 'confirmed'),
                 ).rejects.toThrow(TokenAccountNotFoundError);
 
                 // Use getAtaInterface for minted-compressed tokens
                 const result = await getAtaInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
-                    ctokenMint,
+                    lightTokenMint,
                     'confirmed',
                 );
 
                 expect(result.parsed.amount).toBe(BigInt(amount.toString()));
                 expect(result.isCold).toBe(true);
                 expect(result._sources?.[0].type).toBe(
-                    TokenAccountSourceType.CTokenCold,
+                    TokenAccountSourceType.LightTokenCold,
                 );
             });
+        });
+
+        describe('canonical delegate read shape', () => {
+            it('should return canonical delegate/delegatedAmount for a hot account', async () => {
+                const owner = await newAccountWithLamports(rpc, 1e9);
+                const delegate = await newAccountWithLamports(rpc, 1e9);
+                const amount = bn(900);
+                const delegated = BigInt(500);
+
+                await createAtaInterfaceIdempotent(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
+                );
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    amount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
+                    owner.publicKey,
+                );
+                await loadAta(rpc, lightTokenAta, owner, lightTokenMint, payer);
+
+                const approveIx = createApproveInstruction(
+                    lightTokenAta,
+                    delegate.publicKey,
+                    owner.publicKey,
+                    delegated,
+                    [],
+                    LIGHT_TOKEN_PROGRAM_ID,
+                );
+                const { blockhash } = await rpc.getLatestBlockhash();
+                await sendAndConfirmTx(
+                    rpc,
+                    buildAndSignTx([approveIx], payer, blockhash, [owner]),
+                );
+
+                const result = await getAccountInterface(
+                    rpc,
+                    lightTokenAta,
+                    'confirmed',
+                    LIGHT_TOKEN_PROGRAM_ID,
+                );
+                expect(result.parsed.delegate?.toBase58()).toBe(
+                    delegate.publicKey.toBase58(),
+                );
+                expect(result.parsed.delegatedAmount).toBe(delegated);
+                expect(result.parsed.amount).toBe(BigInt(amount.toString()));
+            }, 120_000);
         });
 
         describe('error cases', () => {
@@ -456,7 +536,7 @@ describe('get-account-interface', () => {
             it('should throw when account not found in auto-detect mode', async () => {
                 const owner = Keypair.generate();
                 const nonExistentAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                 );
 
@@ -468,7 +548,7 @@ describe('get-account-interface', () => {
     });
 
     describe('getAtaInterface', () => {
-        describe('c-token hot only', () => {
+        describe('light-token hot only', () => {
             it('should return hot ATA with correct metadata', async () => {
                 const owner = await newAccountWithLamports(rpc, 1e9);
                 const amount = bn(6000);
@@ -476,51 +556,57 @@ describe('get-account-interface', () => {
                 await createAtaInterfaceIdempotent(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
                 );
 
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     amount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                await decompressInterface(rpc, payer, owner, ctokenMint);
-
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
+                await loadAta(rpc, lightTokenAta, owner, lightTokenMint, payer);
 
                 const result = await getAtaInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
-                    ctokenMint,
+                    lightTokenMint,
                 );
 
                 expect(result._isAta).toBe(true);
                 expect(result._owner?.toBase58()).toBe(
                     owner.publicKey.toBase58(),
                 );
-                expect(result._mint?.toBase58()).toBe(ctokenMint.toBase58());
+                expect(result._mint?.toBase58()).toBe(
+                    lightTokenMint.toBase58(),
+                );
                 expect(result.parsed.amount).toBe(BigInt(amount.toString()));
                 expect(result.isCold).toBe(false);
                 expect(result._needsConsolidation).toBe(false);
                 expect(result._sources?.length).toBe(1);
                 expect(result._sources?.[0].type).toBe(
-                    TokenAccountSourceType.CTokenHot,
+                    TokenAccountSourceType.LightTokenHot,
                 );
             });
         });
 
-        describe('c-token cold only', () => {
+        describe('light-token cold only', () => {
             it('should return cold ATA with loadContext', async () => {
                 const owner = await newAccountWithLamports(rpc, 1e9);
                 const amount = bn(5500);
@@ -529,31 +615,33 @@ describe('get-account-interface', () => {
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     amount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
 
                 const result = await getAtaInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
-                    ctokenMint,
+                    lightTokenMint,
                 );
 
                 expect(result._isAta).toBe(true);
                 expect(result._owner?.toBase58()).toBe(
                     owner.publicKey.toBase58(),
                 );
-                expect(result._mint?.toBase58()).toBe(ctokenMint.toBase58());
+                expect(result._mint?.toBase58()).toBe(
+                    lightTokenMint.toBase58(),
+                );
                 expect(result.parsed.amount).toBe(BigInt(amount.toString()));
                 expect(result.isCold).toBe(true);
                 expect(result.loadContext).toBeDefined();
@@ -561,12 +649,20 @@ describe('get-account-interface', () => {
                 expect(result._needsConsolidation).toBe(false);
                 expect(result._sources?.length).toBe(1);
                 expect(result._sources?.[0].type).toBe(
-                    TokenAccountSourceType.CTokenCold,
+                    TokenAccountSourceType.LightTokenCold,
                 );
+
+                // Parsed field correctness for cold accounts
+                expect(result.parsed.isInitialized).toBe(true);
+                expect(result.parsed.isFrozen).toBe(false);
+                expect(result.parsed.delegatedAmount).toBe(0n);
+                expect(result.parsed.delegate).toBeNull();
+                expect(result.parsed.isNative).toBe(false);
+                expect(result.parsed.closeAuthority).toBeNull();
             });
         });
 
-        describe('c-token hot + cold combined', () => {
+        describe('light-token hot + cold combined', () => {
             it('should aggregate hot and cold balances', async () => {
                 const owner = await newAccountWithLamports(rpc, 1e9);
                 const hotAmount = bn(2000);
@@ -575,45 +671,60 @@ describe('get-account-interface', () => {
                 await createAtaInterfaceIdempotent(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
                 );
 
                 // Mint and decompress first batch (hot)
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     hotAmount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
-                await decompressInterface(rpc, payer, owner, ctokenMint);
+                const lightTokenAtaEarly = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
+                    owner.publicKey,
+                );
+                await loadAta(
+                    rpc,
+                    lightTokenAtaEarly,
+                    owner,
+                    lightTokenMint,
+                    payer,
+                );
 
                 // Mint second batch (cold)
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     coldAmount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
 
                 const result = await getAtaInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
-                    ctokenMint,
+                    lightTokenMint,
                 );
 
                 // Total should be hot + cold
@@ -629,10 +740,10 @@ describe('get-account-interface', () => {
                 // Primary source should be hot (higher priority)
                 expect(result.isCold).toBe(false);
                 expect(result._sources?.[0].type).toBe(
-                    TokenAccountSourceType.CTokenHot,
+                    TokenAccountSourceType.LightTokenHot,
                 );
                 expect(result._sources?.[1].type).toBe(
-                    TokenAccountSourceType.CTokenCold,
+                    TokenAccountSourceType.LightTokenCold,
                 );
 
                 // Verify individual source amounts
@@ -648,46 +759,46 @@ describe('get-account-interface', () => {
         describe('wrap=true (include SPL/T22 balances)', () => {
             it('should include SPL balance when wrap=true', async () => {
                 const owner = await newAccountWithLamports(rpc, 1e9);
-                const ctokenAmount = bn(1500);
+                const lightTokenAmount = bn(1500);
                 const splAmount = 2500n;
 
-                // Setup c-token cold
+                // Setup light-token cold
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
-                    ctokenAmount,
+                    lightTokenAmount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                // Create SPL ATA with same mint (won't work with c-token mint)
+                // Create SPL ATA with same mint (won't work with light-token mint)
                 // For this test we need an SPL mint that has a token pool
-                // Actually, wrap=true requires mint parity - use the c-token mint
+                // Actually, wrap=true requires mint parity - use the light-token mint
                 // But SPL ATAs need SPL mints. This scenario is for unified view
                 // where user has tokens across multiple account types.
 
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
 
                 const result = await getAtaInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
-                    ctokenMint,
+                    lightTokenMint,
                     undefined,
                     undefined,
                     true, // wrap=true
                 );
 
-                // Should have c-token cold (SPL ATA for c-token mint doesn't exist)
+                // Should have light-token cold (SPL ATA for light-token mint doesn't exist)
                 expect(result._isAta).toBe(true);
                 expect(result.parsed.amount).toBe(
-                    BigInt(ctokenAmount.toString()),
+                    BigInt(lightTokenAmount.toString()),
                 );
                 expect(result._sources?.length).toBeGreaterThanOrEqual(1);
             });
@@ -703,24 +814,24 @@ describe('get-account-interface', () => {
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     amount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
 
                 const result = await getAtaInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
-                    ctokenMint,
+                    lightTokenMint,
                 );
 
                 expect(result._hasDelegate).toBe(false);
@@ -733,35 +844,254 @@ describe('get-account-interface', () => {
                 await mintTo(
                     rpc,
                     payer,
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                     mintAuthority,
                     amount,
                     stateTreeInfo,
-                    selectTokenPoolInfo(ctokenPoolInfos),
+                    selectTokenPoolInfo(lightTokenPoolInfos),
                 );
 
-                const ctokenAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
                     owner.publicKey,
                 );
 
                 const result = await getAtaInterface(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
-                    ctokenMint,
+                    lightTokenMint,
                 );
 
                 expect(result._anyFrozen).toBe(false);
+                expect(result.parsed.isFrozen).toBe(false);
             });
+
+            it('should return canonical delegate aggregation for same delegate across hot and cold', async () => {
+                const owner = await newAccountWithLamports(rpc, 1e9);
+                const delegate = await newAccountWithLamports(rpc, 1e9);
+                const hotAmount = bn(1200);
+                const hotDelegated = BigInt(700);
+                const coldAmount = bn(500);
+
+                await createAtaInterfaceIdempotent(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
+                );
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    hotAmount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
+                    owner.publicKey,
+                );
+                await loadAta(rpc, lightTokenAta, owner, lightTokenMint, payer);
+
+                const approveHotIx = createApproveInstruction(
+                    lightTokenAta,
+                    delegate.publicKey,
+                    owner.publicKey,
+                    hotDelegated,
+                    [],
+                    LIGHT_TOKEN_PROGRAM_ID,
+                );
+                const { blockhash: bhHot } = await rpc.getLatestBlockhash();
+                await sendAndConfirmTx(
+                    rpc,
+                    buildAndSignTx([approveHotIx], payer, bhHot, [owner]),
+                );
+
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    coldAmount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+                await approve(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    coldAmount,
+                    owner,
+                    delegate.publicKey,
+                );
+
+                const result = await getAtaInterface(
+                    rpc,
+                    lightTokenAta,
+                    owner.publicKey,
+                    lightTokenMint,
+                );
+                expect(result.parsed.delegate?.toBase58()).toBe(
+                    delegate.publicKey.toBase58(),
+                );
+                expect(result.parsed.delegatedAmount).toBe(
+                    hotDelegated + BigInt(coldAmount.toString()),
+                );
+            }, 120_000);
+
+            it('should keep hot delegate as canonical when cold has a different delegate', async () => {
+                const owner = await newAccountWithLamports(rpc, 1e9);
+                const delegateA = await newAccountWithLamports(rpc, 1e9);
+                const delegateB = await newAccountWithLamports(rpc, 1e9);
+                const hotAmount = bn(1000);
+                const hotDelegatedA = BigInt(200);
+                const coldAmountB = bn(900);
+
+                await createAtaInterfaceIdempotent(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
+                );
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    hotAmount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
+                    owner.publicKey,
+                );
+                await loadAta(rpc, lightTokenAta, owner, lightTokenMint, payer);
+
+                const approveHotIx = createApproveInstruction(
+                    lightTokenAta,
+                    delegateA.publicKey,
+                    owner.publicKey,
+                    hotDelegatedA,
+                    [],
+                    LIGHT_TOKEN_PROGRAM_ID,
+                );
+                const { blockhash: bhA } = await rpc.getLatestBlockhash();
+                await sendAndConfirmTx(
+                    rpc,
+                    buildAndSignTx([approveHotIx], payer, bhA, [owner]),
+                );
+
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    coldAmountB,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+                await approve(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    coldAmountB,
+                    owner,
+                    delegateB.publicKey,
+                );
+
+                const result = await getAtaInterface(
+                    rpc,
+                    lightTokenAta,
+                    owner.publicKey,
+                    lightTokenMint,
+                );
+                expect(result.parsed.delegate?.toBase58()).toBe(
+                    delegateA.publicKey.toBase58(),
+                );
+                expect(result.parsed.delegatedAmount).toBe(hotDelegatedA);
+            }, 120_000);
+
+            it('should return canonical delegate and delegatedAmount for cold-only (approve-style) sources', async () => {
+                const owner = await newAccountWithLamports(rpc, 1e9);
+                const delegate = await newAccountWithLamports(rpc, 1e9);
+                const coldAmount = bn(1100);
+
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    coldAmount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+                await approve(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    coldAmount,
+                    owner,
+                    delegate.publicKey,
+                );
+
+                const lightTokenAta = getAssociatedTokenAddressInterface(
+                    lightTokenMint,
+                    owner.publicKey,
+                );
+
+                const result = await getAtaInterface(
+                    rpc,
+                    lightTokenAta,
+                    owner.publicKey,
+                    lightTokenMint,
+                );
+
+                expect(result.parsed.delegate?.toBase58()).toBe(
+                    delegate.publicKey.toBase58(),
+                );
+                expect(result.parsed.delegatedAmount).toBe(
+                    BigInt(coldAmount.toString()),
+                );
+                expect(result.parsed.amount).toBe(
+                    BigInt(coldAmount.toString()),
+                );
+                expect(result.isCold).toBe(true);
+                expect(result._hasDelegate).toBe(true);
+                expect(result._sources?.length).toBeGreaterThanOrEqual(1);
+                expect(
+                    result._sources?.every(
+                        s => s.type === TokenAccountSourceType.LightTokenCold,
+                    ),
+                ).toBe(true);
+            }, 120_000);
         });
 
         describe('error cases', () => {
             it('should throw TokenAccountNotFoundError when no account exists', async () => {
                 const owner = Keypair.generate();
                 const nonExistentAta = getAssociatedTokenAddressInterface(
-                    ctokenMint,
+                    lightTokenMint,
                     owner.publicKey,
                 );
 
@@ -770,7 +1100,7 @@ describe('get-account-interface', () => {
                         rpc,
                         nonExistentAta,
                         owner.publicKey,
-                        ctokenMint,
+                        lightTokenMint,
                     ),
                 ).rejects.toThrow(TokenAccountNotFoundError);
             });
@@ -907,25 +1237,25 @@ describe('get-account-interface', () => {
             const sig = await mintTo(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 mintAuthority,
                 totalAmount,
                 stateTreeInfo,
-                selectTokenPoolInfo(ctokenPoolInfos),
+                selectTokenPoolInfo(lightTokenPoolInfos),
             );
             await rpc.confirmTransaction(sig, 'confirmed');
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
-                ctokenMint,
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
                 owner.publicKey,
             );
 
             const result = await getAtaInterface(
                 rpc,
-                ctokenAta,
+                lightTokenAta,
                 owner.publicKey,
-                ctokenMint,
+                lightTokenMint,
             );
 
             expect(result.parsed.amount).toBe(BigInt(totalAmount.toString()));
@@ -942,47 +1272,62 @@ describe('get-account-interface', () => {
             await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
+                false,
+                undefined,
+                undefined,
+                undefined,
+                { compressibleConfig: null },
             );
 
             // Mint and decompress to create hot balance
             const sig1 = await mintTo(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 mintAuthority,
                 hotAmount,
                 stateTreeInfo,
-                selectTokenPoolInfo(ctokenPoolInfos),
+                selectTokenPoolInfo(lightTokenPoolInfos),
             );
             await rpc.confirmTransaction(sig1, 'confirmed');
-            await decompressInterface(rpc, payer, owner, ctokenMint);
+            const lightTokenAtaEarly = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                owner.publicKey,
+            );
+            await loadAta(
+                rpc,
+                lightTokenAtaEarly,
+                owner,
+                lightTokenMint,
+                payer,
+            );
 
             // Mint more to create cold balance
             const sig2 = await mintTo(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 mintAuthority,
                 coldAmount,
                 stateTreeInfo,
-                selectTokenPoolInfo(ctokenPoolInfos),
+                selectTokenPoolInfo(lightTokenPoolInfos),
             );
             await rpc.confirmTransaction(sig2, 'confirmed');
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
-                ctokenMint,
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
                 owner.publicKey,
             );
 
             const result = await getAtaInterface(
                 rpc,
-                ctokenAta,
+                lightTokenAta,
                 owner.publicKey,
-                ctokenMint,
+                lightTokenMint,
             );
 
             const expectedTotal =
@@ -1003,51 +1348,66 @@ describe('get-account-interface', () => {
             await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
+                false,
+                undefined,
+                undefined,
+                undefined,
+                { compressibleConfig: null },
             );
 
             // Create hot first
             await mintTo(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 mintAuthority,
                 hotAmount,
                 stateTreeInfo,
-                selectTokenPoolInfo(ctokenPoolInfos),
+                selectTokenPoolInfo(lightTokenPoolInfos),
             );
-            await decompressInterface(rpc, payer, owner, ctokenMint);
+            const lightTokenAtaEarly = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                owner.publicKey,
+            );
+            await loadAta(
+                rpc,
+                lightTokenAtaEarly,
+                owner,
+                lightTokenMint,
+                payer,
+            );
 
             // Then add cold
             await mintTo(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 mintAuthority,
                 coldAmount,
                 stateTreeInfo,
-                selectTokenPoolInfo(ctokenPoolInfos),
+                selectTokenPoolInfo(lightTokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
-                ctokenMint,
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
                 owner.publicKey,
             );
 
             const result = await getAtaInterface(
                 rpc,
-                ctokenAta,
+                lightTokenAta,
                 owner.publicKey,
-                ctokenMint,
+                lightTokenMint,
             );
 
             // Primary (first) source should be hot
             expect(result.isCold).toBe(false);
             expect(result._sources?.[0].type).toBe(
-                TokenAccountSourceType.CTokenHot,
+                TokenAccountSourceType.LightTokenHot,
             );
 
             // Total balance is correct
@@ -1055,5 +1415,659 @@ describe('get-account-interface', () => {
                 BigInt(hotAmount.toString()) + BigInt(coldAmount.toString());
             expect(result.parsed.amount).toBe(expectedTotal);
         });
+    });
+
+    // ================================================================
+    // FULL AGGREGATION COVERAGE
+    // ================================================================
+    // Uses lightTokenMint which is an SPL Token mint with a Light token pool,
+    // so both SPL ATAs and compressed accounts can coexist.
+
+    const sortBigInt = (a: bigint, b: bigint) => (a < b ? -1 : a > b ? 1 : 0);
+
+    describe('multi-cold aggregation', () => {
+        it('should aggregate 3 cold accounts with exact per-source amounts', async () => {
+            const owner = await newAccountWithLamports(rpc, 1e9);
+            const amounts = [1000n, 2000n, 3000n];
+
+            for (const amount of amounts) {
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    bn(amount),
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+            }
+
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                owner.publicKey,
+            );
+            const result = await getAtaInterface(
+                rpc,
+                lightTokenAta,
+                owner.publicKey,
+                lightTokenMint,
+            );
+
+            expect(result.parsed.amount).toBe(6000n);
+            expect(result._sources?.length).toBe(3);
+            expect(result.isCold).toBe(true);
+            expect(result._needsConsolidation).toBe(true);
+
+            for (const source of result._sources!) {
+                expect(source.type).toBe(TokenAccountSourceType.LightTokenCold);
+            }
+
+            const sourceAmounts = result
+                ._sources!.map(s => s.amount)
+                .sort(sortBigInt);
+            expect(sourceAmounts).toEqual([1000n, 2000n, 3000n]);
+        }, 60_000);
+
+        it('should aggregate light-token-hot + 3 cold with exact per-source amounts', async () => {
+            const owner = await newAccountWithLamports(rpc, 1e9);
+            const hotAmount = 500n;
+            const coldAmounts = [1000n, 2000n, 3000n];
+
+            await createAtaInterfaceIdempotent(
+                rpc,
+                payer,
+                lightTokenMint,
+                owner.publicKey,
+                false,
+                undefined,
+                undefined,
+                undefined,
+                { compressibleConfig: null },
+            );
+            await mintTo(
+                rpc,
+                payer,
+                lightTokenMint,
+                owner.publicKey,
+                mintAuthority,
+                bn(hotAmount),
+                stateTreeInfo,
+                selectTokenPoolInfo(lightTokenPoolInfos),
+            );
+            const lightTokenAtaForCold = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                owner.publicKey,
+            );
+            await loadAta(
+                rpc,
+                lightTokenAtaForCold,
+                owner,
+                lightTokenMint,
+                payer,
+            );
+
+            for (const amount of coldAmounts) {
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    bn(amount),
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+            }
+
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                owner.publicKey,
+            );
+            const result = await getAtaInterface(
+                rpc,
+                lightTokenAta,
+                owner.publicKey,
+                lightTokenMint,
+            );
+
+            expect(result.parsed.amount).toBe(6500n);
+            expect(result._sources?.length).toBe(4);
+            expect(result.isCold).toBe(false);
+            expect(result._needsConsolidation).toBe(true);
+
+            // First source is hot (priority)
+            expect(result._sources![0].type).toBe(
+                TokenAccountSourceType.LightTokenHot,
+            );
+            expect(result._sources![0].amount).toBe(hotAmount);
+
+            // Remaining are cold
+            const coldSources = result._sources!.slice(1);
+            for (const source of coldSources) {
+                expect(source.type).toBe(TokenAccountSourceType.LightTokenCold);
+            }
+            const coldSourceAmounts = coldSources
+                .map(s => s.amount)
+                .sort(sortBigInt);
+            expect(coldSourceAmounts).toEqual([1000n, 2000n, 3000n]);
+        }, 120_000);
+    });
+
+    describe('SPL programId aggregation', () => {
+        it('should show SPL hot + spl-cold with exact amounts (programId=TOKEN_PROGRAM_ID)', async () => {
+            const owner = await newAccountWithLamports(rpc, 1e9);
+            const splHotAmount = 1500n;
+            const coldAmounts = [800n, 1200n];
+
+            // Create SPL ATA and mint SPL tokens directly
+            const splAta = await getOrCreateAssociatedTokenAccount(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                owner.publicKey,
+            );
+            await splMintTo(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                splAta.address,
+                mintAuthority,
+                splHotAmount,
+            );
+
+            // Mint compressed tokens (will appear as spl-cold)
+            for (const amount of coldAmounts) {
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    bn(amount),
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+            }
+
+            const result = await getAtaInterface(
+                rpc,
+                splAta.address,
+                owner.publicKey,
+                lightTokenMint,
+                undefined,
+                TOKEN_PROGRAM_ID,
+            );
+
+            expect(result.parsed.amount).toBe(3500n);
+            expect(result._sources?.length).toBe(3);
+
+            // First source is SPL hot
+            expect(result._sources![0].type).toBe(TokenAccountSourceType.Spl);
+            expect(result._sources![0].amount).toBe(splHotAmount);
+
+            // Cold sources are spl-cold
+            const coldSources = result._sources!.filter(
+                s => s.type === TokenAccountSourceType.SplCold,
+            );
+            expect(coldSources.length).toBe(2);
+            const coldSourceAmounts = coldSources
+                .map(s => s.amount)
+                .sort(sortBigInt);
+            expect(coldSourceAmounts).toEqual([800n, 1200n]);
+        }, 60_000);
+
+        it('should show spl-cold only when no SPL ATA exists (programId=TOKEN_PROGRAM_ID)', async () => {
+            const owner = await newAccountWithLamports(rpc, 1e9);
+            const coldAmounts = [700n, 1300n];
+
+            // Mint compressed tokens only (no SPL ATA created)
+            for (const amount of coldAmounts) {
+                await mintTo(
+                    rpc,
+                    payer,
+                    lightTokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    bn(amount),
+                    stateTreeInfo,
+                    selectTokenPoolInfo(lightTokenPoolInfos),
+                );
+            }
+
+            // Derive SPL ATA address (not on-chain)
+            const splAta = getAssociatedTokenAddressSync(
+                lightTokenMint,
+                owner.publicKey,
+            );
+
+            const result = await getAtaInterface(
+                rpc,
+                splAta,
+                owner.publicKey,
+                lightTokenMint,
+                undefined,
+                TOKEN_PROGRAM_ID,
+            );
+
+            expect(result.parsed.amount).toBe(2000n);
+            expect(result._sources?.length).toBe(2);
+            expect(result.isCold).toBe(true);
+
+            for (const source of result._sources!) {
+                expect(source.type).toBe(TokenAccountSourceType.SplCold);
+            }
+            const sourceAmounts = result
+                ._sources!.map(s => s.amount)
+                .sort(sortBigInt);
+            expect(sourceAmounts).toEqual([700n, 1300n]);
+        }, 60_000);
+    });
+
+    describe('cross-program unified aggregation (all modes from one setup)', () => {
+        // Shared state: light-token-hot(3000) + 2 cold(1000,2000) + SPL hot(1500)
+        let unifiedOwner: Signer;
+        const uHotAmount = 3000n;
+        const uCold1 = 1000n;
+        const uCold2 = 2000n;
+        const uSplHot = 1500n;
+
+        beforeAll(async () => {
+            unifiedOwner = await newAccountWithLamports(rpc, 2e9);
+
+            // light-token-hot: mint + decompress
+            await createAtaInterfaceIdempotent(
+                rpc,
+                payer,
+                lightTokenMint,
+                unifiedOwner.publicKey,
+                false,
+                undefined,
+                undefined,
+                undefined,
+                { compressibleConfig: null },
+            );
+            await mintTo(
+                rpc,
+                payer,
+                lightTokenMint,
+                unifiedOwner.publicKey,
+                mintAuthority,
+                bn(uHotAmount),
+                stateTreeInfo,
+                selectTokenPoolInfo(lightTokenPoolInfos),
+            );
+            const unifiedLightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                unifiedOwner.publicKey,
+            );
+            await loadAta(
+                rpc,
+                unifiedLightTokenAta,
+                unifiedOwner,
+                lightTokenMint,
+                payer,
+            );
+
+            // 2 cold accounts
+            await mintTo(
+                rpc,
+                payer,
+                lightTokenMint,
+                unifiedOwner.publicKey,
+                mintAuthority,
+                bn(uCold1),
+                stateTreeInfo,
+                selectTokenPoolInfo(lightTokenPoolInfos),
+            );
+            await mintTo(
+                rpc,
+                payer,
+                lightTokenMint,
+                unifiedOwner.publicKey,
+                mintAuthority,
+                bn(uCold2),
+                stateTreeInfo,
+                selectTokenPoolInfo(lightTokenPoolInfos),
+            );
+
+            // SPL ATA with balance
+            const splAta = await getOrCreateAssociatedTokenAccount(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                unifiedOwner.publicKey,
+            );
+            await splMintTo(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                splAta.address,
+                mintAuthority,
+                uSplHot,
+            );
+        }, 120_000);
+
+        it('wrap=true: aggregates light-token-hot + light-token-cold + SPL hot', async () => {
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                unifiedOwner.publicKey,
+            );
+            const result = await getAtaInterface(
+                rpc,
+                lightTokenAta,
+                unifiedOwner.publicKey,
+                lightTokenMint,
+                undefined,
+                undefined,
+                true,
+            );
+
+            expect(result.parsed.amount).toBe(
+                uHotAmount + uCold1 + uCold2 + uSplHot,
+            ); // 7500
+            expect(result._needsConsolidation).toBe(true);
+
+            const types = result._sources!.map(s => s.type);
+            expect(types).toContain(TokenAccountSourceType.LightTokenHot);
+            expect(types).toContain(TokenAccountSourceType.LightTokenCold);
+            expect(types).toContain(TokenAccountSourceType.Spl);
+
+            // Priority: light-token-hot first
+            expect(result._sources![0].type).toBe(
+                TokenAccountSourceType.LightTokenHot,
+            );
+            expect(result._sources![0].amount).toBe(uHotAmount);
+
+            // SPL source amount
+            const splSource = result._sources!.find(
+                s => s.type === TokenAccountSourceType.Spl,
+            );
+            expect(splSource!.amount).toBe(uSplHot);
+
+            // Cold amounts
+            const coldSources = result._sources!.filter(
+                s => s.type === TokenAccountSourceType.LightTokenCold,
+            );
+            expect(coldSources.length).toBe(2);
+            expect(coldSources.map(s => s.amount).sort(sortBigInt)).toEqual([
+                uCold1,
+                uCold2,
+            ]);
+        });
+
+        it('wrap=false: excludes SPL sources', async () => {
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                unifiedOwner.publicKey,
+            );
+            const result = await getAtaInterface(
+                rpc,
+                lightTokenAta,
+                unifiedOwner.publicKey,
+                lightTokenMint,
+                undefined,
+                undefined,
+                false,
+            );
+
+            expect(result.parsed.amount).toBe(uHotAmount + uCold1 + uCold2); // 6000
+
+            const types = result._sources!.map(s => s.type);
+            expect(types).not.toContain(TokenAccountSourceType.Spl);
+            expect(types).not.toContain(TokenAccountSourceType.Token2022);
+            expect(types).toContain(TokenAccountSourceType.LightTokenHot);
+            expect(types).toContain(TokenAccountSourceType.LightTokenCold);
+        });
+
+        it('programId=TOKEN_PROGRAM_ID: shows SPL hot + compressed as spl-cold', async () => {
+            const splAta = getAssociatedTokenAddressSync(
+                lightTokenMint,
+                unifiedOwner.publicKey,
+            );
+            const result = await getAtaInterface(
+                rpc,
+                splAta,
+                unifiedOwner.publicKey,
+                lightTokenMint,
+                undefined,
+                TOKEN_PROGRAM_ID,
+            );
+
+            expect(result.parsed.amount).toBe(uSplHot + uCold1 + uCold2); // 4500
+
+            const types = result._sources!.map(s => s.type);
+            expect(types).not.toContain(TokenAccountSourceType.LightTokenHot);
+            expect(types).toContain(TokenAccountSourceType.Spl);
+            expect(types).toContain(TokenAccountSourceType.SplCold);
+
+            const splSource = result._sources!.find(
+                s => s.type === TokenAccountSourceType.Spl,
+            );
+            expect(splSource!.amount).toBe(uSplHot);
+
+            const coldSources = result._sources!.filter(
+                s => s.type === TokenAccountSourceType.SplCold,
+            );
+            expect(coldSources.length).toBe(2);
+            expect(coldSources.map(s => s.amount).sort(sortBigInt)).toEqual([
+                uCold1,
+                uCold2,
+            ]);
+        });
+
+        it('programId=LIGHT_TOKEN: shows light-token-hot + light-token-cold only', async () => {
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                unifiedOwner.publicKey,
+            );
+            const result = await getAtaInterface(
+                rpc,
+                lightTokenAta,
+                unifiedOwner.publicKey,
+                lightTokenMint,
+                undefined,
+                LIGHT_TOKEN_PROGRAM_ID,
+            );
+
+            expect(result.parsed.amount).toBe(uHotAmount + uCold1 + uCold2); // 6000
+
+            const types = result._sources!.map(s => s.type);
+            expect(types).not.toContain(TokenAccountSourceType.Spl);
+            expect(types).not.toContain(TokenAccountSourceType.SplCold);
+            expect(types).toContain(TokenAccountSourceType.LightTokenHot);
+            expect(types).toContain(TokenAccountSourceType.LightTokenCold);
+
+            expect(result._sources![0].type).toBe(
+                TokenAccountSourceType.LightTokenHot,
+            );
+            expect(result._sources![0].amount).toBe(uHotAmount);
+        });
+    });
+
+    describe('wrap=true edge cases', () => {
+        it('wrap=true with only SPL hot (no light-token accounts)', async () => {
+            const owner = await newAccountWithLamports(rpc, 1e9);
+            const splHotAmount = 5000n;
+
+            const splAta = await getOrCreateAssociatedTokenAccount(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                owner.publicKey,
+            );
+            await splMintTo(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                splAta.address,
+                mintAuthority,
+                splHotAmount,
+            );
+
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                owner.publicKey,
+            );
+            const result = await getAtaInterface(
+                rpc,
+                lightTokenAta,
+                owner.publicKey,
+                lightTokenMint,
+                undefined,
+                undefined,
+                true,
+            );
+
+            expect(result.parsed.amount).toBe(splHotAmount);
+            expect(result._sources?.length).toBe(1);
+            expect(result._sources![0].type).toBe(TokenAccountSourceType.Spl);
+            expect(result._sources![0].amount).toBe(splHotAmount);
+        }, 60_000);
+
+        it('wrap=true with light-token-cold + SPL hot (no light-token-hot)', async () => {
+            const owner = await newAccountWithLamports(rpc, 1e9);
+            const coldAmount = 2000n;
+            const splHotAmount = 3000n;
+
+            // Cold only
+            await mintTo(
+                rpc,
+                payer,
+                lightTokenMint,
+                owner.publicKey,
+                mintAuthority,
+                bn(coldAmount),
+                stateTreeInfo,
+                selectTokenPoolInfo(lightTokenPoolInfos),
+            );
+
+            // SPL hot
+            const splAta = await getOrCreateAssociatedTokenAccount(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                owner.publicKey,
+            );
+            await splMintTo(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                splAta.address,
+                mintAuthority,
+                splHotAmount,
+            );
+
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                owner.publicKey,
+            );
+            const result = await getAtaInterface(
+                rpc,
+                lightTokenAta,
+                owner.publicKey,
+                lightTokenMint,
+                undefined,
+                undefined,
+                true,
+            );
+
+            expect(result.parsed.amount).toBe(coldAmount + splHotAmount); // 5000
+            expect(result._sources?.length).toBe(2);
+
+            const coldSource = result._sources!.find(
+                s => s.type === TokenAccountSourceType.LightTokenCold,
+            );
+            expect(coldSource!.amount).toBe(coldAmount);
+
+            const splSource = result._sources!.find(
+                s => s.type === TokenAccountSourceType.Spl,
+            );
+            expect(splSource!.amount).toBe(splHotAmount);
+        }, 60_000);
+
+        it('wrap=true with light-token-hot + SPL hot (no cold)', async () => {
+            const owner = await newAccountWithLamports(rpc, 1e9);
+            const hotAmount = 4000n;
+            const splHotAmount = 2000n;
+
+            // light-token-hot
+            await createAtaInterfaceIdempotent(
+                rpc,
+                payer,
+                lightTokenMint,
+                owner.publicKey,
+                false,
+                undefined,
+                undefined,
+                undefined,
+                { compressibleConfig: null },
+            );
+            await mintTo(
+                rpc,
+                payer,
+                lightTokenMint,
+                owner.publicKey,
+                mintAuthority,
+                bn(hotAmount),
+                stateTreeInfo,
+                selectTokenPoolInfo(lightTokenPoolInfos),
+            );
+            const lightTokenAtaForLoad = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                owner.publicKey,
+            );
+            await loadAta(
+                rpc,
+                lightTokenAtaForLoad,
+                owner,
+                lightTokenMint,
+                payer,
+            );
+
+            // SPL hot
+            const splAta = await getOrCreateAssociatedTokenAccount(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                owner.publicKey,
+            );
+            await splMintTo(
+                rpc,
+                payer as Keypair,
+                lightTokenMint,
+                splAta.address,
+                mintAuthority,
+                splHotAmount,
+            );
+
+            const lightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
+                owner.publicKey,
+            );
+            const result = await getAtaInterface(
+                rpc,
+                lightTokenAta,
+                owner.publicKey,
+                lightTokenMint,
+                undefined,
+                undefined,
+                true,
+            );
+
+            expect(result.parsed.amount).toBe(hotAmount + splHotAmount); // 6000
+            expect(result._sources?.length).toBe(2);
+            expect(result._needsConsolidation).toBe(true);
+
+            expect(result._sources![0].type).toBe(
+                TokenAccountSourceType.LightTokenHot,
+            );
+            expect(result._sources![0].amount).toBe(hotAmount);
+
+            const splSource = result._sources!.find(
+                s => s.type === TokenAccountSourceType.Spl,
+            );
+            expect(splSource!.amount).toBe(splHotAmount);
+        }, 120_000);
     });
 });

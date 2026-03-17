@@ -118,6 +118,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
     if !config.skip_v1_trees {
         create_state_merkle_tree_and_queue_account(
             &keypairs.governance_authority,
+            &keypairs.governance_authority,
             true,
             context,
             &keypairs.state_merkle_tree,
@@ -133,6 +134,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
 
         if !skip_second_v1_tree {
             create_state_merkle_tree_and_queue_account(
+                &keypairs.governance_authority,
                 &keypairs.governance_authority,
                 true,
                 context,
@@ -169,6 +171,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
     if let Some(v2_state_tree_config) = _v2_state_tree_config {
         create_batched_state_merkle_tree(
             &keypairs.governance_authority,
+            &keypairs.governance_authority,
             true,
             context,
             &keypairs.batched_state_merkle_tree,
@@ -182,6 +185,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
     if let Some(params) = _v2_address_tree_config {
         create_batch_address_merkle_tree(
             context,
+            &keypairs.governance_authority,
             &keypairs.governance_authority,
             &keypairs.batch_address_merkle_tree,
             *params,

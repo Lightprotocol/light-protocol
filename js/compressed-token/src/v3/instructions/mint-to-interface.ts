@@ -1,7 +1,7 @@
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { ValidityProofWithContext } from '@lightprotocol/stateless.js';
 import { createMintToInstruction as createSplMintToInstruction } from '@solana/spl-token';
-import { createMintToInstruction as createCtokenMintToInstruction } from './mint-to';
+import { createMintToInstruction as createLightTokenMintToInstruction } from './mint-to';
 import { MintInterface } from '../get-mint-interface';
 
 // Keep old interface type for backwards compatibility export
@@ -16,12 +16,12 @@ export interface CreateMintToInterfaceInstructionParams {
 }
 
 /**
- * Create mint-to instruction for SPL, Token-2022, or CToken mints.
- * This instruction ONLY mints to decompressed/onchain token accounts.
+ * Create mint-to instruction for SPL, Token-2022, or light-token mints.
+ * This instruction ONLY mints to light-token associated token accounts (hot).
  *
- * For CToken mints, the mint must be decompressed first (CMint account must exist on-chain).
+ * For light-token mints, the light mint account must exist (mint must be decompressed first).
  *
- * @param mintInterface   Mint interface (SPL, Token-2022, or CToken).
+ * @param mintInterface   Mint interface (SPL, Token-2022, or light-token).
  * @param destination     Destination onchain token account address.
  * @param authority       Mint authority public key.
  * @param payer           Fee payer public key.
@@ -53,16 +53,16 @@ export function createMintToInterfaceInstruction(
         );
     }
 
-    // CToken (compressed token) - use simple CTokenMintTo instruction
-    // The mint must be decompressed for this to work (CMint account must exist on-chain)
+    // light-token (light-token) - use simple LightTokenMintTo instruction
+    // The light mint account must exist for this to work (mint must be decompressed first)
     if (!mintInterface.mintContext) {
-        throw new Error('mintContext required for CToken mint-to');
+        throw new Error('mintContext required for light-token mint-to');
     }
 
     // Use payer as fee payer for top-ups if different from authority
     const feePayer = authority.equals(payer) ? undefined : payer;
 
-    return createCtokenMintToInstruction({
+    return createLightTokenMintToInstruction({
         mint,
         destination,
         amount,

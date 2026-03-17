@@ -262,6 +262,95 @@ async fn test_create_ata_idempotent() {
     }
 }
 
+/// Tests that idempotent ATA creation rejects when the existing account's
+/// owner field has been changed (e.g. via authority transfer).
+/// The PDA derivation passes (same address) but stored owner differs.
+#[tokio::test]
+async fn test_create_ata_idempotent_owner_mismatch() {
+    let mut context = setup_account_test().await.unwrap();
+    let payer_pubkey = context.payer.pubkey();
+
+    let compressible_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 2,
+        lamports_per_write: Some(100),
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
+        compress_to_pubkey: false,
+        payer: payer_pubkey,
+    };
+
+    // Create ATA (first creation)
+    let ata_pubkey = create_and_assert_ata(
+        &mut context,
+        Some(compressible_data.clone()),
+        true,
+        "idempotent_owner_mismatch_first",
+    )
+    .await;
+
+    // Modify the stored owner to a different pubkey
+    let mut account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
+    let different_owner = Pubkey::new_unique();
+    // Owner is at bytes 32-63 in SPL token account layout
+    account.data[32..64].copy_from_slice(&different_owner.to_bytes());
+    context.rpc.set_account(ata_pubkey, account);
+
+    // Second idempotent creation should fail because stored owner != instruction owner
+    create_and_assert_ata_fails(
+        &mut context,
+        Some(compressible_data),
+        true,
+        "idempotent_owner_mismatch_second",
+        3, // InvalidAccountData
+    )
+    .await;
+}
+
+/// Tests that idempotent ATA creation rejects when the existing account's
+/// mint field has been tampered with.
+#[tokio::test]
+async fn test_create_ata_idempotent_mint_mismatch() {
+    let mut context = setup_account_test().await.unwrap();
+    let payer_pubkey = context.payer.pubkey();
+
+    let compressible_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 2,
+        lamports_per_write: Some(100),
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
+        compress_to_pubkey: false,
+        payer: payer_pubkey,
+    };
+
+    // Create ATA (first creation)
+    let ata_pubkey = create_and_assert_ata(
+        &mut context,
+        Some(compressible_data.clone()),
+        true,
+        "idempotent_mint_mismatch_first",
+    )
+    .await;
+
+    // Modify the stored mint to a different pubkey
+    let mut account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
+    let different_mint = Pubkey::new_unique();
+    // Mint is at bytes 0-31 in SPL token account layout
+    account.data[0..32].copy_from_slice(&different_mint.to_bytes());
+    context.rpc.set_account(ata_pubkey, account);
+
+    // Second idempotent creation should fail because stored mint != instruction mint
+    create_and_assert_ata_fails(
+        &mut context,
+        Some(compressible_data),
+        true,
+        "idempotent_mint_mismatch_second",
+        3, // InvalidAccountData
+    )
+    .await;
+}
+
 /// Tests creation of an ATA with 0 prepaid epochs (immediately compressible).
 /// All Light Token accounts now have compression infrastructure, so we pass
 /// CompressibleData with num_prepaid_epochs: 0.

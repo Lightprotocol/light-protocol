@@ -46,7 +46,12 @@ pub fn process_ctoken_transfer(
 
     // Self-transfer: validate authority but skip token movement to avoid
     // double mutable borrow panic in pinocchio process_transfer.
-    if validate_self_transfer(source, destination, &accounts[ACCOUNT_AUTHORITY])? {
+    if validate_self_transfer(
+        source,
+        destination,
+        &accounts[ACCOUNT_AUTHORITY],
+        instruction_data,
+    )? {
         return Ok(());
     }
 

@@ -4,6 +4,7 @@
 pub use light_compressed_token_sdk::utils::TokenDefaultAccounts;
 use light_token_interface::state::Token;
 use solana_account_info::AccountInfo;
+use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use crate::{constants::LIGHT_TOKEN_PROGRAM_ID as PROGRAM_ID, error::TokenSdkError};
@@ -22,11 +23,8 @@ pub fn get_associated_token_address_and_bump(owner: &Pubkey, mint: &Pubkey) -> (
 }
 
 /// Get the token balance from a Light token account.
-pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64, TokenSdkError> {
-    let data = token_account_info
-        .try_borrow_data()
-        .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
-    Token::amount_from_slice(&data).map_err(|_| TokenSdkError::InvalidAccountData)
+pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64, ProgramError> {
+    Token::amount_from_account_info(token_account_info).map_err(Into::into)
 }
 
 /// Check if an account owner is a Light token program.

@@ -1,6 +1,7 @@
 use clap::{Parser, ValueEnum};
 
 mod bench;
+mod close_buffer;
 mod create_batch_address_tree;
 mod create_batch_state_tree;
 mod create_compressible_config;
@@ -89,6 +90,10 @@ enum Command {
     /// Example: cargo xtask create-ctoken-account --network devnet
     /// Example with existing mint: cargo xtask create-ctoken-account --mint <MINT_PUBKEY> --network devnet
     CreateCtokenAccount(create_ctoken_account::Options),
+    /// Close a BPF Upgradeable Loader buffer account via Squads multisig.
+    /// Serializes the Close instruction as a bs58 message for the Squads TX builder.
+    /// Example: cargo xtask close-buffer --buffer FMkzXMexKDUKGxAm7oGsjs4LGEMhzk9C6uuYJBwJbjiN
+    CloseBuffer(close_buffer::Options),
 }
 
 #[tokio::main]
@@ -131,5 +136,6 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::CreateCtokenAccount(opts) => {
             create_ctoken_account::create_ctoken_account(opts).await
         }
+        Command::CloseBuffer(opts) => close_buffer::close_buffer(opts),
     }
 }

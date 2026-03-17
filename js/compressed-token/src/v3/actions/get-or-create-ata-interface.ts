@@ -1,6 +1,6 @@
 import {
     Rpc,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
     assertBetaEnabled,
@@ -46,7 +46,7 @@ import { loadAta } from './load-ata';
  * @param mint                      Mint associated with the account to set or
  *                                  verify.
  * @param owner                     Owner of the account. Pass Signer to
- *                                  auto-load cold (compressed) tokens, or
+ *                                  auto-load compressed light-tokens (cold balance), or
  *                                  PublicKey for read-only.
  * @param allowOwnerOffCurve        Allow the owner account to be a PDA (Program
  *                                  Derived Address).
@@ -54,7 +54,7 @@ import { loadAta } from './load-ata';
  *                                  state.
  * @param confirmOptions            Options for confirming the transaction
  * @param programId                 Token program ID (defaults to
- *                                  CTOKEN_PROGRAM_ID)
+ *                                  LIGHT_TOKEN_PROGRAM_ID)
  * @param associatedTokenProgramId  Associated token program ID (auto-derived if
  *                                  not provided)
  *
@@ -68,7 +68,7 @@ export async function getOrCreateAtaInterface(
     allowOwnerOffCurve = false,
     commitment?: Commitment,
     confirmOptions?: ConfirmOptions,
-    programId = CTOKEN_PROGRAM_ID,
+    programId = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId = getAtaProgramId(programId),
 ): Promise<AccountInterface> {
     assertBetaEnabled();
@@ -87,7 +87,7 @@ export async function getOrCreateAtaInterface(
     );
 }
 
-/** Helper to check if owner is a Signer (has both publicKey and secretKey) */
+/** @internal */
 function isSigner(owner: PublicKey | Signer): owner is Signer {
     // Check for both publicKey and secretKey properties
     // A proper Signer (like Keypair) has secretKey as Uint8Array
@@ -101,7 +101,7 @@ function isSigner(owner: PublicKey | Signer): owner is Signer {
     );
 }
 
-/** Helper to get PublicKey from owner (which may be Signer or PublicKey) */
+/** @internal */
 function getOwnerPublicKey(owner: PublicKey | Signer): PublicKey {
     return isSigner(owner) ? owner.publicKey : owner;
 }
@@ -131,10 +131,10 @@ export async function _getOrCreateAtaInterface(
         associatedTokenProgramId,
     );
 
-    // For c-token, use getAtaInterface which properly aggregates hot+cold balances
+    // For light-token, use getAtaInterface which properly aggregates hot+cold balances
     // When wrap=true (unified path), also includes SPL/T22 balances
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
-        return getOrCreateCTokenAta(
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+        return getOrCreateLightTokenAta(
             rpc,
             payer,
             mint,
@@ -162,19 +162,19 @@ export async function _getOrCreateAtaInterface(
 }
 
 /**
- * Get or create c-token ATA with proper cold balance handling.
+ * Get or create light-token associated token account with proper compressed balance handling.
  *
  * Like SPL's getOrCreateAssociatedTokenAccount, this is a write operation:
- * 1. Creates hot ATA if it doesn't exist
- * 2. If owner is Signer: loads cold (compressed) tokens into hot ATA
+ * 1. Creates hot associated token account if it doesn't exist
+ * 2. If owner is Signer: loads compressed light-tokens (cold balance) into light-token associated token account
  * 3. When wrap=true and owner is Signer: also wraps SPL/T22 tokens
  *
- * After this call (with Signer owner), all tokens are in the hot ATA and ready
+ * After this call (with Signer owner), all tokens are in the hot associated token account and ready
  * to use.
  *
  * @internal
  */
-async function getOrCreateCTokenAta(
+async function getOrCreateLightTokenAta(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
@@ -200,7 +200,7 @@ async function getOrCreateCTokenAta(
             ownerPubkey,
             mint,
             commitment,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
             wrap,
             allowOwnerOffCurve,
         );
@@ -208,15 +208,15 @@ async function getOrCreateCTokenAta(
         // Check if we have a hot account
         hasHotAccount =
             accountInterface._sources?.some(
-                s => s.type === TokenAccountSourceType.CTokenHot,
+                s => s.type === TokenAccountSourceType.LightTokenHot,
             ) ?? false;
     } catch (error: unknown) {
         if (
             error instanceof TokenAccountNotFoundError ||
             error instanceof TokenInvalidAccountOwnerError
         ) {
-            // No account found (neither hot nor cold), create hot ATA
-            await createCTokenAtaIdempotent(
+            // No account found (neither hot nor cold), create hot associated token account
+            await createLightTokenAtaIdempotent(
                 rpc,
                 payer,
                 mint,
@@ -232,7 +232,7 @@ async function getOrCreateCTokenAta(
                 ownerPubkey,
                 mint,
                 commitment,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
                 wrap,
                 allowOwnerOffCurve,
             );
@@ -242,9 +242,9 @@ async function getOrCreateCTokenAta(
         }
     }
 
-    // If we only have cold balance (no hot ATA), create the hot ATA first
+    // If we only have cold balance (no hot associated token account), create the hot associated token account first
     if (!hasHotAccount) {
-        await createCTokenAtaIdempotent(
+        await createLightTokenAtaIdempotent(
             rpc,
             payer,
             mint,
@@ -254,15 +254,17 @@ async function getOrCreateCTokenAta(
         );
     }
 
-    // Only auto-load if owner is a Signer (we can sign the load transaction)
-    // Use direct type guard in the if condition for proper type narrowing
-    if (isSigner(owner)) {
-        // Check if we need to load tokens into the hot ATA
-        // Load if: cold balance exists, or (wrap=true and SPL/T22 balance exists)
+    const ownerSigner: Signer | null = isSigner(owner)
+        ? owner
+        : payer.publicKey.equals(ownerPubkey)
+          ? payer
+          : null;
+
+    if (ownerSigner) {
         const sources = accountInterface._sources ?? [];
         const hasCold = sources.some(
             s =>
-                s.type === TokenAccountSourceType.CTokenCold &&
+                s.type === TokenAccountSourceType.LightTokenCold &&
                 s.amount > BigInt(0),
         );
         const hasSplToWrap =
@@ -275,22 +277,19 @@ async function getOrCreateCTokenAta(
             );
 
         if (hasCold || hasSplToWrap) {
-            // Verify owner is a valid Signer before loading
             if (
-                !(owner.secretKey instanceof Uint8Array) ||
-                owner.secretKey.length === 0
+                !(ownerSigner.secretKey instanceof Uint8Array) ||
+                ownerSigner.secretKey.length === 0
             ) {
                 throw new Error(
                     'Owner must be a valid Signer with secretKey to auto-load',
                 );
             }
 
-            // Load all tokens into hot ATA (decompress cold, wrap SPL/T22 if
-            // wrap=true)
             await loadAta(
                 rpc,
                 associatedToken,
-                owner, // TypeScript now knows owner is Signer
+                ownerSigner,
                 mint,
                 payer,
                 confirmOptions,
@@ -305,7 +304,7 @@ async function getOrCreateCTokenAta(
                 ownerPubkey,
                 mint,
                 commitment,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
                 wrap,
                 allowOwnerOffCurve,
             );
@@ -321,10 +320,10 @@ async function getOrCreateCTokenAta(
 }
 
 /**
- * Create c-token ATA idempotently.
+ * Create light-token associated token account idempotently.
  * @internal
  */
-async function createCTokenAtaIdempotent(
+async function createLightTokenAtaIdempotent(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
@@ -332,31 +331,27 @@ async function createCTokenAtaIdempotent(
     associatedToken: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<void> {
-    try {
-        const ix = createAssociatedTokenAccountInterfaceIdempotentInstruction(
-            payer.publicKey,
-            associatedToken,
-            owner,
-            mint,
-            CTOKEN_PROGRAM_ID,
-        );
+    const ix = createAssociatedTokenAccountInterfaceIdempotentInstruction(
+        payer.publicKey,
+        associatedToken,
+        owner,
+        mint,
+        LIGHT_TOKEN_PROGRAM_ID,
+    );
 
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const tx = buildAndSignTx(
-            [ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), ix],
-            payer,
-            blockhash,
-            [],
-        );
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), ix],
+        payer,
+        blockhash,
+        [],
+    );
 
-        await sendAndConfirmTx(rpc, tx, confirmOptions);
-    } catch {
-        // Ignore errors - ATA may already exist
-    }
+    await sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
 /**
- * Get or create SPL/T22 ATA.
+ * Get or create SPL/T22 associated token account.
  * @internal
  */
 async function getOrCreateSplAta(
@@ -406,10 +401,18 @@ async function getOrCreateSplAta(
                     [payer],
                     confirmOptions,
                 );
-            } catch {
-                // Ignore all errors; for now there is no API-compatible way to
-                // selectively ignore the expected instruction error if the
-                // associated account exists already.
+            } catch (createError) {
+                // Accept race-condition "already exists" only if account can now be fetched.
+                try {
+                    await getAccountInterface(
+                        rpc,
+                        associatedToken,
+                        commitment,
+                        programId,
+                    );
+                } catch {
+                    throw createError;
+                }
             }
 
             // Now this should always succeed

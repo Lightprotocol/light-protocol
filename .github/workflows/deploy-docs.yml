@@ -5,6 +5,13 @@ on:
     tags:
       - 'compressed-token-*'
       - 'stateless.js-*'
+    branches:
+      - 'main'
+      - 'swen/pub-beta-cov'
+    paths:
+      - 'js/stateless.js/src/**'
+      - 'js/compressed-token/src/**'
+  workflow_dispatch: {}
 
 
 permissions:
@@ -52,6 +59,9 @@ jobs:
 
       - name: Build stateless.js
         run: cd js/stateless.js && pnpm run build
+
+      - name: Build compressed-token
+        run: cd js/compressed-token && pnpm run build
 
       - name: Generate TypeDoc for stateless.js
         run: npx typedoc --options typedoc.stateless.json

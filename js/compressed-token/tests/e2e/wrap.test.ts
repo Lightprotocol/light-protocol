@@ -7,7 +7,7 @@ import {
     createRpc,
     selectStateTreeInfo,
     TreeInfo,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     VERSION,
     featureFlags,
 } from '@lightprotocol/stateless.js';
@@ -21,13 +21,16 @@ import {
     getAccount,
 } from '@solana/spl-token';
 
-// Helper to read CToken account balance (CToken accounts are owned by CTOKEN_PROGRAM_ID)
-async function getCTokenBalance(rpc: Rpc, address: PublicKey): Promise<bigint> {
+// Helper to read LightToken account balance (LightToken accounts are owned by LIGHT_TOKEN_PROGRAM_ID)
+async function getLightTokenBalance(
+    rpc: Rpc,
+    address: PublicKey,
+): Promise<bigint> {
     const accountInfo = await rpc.getAccountInfo(address);
     if (!accountInfo) {
-        throw new Error(`CToken account not found: ${address.toBase58()}`);
+        throw new Error(`LightToken account not found: ${address.toBase58()}`);
     }
-    // CToken account layout: amount is at offset 64-72 (same as SPL token accounts)
+    // LightToken account layout: amount is at offset 64-72 (same as SPL token accounts)
     return accountInfo.data.readBigUInt64LE(64);
 }
 import {
@@ -36,12 +39,18 @@ import {
     selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
+import { MAX_TOP_UP } from '../../src/constants';
 import { createWrapInstruction } from '../../src/v3/instructions/wrap';
 import { wrap } from '../../src/v3/actions/wrap';
 import { getAssociatedTokenAddressInterface } from '../../src';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
+import type { CompressibleConfig } from '../../src/v3/instructions/create-associated-light-token';
+import {
+    LIGHT_TOKEN_CONFIG,
+    LIGHT_TOKEN_RENT_SPONSOR,
+} from '../../src/constants';
 
-// Force V2 for CToken tests
+// Force V2 for LightToken tests
 featureFlags.version = VERSION.V2;
 
 const TEST_TOKEN_DECIMALS = 9;
@@ -105,6 +114,37 @@ describe('createWrapInstruction', () => {
         expect(ix.programId).toBeDefined();
         expect(ix.keys.length).toBeGreaterThan(0);
         expect(ix.data.length).toBeGreaterThan(0);
+    });
+
+    it('should encode default MAX_TOP_UP (no cap) when maxTopUp not provided', async () => {
+        const owner = Keypair.generate();
+        const source = getAssociatedTokenAddressSync(
+            mint,
+            owner.publicKey,
+            false,
+            TOKEN_PROGRAM_ID,
+        );
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+
+        const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
+        expect(tokenPoolInfo).toBeDefined();
+
+        const ix = createWrapInstruction(
+            source,
+            destination,
+            owner.publicKey,
+            mint,
+            BigInt(1000),
+            tokenPoolInfo!,
+            TEST_TOKEN_DECIMALS,
+        );
+
+        const maxTopUpInData = ix.data.readUInt16LE(6);
+        expect(maxTopUpInData).toBe(MAX_TOP_UP);
+        expect(maxTopUpInData).toBe(65535);
     });
 
     it('should create instruction with explicit payer', async () => {
@@ -206,7 +246,7 @@ describe('wrap action', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    it('should wrap SPL tokens to CToken ATA', async () => {
+    it('should wrap SPL tokens to LightToken ATA', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         // Create SPL ATA and mint tokens
@@ -240,8 +280,8 @@ describe('wrap action', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(1000)),
         );
 
-        // Create CToken ATA
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // Create LightToken ATA
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -259,7 +299,7 @@ describe('wrap action', () => {
             rpc,
             payer,
             splAta,
-            ctokenAta,
+            lightTokenAta,
             owner,
             mint,
             BigInt(500),
@@ -272,8 +312,11 @@ describe('wrap action', () => {
         const splBalanceAfter = await getAccount(rpc, splAta);
         expect(splBalanceAfter.amount).toBe(BigInt(500));
 
-        const ctokenBalanceAfter = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalanceAfter).toBe(BigInt(500));
+        const lightTokenBalanceAfter = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalanceAfter).toBe(BigInt(500));
     }, 60_000);
 
     it('should wrap full balance', async () => {
@@ -309,8 +352,8 @@ describe('wrap action', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)),
         );
 
-        // Create CToken ATA
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // Create LightToken ATA
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -324,7 +367,7 @@ describe('wrap action', () => {
             rpc,
             payer,
             splAta,
-            ctokenAta,
+            lightTokenAta,
             owner,
             mint,
             BigInt(500), // full balance
@@ -337,9 +380,12 @@ describe('wrap action', () => {
         const splBalanceAfter = await getAccount(rpc, splAta);
         expect(splBalanceAfter.amount).toBe(BigInt(0));
 
-        // CToken should have full balance
-        const ctokenBalanceAfter = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalanceAfter).toBe(BigInt(500));
+        // LightToken should have full balance
+        const lightTokenBalanceAfter = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalanceAfter).toBe(BigInt(500));
     }, 60_000);
 
     it('should fetch token pool info when not provided', async () => {
@@ -375,7 +421,7 @@ describe('wrap action', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(200)),
         );
 
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -386,7 +432,7 @@ describe('wrap action', () => {
             rpc,
             payer,
             splAta,
-            ctokenAta,
+            lightTokenAta,
             owner,
             mint,
             BigInt(100),
@@ -395,8 +441,11 @@ describe('wrap action', () => {
 
         expect(result).toBeDefined();
 
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalance).toBe(BigInt(100));
+        const lightTokenBalance = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalance).toBe(BigInt(100));
     }, 60_000);
 
     it('should throw error when token pool not initialized', async () => {
@@ -446,7 +495,7 @@ describe('wrap action', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(300)),
         );
 
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -460,7 +509,7 @@ describe('wrap action', () => {
             rpc,
             separatePayer, // Different from owner
             splAta,
-            ctokenAta,
+            lightTokenAta,
             owner, // Owner still signs for the source account
             mint,
             BigInt(150),
@@ -469,8 +518,268 @@ describe('wrap action', () => {
 
         expect(result).toBeDefined();
 
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalance).toBe(BigInt(150));
+        const lightTokenBalance = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalance).toBe(BigInt(150));
+    }, 60_000);
+
+    /**
+     * Wrap with default maxTopUp (MAX_TOP_UP) must succeed so that rent top-up
+     * can occur when the light-token ATA needs it. Regression test for default maxTopUp.
+     */
+    it('should wrap successfully with default maxTopUp so rent top-up is allowed when needed', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(200),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(200),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(200)),
+        );
+
+        const lightTokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
+        expect(tokenPoolInfo).toBeDefined();
+
+        const ix = createWrapInstruction(
+            splAta,
+            lightTokenAta,
+            owner.publicKey,
+            mint,
+            BigInt(50),
+            tokenPoolInfo!,
+            TEST_TOKEN_DECIMALS,
+        );
+        const maxTopUpInData = ix.data.readUInt16LE(6);
+        expect(maxTopUpInData).toBe(MAX_TOP_UP);
+
+        const result = await wrap(
+            rpc,
+            payer,
+            splAta,
+            lightTokenAta,
+            owner,
+            mint,
+            BigInt(50),
+            tokenPoolInfo,
+        );
+        expect(result).toBeDefined();
+        const lightTokenBalance = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalance).toBe(BigInt(50));
+    }, 60_000);
+
+    /**
+     * LightToken ATA created with minimal prepay (rentPayment: 2) so the first write (wrap)
+     * triggers rent top-up. Asserts payer is charged writeTopUp and the light-token ATA
+     * receives that amount.
+     */
+    it('should trigger rent top-up when light-token ATA has minimal prepay and payer pays correct amount', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(1000),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(1000),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(1000)),
+        );
+
+        const lightTokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+
+        const minimalPrepayConfig: CompressibleConfig = {
+            tokenAccountVersion: 3,
+            rentPayment: 2,
+            compressionOnly: 1,
+            writeTopUp: 766,
+            compressToAccountPubkey: null,
+        };
+        await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            false,
+            undefined,
+            undefined,
+            undefined,
+            {
+                compressibleConfig: minimalPrepayConfig,
+                configAccount: LIGHT_TOKEN_CONFIG,
+                rentPayerPda: LIGHT_TOKEN_RENT_SPONSOR,
+            },
+        );
+
+        const lightTokenInfoBefore = await rpc.getAccountInfo(lightTokenAta);
+        expect(lightTokenInfoBefore).not.toBeNull();
+        const lightTokenLamportsBefore = lightTokenInfoBefore!.lamports;
+
+        const payerLamportsBefore = await rpc.getBalance(payer.publicKey);
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
+        expect(tokenPoolInfo).toBeDefined();
+
+        await wrap(
+            rpc,
+            payer,
+            splAta,
+            lightTokenAta,
+            owner,
+            mint,
+            BigInt(500),
+            tokenPoolInfo,
+        );
+
+        const payerLamportsAfter = await rpc.getBalance(payer.publicKey);
+        const lightTokenInfoAfter = await rpc.getAccountInfo(lightTokenAta);
+        expect(lightTokenInfoAfter).not.toBeNull();
+        const lightTokenLamportsAfter = lightTokenInfoAfter!.lamports;
+
+        const payerSpent = payerLamportsBefore - payerLamportsAfter;
+        expect(payerSpent).toBeGreaterThanOrEqual(766);
+        expect(lightTokenLamportsAfter - lightTokenLamportsBefore).toBe(766);
+
+        const lightTokenBalance = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalance).toBe(BigInt(500));
+    }, 60_000);
+
+    it('should fail wrap with maxTopUp 0 when rent top-up is required', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        const lightTokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+
+        const minimalPrepayConfig: CompressibleConfig = {
+            tokenAccountVersion: 3,
+            rentPayment: 0,
+            compressionOnly: 1,
+            writeTopUp: 766,
+            compressToAccountPubkey: null,
+        };
+        await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            false,
+            undefined,
+            undefined,
+            undefined,
+            {
+                compressibleConfig: minimalPrepayConfig,
+                configAccount: LIGHT_TOKEN_CONFIG,
+                rentPayerPda: LIGHT_TOKEN_RENT_SPONSOR,
+            },
+        );
+
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(500),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)),
+        );
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
+        expect(tokenPoolInfo).toBeDefined();
+
+        await expect(
+            wrap(
+                rpc,
+                payer,
+                splAta,
+                lightTokenAta,
+                owner,
+                mint,
+                BigInt(100),
+                tokenPoolInfo,
+                0,
+            ),
+        ).rejects.toThrow(/18043|MaxTopUpExceeded|0x467b/i);
     }, 60_000);
 });
 
@@ -507,7 +816,7 @@ describe('wrap with non-ATA accounts', () => {
 
         // Explicitly derive ATAs
         // Note: SPL ATAs use getAssociatedTokenAddressSync
-        // CToken ATAs use getAssociatedTokenAddressInterface (which defaults to CToken program)
+        // LightToken ATAs use getAssociatedTokenAddressInterface (which defaults to LightToken program)
         const source = getAssociatedTokenAddressSync(
             mint,
             owner.publicKey,
@@ -562,12 +871,12 @@ describe('wrap with non-ATA accounts', () => {
 
         expect(result).toBeDefined();
 
-        const destBalance = await getCTokenBalance(rpc, destination);
+        const destBalance = await getLightTokenBalance(rpc, destination);
         expect(destBalance).toBe(BigInt(200));
     }, 60_000);
 });
 
-describe('wrap Token-2022 to CToken', () => {
+describe('wrap Token-2022 to LightToken', () => {
     let rpc: Rpc;
     let payer: Signer;
     let stateTreeInfo: TreeInfo;
@@ -578,7 +887,7 @@ describe('wrap Token-2022 to CToken', () => {
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     }, 60_000);
 
-    it('should wrap Token-2022 tokens to CToken ATA', async () => {
+    it('should wrap Token-2022 tokens to LightToken ATA', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const mintAuthority = Keypair.generate();
 
@@ -631,8 +940,8 @@ describe('wrap Token-2022 to CToken', () => {
             selectTokenPoolInfosForDecompression(updatedPoolInfos, bn(1000)),
         );
 
-        // Create CToken ATA
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // Create LightToken ATA
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             t22Mint,
             owner.publicKey,
         );
@@ -660,7 +969,7 @@ describe('wrap Token-2022 to CToken', () => {
             rpc,
             payer,
             t22Ata,
-            ctokenAta,
+            lightTokenAta,
             owner,
             t22Mint,
             BigInt(500),
@@ -678,8 +987,11 @@ describe('wrap Token-2022 to CToken', () => {
         );
         expect(t22BalanceAfter.amount).toBe(BigInt(500));
 
-        const ctokenBalanceAfter = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalanceAfter).toBe(BigInt(500));
+        const lightTokenBalanceAfter = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalanceAfter).toBe(BigInt(500));
     }, 90_000);
 
     it('should auto-fetch SPL interface info for Token-2022 wrap', async () => {
@@ -734,8 +1046,8 @@ describe('wrap Token-2022 to CToken', () => {
             selectTokenPoolInfosForDecompression(updatedPoolInfos, bn(500)),
         );
 
-        // Create CToken ATA
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // Create LightToken ATA
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             t22Mint,
             owner.publicKey,
         );
@@ -751,7 +1063,7 @@ describe('wrap Token-2022 to CToken', () => {
             rpc,
             payer,
             t22Ata,
-            ctokenAta,
+            lightTokenAta,
             owner,
             t22Mint,
             BigInt(250),
@@ -760,7 +1072,10 @@ describe('wrap Token-2022 to CToken', () => {
 
         expect(result).toBeDefined();
 
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalance).toBe(BigInt(250));
+        const lightTokenBalance = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalance).toBe(BigInt(250));
     }, 90_000);
 });

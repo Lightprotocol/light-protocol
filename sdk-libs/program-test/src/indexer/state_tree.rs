@@ -15,6 +15,7 @@ pub struct LeafIndexInfo {
 #[derive(Debug, Clone)]
 pub struct StateMerkleTreeBundle {
     pub rollover_fee: i64,
+    pub network_fee: u64,
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
     pub tree_type: TreeType,

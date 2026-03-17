@@ -8,7 +8,11 @@ import {
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
 } from '@solana/spl-token';
-import { addTokenPools, createMint, createTokenPool } from '../../src/actions';
+import {
+    addTokenPools,
+    createMint,
+    createSplInterface,
+} from '../../src/actions';
 import {
     Rpc,
     buildAndSignTx,
@@ -21,7 +25,7 @@ import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { getTokenPoolInfos } from '../../src/utils';
 
 /**
- * Assert that createTokenPool() creates system-pool account for external mint,
+ * Assert that createSplInterface() creates system-pool account for external mint,
  * with external mintAuthority.
  */
 async function assertRegisterMint(
@@ -95,7 +99,7 @@ async function createTestSplMint(
 }
 
 const TEST_TOKEN_DECIMALS = 2;
-describe('createTokenPool', () => {
+describe('createSplInterface', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mintKeypair: Keypair;
@@ -129,7 +133,7 @@ describe('createTokenPool', () => {
             ),
         ).rejects.toThrow();
 
-        await createTokenPool(rpc, payer, mint);
+        await createSplInterface(rpc, payer, mint);
 
         await assertRegisterMint(
             mint,
@@ -140,7 +144,7 @@ describe('createTokenPool', () => {
         );
 
         /// Mint already registered
-        await expect(createTokenPool(rpc, payer, mint)).rejects.toThrow();
+        await expect(createSplInterface(rpc, payer, mint)).rejects.toThrow();
     });
     it('should register existing spl token22 mint', async () => {
         const token22MintKeypair = Keypair.generate();
@@ -174,7 +178,7 @@ describe('createTokenPool', () => {
             ),
         ).rejects.toThrow();
 
-        await createTokenPool(
+        await createSplInterface(
             rpc,
             payer,
             token22Mint,
@@ -193,7 +197,7 @@ describe('createTokenPool', () => {
 
         /// Mint already registered
         await expect(
-            createTokenPool(
+            createSplInterface(
                 rpc,
                 payer,
                 token22Mint,
@@ -208,7 +212,7 @@ describe('createTokenPool', () => {
         mintKeypair = Keypair.generate();
         mint = mintKeypair.publicKey;
         await createTestSplMint(rpc, payer, mintKeypair, payer as Keypair);
-        await createTokenPool(rpc, payer, mint);
+        await createSplInterface(rpc, payer, mint);
 
         const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(mint);
         await assertRegisterMint(
@@ -229,8 +233,8 @@ describe('createTokenPool', () => {
         // Create external SPL mint
         await createTestSplMint(rpc, payer, newMintKeypair, newMintAuthority);
 
-        // First call to createTokenPool
-        await createTokenPool(rpc, payer, newMint, undefined);
+        // First call to createSplInterface
+        await createSplInterface(rpc, payer, newMint, undefined);
 
         // Verify first pool creation
         const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(newMint);
@@ -311,8 +315,8 @@ describe('createTokenPool', () => {
             true, // isToken22
         );
 
-        // First call to createTokenPool
-        await createTokenPool(
+        // First call to createSplInterface
+        await createSplInterface(
             rpc,
             payer,
             newMint,

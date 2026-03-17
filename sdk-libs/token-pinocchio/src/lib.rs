@@ -22,7 +22,6 @@
 //! | Create Token ATA | [`CreateTokenAtaCpi`](instruction::CreateTokenAtaCpi) |
 //! | Create Mint | [`CreateMintCpi`](instruction::CreateMintCpi) |
 //! | Create Mints (Batch) | [`CreateMintsCpi`](instruction::CreateMintsCpi) |
-//! | Decompress Mint | [`DecompressMintCpi`](instruction::DecompressMintCpi) |
 //!
 //! ## Example: Transfer via CPI
 //!
@@ -35,8 +34,7 @@
 //!     amount: 100,
 //!     authority: &ctx.accounts.authority,
 //!     system_program: &ctx.accounts.system_program,
-//!     max_top_up: None,
-//!     fee_payer: None,
+//!     fee_payer: &ctx.accounts.fee_payer,
 //! }
 //! .invoke()?;
 //! ```

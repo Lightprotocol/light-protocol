@@ -43,7 +43,7 @@ echo "Packages: ${PACKAGES[*]}"
 # Check that all dependents are included in the release
 echo ""
 echo "Checking that all dependents are included..."
-if ! "$SCRIPT_DIR/check-dependents.sh" "${PACKAGES[@]}"; then
+if ! "$SCRIPT_DIR/check-dependents.sh" --base-ref "$BASE_REF" "${PACKAGES[@]}"; then
   echo "ERROR: Dependent packages are missing from the release" >&2
   exit 1
 fi
@@ -133,7 +133,7 @@ has_interdependencies() {
 # Then: Either publish or dry-run
 if [ -n "$EXECUTE_FLAG" ]; then
   # Publish with --no-verify to avoid cargo bug with unpublished deps
-  cargo publish $PACKAGE_ARGS --no-verify
+  cargo publish $PACKAGE_ARGS --no-verify --allow-dirty
 else
   # Check for interdependencies
   if has_interdependencies "${PACKAGES[@]}"; then

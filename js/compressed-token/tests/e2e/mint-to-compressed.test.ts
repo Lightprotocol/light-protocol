@@ -11,7 +11,7 @@ import {
     createRpc,
     VERSION,
     featureFlags,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { createMintInterface } from '../../src/v3/actions/create-mint-interface';
@@ -80,7 +80,7 @@ describe('mintToCompressed', () => {
             rpc,
             mint,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfo.mint.supply).toBe(BigInt(amount));
     });
@@ -117,7 +117,7 @@ describe('mintToCompressed', () => {
             rpc,
             mint,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfo.mint.supply).toBe(BigInt(1000 + amount1 + amount2));
     });
@@ -145,7 +145,7 @@ describe('mintToCompressed', () => {
             rpc,
             mint,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfo.mint.supply).toBeGreaterThanOrEqual(amount);
     });

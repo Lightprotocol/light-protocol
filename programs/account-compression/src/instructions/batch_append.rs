@@ -5,8 +5,11 @@ use light_batched_merkle_tree::merkle_tree::{
 
 use crate::{
     emit_indexer_event,
-    utils::check_signer_is_registered_or_authority::{
-        check_signer_is_registered_or_authority, GroupAccounts,
+    utils::{
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccounts,
+        },
+        transfer_lamports::transfer_lamports,
     },
     RegisteredProgram,
 };
@@ -24,6 +27,9 @@ pub struct BatchAppend<'info> {
     /// CHECK: in update_tree_from_output_queue_account_info.
     #[account(mut)]
     pub output_queue: AccountInfo<'info>,
+    /// CHECK: receives network fee reimbursement.
+    #[account(mut)]
+    pub fee_payer: UncheckedAccount<'info>,
 }
 
 impl<'info> GroupAccounts<'info> for BatchAppend<'info> {
@@ -62,6 +68,19 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
     let event = merkle_tree
         .update_tree_from_output_queue_account_info(&ctx.accounts.output_queue, instruction_data)
         .map_err(ProgramError::from)?;
-    // 4. Emit indexer event.
+    // 4. Transfer network fee reimbursement to fee payer.
+    let network_fee = merkle_tree
+        .get_metadata()
+        .metadata
+        .rollover_metadata
+        .network_fee;
+    if network_fee >= 5_000 {
+        transfer_lamports(
+            &ctx.accounts.output_queue.to_account_info(),
+            &ctx.accounts.fee_payer.to_account_info(),
+            network_fee * 2,
+        )?;
+    }
+    // 5. Emit indexer event.
     emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)
 }

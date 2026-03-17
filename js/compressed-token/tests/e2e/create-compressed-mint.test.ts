@@ -13,7 +13,7 @@ import {
     featureFlags,
     buildAndSignTx,
     sendAndConfirmTx,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     DerivationMode,
     selectStateTreeInfo,
     TreeType,
@@ -60,7 +60,7 @@ describe('createMintInterface (compressed)', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
 
         expect(mint.address.toString()).toBe(mintPda.toString());
@@ -114,7 +114,7 @@ describe('createMintInterface (compressed)', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
 
         expect(mint.address.toString()).toBe(mintPda.toString());
@@ -192,7 +192,7 @@ describe('createMintInterface (compressed)', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
 
         expect(mint.isInitialized).toBe(true);

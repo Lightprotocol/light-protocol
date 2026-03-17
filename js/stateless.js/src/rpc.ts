@@ -89,7 +89,7 @@ import {
     versionedEndpoint,
     featureFlags,
     batchAddressTree,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     getDefaultAddressSpace,
     assertBetaEnabled,
 } from './constants';
@@ -1938,7 +1938,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 const publicKey = deriveAddressV2(
                     Uint8Array.from(address.address),
                     address.treeInfo.tree,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
                 derivedAddress = bn(publicKey.toBytes());
             } else {
@@ -2129,6 +2129,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
             this.getCompressedAccount(bn(cAddress.toBytes())),
         ]);
 
+        const onchainError =
+            onchainResult.status === 'rejected' ? onchainResult.reason : null;
+        const compressedError =
+            compressedResult.status === 'rejected'
+                ? compressedResult.reason
+                : null;
+
         const onchainAccount =
             onchainResult.status === 'fulfilled' ? onchainResult.value : null;
         const compressedAccount =
@@ -2186,6 +2193,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         // account does not exist.
+        if (onchainError) {
+            throw onchainError;
+        }
+        if (compressedError) {
+            throw compressedError;
+        }
         return null;
     }
 

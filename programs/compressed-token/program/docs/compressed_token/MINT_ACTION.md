@@ -27,6 +27,7 @@ Key concepts integrated:
 - **Decompressed mint (CMint)**: When a compressed mint is decompressed, a CMint Solana account becomes the source of truth
 - **Authority validation**: All actions require appropriate authority (mint/freeze/metadata) to be transaction signer
 - **Batch processing**: Multiple actions execute sequentially with state updates persisted between actions
+- **Mint creation fee**: When `create_mint` is Some, a fee of `MINT_CREATION_FEE` (50,000 lamports) is charged from fee_payer and transferred to rent_sponsor. This fee is charged in both execute mode and write-to-CPI-context mode.
 
 **Instruction data:**
 
@@ -73,10 +74,26 @@ The account ordering differs based on whether writing to CPI context or executin
    - (signer)
    - Must match current mint/freeze/metadata authority for respective actions
 
+**For CPI context write (when write_to_cpi_context=true):**
+
+4. write_mode_rent_sponsor (optional)
+   - Required when `create_mint` is Some
+   - Validated against hardcoded `RENT_SPONSOR_V1` constant (`r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti`)
+   - Receives the `MINT_CREATION_FEE` (50,000 lamports) from fee_payer
+
+5-7. CPI context accounts:
+- fee_payer (signer, mutable)
+- cpi_authority_pda
+- cpi_context
+
+8. system_program (optional)
+   - Required when `create_mint` is Some (needed for the fee transfer CPI)
+   - Consumed from iterator to satisfy the "too many accounts" check; the system program is accessible to CPI calls via the transaction accounts list.
+
 **For execution (when not writing to CPI context):**
 
 4. compressible_config (optional)
-   - Required when DecompressMint or CompressAndCloseMint action is present
+   - Required when `create_mint` is Some, or when DecompressMint or CompressAndCloseMint action is present
    - CompressibleConfig account - parsed and validated for active state
 
 5. cmint (optional)
@@ -84,8 +101,11 @@ The account ordering differs based on whether writing to CPI context or executin
    - Required when cmint_decompressed=true OR DecompressMint OR CompressAndCloseMint action present
 
 6. rent_sponsor (optional)
-   - (mutable) - Required when DecompressMint or CompressAndCloseMint action is present
-   - Rent sponsor PDA that pays for CMint account creation
+   - (mutable) - Required when `create_mint` is Some, or when DecompressMint or CompressAndCloseMint action is present
+   - In execute mode, validated against `config.rent_sponsor` from the CompressibleConfig account
+   - When `create_mint` is Some, receives the `MINT_CREATION_FEE` (50,000 lamports) from fee_payer
+   - When DecompressMint action, pays rent exemption for CMint account creation
+   - When CompressAndCloseMint action, receives all lamports from closed CMint account
 
 7-12. Light system accounts (standard set):
 
@@ -120,33 +140,61 @@ The account ordering differs based on whether writing to CPI context or executin
 - (mutable) - optional, required for MintToCompressed actions
 - Output queue for newly minted compressed token accounts
 
-**For CPI context write (when write_to_cpi_context=true):**
-4-6. CPI context accounts:
-
-- fee_payer (signer, mutable)
-- cpi_authority_pda
-- cpi_context
-
 **Packed accounts (remaining accounts):**
 
 - Merkle tree and queue accounts for compressed storage
 - Recipient ctoken accounts for MintTo action
+
+**Mint creation fee:**
+
+When `create_mint` is Some, a fee of `MINT_CREATION_FEE` (50,000 lamports) is charged before any other processing. The fee is transferred from fee_payer to rent_sponsor. The fee is charged in both modes:
+
+- **Execute mode:** The rent_sponsor account is validated against `config.rent_sponsor` from the CompressibleConfig account. The fee is transferred using `transfer_lamports_via_cpi(MINT_CREATION_FEE, fee_payer, rent_sponsor)`.
+- **Write mode (CPI context):** The rent_sponsor is the `write_mode_rent_sponsor` account (account index 4 in write mode, immediately after authority). It is validated against the hardcoded `RENT_SPONSOR_V1` constant. The fee_payer comes from the CPI context system accounts.
+
+**Rent sponsor validation modes:**
+
+The rent_sponsor account is validated differently depending on the mode:
+
+1. **Execute mode** (`write_to_cpi_context = false`):
+   - rent_sponsor is validated against `config.rent_sponsor` from the parsed CompressibleConfig account
+   - The CompressibleConfig is required when `create_mint` is Some or when DecompressMint/CompressAndCloseMint actions are present
+
+2. **Write mode** (`write_to_cpi_context = true`):
+   - rent_sponsor is validated against the hardcoded `RENT_SPONSOR_V1` constant defined in `lib.rs`
+   - `RENT_SPONSOR_V1` is the pubkey `r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti`
+   - This field is stored as `write_mode_rent_sponsor` in `MintActionAccounts`
+   - Only present when `create_mint` is Some in write mode
 
 **Instruction Logic and Checks:**
 
 1. **Parse and validate instruction data:**
    - Deserialize `MintActionCompressedInstructionData` using zero-copy
    - Validate proof exists unless prove_by_index=true
-   - Configure account requirements based on actions
+   - Configure account requirements based on actions (AccountsConfig)
+   - Validation: Cannot combine DecompressMint and CompressAndCloseMint in same instruction
+   - Validation: CompressAndCloseMint must be the only action
+   - Validation: Cannot combine create_mint with CompressAndCloseMint
+   - Validation: MintTo (to ctokens), DecompressMint, and cmint_decompressed not allowed when writing to CPI context
+   - Validation: create_mint read_only_address_trees and read_only_address_tree_root_indices must be 0
 
-2. **Validate and parse accounts:**
+2. **Charge mint creation fee (when create_mint is Some):**
+   - In execute mode: validate rent_sponsor against compressible_config, transfer MINT_CREATION_FEE from fee_payer to rent_sponsor
+   - In write mode: validate write_mode_rent_sponsor against RENT_SPONSOR_V1, transfer MINT_CREATION_FEE from fee_payer to write_mode_rent_sponsor
+
+3. **Validate and parse accounts:**
    - Check authority is signer
    - Validate CMint account matches expected mint pubkey (when cmint_pubkey provided)
    - For create_mint: validate address_merkle_tree is MINT_ADDRESS_TREE
-   - Parse compressible config when DecompressMint or CompressAndCloseMint action present
+   - Parse compressible config when create_mint or DecompressMint or CompressAndCloseMint action present
    - Extract packed accounts for dynamic operations
 
-3. **Process mint creation or input:**
+4. **Resolve mint data based on source:**
+   - If create_mint is Some: mint data required in instruction
+   - If create_mint is None and mint not decompressed: mint data from instruction
+   - If create_mint is None and mint is decompressed (mint field is None): read from CMint Solana account
+
+5. **Process mint creation or input:**
    - If create_mint is Some:
      - Derive mint PDA from mint_signer key: `find_program_address([COMPRESSED_MINT_SEED, mint_signer], program_id)`
      - Validate mint.metadata.mint matches derived PDA
@@ -156,7 +204,7 @@ The account ordering differs based on whether writing to CPI context or executin
      - Hash existing compressed mint account
      - Set input with merkle context (tree, queue, leaf_index, proof)
 
-4. **Process actions sequentially:**
+6. **Process actions sequentially:**
    Each action validates authority and updates compressed mint state:
 
    **MintToCompressed:**
@@ -174,6 +222,7 @@ The account ordering differs based on whether writing to CPI context or executin
    - Calculate: sum recipient amount
    - Update: mint supply += amount
    - Update ctoken account balance via decompress operation
+   - Deducts from lamports_budget (max_top_up tracking)
 
    **UpdateMetadataField:**
    - Validate: metadata authority matches signer (defaults to mint authority)
@@ -190,21 +239,40 @@ The account ordering differs based on whether writing to CPI context or executin
    - Remove: key-value pair from metadata
 
    **DecompressMint:**
-   - Decompress compressed mint to a CMint Solana account
-   - Create CMint PDA that becomes the source of truth
-   - Update cmint_decompressed flag in compressed mint metadata
+   - Validate: mint is not already decompressed (mint_decompressed = false)
+   - Validate: rent_payment >= 2 (at least 2 epochs of rent prepayment)
+   - Validate: CompressibleConfig exists and is active
+   - Validate: write_top_up does not exceed config.rent_config.max_top_up
+   - Validate: rent_sponsor matches config.rent_sponsor
+   - Add CompressionInfo extension to compressed mint
+   - Verify CMint PDA derivation using mint_signer from compressed_mint metadata
+   - Verify CMint account matches compressed_mint.metadata.mint
+   - Create CMint PDA account: rent_sponsor pays rent exemption, fee_payer pays Light Protocol rent
+   - Set cmint_decompressed = true
 
    **CompressAndCloseMint:**
-   - Compress and close a CMint Solana account
    - Permissionless - anyone can call if is_compressible() returns true (rent expired)
-   - Compressed mint state is preserved
+   - Idempotent check: if idempotent flag set and CMint doesn't exist, return early exit
+   - Validate: CMint exists (mint_decompressed = true)
+   - Verify: CMint account matches compressed_mint.metadata.mint
+   - Verify: rent_sponsor matches compression info stored in compressed mint
+   - Check: is_compressible() returns true (rent has expired)
+   - Transfer: all CMint lamports to rent_sponsor
+   - Close: assign to system program, resize to 0
+   - Set: mint_decompressed = false
+   - Clear: zero out embedded compression info
 
-5. **Finalize output compressed mint:**
+7. **Idempotent early exit check:**
+   - After processing actions, check for IdempotentEarlyExit error
+   - If create_mint is set, idempotent early exit is NOT allowed (fee already charged) - returns CreateMintIdempotentNotAllowed
+   - Otherwise, skips CPI and returns success
+
+8. **Finalize output compressed mint:**
    - Hash updated mint state
    - Set output compressed account with new state root
    - Assign to appropriate merkle tree
 
-6. **Execute CPI to light-system-program:**
+9. **Execute CPI to light-system-program:**
    - Build CPI accounts array
    - Include tree pubkeys for merkle operations
    - Execute with or without CPI context write
@@ -212,15 +280,25 @@ The account ordering differs based on whether writing to CPI context or executin
 **Errors:**
 
 - `ProgramError::InvalidInstructionData` (error code: 3) - Failed to deserialize instruction data or invalid action configuration
-- `ProgramError::InvalidAccountData` (error code: 4) - Account validation failures (wrong program ownership, invalid PDA derivation)
+- `ProgramError::InvalidAccountData` (error code: 4) - Account validation failures (wrong program ownership, invalid PDA derivation, too many accounts for write to cpi context)
 - `ProgramError::NotEnoughAccountKeys` - Missing required accounts
 - `ErrorCode::MintActionProofMissing` (error code: 6055) - ZK proof required but not provided
 - `ErrorCode::InvalidAuthorityMint` (error code: 6018) - Signer doesn't match mint authority
 - `ErrorCode::MintActionAmountTooLarge` (error code: 6069) - Arithmetic overflow in mint amount calculations
 - `ErrorCode::MintAccountMismatch` (error code: 6051) - CMint account doesn't match expected mint
+- `ErrorCode::CpiAccountsSliceOutOfBounds` (error code: 6086) - CPI accounts slice exceeds account_infos length
 - `ErrorCode::InvalidAddressTree` (error code: 6094) - Wrong address merkle tree for mint creation
+- `ErrorCode::InvalidRentSponsor` (error code: 6099) - Rent sponsor does not match config (execute mode) or RENT_SPONSOR_V1 (write mode)
 - `ErrorCode::MintActionMissingMintSigner` (error code: 6108) - Missing mint signer account
 - `ErrorCode::MintActionMissingCMintAccount` (error code: 6109) - Missing CMint account for decompress mint action
+- `ErrorCode::CMintAlreadyExists` (error code: 6110) - CMint account already exists (mint already decompressed)
+- `ErrorCode::InvalidRentPayment` (error code: 6114) - CMint requires at least 2 epochs of rent prepayment
+- `ErrorCode::MissingCompressibleConfig` (error code: 6115) - CompressibleConfig account required but not provided
+- `ErrorCode::MissingRentSponsor` (error code: 6116) - Rent sponsor account required but not provided
+- `ErrorCode::WriteTopUpExceedsMaximum` (error code: 6118) - write_top_up exceeds config.rent_config.max_top_up
+- `ErrorCode::CMintNotDecompressed` (error code: 6120) - CMint does not exist (mint_decompressed = false)
+- `ErrorCode::CMintNotCompressible` (error code: 6122) - CMint rent has not expired, is_compressible() returned false
+- `ErrorCode::InvalidCMintAccount` (error code: 6124) - CMint account does not match compressed_mint.metadata.mint
 - `ErrorCode::MintActionInvalidExtensionIndex` (error code: 6059) - Extension index out of bounds
 - `ErrorCode::MintActionInvalidExtensionType` (error code: 6062) - Extension is not TokenMetadata type
 - `ErrorCode::MintActionMetadataKeyNotFound` (error code: 6063) - Metadata key not found for removal
@@ -239,7 +317,10 @@ The account ordering differs based on whether writing to CPI context or executin
 - `ErrorCode::MintDataRequired` (error code: 6125) - Mint data required in instruction when not decompressed
 - `ErrorCode::CannotDecompressAndCloseInSameInstruction` (error code: 6123) - Cannot combine DecompressMint and CompressAndCloseMint in same instruction
 - `ErrorCode::CompressAndCloseCMintMustBeOnlyAction` (error code: 6169) - CompressAndCloseMint must be the only action in the instruction
-- `ErrorCode::CpiContextSetNotUsable` (error code: 6035) - Mint to ctokens or decompress mint not allowed when writing to CPI context
+- `ErrorCode::CpiContextSetNotUsable` (error code: 6035) - MintTo (ctokens), DecompressMint, or cmint_decompressed not allowed when writing to CPI context
+- `ErrorCode::IdempotentEarlyExit` (error code: 6170) - Internal: used by CompressAndCloseMint idempotent logic to skip CPI
+- `ErrorCode::CreateMintIdempotentNotAllowed` (error code: 6173) - Idempotent early exit not allowed when create_mint is set (fee already charged)
+- `ErrorCode::CreateMintCannotCombineWithCompressAndClose` (error code: 6174) - Cannot combine create_mint with CompressAndCloseMint action
 - `CTokenError::MaxTopUpExceeded` - Max top-up budget exceeded
 
 ### Spl mint migration

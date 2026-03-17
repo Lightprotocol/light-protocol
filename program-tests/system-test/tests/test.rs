@@ -20,7 +20,6 @@ use light_compressed_account::{
     },
     TreeType,
 };
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
     accounts::test_accounts::TestAccounts,
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -623,7 +622,9 @@ pub async fn failing_transaction_address<R: Rpc>(
         .unwrap();
     }
 
-    // invalid address queue account
+    // invalid address queue account (replaced with nullifier queue)
+    // The system program hits MissingLegacyMerkleContext (error code 6066)
+    // when trying to look up the legacy context for the replaced queue account.
     {
         let inputs_struct = inputs_struct.clone();
         let mut remaining_accounts = remaining_accounts.clone();
@@ -639,7 +640,7 @@ pub async fn failing_transaction_address<R: Rpc>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            MerkleTreeMetadataError::InvalidQueueType.into(),
+            6066, // SystemProgramError::MissingLegacyMerkleContext
         )
         .await
         .unwrap();
@@ -929,6 +930,7 @@ async fn invoke_test() {
         Some(TransactionParams {
             v1_input_compressed_accounts: 0u8,
             v2_input_compressed_accounts: false,
+            v1_output_compressed_accounts: 1,
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0,
@@ -1070,6 +1072,7 @@ async fn invoke_test() {
         Some(TransactionParams {
             v1_input_compressed_accounts: 1,
             v2_input_compressed_accounts: false,
+            v1_output_compressed_accounts: 1,
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0,
@@ -2037,6 +2040,7 @@ async fn batch_invoke_test() {
             Some(TransactionParams {
                 v1_input_compressed_accounts: 1,
                 v2_input_compressed_accounts: true,
+                v1_output_compressed_accounts: 0,
                 num_output_compressed_accounts: 1,
                 num_new_addresses: 0,
                 compress: 0,
@@ -2657,6 +2661,7 @@ pub async fn create_output_accounts(
         Some(TransactionParams {
             v1_input_compressed_accounts: 0u8,
             v2_input_compressed_accounts: is_batched,
+            v1_output_compressed_accounts: if is_batched { 0 } else { 1 },
             num_output_compressed_accounts: num_accounts as u8,
             num_new_addresses: 0,
             compress: 0,

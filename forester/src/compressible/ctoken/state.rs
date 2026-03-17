@@ -1,5 +1,7 @@
+use std::sync::atomic::AtomicU64;
+
 use borsh::BorshDeserialize;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use light_compressible::rent::{get_rent_exemption_lamports, SLOTS_PER_EPOCH};
 use light_token_interface::state::Token;
 use solana_sdk::pubkey::Pubkey;
@@ -44,12 +46,16 @@ fn calculate_compressible_slot(account: &Token, lamports: u64, account_size: usi
 #[derive(Debug)]
 pub struct CTokenAccountTracker {
     accounts: DashMap<Pubkey, CTokenAccountState>,
+    compressed_count: AtomicU64,
+    pending: DashSet<Pubkey>,
 }
 
 impl CTokenAccountTracker {
     pub fn new() -> Self {
         Self {
             accounts: DashMap::new(),
+            compressed_count: AtomicU64::new(0),
+            pending: DashSet::new(),
         }
     }
 
@@ -101,11 +107,29 @@ impl CTokenAccountTracker {
             }
         };
 
+        let is_ata = {
+            let owner = Pubkey::new_from_array(ctoken.owner.to_bytes());
+            let mint = Pubkey::new_from_array(ctoken.mint.to_bytes());
+            let light_token_program_id =
+                Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
+            let expected_ata = Pubkey::find_program_address(
+                &[
+                    owner.as_ref(),
+                    light_token_program_id.as_ref(),
+                    mint.as_ref(),
+                ],
+                &light_token_program_id,
+            )
+            .0;
+            pubkey == expected_ata
+        };
+
         let state = CTokenAccountState {
             pubkey,
             account: ctoken,
             lamports,
             compressible_slot,
+            is_ata,
         };
 
         debug!(
@@ -126,11 +150,23 @@ impl CompressibleTracker<CTokenAccountState> for CTokenAccountTracker {
     fn accounts(&self) -> &DashMap<Pubkey, CTokenAccountState> {
         &self.accounts
     }
+
+    fn compressed_counter(&self) -> &AtomicU64 {
+        &self.compressed_count
+    }
+
+    fn pending(&self) -> &DashSet<Pubkey> {
+        &self.pending
+    }
 }
 
 impl Default for CTokenAccountTracker {
     fn default() -> Self {
-        Self::new()
+        Self {
+            accounts: DashMap::new(),
+            compressed_count: AtomicU64::new(0),
+            pending: DashSet::new(),
+        }
     }
 }
 
@@ -142,7 +178,27 @@ impl SubscriptionHandler for CTokenAccountTracker {
         data: &[u8],
         lamports: u64,
     ) -> Result<()> {
-        self.update_from_account(pubkey, data, lamports)
+        // If account data is empty (account was closed), remove from tracker
+        if data.is_empty() {
+            if self.remove(&pubkey).is_some() {
+                debug!("Removed closed ctoken account {} from tracker", pubkey);
+            }
+            return Ok(());
+        }
+        match self.update_from_account(pubkey, data, lamports) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                // Deserialization failed — account is no longer a valid cToken,
+                // remove stale entry from tracker
+                if self.remove(&pubkey).is_some() {
+                    warn!(
+                        "Removed invalid ctoken account {} from tracker: {}",
+                        pubkey, e
+                    );
+                }
+                Ok(())
+            }
+        }
     }
 
     fn handle_removal(&self, pubkey: &Pubkey) {

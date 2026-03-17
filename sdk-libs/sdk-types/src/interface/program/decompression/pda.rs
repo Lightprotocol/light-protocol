@@ -101,7 +101,8 @@ where
     input_data_hash[0] = 0; // Zero first byte per protocol convention
 
     // 6. Calculate space and create PDA
-    let discriminator_len = 8;
+    let disc_slice = <Data<SEED_COUNT, P> as LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
+    let discriminator_len = disc_slice.len();
     let space = discriminator_len + data_len.max(<Data<SEED_COUNT, P> as LightAccount>::INIT_SPACE);
     let rent_minimum = AI::get_min_rent_balance(space)?;
 
@@ -127,13 +128,12 @@ where
     let mut pda_data = pda_account
         .try_borrow_mut_data()
         .map_err(|_| LightSdkTypesError::ConstraintViolation)?;
-    pda_data[..8]
-        .copy_from_slice(&<Data<SEED_COUNT, P> as LightDiscriminator>::LIGHT_DISCRIMINATOR);
+    pda_data[..discriminator_len].copy_from_slice(disc_slice);
 
     // 8. Set decompressed state and serialize
     let mut decompressed = account_data;
     decompressed.set_decompressed(ctx.light_config, ctx.current_slot);
-    let writer = &mut &mut pda_data[8..];
+    let writer = &mut &mut pda_data[discriminator_len..];
     decompressed
         .serialize(writer)
         .map_err(|_| LightSdkTypesError::Borsh)?;

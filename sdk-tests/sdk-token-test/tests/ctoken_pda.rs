@@ -6,12 +6,13 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_token::instruction::rent_sponsor_pda;
 use light_token_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
         mint_action::{MintInstructionData, MintWithContext, Recipient},
     },
-    state::{extensions::AdditionalMetadata, MintMetadata},
+    state::{extensions::AdditionalMetadata, BaseMint, Mint, MintMetadata},
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
@@ -60,7 +61,7 @@ async fn test_ctoken_pda() {
         additional_metadata: Some(additional_metadata),
     };
 
-    // Create the compressed mint (with chained operations including update mint)
+    // Create the compressed mint using write-to-cpi-context mode.
     let (compressed_mint_address, _spl_mint) = create_mint(
         &mut rpc,
         &mint_seed,
@@ -72,62 +73,33 @@ async fn test_ctoken_pda() {
     )
     .await
     .unwrap();
-    let all_accounts = rpc
-        .get_compressed_accounts_by_owner(&sdk_token_test::ID, None, None)
-        .await
-        .unwrap()
-        .value;
-    println!("All accounts: {:?}", all_accounts);
 
+    // Verify the compressed mint was created.
     let mint_account = rpc
         .get_compressed_account(compressed_mint_address, None)
         .await
         .unwrap()
-        .value
-        .ok_or("Mint account not found")
-        .unwrap();
-
-    // Verify the chained CPI operations worked correctly
-    println!("🧪 Verifying chained CPI results...");
-
-    // 1. Verify compressed mint was created and mint authority was revoked
-    let compressed_mint = light_token_interface::state::Mint::deserialize(
-        &mut &mint_account.data.as_ref().unwrap().data[..],
-    )
-    .unwrap();
-
-    println!("✅ Compressed mint created:");
-    println!("   - SPL mint: {:?}", compressed_mint.metadata.mint);
-    println!("   - Decimals: {}", compressed_mint.base.decimals);
-    println!("   - Supply: {}", compressed_mint.base.supply);
-    println!(
-        "   - Mint authority: {:?}",
-        compressed_mint.base.mint_authority
-    );
-    println!(
-        "   - Freeze authority: {:?}",
-        compressed_mint.base.freeze_authority
+        .value;
+    assert!(
+        mint_account.is_some(),
+        "Compressed mint account should have been created"
     );
 
-    // Assert mint authority was revoked (should be None after update)
+    let account_data = mint_account.unwrap();
+    let compressed_account_data = account_data.data.unwrap();
+    let compressed_mint = Mint::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
+
+    let expected_base = BaseMint {
+        supply: 1000,
+        decimals,
+        is_initialized: true,
+        mint_authority: None,
+        freeze_authority: Some(freeze_authority.to_bytes().into()),
+    };
     assert_eq!(
-        compressed_mint.base.mint_authority, None,
-        "Mint authority should be revoked (None)"
+        compressed_mint.base, expected_base,
+        "BaseMint fields should match"
     );
-    assert_eq!(
-        compressed_mint.base.supply, 1000u64,
-        "Supply should be 1000 after minting"
-    );
-    assert_eq!(
-        compressed_mint.base.decimals, decimals,
-        "Decimals should match"
-    );
-
-    println!("🎉 All chained CPI operations completed successfully!");
-    println!("   1. ✅ Created compressed mint with mint authority");
-    println!("   2. ✅ Minted 1000 tokens to payer");
-    println!("   3. ✅ Revoked mint authority (set to None)");
-    println!("   4. ✅ Created escrow PDA");
 }
 
 pub async fn create_mint<R: Rpc + Indexer>(
@@ -228,6 +200,8 @@ pub async fn create_mint<R: Rpc + Indexer>(
         mint_seed: mint_seed.pubkey(),
         light_token_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
         light_token_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
+        rent_sponsor: rent_sponsor_pda(),
+        system_program: solana_sdk::system_program::ID,
     };
 
     let pda_new_address_params = light_sdk::address::NewAddressParamsAssignedPacked {

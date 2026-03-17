@@ -14,10 +14,13 @@ use crate::Result;
 pub struct V2QueueInfo {
     pub next_index: u64,
     pub pending_batch_index: u64,
+    pub batch_size: u64,
     pub zkp_batch_size: u64,
     pub batches: Vec<BatchInfo>,
     pub input_pending_batches: u64,
     pub output_pending_batches: u64,
+    pub input_total_zkp_batches: u64,
+    pub output_total_zkp_batches: u64,
     pub input_items_in_current_zkp_batch: u64,
     pub output_items_in_current_zkp_batch: u64,
 }
@@ -36,6 +39,7 @@ pub struct BatchInfo {
 pub struct ParsedBatchData {
     pub batch_infos: Vec<BatchInfo>,
     pub total_pending_batches: u64,
+    pub batch_size: u64,
     pub zkp_batch_size: u64,
     pub items_in_current_zkp_batch: u64,
 }
@@ -50,7 +54,10 @@ pub fn parse_batch_metadata(
     let mut batch_infos = Vec::with_capacity(batches.len());
     let mut items_in_current_zkp_batch = 0u64;
 
+    let mut batch_size = 0u64;
+
     for (batch_idx, batch) in batches.iter().enumerate() {
+        batch_size = batch.batch_size;
         zkp_batch_size = batch.zkp_batch_size;
         let num_inserted = batch.get_num_inserted_zkps();
         let current_index = batch.get_current_zkp_batch_index();
@@ -75,6 +82,7 @@ pub fn parse_batch_metadata(
     ParsedBatchData {
         batch_infos,
         total_pending_batches,
+        batch_size,
         zkp_batch_size,
         items_in_current_zkp_batch,
     }
@@ -92,13 +100,29 @@ pub fn parse_state_v2_queue_info(
     let output_parsed = parse_batch_metadata(&output_queue.batch_metadata.batches);
     let input_parsed = parse_batch_metadata(&merkle_tree.queue_batches.batches);
 
+    let input_total_zkp_batches = if input_parsed.zkp_batch_size > 0 {
+        input_parsed.batch_infos.len() as u64
+            * (input_parsed.batch_size / input_parsed.zkp_batch_size)
+    } else {
+        0
+    };
+    let output_total_zkp_batches = if output_parsed.zkp_batch_size > 0 {
+        output_parsed.batch_infos.len() as u64
+            * (output_parsed.batch_size / output_parsed.zkp_batch_size)
+    } else {
+        0
+    };
+
     Ok(V2QueueInfo {
         next_index,
         pending_batch_index: output_queue.batch_metadata.pending_batch_index,
+        batch_size: output_parsed.batch_size,
         zkp_batch_size: output_parsed.zkp_batch_size,
         batches: output_parsed.batch_infos,
         input_pending_batches: input_parsed.total_pending_batches,
         output_pending_batches: output_parsed.total_pending_batches,
+        input_total_zkp_batches,
+        output_total_zkp_batches,
         input_items_in_current_zkp_batch: input_parsed.items_in_current_zkp_batch,
         output_items_in_current_zkp_batch: output_parsed.items_in_current_zkp_batch,
     })
@@ -108,16 +132,32 @@ pub fn parse_address_v2_queue_info(merkle_tree: &BatchedMerkleTreeAccount) -> V2
     let next_index = merkle_tree.queue_batches.next_index;
     let parsed = parse_batch_metadata(&merkle_tree.queue_batches.batches);
 
+    let input_total_zkp_batches = if parsed.zkp_batch_size > 0 {
+        parsed.batch_infos.len() as u64 * (parsed.batch_size / parsed.zkp_batch_size)
+    } else {
+        0
+    };
+
     V2QueueInfo {
         next_index,
         pending_batch_index: merkle_tree.queue_batches.pending_batch_index,
+        batch_size: parsed.batch_size,
         zkp_batch_size: parsed.zkp_batch_size,
         batches: parsed.batch_infos,
         input_pending_batches: parsed.total_pending_batches,
         output_pending_batches: 0,
+        input_total_zkp_batches,
+        output_total_zkp_batches: 0,
         input_items_in_current_zkp_batch: parsed.items_in_current_zkp_batch,
         output_items_in_current_zkp_batch: 0,
     }
+}
+
+/// Queue length and capacity (used by metrics).
+#[derive(Debug, Clone)]
+pub struct QueueLengthAndCapacity {
+    pub length: u64,
+    pub capacity: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -126,11 +166,19 @@ pub struct QueueItemData {
     pub index: usize,
 }
 
+/// Result of fetching V1 queue data, including items and capacity.
+#[derive(Debug, Clone)]
+pub struct QueueFetchResult {
+    pub items: Vec<QueueItemData>,
+    pub capacity: u64,
+    pub total_pending: u64,
+}
+
 pub async fn fetch_queue_item_data<R: Rpc>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     start_index: u16,
-) -> Result<Vec<QueueItemData>> {
+) -> Result<QueueFetchResult> {
     trace!("Fetching queue data for {:?}", queue_pubkey);
     let account = rpc.get_account(*queue_pubkey).await?;
     let mut account = match account {
@@ -140,7 +188,11 @@ pub async fn fetch_queue_item_data<R: Rpc>(
                 "Queue account {} not found - may have been deleted or not yet created",
                 queue_pubkey
             );
-            return Ok(Vec::new());
+            return Ok(QueueFetchResult {
+                items: Vec::new(),
+                capacity: 0,
+                total_pending: 0,
+            });
         }
     };
     let offset = 8 + size_of::<QueueAccount>();
@@ -151,11 +203,16 @@ pub async fn fetch_queue_item_data<R: Rpc>(
             account.data.len(),
             offset
         );
-        return Ok(Vec::new());
+        return Ok(QueueFetchResult {
+            items: Vec::new(),
+            capacity: 0,
+            total_pending: 0,
+        });
     }
     let queue: HashSet = unsafe { HashSet::from_bytes_copy(&mut account.data[offset..])? };
 
     let end_index = queue.get_capacity();
+    let capacity = end_index as u64;
 
     let all_items: Vec<(usize, [u8; 32], bool)> = queue
         .iter()
@@ -186,13 +243,17 @@ pub async fn fetch_queue_item_data<R: Rpc>(
         filtered_queue.len()
     );
 
-    Ok(filtered_queue)
+    Ok(QueueFetchResult {
+        items: filtered_queue,
+        capacity,
+        total_pending: total_pending as u64,
+    })
 }
 
 pub async fn print_state_v2_output_queue_info<R: Rpc>(
     rpc: &mut R,
     output_queue_pubkey: &Pubkey,
-) -> Result<usize> {
+) -> Result<QueueLengthAndCapacity> {
     if let Some(mut account) = rpc.get_account(*output_queue_pubkey).await? {
         let output_queue = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice())?;
         let metadata = output_queue.get_metadata();
@@ -225,6 +286,9 @@ pub async fn print_state_v2_output_queue_info<R: Rpc>(
             ));
         }
 
+        // Capacity in items = num_batches * batch_size
+        let capacity = parsed.batch_infos.len() as u64 * parsed.batch_size;
+
         println!("StateV2 {} APPEND:", output_queue_pubkey);
         println!("  next_index (total ever added): {}", next_index);
         println!(
@@ -238,8 +302,8 @@ pub async fn print_state_v2_output_queue_info<R: Rpc>(
         );
         println!("  zkp_batch_size: {}", zkp_batch_size);
         println!(
-            "  SUMMARY: {} items added, {} items processed, {} items pending",
-            next_index, total_completed_operations, total_unprocessed
+            "  SUMMARY: {} items added, {} items processed, {} items pending (capacity: {})",
+            next_index, total_completed_operations, total_unprocessed, capacity
         );
         for detail in batch_details {
             println!("  {}", detail);
@@ -249,7 +313,10 @@ pub async fn print_state_v2_output_queue_info<R: Rpc>(
             parsed.total_pending_batches
         );
 
-        Ok(total_unprocessed as usize)
+        Ok(QueueLengthAndCapacity {
+            length: total_unprocessed,
+            capacity,
+        })
     } else {
         Err(anyhow::anyhow!("account not found"))
     }
@@ -258,7 +325,7 @@ pub async fn print_state_v2_output_queue_info<R: Rpc>(
 pub async fn print_state_v2_input_queue_info<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
-) -> Result<usize> {
+) -> Result<QueueLengthAndCapacity> {
     if let Some(mut account) = rpc.get_account(*merkle_tree_pubkey).await? {
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             account.data.as_mut_slice(),
@@ -292,6 +359,9 @@ pub async fn print_state_v2_input_queue_info<R: Rpc>(
             total_unprocessed += pending_operations_in_batch;
         }
 
+        // Capacity in items = num_batches * batch_size
+        let capacity = parsed.batch_infos.len() as u64 * parsed.batch_size;
+
         println!("StateV2 {} NULLIFY:", merkle_tree_pubkey);
         println!("  next_index (total ever added): {}", next_index);
         println!(
@@ -305,18 +375,23 @@ pub async fn print_state_v2_input_queue_info<R: Rpc>(
         );
         println!("  zkp_batch_size: {}", parsed.zkp_batch_size);
         println!(
-            "  SUMMARY: {} items added, {} items processed, {} items pending",
-            next_index, total_completed_operations, total_unprocessed
+            "  SUMMARY: {} items added, {} items processed, {} items pending (capacity: {})",
+            next_index, total_completed_operations, total_unprocessed, capacity
         );
         for detail in batch_details {
             println!("  {}", detail);
         }
-        println!(
-            "  Total pending NULLIFY operations: {}",
+        let pending_ops = if parsed.zkp_batch_size > 0 {
             total_unprocessed / parsed.zkp_batch_size
-        );
+        } else {
+            0
+        };
+        println!("  Total pending NULLIFY operations: {}", pending_ops);
 
-        Ok(total_unprocessed as usize)
+        Ok(QueueLengthAndCapacity {
+            length: total_unprocessed,
+            capacity,
+        })
     } else {
         Err(anyhow::anyhow!("account not found"))
     }
@@ -325,7 +400,7 @@ pub async fn print_state_v2_input_queue_info<R: Rpc>(
 pub async fn print_address_v2_queue_info<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
-) -> Result<usize> {
+) -> Result<QueueLengthAndCapacity> {
     if let Some(mut account) = rpc.get_account(*merkle_tree_pubkey).await? {
         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
             account.data.as_mut_slice(),
@@ -351,9 +426,15 @@ pub async fn print_address_v2_queue_info<R: Rpc>(
             total_unprocessed += batch_info.pending;
         }
 
+        // For AddressV2, total_unprocessed is in zkp batches.
+        // Convert to items for consistency with other queue types.
+        let length_items = total_unprocessed * parsed.zkp_batch_size;
+        // Capacity in items = num_batches * batch_size
+        let capacity = parsed.batch_infos.len() as u64 * parsed.batch_size;
+
         println!("AddressV2 {}:", merkle_tree_pubkey);
         println!("  next_index (total ever added): {}", next_index);
-        println!("  total_unprocessed_items: {}", total_unprocessed);
+        println!("  total_unprocessed_items: {}", length_items);
         println!(
             "  pending_batch_index: {}",
             merkle_tree.queue_batches.pending_batch_index
@@ -365,7 +446,10 @@ pub async fn print_address_v2_queue_info<R: Rpc>(
 
         println!("  Total pending ADDRESS operations: {}", total_unprocessed);
 
-        Ok(total_unprocessed as usize)
+        Ok(QueueLengthAndCapacity {
+            length: length_items,
+            capacity,
+        })
     } else {
         Err(anyhow::anyhow!("account not found"))
     }
@@ -402,13 +486,22 @@ pub async fn get_state_v2_output_queue_info<R: Rpc>(
 
         let parsed = parse_batch_metadata(&queue.batch_metadata.batches);
 
+        let output_total_zkp_batches = if parsed.zkp_batch_size > 0 {
+            parsed.batch_infos.len() as u64 * (parsed.batch_size / parsed.zkp_batch_size)
+        } else {
+            0
+        };
+
         Ok(V2QueueInfo {
             next_index,
             pending_batch_index: queue.batch_metadata.pending_batch_index,
+            batch_size: parsed.batch_size,
             zkp_batch_size: parsed.zkp_batch_size,
             batches: parsed.batch_infos,
             input_pending_batches: 0,
             output_pending_batches: parsed.total_pending_batches,
+            input_total_zkp_batches: 0,
+            output_total_zkp_batches,
             input_items_in_current_zkp_batch: 0,
             output_items_in_current_zkp_batch: parsed.items_in_current_zkp_batch,
         })

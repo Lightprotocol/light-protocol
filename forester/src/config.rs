@@ -50,6 +50,8 @@ pub struct ExternalServicesConfig {
     pub rpc_rate_limit: Option<u32>,
     pub photon_rate_limit: Option<u32>,
     pub send_tx_rate_limit: Option<u32>,
+    pub fallback_rpc_url: Option<String>,
+    pub fallback_indexer_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -73,6 +75,7 @@ pub struct TransactionConfig {
     pub max_concurrent_sends: usize,
     pub cu_limit: u32,
     pub enable_priority_fees: bool,
+    pub priority_fee_microlamports: Option<u64>,
     pub tx_cache_ttl_seconds: u64,
     pub ops_cache_ttl_seconds: u64,
     /// Maximum attempts to confirm a transaction before timing out.
@@ -97,6 +100,8 @@ pub struct GeneralConfig {
     pub sleep_when_idle_ms: u64,
     pub queue_polling_mode: QueuePollingMode,
     pub group_authority: Option<Pubkey>,
+    /// Use Helius getProgramAccountsV2 instead of standard getProgramAccounts
+    pub helius_rpc: bool,
 }
 
 impl Default for GeneralConfig {
@@ -114,6 +119,7 @@ impl Default for GeneralConfig {
             sleep_when_idle_ms: 45_000,
             queue_polling_mode: QueuePollingMode::Indexer,
             group_authority: None,
+            helius_rpc: false,
         }
     }
 }
@@ -121,35 +127,23 @@ impl Default for GeneralConfig {
 impl GeneralConfig {
     pub fn test_address_v2() -> Self {
         GeneralConfig {
-            slot_update_interval_seconds: 10,
-            tree_discovery_interval_seconds: 1,
-            enable_metrics: true,
             skip_v1_state_trees: true,
             skip_v1_address_trees: true,
             skip_v2_state_trees: true,
-            skip_v2_address_trees: false,
-            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
-            queue_polling_mode: QueuePollingMode::Indexer,
-            group_authority: None,
+            ..Default::default()
         }
     }
 
     pub fn test_state_v2() -> Self {
         GeneralConfig {
-            slot_update_interval_seconds: 10,
-            tree_discovery_interval_seconds: 1,
-            enable_metrics: true,
             skip_v1_state_trees: true,
             skip_v1_address_trees: true,
-            skip_v2_state_trees: false,
             skip_v2_address_trees: true,
-            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
-            queue_polling_mode: QueuePollingMode::Indexer,
-            group_authority: None,
+            ..Default::default()
         }
     }
 }
@@ -162,6 +156,8 @@ pub struct RpcPoolConfig {
     pub max_retries: u32,
     pub initial_retry_delay_ms: u64,
     pub max_retry_delay_ms: u64,
+    pub failure_threshold: u64,
+    pub primary_probe_interval_secs: u64,
 }
 
 impl Default for QueueConfig {
@@ -189,9 +185,10 @@ impl Default for TransactionConfig {
         Self {
             legacy_ixs_per_tx: 1,
             max_concurrent_batches: 60,
-            max_concurrent_sends: 50,
+            max_concurrent_sends: 12,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
+            priority_fee_microlamports: None,
             tx_cache_ttl_seconds: 15,
             ops_cache_ttl_seconds: 180,
             confirmation_max_attempts: 60,
@@ -202,6 +199,17 @@ impl Default for TransactionConfig {
 }
 impl ForesterConfig {
     pub fn new_for_start(args: &StartArgs) -> Result<Self> {
+        if args.enable_priority_fees && args.priority_fee_microlamports.is_some() {
+            return Err(ConfigError::InvalidArguments {
+                field: "priority_fee",
+                invalid_values: vec![
+                    "enable_priority_fees and priority_fee_microlamports are mutually exclusive"
+                        .to_string(),
+                ],
+            }
+            .into());
+        }
+
         let registry_pubkey = light_registry::program::LightRegistry::id().to_string();
 
         let payer: Vec<u8> = match &args.payer {
@@ -245,12 +253,13 @@ impl ForesterConfig {
             .rpc_url
             .clone()
             .ok_or(ConfigError::MissingField { field: "rpc_url" })?;
+        let indexer_url = args.indexer_url.clone();
 
         Ok(Self {
             external_services: ExternalServicesConfig {
                 rpc_url,
                 ws_rpc_url: args.ws_rpc_url.clone(),
-                indexer_url: args.indexer_url.clone(),
+                indexer_url: Some(indexer_url),
                 prover_url: args.prover_url.clone(),
                 prover_append_url: args
                     .prover_append_url
@@ -273,6 +282,8 @@ impl ForesterConfig {
                 rpc_rate_limit: args.rpc_rate_limit,
                 photon_rate_limit: args.photon_rate_limit,
                 send_tx_rate_limit: args.send_tx_rate_limit,
+                fallback_rpc_url: args.fallback_rpc_url.clone(),
+                fallback_indexer_url: args.fallback_indexer_url.clone(),
             },
             retry_config: RetryConfig {
                 max_retries: args.max_retries,
@@ -295,6 +306,7 @@ impl ForesterConfig {
                 max_concurrent_sends: args.max_concurrent_sends,
                 cu_limit: args.cu_limit,
                 enable_priority_fees: args.enable_priority_fees,
+                priority_fee_microlamports: args.priority_fee_microlamports,
                 tx_cache_ttl_seconds: args.tx_cache_ttl_seconds,
                 ops_cache_ttl_seconds: args.ops_cache_ttl_seconds,
                 confirmation_max_attempts: args.confirmation_max_attempts,
@@ -341,6 +353,7 @@ impl ForesterConfig {
                         })
                     })
                     .transpose()?,
+                helius_rpc: args.helius_rpc,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -349,6 +362,8 @@ impl ForesterConfig {
                 max_retries: args.rpc_pool_max_retries,
                 initial_retry_delay_ms: args.rpc_pool_initial_retry_delay_ms,
                 max_retry_delay_ms: args.rpc_pool_max_retry_delay_ms,
+                failure_threshold: args.rpc_pool_failure_threshold,
+                primary_probe_interval_secs: args.rpc_pool_primary_probe_interval_secs,
             },
             registry_pubkey: Pubkey::from_str(&registry_pubkey).map_err(|e| {
                 ConfigError::InvalidArguments {
@@ -430,24 +445,18 @@ impl ForesterConfig {
                 rpc_rate_limit: None,
                 photon_rate_limit: None,
                 send_tx_rate_limit: None,
+                fallback_rpc_url: None,
+                fallback_indexer_url: None,
             },
             retry_config: RetryConfig::default(),
             queue_config: QueueConfig::default(),
             indexer_config: IndexerConfig::default(),
             transaction_config: TransactionConfig::default(),
             general_config: GeneralConfig {
-                slot_update_interval_seconds: 10,
                 tree_discovery_interval_seconds: 60,
                 enable_metrics: args.enable_metrics(),
-                skip_v1_state_trees: false,
-                skip_v2_state_trees: false,
-                skip_v1_address_trees: false,
-                skip_v2_address_trees: false,
-                tree_ids: vec![],
-                sleep_after_processing_ms: 10_000,
-                sleep_when_idle_ms: 45_000,
                 queue_polling_mode: QueuePollingMode::OnChain, // Status uses on-chain reads
-                group_authority: None,
+                ..Default::default()
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,
@@ -456,6 +465,8 @@ impl ForesterConfig {
                 max_retries: 10,
                 initial_retry_delay_ms: 1000,
                 max_retry_delay_ms: 16000,
+                failure_threshold: 3,
+                primary_probe_interval_secs: 30,
             },
             registry_pubkey: Pubkey::default(),
             payer_keypair: Keypair::new(),

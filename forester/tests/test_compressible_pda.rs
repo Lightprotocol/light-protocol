@@ -398,6 +398,7 @@ async fn test_compressible_pda_bootstrap() {
             rpc_url,
             tracker_clone,
             Some(shutdown_rx),
+            false,
         )
         .await
         {
@@ -613,6 +614,7 @@ async fn test_compressible_pda_compression() {
             ctx.rpc_pool.clone(),
             tracker.clone(),
             ctx.forester_keypair.insecure_clone(),
+            forester::smart_transaction::TransactionPolicy::default(),
         );
 
         println!("Compressing PDA...");
@@ -935,6 +937,7 @@ async fn test_compressible_pda_subscription() {
         ctx.rpc_pool.clone(),
         tracker.clone(),
         ctx.forester_keypair.insecure_clone(),
+        forester::smart_transaction::TransactionPolicy::default(),
     );
 
     let first_pda_state = ready_accounts

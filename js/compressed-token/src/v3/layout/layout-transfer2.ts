@@ -12,8 +12,12 @@ import {
 import { Buffer } from 'buffer';
 import { bn } from '@lightprotocol/stateless.js';
 import { PublicKey } from '@solana/web3.js';
-import { CompressionInfo, RentConfig } from './layout-mint';
-import { AdditionalMetadata } from './layout-mint-action';
+import { CompressionInfo } from './layout-mint';
+import {
+    AdditionalMetadata,
+    CompressedProofLayout,
+    TokenMetadataInstructionDataLayout,
+} from './layout-mint-action';
 
 // Transfer2 discriminator = 101
 export const TRANSFER2_DISCRIMINATOR = Buffer.from([101]);
@@ -141,22 +145,13 @@ export interface Transfer2InstructionData {
     outTokenData: MultiTokenTransferOutputData[];
     inLamports: bigint[] | null;
     outLamports: bigint[] | null;
-    /** Extensions for input compressed token accounts (one array per input account) */
+    /** Extensions for input light-token accounts (one array per input account) */
     inTlv: Transfer2ExtensionData[][] | null;
-    /** Extensions for output compressed token accounts (one array per output account) */
+    /** Extensions for output light-token accounts (one array per output account) */
     outTlv: Transfer2ExtensionData[][] | null;
 }
 
 // Borsh layouts for extension data
-const AdditionalMetadataLayout = struct([vec(u8(), 'key'), vec(u8(), 'value')]);
-
-const TokenMetadataInstructionDataLayout = struct([
-    option(array(u8(), 32), 'updateAuthority'),
-    vec(u8(), 'name'),
-    vec(u8(), 'symbol'),
-    vec(u8(), 'uri'),
-    option(vec(AdditionalMetadataLayout), 'additionalMetadata'),
-]);
 
 const CompressedOnlyExtensionInstructionDataLayout = struct([
     u64('delegatedAmount'),
@@ -166,12 +161,6 @@ const CompressedOnlyExtensionInstructionDataLayout = struct([
     bool('isAta'),
     u8('bump'),
     u8('ownerIndex'),
-]);
-
-const CompressToPubkeyLayout = struct([
-    u8('bump'),
-    array(u8(), 32, 'programId'),
-    vec(vec(u8()), 'seeds'),
 ]);
 
 const RentConfigLayout = struct([
@@ -197,6 +186,7 @@ const CompressionInfoLayout = struct([
 
 /**
  * Serialize a single Transfer2ExtensionData to bytes
+ * @internal
  */
 function serializeExtensionInstructionData(
     ext: Transfer2ExtensionData,
@@ -209,16 +199,14 @@ function serializeExtensionInstructionData(
         buffer.writeUInt8(EXTENSION_DISCRIMINANT_TOKEN_METADATA, offset);
         offset += 1;
         const data = {
-            updateAuthority: ext.data.updateAuthority
-                ? Array.from(ext.data.updateAuthority.toBytes())
-                : null,
-            name: Array.from(ext.data.name),
-            symbol: Array.from(ext.data.symbol),
-            uri: Array.from(ext.data.uri),
+            updateAuthority: ext.data.updateAuthority,
+            name: ext.data.name,
+            symbol: ext.data.symbol,
+            uri: ext.data.uri,
             additionalMetadata: ext.data.additionalMetadata
                 ? ext.data.additionalMetadata.map(m => ({
-                      key: Array.from(m.key),
-                      value: Array.from(m.value),
+                      key: Buffer.from(m.key),
+                      value: Buffer.from(m.value),
                   }))
                 : null,
         };
@@ -269,6 +257,7 @@ function serializeExtensionInstructionData(
 
 /**
  * Serialize Vec<Vec<Transfer2ExtensionData>> to bytes for Borsh
+ * @internal
  */
 function serializeExtensionTlv(
     tlv: Transfer2ExtensionData[][] | null,
@@ -344,12 +333,6 @@ const CompressedCpiContextLayout = struct([
     u8('cpiContextAccountIndex'),
 ]);
 
-const CompressedProofLayout = struct([
-    array(u8(), 32, 'a'),
-    array(u8(), 64, 'b'),
-    array(u8(), 32, 'c'),
-]);
-
 // Layout without TLV fields - we'll serialize those manually
 const Transfer2InstructionDataBaseLayout = struct([
     bool('withTransactionHash'),
@@ -369,6 +352,7 @@ const Transfer2InstructionDataBaseLayout = struct([
 
 /**
  * Encode Transfer2 instruction data using Borsh
+ * @internal
  */
 export function encodeTransfer2InstructionData(
     data: Transfer2InstructionData,
@@ -445,8 +429,9 @@ export function encodeTransfer2InstructionData(
 }
 
 /**
- * Create a compression struct for wrapping SPL tokens to c-token
- * (compress from SPL ATA)
+ * @internal
+ * Create a compression struct for wrapping SPL tokens to light-token
+ * (compress from SPL associated token account)
  */
 export function createCompressSpl(
     amount: bigint,
@@ -472,13 +457,14 @@ export function createCompressSpl(
 }
 
 /**
- * Create a compression struct for decompressing to c-token ATA
+ * @internal
+ * Create a compression struct for decompressing to light-token associated token account
  * @param amount - Amount to decompress
  * @param mintIndex - Index of mint in packed accounts
- * @param recipientIndex - Index of recipient c-token account in packed accounts
- * @param tokenProgramIndex - Index of c-token program in packed accounts (for CPI)
+ * @param recipientIndex - Index of recipient light-token account in packed accounts
+ * @param tokenProgramIndex - Index of light-token program in packed accounts (for CPI)
  */
-export function createDecompressCtoken(
+export function createDecompressLightToken(
     amount: bigint,
     mintIndex: number,
     recipientIndex: number,
@@ -498,15 +484,16 @@ export function createDecompressCtoken(
 }
 
 /**
- * Create a compression struct for compressing c-token (burn from c-token ATA)
- * Used in unwrap flow: c-token ATA -> pool -> SPL ATA
- * @param amount - Amount to compress (burn from c-token)
+ * @internal
+ * Create a compression struct for compressing light-token (burn from light-token associated token account)
+ * Used in unwrap flow: light-token associated token account -> pool -> SPL associated token account
+ * @param amount - Amount to compress (burn from light-token)
  * @param mintIndex - Index of mint in packed accounts
- * @param sourceIndex - Index of source c-token account in packed accounts
+ * @param sourceIndex - Index of source light-token account in packed accounts
  * @param authorityIndex - Index of authority/owner in packed accounts (must sign)
- * @param tokenProgramIndex - Index of c-token program in packed accounts (for CPI)
+ * @param tokenProgramIndex - Index of light-token program in packed accounts (for CPI)
  */
-export function createCompressCtoken(
+export function createCompressLightToken(
     amount: bigint,
     mintIndex: number,
     sourceIndex: number,
@@ -528,6 +515,7 @@ export function createCompressCtoken(
 
 /**
  * Create a compression struct for decompressing SPL tokens
+ * @internal
  */
 export function createDecompressSpl(
     amount: bigint,

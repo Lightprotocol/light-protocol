@@ -11,11 +11,12 @@ import {
     sendAndConfirmTx,
     DerivationMode,
     bn,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { createDecompressMintInstruction } from '../instructions/decompress-mint';
 import { getMintInterface } from '../get-mint-interface';
+import { ERR_MINT_MISSING_MERKLE_CONTEXT } from '../errors';
 
 export interface DecompressMintParams {
     /** Number of epochs to prepay rent (minimum 2, default: 16 for ~24 hours) */
@@ -26,13 +27,15 @@ export interface DecompressMintParams {
     configAccount?: PublicKey;
     /** Rent sponsor PDA (default: LIGHT_TOKEN_RENT_SPONSOR) */
     rentSponsor?: PublicKey;
+    /** Cap on rent top-up for this instruction (units of 1k lamports; default no cap) */
+    maxTopUp?: number;
 }
 
 /**
- * Decompress a compressed mint to create the CMint Solana account.
+ * Decompress a compressed light mint to create the light mint account.
  *
- * This makes the mint available on-chain, which is required before creating
- * CToken associated token accounts. DecompressMint is **permissionless** -
+ * This creates the light mint account, which is required before creating
+ * light-token associated token accounts. DecompressMint is **permissionless** -
  * any account can call it.
  *
  * @param rpc - RPC connection
@@ -50,7 +53,7 @@ export async function decompressMint(
     authority?: Signer,
     params?: DecompressMintParams,
     confirmOptions?: ConfirmOptions,
-): Promise<TransactionSignature> {
+): Promise<TransactionSignature | null> {
     assertBetaEnabled();
 
     // Use payer as authority if not provided (decompressMint is permissionless)
@@ -60,25 +63,27 @@ export async function decompressMint(
         rpc,
         mint,
         confirmOptions?.commitment,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     if (!mintInterface.merkleContext) {
-        throw new Error('Mint does not have MerkleContext');
+        throw new Error(ERR_MINT_MISSING_MERKLE_CONTEXT);
     }
 
-    // Check if already decompressed
+    // Already decompressed (e.g. createMintInterface now does it atomically).
+    // Return early instead of throwing so callers are idempotent.
     if (mintInterface.mintContext?.cmintDecompressed) {
-        throw new Error('Mint is already decompressed');
+        return null;
     }
 
+    const merkleContext = mintInterface.merkleContext;
     const validityProof = await rpc.getValidityProofV2(
         [
             {
-                hash: bn(mintInterface.merkleContext.hash),
-                leafIndex: mintInterface.merkleContext.leafIndex,
-                treeInfo: mintInterface.merkleContext.treeInfo,
-                proveByIndex: mintInterface.merkleContext.proveByIndex,
+                hash: bn(merkleContext.hash),
+                leafIndex: merkleContext.leafIndex,
+                treeInfo: merkleContext.treeInfo,
+                proveByIndex: merkleContext.proveByIndex,
             },
         ],
         [],
@@ -94,6 +99,7 @@ export async function decompressMint(
         writeTopUp: params?.writeTopUp,
         configAccount: params?.configAccount,
         rentSponsor: params?.rentSponsor,
+        maxTopUp: params?.maxTopUp,
     });
 
     const additionalSigners: Signer[] = [];

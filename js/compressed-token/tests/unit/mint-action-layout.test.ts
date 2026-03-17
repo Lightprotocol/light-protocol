@@ -11,7 +11,7 @@ import { encodeCreateMintInstructionData } from '../../src/v3/instructions/creat
 import { TokenDataVersion } from '../../src/constants';
 import {
     deriveAddressV2,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     getBatchAddressTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { findMintAddress } from '../../src/v3/derivation';
@@ -341,7 +341,7 @@ describe('MintActionCompressedInstructionData Layout', () => {
             const compressedAddress = deriveAddressV2(
                 mintPda.toBytes(),
                 addressTreeInfo.tree,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             // Verify it's a valid 32-byte address

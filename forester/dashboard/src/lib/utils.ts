@@ -3,6 +3,18 @@ export function truncateAddress(addr: string, chars = 4): string {
   return `${addr.slice(0, chars)}...${addr.slice(-chars)}`;
 }
 
+export function explorerUrl(address: string): string {
+  let network = "mainnet";
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host.includes("-devnet")) network = "devnet";
+    else if (host.includes("-mainnet")) network = "mainnet";
+    else network = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? "mainnet";
+  }
+  const cluster = network === "mainnet" ? "" : `?cluster=${network}`;
+  return `https://explorer.solana.com/address/${address}${cluster}`;
+}
+
 export function formatSol(lamports: number | null | undefined): string {
   if (lamports == null) return "-";
   return `${lamports.toFixed(4)} SOL`;
@@ -16,13 +28,43 @@ export function formatPercentage(n: number, decimals = 2): string {
   return `${n.toFixed(decimals)}%`;
 }
 
+const DEFAULT_SLOT_DURATION_MS = 400;
+
 export function slotsToTime(slots: number): string {
-  const seconds = Math.round(slots * 0.46);
+  const seconds = Math.round((slots * DEFAULT_SLOT_DURATION_MS) / 1000);
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
   const hours = Math.floor(seconds / 3600);
   const mins = Math.round((seconds % 3600) / 60);
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+export function formatAgeFromUnixSeconds(unixTs: number | null | undefined): string {
+  if (unixTs == null || unixTs <= 0) return "unknown";
+  const ageSec = Math.max(0, Math.floor(Date.now() / 1000) - unixTs);
+  if (ageSec < 5) return "just now";
+  if (ageSec < 60) return `${ageSec}s ago`;
+  if (ageSec < 3600) return `${Math.round(ageSec / 60)}m ago`;
+  const hours = Math.floor(ageSec / 3600);
+  const mins = Math.round((ageSec % 3600) / 60);
+  return mins > 0 ? `${hours}h ${mins}m ago` : `${hours}h ago`;
+}
+
+export function formatSlotCountdown(
+  currentSlot: number | null | undefined,
+  nextReadySlot: number | null | undefined,
+  ready?: number,
+  waiting?: number
+): string {
+  if (nextReadySlot == null) {
+    // No waiting accounts — distinguish "all caught up" from "nothing tracked"
+    if (ready != null && ready > 0 && waiting === 0) return "caught up";
+    return "—";
+  }
+  if (currentSlot == null) return `slot ${nextReadySlot.toLocaleString()}`;
+  if (currentSlot > nextReadySlot) return "ready now";
+  const remaining = nextReadySlot - currentSlot;
+  return `${remaining.toLocaleString()} slots (~${slotsToTime(remaining)})`;
 }
 
 export function batchStateLabel(state: number): string {

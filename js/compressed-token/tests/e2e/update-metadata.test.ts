@@ -7,7 +7,7 @@ import {
     VERSION,
     featureFlags,
     getDefaultAddressTreeInfo,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import { createMintInterface, updateMintAuthority } from '../../src/v3/actions';
 import { createTokenMetadata } from '../../src/v3/instructions';
@@ -61,7 +61,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoBefore.tokenMetadata?.name).toBe('Initial Token');
 
@@ -79,7 +79,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfter.tokenMetadata?.name).toBe('Updated Token');
         expect(mintInfoAfter.tokenMetadata?.symbol).toBe('INIT');
@@ -129,7 +129,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfter.tokenMetadata?.symbol).toBe('UPDATED');
         expect(mintInfoAfter.tokenMetadata?.name).toBe('Test Token');
@@ -176,7 +176,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfter.tokenMetadata?.uri).toBe(
             'https://new.com/metadata',
@@ -216,7 +216,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoBefore.tokenMetadata?.updateAuthority?.toString()).toBe(
             initialMetadataAuthority.publicKey.toString(),
@@ -235,7 +235,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfter.tokenMetadata?.updateAuthority?.toString()).toBe(
             newMetadataAuthority.publicKey.toString(),
@@ -283,7 +283,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfterName.tokenMetadata?.name).toBe('New Name');
 
@@ -301,7 +301,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfterSymbol.tokenMetadata?.name).toBe('New Name');
         expect(mintInfoAfterSymbol.tokenMetadata?.symbol).toBe('NEW');
@@ -320,7 +320,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoFinal.tokenMetadata?.name).toBe('New Name');
         expect(mintInfoFinal.tokenMetadata?.symbol).toBe('NEW');
@@ -438,7 +438,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfo.tokenMetadata).toBeDefined();
     });
@@ -484,7 +484,7 @@ describe('updateMetadata', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfo.tokenMetadata?.name).toBe('Updated by Mint Authority');
         expect(mintInfo.tokenMetadata?.updateAuthority?.toString()).toBe(

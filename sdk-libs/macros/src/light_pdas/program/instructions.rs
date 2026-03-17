@@ -441,6 +441,8 @@ pub(crate) fn generate_light_program_items_with_backend(
     compress_builder.validate()?;
 
     let size_validation_checks = compress_builder.generate_size_validation_with_backend(backend)?;
+    let discriminator_collision_checks =
+        compress_builder.generate_discriminator_collision_checks(backend)?;
     // Error codes are only generated for Anchor
     let error_codes = if !backend.is_pinocchio() {
         Some(compress_builder.generate_error_codes()?)
@@ -560,7 +562,7 @@ pub(crate) fn generate_light_program_items_with_backend(
         update_config_instruction,
     ) = if !backend.is_pinocchio() {
         let compress_accounts = compress_builder.generate_accounts_struct()?;
-        let compress_dispatch_fn = compress_builder.generate_dispatch_fn()?;
+        let compress_dispatch_fn = compress_builder.generate_dispatch_fn(backend)?;
         let compress_processor_fn = compress_builder.generate_processor()?;
         let compress_instruction = compress_builder.generate_entrypoint()?;
 
@@ -723,6 +725,7 @@ pub(crate) fn generate_light_program_items_with_backend(
     }
 
     items.push(size_validation_checks);
+    items.push(discriminator_collision_checks);
     items.push(enum_and_traits);
 
     // Anchor-only: accounts structs, trait impls, processor module

@@ -13,10 +13,11 @@ use tracing::{debug, info, warn};
 
 use crate::{
     epoch_manager::{CircuitMetrics, ProcessingMetrics},
+    errors::ForesterError,
+    logging::should_emit_rate_limited_warning,
     processor::v2::{
         batch_job_builder::BatchJobBuilder,
         common::WorkerPool,
-        errors::V2Error,
         proof_cache::SharedProofCache,
         proof_worker::{spawn_proof_workers, ProofJob, ProofJobResult},
         root_guard::{reconcile_roots, RootReconcileDecision},
@@ -86,14 +87,20 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S>
 where
     S::StagingTree: BatchJobBuilder,
 {
-    pub async fn new(context: BatchContext<R>, strategy: S) -> crate::Result<Self> {
+    pub async fn new(
+        context: BatchContext<R>,
+        strategy: S,
+    ) -> std::result::Result<Self, ForesterError> {
         let zkp_batch_size = strategy.fetch_zkp_batch_size(&context).await?;
         let current_root = strategy.fetch_onchain_root(&context).await?;
         info!(
-            "Initializing {} processor for tree {} with on-chain root {:?}[..4]",
-            strategy.name(),
-            context.merkle_tree,
-            &current_root[..4]
+            event = "v2_processor_initialized",
+            run_id = %context.run_id,
+            processor = strategy.name(),
+            tree = %context.merkle_tree,
+            zkp_batch_size,
+            root_prefix = ?&current_root[..4],
+            "Initializing V2 processor"
         );
         Ok(Self {
             context,
@@ -111,7 +118,7 @@ where
         self.proof_cache = Some(cache);
     }
 
-    pub async fn process(&mut self) -> crate::Result<ProcessingResult> {
+    pub async fn process(&mut self) -> std::result::Result<ProcessingResult, ForesterError> {
         let queue_size = self.zkp_batch_size * self.context.max_batches_per_tree as u64;
         self.process_queue_update(queue_size).await
     }
@@ -119,7 +126,7 @@ where
     pub async fn process_queue_update(
         &mut self,
         queue_size: u64,
-    ) -> crate::Result<ProcessingResult> {
+    ) -> std::result::Result<ProcessingResult, ForesterError> {
         if queue_size < self.zkp_batch_size {
             return Ok(ProcessingResult::default());
         }
@@ -142,9 +149,13 @@ where
             let remaining = total_batches.saturating_sub(cached.batches_processed);
             if remaining > 0 {
                 info!(
-                    "Using cached state: {} remaining batches (processed {}/{}, actual available: {})",
-                    remaining, cached.batches_processed, total_batches,
-                    if actual_available == usize::MAX { "max".to_string() } else { actual_available.to_string() }
+                    event = "v2_cached_state_reused",
+                    tree = %self.context.merkle_tree,
+                    remaining_batches = remaining,
+                    processed_batches = cached.batches_processed,
+                    total_batches,
+                    actual_available = if actual_available == usize::MAX { "max".to_string() } else { actual_available.to_string() },
+                    "Using cached queue state"
                 );
 
                 let batches_to_process = remaining.min(self.context.max_batches_per_tree);
@@ -180,7 +191,20 @@ where
         {
             let rpc = self.context.rpc_pool.get_connection().await?;
             if let Err(e) = wait_for_indexer(&*rpc).await {
-                warn!("wait_for_indexer error (proceeding anyway): {}", e);
+                if should_emit_rate_limited_warning("v2_wait_for_indexer", Duration::from_secs(30))
+                {
+                    warn!(
+                        event = "wait_for_indexer_error",
+                        error = %e,
+                        "wait_for_indexer error (proceeding anyway)"
+                    );
+                } else {
+                    debug!(
+                        event = "wait_for_indexer_error_suppressed",
+                        error = %e,
+                        "Suppressing repeated wait_for_indexer warning"
+                    );
+                }
             }
         }
 
@@ -232,10 +256,12 @@ where
             }
             RootReconcileDecision::ResetToOnchainAndStop(root) => {
                 warn!(
-                    "Root divergence: expected {:?}[..4], indexer {:?}[..4], on-chain {:?}[..4]. Resetting.",
-                    &self.current_root[..4],
-                    &queue_data.initial_root[..4],
-                    &root[..4]
+                    event = "v2_root_divergence_reset",
+                    tree = %self.context.merkle_tree,
+                    expected_root_prefix = ?&self.current_root[..4],
+                    indexer_root_prefix = ?&queue_data.initial_root[..4],
+                    onchain_root_prefix = ?&root[..4],
+                    "Root divergence detected; resetting to on-chain root"
                 );
                 self.current_root = root;
                 self.cached_state = None;
@@ -280,7 +306,7 @@ where
         batch_offset: usize,
         batches_to_process: usize,
         total_batches: usize,
-    ) -> crate::Result<ProcessingResult> {
+    ) -> std::result::Result<ProcessingResult, ForesterError> {
         self.current_root = queue_data.initial_root;
         let num_workers = self.context.num_proof_workers.max(1);
         let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
@@ -328,22 +354,19 @@ where
 
         drop(proof_tx);
 
-        let tx_result = tx_sender_handle
-            .await
-            .map_err(|e| anyhow!("Tx sender join error: {}", e))
-            .and_then(|res| res);
-
-        if let Err(ref e) = tx_result {
-            if let Some(v2) = e.downcast_ref::<V2Error>() {
-                if v2.is_constraint() {
-                    warn!(
-                        "Tx sender constraint error for tree {}: {}",
-                        self.context.merkle_tree, e
-                    );
-                    return Err(tx_result.unwrap_err());
-                }
+        let tx_result = match tx_sender_handle.await.map_err(ForesterError::from)? {
+            Err(error) if matches!(&error, ForesterError::V2(v2_error) if v2_error.is_constraint()) =>
+            {
+                warn!(
+                    event = "v2_tx_sender_constraint_error",
+                    tree = %self.context.merkle_tree,
+                    error = %error,
+                    "Tx sender constraint error"
+                );
+                return Err(error);
             }
-        }
+            other => other,
+        };
 
         let (tx_processed, proof_timings, tx_sending_duration) = match &tx_result {
             Ok(result) => (
@@ -353,8 +376,10 @@ where
             ),
             Err(e) => {
                 warn!(
-                    "Tx sender error for tree {}: {}",
-                    self.context.merkle_tree, e
+                    event = "v2_tx_sender_error",
+                    tree = %self.context.merkle_tree,
+                    error = %e,
+                    "Tx sender error"
                 );
                 (0, Default::default(), Duration::ZERO)
             }
@@ -395,8 +420,10 @@ where
 
         if let Err(e) = tx_result {
             warn!(
-                "Returning partial metrics despite error for tree {}: {}",
-                self.context.merkle_tree, e
+                event = "v2_partial_metrics_after_error",
+                tree = %self.context.merkle_tree,
+                error = %e,
+                "Returning partial metrics despite processing error"
             );
         }
 
@@ -572,10 +599,11 @@ where
             .clone();
 
         info!(
-            "Pre-warming {} proofs for tree {} with root {:?}",
-            num_batches,
-            self.context.merkle_tree,
-            &initial_root[..4]
+            event = "v2_prewarm_started",
+            tree = %self.context.merkle_tree,
+            proofs = num_batches,
+            root_prefix = ?&initial_root[..4],
+            "Pre-warming proofs for tree"
         );
 
         let (jobs_sent, timings, _staging_tree) = self
@@ -612,8 +640,11 @@ where
                 }
                 Err(e) => {
                     warn!(
-                        "Proof generation failed during pre-warm for seq={}: {}",
-                        result.seq, e
+                        event = "v2_prewarm_proof_generation_failed",
+                        tree = %self.context.merkle_tree,
+                        seq = result.seq,
+                        error = %e,
+                        "Proof generation failed during pre-warm"
                     );
                 }
             }
@@ -623,16 +654,20 @@ where
 
         if proofs_cached < jobs_sent {
             warn!(
-                "Pre-warmed {} proofs but expected {} for tree {}",
-                proofs_cached, jobs_sent, self.context.merkle_tree
+                event = "v2_prewarm_partial",
+                tree = %self.context.merkle_tree,
+                proofs_cached,
+                expected_proofs = jobs_sent,
+                "Pre-warm completed with fewer proofs than expected"
             );
         } else {
             info!(
-                "Pre-warmed {} proofs for tree {} (zkp_batch_size={}, items={})",
+                event = "v2_prewarm_completed",
+                tree = %self.context.merkle_tree,
                 proofs_cached,
-                self.context.merkle_tree,
-                self.zkp_batch_size,
-                proofs_cached * self.zkp_batch_size as usize
+                zkp_batch_size = self.zkp_batch_size,
+                items = proofs_cached * self.zkp_batch_size as usize,
+                "Pre-warm completed"
             );
         }
 

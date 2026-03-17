@@ -264,6 +264,9 @@ export const COMPRESSED_TOKEN_PROGRAM_ID = new PublicKey(
     'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
 );
 
+export const LIGHT_TOKEN_PROGRAM_ID = COMPRESSED_TOKEN_PROGRAM_ID;
+
+/** @deprecated Use {@link LIGHT_TOKEN_PROGRAM_ID} instead. */
 export const CTOKEN_PROGRAM_ID = COMPRESSED_TOKEN_PROGRAM_ID;
 export const stateTreeLookupTableMainnet =
     '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';

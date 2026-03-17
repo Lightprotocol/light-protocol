@@ -91,6 +91,9 @@
 //! ```
 //!
 
+#[macro_use]
+mod macros;
+
 mod approve;
 mod burn;
 mod burn_checked;

@@ -282,7 +282,11 @@ impl LightClient {
                 .transaction
                 .decode()
                 .clone()
-                .unwrap();
+                .ok_or_else(|| {
+                    RpcError::CustomError(
+                        "Failed to decode transaction from RPC response".to_string(),
+                    )
+                })?;
             let account_keys = decoded_transaction.message.static_account_keys();
             let meta = transaction.transaction.meta.as_ref().ok_or_else(|| {
                 RpcError::CustomError("Transaction missing metadata information".to_string())
@@ -587,7 +591,6 @@ fn convert_token_account_interface(
                 indexer_tai.account.account.lamports,
                 indexer_tai.account.account.owner,
             );
-            // Extract token owner before moving token into CompressedTokenAccount
             let token_owner = indexer_tai.token.owner;
             let compressed_token = CompressedTokenAccount {
                 token: indexer_tai.token,
@@ -596,7 +599,7 @@ fn convert_token_account_interface(
             Ok(TokenAccountInterface::cold(
                 indexer_tai.account.key,
                 compressed_token,
-                token_owner, // owner_override: use token owner, not account key
+                token_owner,
                 indexer_tai.account.account.owner,
             ))
         }
@@ -678,6 +681,15 @@ impl Rpc for LightClient {
                 .map_err(RpcError::from)
         })
         .await
+    }
+
+    async fn process_versioned_transaction(
+        &mut self,
+        transaction: VersionedTransaction,
+    ) -> Result<Signature, RpcError> {
+        self.client
+            .send_and_confirm_transaction(&transaction)
+            .map_err(RpcError::from)
     }
 
     async fn process_transaction_with_context(
@@ -785,6 +797,11 @@ impl Rpc for LightClient {
         .await
     }
 
+    async fn get_block_height(&self) -> Result<u64, RpcError> {
+        self.retry(|| async { self.client.get_block_height().map_err(RpcError::from) })
+            .await
+    }
+
     async fn get_slot(&self) -> Result<u64, RpcError> {
         self.retry(|| async { self.client.get_slot().map_err(RpcError::from) })
             .await
@@ -819,6 +836,19 @@ impl Rpc for LightClient {
         .await
     }
 
+    async fn send_versioned_transaction_with_config(
+        &self,
+        transaction: &VersionedTransaction,
+        config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError> {
+        self.retry(|| async {
+            self.client
+                .send_transaction_with_config(transaction, config)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
     async fn get_transaction_slot(&self, signature: &Signature) -> Result<u64, RpcError> {
         self.retry(|| async {
             Ok(self
@@ -841,10 +871,13 @@ impl Rpc for LightClient {
         &self,
         signatures: &[Signature],
     ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
-        self.client
-            .get_signature_statuses(signatures)
-            .map(|response| response.value)
-            .map_err(RpcError::from)
+        self.retry(|| async {
+            self.client
+                .get_signature_statuses(signatures)
+                .map(|response| response.value)
+                .map_err(RpcError::from)
+        })
+        .await
     }
 
     async fn create_and_send_transaction_with_event<T>(
@@ -890,7 +923,7 @@ impl Rpc for LightClient {
     /// loaded from the chain. Callers are responsible for resolving these accounts before
     /// calling this method. Unresolved or missing lookup tables will cause compilation to fail.
     ///
-    /// Returns `RpcError::CustomError` on message compilation failure,
+    /// Returns `RpcError::TransactionBuildError` on message compilation failure,
     /// `RpcError::SigningError` on signing failure.
     async fn create_and_send_versioned_transaction<'a>(
         &'a mut self,
@@ -899,20 +932,26 @@ impl Rpc for LightClient {
         signers: &'a [&'a Keypair],
         address_lookup_tables: &'a [AddressLookupTableAccount],
     ) -> Result<Signature, RpcError> {
-        let blockhash = self.get_latest_blockhash().await?.0;
-
-        let message =
-            v0::Message::try_compile(payer, instructions, address_lookup_tables, blockhash)
-                .map_err(|e| {
-                    RpcError::CustomError(format!("Failed to compile v0 message: {}", e))
-                })?;
-
-        let versioned_message = VersionedMessage::V0(message);
-
-        let transaction = VersionedTransaction::try_new(versioned_message, signers)
-            .map_err(|e| RpcError::SigningError(e.to_string()))?;
-
         self.retry(|| async {
+            let (blockhash, _) = self
+                .client
+                .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
+                .map_err(RpcError::from)?;
+
+            let message =
+                v0::Message::try_compile(payer, instructions, address_lookup_tables, blockhash)
+                    .map_err(|e| {
+                        RpcError::TransactionBuildError(format!(
+                            "Failed to compile v0 message: {}",
+                            e
+                        ))
+                    })?;
+
+            let versioned_message = VersionedMessage::V0(message);
+
+            let transaction = VersionedTransaction::try_new(versioned_message, signers)
+                .map_err(|e| RpcError::SigningError(e.to_string()))?;
+
             self.client
                 .send_and_confirm_transaction(&transaction)
                 .map_err(RpcError::from)
@@ -1108,7 +1147,16 @@ impl Rpc for LightClient {
             .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
 
         let value = match resp.value {
-            Some(tai) => Some(convert_token_account_interface(tai)?),
+            Some(tai) => {
+                let mut iface = convert_token_account_interface(tai)?;
+                // For cold ATAs, the compressed token stores token.owner =
+                // ATA pubkey (for hash verification). Override parsed.owner
+                // with the wallet owner so ata_bump() derivation succeeds.
+                if iface.is_cold() {
+                    iface.parsed.owner = *owner;
+                }
+                Some(iface)
+            }
             None => None,
         };
 

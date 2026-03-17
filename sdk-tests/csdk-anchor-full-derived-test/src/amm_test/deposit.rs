@@ -79,8 +79,7 @@ pub fn process_deposit(ctx: Context<Deposit>, lp_token_amount: u64) -> Result<()
         amount: lp_token_amount,
         authority: ctx.accounts.authority.to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
-        max_top_up: None,
-        fee_payer: None,
+        fee_payer: ctx.accounts.owner.to_account_info(),
     }
     .invoke_signed(&[&[AUTH_SEED.as_bytes(), &[auth_bump]]])?;
 

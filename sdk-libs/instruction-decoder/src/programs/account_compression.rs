@@ -61,7 +61,7 @@ pub enum AccountCompressionInstruction {
     InitializeStateMerkleTreeAndNullifierQueue,
 
     /// Nullify leaves in a state Merkle tree
-    #[instruction_decoder(account_names = ["authority", "registered_program_pda", "log_wrapper", "merkle_tree", "nullifier_queue"])]
+    #[instruction_decoder(account_names = ["authority", "registered_program_pda", "log_wrapper", "merkle_tree", "nullifier_queue", "fee_payer"])]
     NullifyLeaves,
 
     /// Rollover a state Merkle tree and nullifier queue
@@ -76,7 +76,7 @@ pub enum AccountCompressionInstruction {
     InitializeAddressMerkleTreeAndQueue,
 
     /// Update an address Merkle tree with a new address
-    #[instruction_decoder(account_names = ["authority", "registered_program_pda", "queue", "merkle_tree", "log_wrapper"])]
+    #[instruction_decoder(account_names = ["authority", "registered_program_pda", "queue", "merkle_tree", "log_wrapper", "fee_payer"])]
     UpdateAddressMerkleTree,
 
     /// Rollover an address Merkle tree and queue

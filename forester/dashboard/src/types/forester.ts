@@ -15,10 +15,13 @@ export interface BatchInfo {
 export interface V2QueueInfo {
   next_index: number;
   pending_batch_index: number;
+  batch_size: number;
   zkp_batch_size: number;
   batches: BatchInfo[];
   input_pending_batches: number;
   output_pending_batches: number;
+  input_total_zkp_batches: number;
+  output_total_zkp_batches: number;
   input_items_in_current_zkp_batch: number;
   output_items_in_current_zkp_batch: number;
 }
@@ -34,6 +37,7 @@ export interface TreeStatus {
   threshold: number;
   is_rolledover: boolean;
   queue_length: number | null;
+  queue_capacity: number | null;
   v2_queue_info: V2QueueInfo | null;
   assigned_forester: string | null;
   schedule: (number | null)[];
@@ -46,6 +50,9 @@ export interface AggregateQueueStats {
   state_v2_output_pending: number;
   address_v1_total_pending: number;
   address_v2_input_pending: number;
+  state_v2_input_pending_batches: number;
+  state_v2_output_pending_batches: number;
+  address_v2_input_pending_batches: number;
 }
 
 export interface ForesterStatus {
@@ -56,6 +63,7 @@ export interface ForesterStatus {
   active_phase_length: number;
   active_epoch_progress_percentage: number;
   hours_until_next_epoch: number;
+  registration_is_open: boolean;
   slots_until_next_registration: number;
   hours_until_next_registration: number;
   active_epoch_foresters: ForesterInfo[];
@@ -68,6 +76,7 @@ export interface ForesterStatus {
   total_trees: number;
   active_trees: number;
   rolled_over_trees: number;
+  total_pending_batches: number;
   total_pending_items: number;
   aggregate_queue_stats: AggregateQueueStats;
 }
@@ -83,6 +92,60 @@ export interface MetricsResponse {
 export interface CompressibleResponse {
   enabled: boolean;
   ctoken_count?: number;
+  ata_count?: number;
   pda_count?: number;
   mint_count?: number;
+  current_slot?: number;
+  total_tracked?: number;
+  total_ready?: number;
+  total_waiting?: number;
+  ctoken?: CompressibleTypeStats;
+  ata?: CompressibleTypeStats;
+  pda?: CompressibleTypeStats;
+  mint?: CompressibleTypeStats;
+  pda_programs?: PdaProgramStats[];
+  upstreams?: CompressibleUpstreamStatus[];
+  note?: string;
+  error?: string;
+  refresh_interval_secs?: number;
+  source?: string;
+  cached_at?: number;
+}
+
+export interface CompressibleTypeStats {
+  tracked: number;
+  compressed?: number;
+  ready?: number;
+  waiting?: number;
+  next_ready_slot?: number;
+}
+
+export interface PdaProgramStats {
+  program_id: string;
+  tracked: number;
+  compressed?: number;
+  ready?: number;
+  waiting?: number;
+  next_ready_slot?: number;
+}
+
+
+export interface CompressibleUpstreamStatus {
+  base_url: string;
+  ok: boolean;
+  source?: string;
+  cached_at?: number;
+  error?: string;
+}
+
+export interface PhotonStats {
+  accounts: { total: number; active: number };
+  token_accounts: { total: number; active: number };
+  compressed_from_onchain: {
+    total: number;
+    active: number;
+    by_owner: { owner: string; total: number; active: number }[];
+  };
+  timestamp: number;
+  error?: string;
 }

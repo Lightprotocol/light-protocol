@@ -6,7 +6,7 @@ import {
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
 } from '@solana/spl-token';
-import { approveAndMintTo, createTokenPool } from '../../src/actions';
+import { approveAndMintTo, createSplInterface } from '../../src/actions';
 import {
     Rpc,
     bn,
@@ -85,7 +85,7 @@ describe('approveAndMintTo', () => {
         await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
 
         /// Register mint
-        await createTokenPool(rpc, payer, mint);
+        await createSplInterface(rpc, payer, mint);
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     });
@@ -125,7 +125,7 @@ describe('approveAndMintTo', () => {
         const mintAccountInfo = await rpc.getAccountInfo(token22Mint);
         assert(mintAccountInfo!.owner.equals(TOKEN_2022_PROGRAM_ID));
         /// Register mint
-        await createTokenPool(rpc, payer, token22Mint);
+        await createSplInterface(rpc, payer, token22Mint);
         assert(token22Mint.equals(token22MintKeypair.publicKey));
 
         const tokenPoolInfoT22 = selectTokenPoolInfo(

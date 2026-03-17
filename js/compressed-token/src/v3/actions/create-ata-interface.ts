@@ -8,7 +8,7 @@ import {
 } from '@solana/web3.js';
 import {
     Rpc,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
     assertBetaEnabled,
@@ -16,17 +16,17 @@ import {
 import {
     createAssociatedTokenAccountInterfaceInstruction,
     createAssociatedTokenAccountInterfaceIdempotentInstruction,
-    CTokenConfig,
+    LightTokenConfig,
 } from '../instructions/create-ata-interface';
 import { getAtaProgramId } from '../ata-utils';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 
 // Re-export types for backwards compatibility
-export type { CTokenConfig };
+export type { LightTokenConfig };
 
 /**
- * Create an associated token account for SPL/T22/c-token. Defaults to c-token
- * program.
+ * Create an associated token account for SPL/T22/light-token. Defaults to
+ * light-token program.
  *
  * @param rpc                       RPC connection
  * @param payer                     Fee payer and transaction signer
@@ -35,10 +35,10 @@ export type { CTokenConfig };
  * @param allowOwnerOffCurve        Allow owner to be a PDA (default: false)
  * @param confirmOptions            Options for confirming the transaction
  * @param programId                 Token program ID (default:
- *                                  CTOKEN_PROGRAM_ID)
- * @param associatedTokenProgramId  ATA program ID (auto-derived if not
- *                                  provided)
- * @param ctokenConfig              Optional rent config
+ *                                  LIGHT_TOKEN_PROGRAM_ID)
+ * @param associatedTokenProgramId  associated token account program ID
+ *                                  (auto-derived if not provided)
+ * @param lightTokenConfig              Optional rent config
  * @returns Address of the new associated token account
  */
 export async function createAtaInterface(
@@ -48,9 +48,9 @@ export async function createAtaInterface(
     owner: PublicKey,
     allowOwnerOffCurve = false,
     confirmOptions?: ConfirmOptions,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
-    ctokenConfig?: CTokenConfig,
+    lightTokenConfig?: LightTokenConfig,
 ): Promise<PublicKey> {
     assertBetaEnabled();
 
@@ -72,10 +72,10 @@ export async function createAtaInterface(
         mint,
         programId,
         effectiveAtaProgramId,
-        ctokenConfig,
+        lightTokenConfig,
     );
 
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         const { blockhash } = await rpc.getLatestBlockhash();
         const tx = buildAndSignTx(
             [ComputeBudgetProgram.setComputeUnitLimit({ units: 30_000 }), ix],
@@ -98,8 +98,8 @@ export async function createAtaInterface(
 }
 
 /**
- * Create an associated token account idempotently for SPL/T22/c-token. Defaults
- * to c-token program.
+ * Create an associated token account idempotently for SPL/T22/light-token.
+ * Defaults to light-token program.
  *
  * If the account already exists, the instruction succeeds without error.
  *
@@ -110,10 +110,10 @@ export async function createAtaInterface(
  * @param allowOwnerOffCurve        Allow owner to be a PDA (default: false)
  * @param confirmOptions            Options for confirming the transaction
  * @param programId                 Token program ID (default:
- *                                  CTOKEN_PROGRAM_ID)
- * @param associatedTokenProgramId  ATA program ID (auto-derived if not
- *                                  provided)
- * @param ctokenConfig              Optional c-token-specific configuration
+ *                                  LIGHT_TOKEN_PROGRAM_ID)
+ * @param associatedTokenProgramId  associated token account program ID
+ *                                  (auto-derived if not provided)
+ * @param lightTokenConfig              Optional light-token-specific configuration
  *
  * @returns Address of the associated token account
  */
@@ -124,9 +124,9 @@ export async function createAtaInterfaceIdempotent(
     owner: PublicKey,
     allowOwnerOffCurve = false,
     confirmOptions?: ConfirmOptions,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
-    ctokenConfig?: CTokenConfig,
+    lightTokenConfig?: LightTokenConfig,
 ): Promise<PublicKey> {
     assertBetaEnabled();
 
@@ -148,10 +148,10 @@ export async function createAtaInterfaceIdempotent(
         mint,
         programId,
         effectiveAtaProgramId,
-        ctokenConfig,
+        lightTokenConfig,
     );
 
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         const { blockhash } = await rpc.getLatestBlockhash();
         const tx = buildAndSignTx(
             [ComputeBudgetProgram.setComputeUnitLimit({ units: 30_000 }), ix],

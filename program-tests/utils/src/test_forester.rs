@@ -71,6 +71,23 @@ pub async fn nullify_compressed_accounts<R: Rpc + TestRpc + Indexer + Indexer>(
         .unwrap()
         .work_counter
     };
+    let merkle_tree_account = rpc
+        .get_account(state_tree_bundle.accounts.merkle_tree)
+        .await
+        .unwrap()
+        .unwrap();
+    let state_tree_header: &StateMerkleTreeAccount = bytemuck::from_bytes(
+        &merkle_tree_account.data[8..8 + std::mem::size_of::<StateMerkleTreeAccount>()],
+    );
+    let network_fee = state_tree_header.metadata.rollover_metadata.network_fee;
+
+    let pre_merkle_tree_lamports = rpc
+        .get_account(state_tree_bundle.accounts.merkle_tree)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
     let onchain_merkle_tree =
         get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
             rpc,
@@ -211,6 +228,23 @@ pub async fn nullify_compressed_accounts<R: Rpc + TestRpc + Indexer + Indexer>(
         .await
         .unwrap();
     }
+
+    // Assert network fee reimbursement from merkle tree to forester.
+    // V1 state tree network fees accumulate in the merkle tree account.
+    if network_fee > 0 && num_nullified > 0 {
+        let post_merkle_tree_lamports = rpc
+            .get_account(state_tree_bundle.accounts.merkle_tree)
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports;
+        assert_eq!(
+            pre_merkle_tree_lamports - post_merkle_tree_lamports,
+            num_nullified * network_fee,
+            "Merkle tree should have paid network_fee * num_nullified to forester"
+        );
+    }
+
     // SAFEGUARD: check that the root changed if there was at least one element to nullify
     if first.is_some() {
         assert_ne!(pre_root, onchain_merkle_tree.root());
@@ -310,6 +344,17 @@ pub async fn empty_address_queue_test<R: Rpc>(
         .unwrap();
     let indexed_changelog_index = address_merkle_tree.indexed_changelog_index() as u16;
     let changelog_index = address_merkle_tree.changelog_index() as u16;
+
+    let address_tree_account = rpc
+        .get_account(address_merkle_tree_pubkey)
+        .await
+        .map_err(|_| RelayerUpdateError::RpcError)?
+        .ok_or(RelayerUpdateError::RpcError)?;
+    let address_tree_header: &AddressMerkleTreeAccount = bytemuck::from_bytes(
+        &address_tree_account.data[8..8 + std::mem::size_of::<AddressMerkleTreeAccount>()],
+    );
+    let network_fee = address_tree_header.metadata.rollover_metadata.network_fee;
+
     let mut counter = 0;
     loop {
         let pre_forester_counter = if !signer_is_owner {
@@ -355,6 +400,17 @@ pub async fn empty_address_queue_test<R: Rpc>(
 
         let old_sequence_number = address_merkle_tree.sequence_number();
         let old_root = address_merkle_tree.root();
+
+        let pre_queue_lamports = if network_fee > 0 {
+            rpc.get_account(address_queue_pubkey)
+                .await
+                .map_err(|_| RelayerUpdateError::RpcError)?
+                .ok_or(RelayerUpdateError::RpcError)?
+                .lamports
+        } else {
+            0
+        };
+
         // Update on-chain tree.
         let update_successful = match update_merkle_tree(
             rpc,
@@ -474,6 +530,24 @@ pub async fn empty_address_queue_test<R: Rpc>(
                 .await
                 .unwrap();
             }
+
+            // Assert network fee reimbursement from queue to forester.
+            // Only when going through registry (!signer_is_owner) since
+            // the signer_is_owner path passes fee_payer: None.
+            if network_fee > 0 && !signer_is_owner {
+                let post_queue_lamports = rpc
+                    .get_account(address_queue_pubkey)
+                    .await
+                    .map_err(|_| RelayerUpdateError::RpcError)?
+                    .ok_or(RelayerUpdateError::RpcError)?
+                    .lamports;
+                assert_eq!(
+                    pre_queue_lamports - post_queue_lamports,
+                    network_fee,
+                    "Address queue should have paid network_fee to forester"
+                );
+            }
+
             let merkle_tree =
                 get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
@@ -645,6 +719,7 @@ pub async fn update_merkle_tree<R: Rpc>(
                 AccountMeta::new(address_queue_pubkey, false),
                 AccountMeta::new(address_merkle_tree_pubkey, false),
                 AccountMeta::new(NOOP_PROGRAM_ID, false),
+                AccountMeta::new(ID, false),
             ],
             data: instruction_data.data(),
         }

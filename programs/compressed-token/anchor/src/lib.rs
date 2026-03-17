@@ -580,6 +580,10 @@ pub enum ErrorCode {
     MintActionInvalidMintSigner, // 6171
     #[msg("Mint not found in cache - this indicates an internal error")]
     MintNotInCache, // 6172
+    #[msg("create_mint cannot use idempotent early exit because the mint creation fee was already charged")]
+    CreateMintIdempotentNotAllowed, // 6173
+    #[msg("Cannot combine create_mint with CompressAndCloseCMint action")]
+    CreateMintCannotCombineWithCompressAndClose, // 6174
 }
 
 /// Anchor error code offset - error codes start at 6000

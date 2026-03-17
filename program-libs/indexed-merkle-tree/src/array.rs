@@ -557,11 +557,13 @@ mod test {
             indexed_array.find_element(&nullifier1),
             Some(&bundle1.new_element),
         );
+        let mut next_index_bytes = [0u8; 32];
+        next_index_bytes[24..].copy_from_slice(&0_usize.to_be_bytes());
         let expected_hash = Poseidon::hashv(&[
             bigint_to_be_bytes_array::<32>(&nullifier1)
                 .unwrap()
                 .as_ref(),
-            0_usize.to_be_bytes().as_ref(),
+            &next_index_bytes,
             bigint_to_be_bytes_array::<32>(&(0.to_biguint().unwrap()))
                 .unwrap()
                 .as_ref(),
@@ -627,11 +629,13 @@ mod test {
             indexed_array.find_element(&nullifier2),
             Some(&bundle2.new_element),
         );
+        let mut next_index_bytes = [0u8; 32];
+        next_index_bytes[24..].copy_from_slice(&1_usize.to_be_bytes());
         let expected_hash = Poseidon::hashv(&[
             bigint_to_be_bytes_array::<32>(&nullifier2)
                 .unwrap()
                 .as_ref(),
-            1_usize.to_be_bytes().as_ref(),
+            &next_index_bytes,
             bigint_to_be_bytes_array::<32>(&(30.to_biguint().unwrap()))
                 .unwrap()
                 .as_ref(),
@@ -707,11 +711,13 @@ mod test {
             indexed_array.find_element(&nullifier3),
             Some(&bundle3.new_element),
         );
+        let mut next_index_bytes = [0u8; 32];
+        next_index_bytes[24..].copy_from_slice(&1_usize.to_be_bytes());
         let expected_hash = Poseidon::hashv(&[
             bigint_to_be_bytes_array::<32>(&nullifier3)
                 .unwrap()
                 .as_ref(),
-            1_usize.to_be_bytes().as_ref(),
+            &next_index_bytes,
             bigint_to_be_bytes_array::<32>(&(30.to_biguint().unwrap()))
                 .unwrap()
                 .as_ref(),
@@ -802,11 +808,13 @@ mod test {
             indexed_array.find_element(&nullifier4),
             Some(&bundle4.new_element),
         );
+        let mut next_index_bytes = [0u8; 32];
+        next_index_bytes[24..].copy_from_slice(&0_usize.to_be_bytes());
         let expected_hash = Poseidon::hashv(&[
             bigint_to_be_bytes_array::<32>(&nullifier4)
                 .unwrap()
                 .as_ref(),
-            0_usize.to_be_bytes().as_ref(),
+            &next_index_bytes,
             bigint_to_be_bytes_array::<32>(&(0.to_biguint().unwrap()))
                 .unwrap()
                 .as_ref(),

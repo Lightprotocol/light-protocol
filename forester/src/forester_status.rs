@@ -55,6 +55,7 @@ pub struct ForesterStatus {
     pub active_phase_length: u64,
     pub active_epoch_progress_percentage: f64,
     pub hours_until_next_epoch: u64,
+    pub registration_is_open: bool,
     pub slots_until_next_registration: u64,
     pub hours_until_next_registration: u64,
     pub active_epoch_foresters: Vec<ForesterInfo>,
@@ -74,7 +75,9 @@ pub struct ForesterStatus {
     pub active_trees: usize,
     /// Number of rolled-over trees
     pub rolled_over_trees: usize,
-    /// Total pending items across all trees
+    /// Total pending batches across all trees (each batch = 1 instruction)
+    pub total_pending_batches: u64,
+    /// Total pending items across all trees (batches × batch_size)
     pub total_pending_items: u64,
     /// Aggregate queue statistics by tree type
     pub aggregate_queue_stats: AggregateQueueStats,
@@ -87,6 +90,10 @@ pub struct AggregateQueueStats {
     pub state_v2_output_pending: u64,
     pub address_v1_total_pending: u64,
     pub address_v2_input_pending: u64,
+    /// Batch counts (each batch = 1 instruction/tx)
+    pub state_v2_input_pending_batches: u64,
+    pub state_v2_output_pending_batches: u64,
+    pub address_v2_input_pending_batches: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,6 +108,7 @@ pub struct TreeStatus {
     pub threshold: u64,
     pub is_rolledover: bool,
     pub queue_length: Option<u64>,
+    pub queue_capacity: Option<u64>,
     pub v2_queue_info: Option<V2QueueInfo>,
     /// Currently assigned forester for this tree (in current light slot)
     pub assigned_forester: Option<String>,
@@ -148,7 +156,7 @@ pub async fn get_forester_status_with_options(
         .context("No ProtocolConfigPda found in registry program accounts")?;
 
     let current_active_epoch = protocol_config_pda.config.get_current_active_epoch(slot)?;
-    let current_registration_epoch = protocol_config_pda.config.get_latest_register_epoch(slot)?;
+    let latest_register_epoch = protocol_config_pda.config.get_latest_register_epoch(slot)?;
 
     let active_epoch_progress = protocol_config_pda
         .config
@@ -160,10 +168,37 @@ pub async fn get_forester_status_with_options(
     let hours_until_next_epoch =
         active_phase_length.saturating_sub(active_epoch_progress) * 460 / 1000 / 3600;
 
-    let slots_until_next_registration = protocol_config_pda
+    // Registration is relaxed: foresters can register at any time during the epoch,
+    // so registration is always open for the latest register epoch.
+    let registration_is_open = protocol_config_pda
         .config
-        .registration_phase_length
-        .saturating_sub(active_epoch_progress);
+        .is_registration_phase(slot)
+        .is_ok();
+
+    // If registration is closed, show the next epoch as the registration target
+    let registration_phase_length = protocol_config_pda.config.registration_phase_length;
+    let current_registration_epoch = if registration_is_open {
+        latest_register_epoch
+    } else {
+        latest_register_epoch + 1
+    };
+
+    let slots_until_next_registration = if registration_is_open {
+        // Slots until current registration closes
+        let epoch_progress = protocol_config_pda
+            .config
+            .get_latest_register_epoch_progress(slot)
+            .unwrap_or(0);
+        registration_phase_length.saturating_sub(epoch_progress)
+    } else {
+        // Slots until next epoch's registration opens
+        active_phase_length.saturating_sub(
+            protocol_config_pda
+                .config
+                .get_latest_register_epoch_progress(slot)
+                .unwrap_or(0),
+        )
+    };
     let hours_until_next_registration = slots_until_next_registration * 460 / 1000 / 3600;
 
     // Collect forester authorities for both epochs
@@ -224,6 +259,7 @@ pub async fn get_forester_status_with_options(
                 active_phase_length,
                 active_epoch_progress_percentage,
                 hours_until_next_epoch,
+                registration_is_open,
                 slots_until_next_registration,
                 hours_until_next_registration,
                 active_epoch_foresters,
@@ -236,6 +272,7 @@ pub async fn get_forester_status_with_options(
                 total_trees: 0,
                 active_trees: 0,
                 rolled_over_trees: 0,
+                total_pending_batches: 0,
                 total_pending_items: 0,
                 aggregate_queue_stats: AggregateQueueStats {
                     state_v1_total_pending: 0,
@@ -243,6 +280,9 @@ pub async fn get_forester_status_with_options(
                     state_v2_output_pending: 0,
                     address_v1_total_pending: 0,
                     address_v2_input_pending: 0,
+                    state_v2_input_pending_batches: 0,
+                    state_v2_output_pending_batches: 0,
+                    address_v2_input_pending_batches: 0,
                 },
             });
         }
@@ -250,7 +290,7 @@ pub async fn get_forester_status_with_options(
 
     // Filter trees by protocol group authority if enabled
     if filter_by_group_authority {
-        match fetch_protocol_group_authority(&rpc).await {
+        match fetch_protocol_group_authority(&rpc, "status").await {
             Ok(group_authority) => {
                 let before_count = trees.len();
                 trees.retain(|tree| tree.owner == group_authority);
@@ -389,6 +429,9 @@ pub async fn get_forester_status_with_options(
         state_v2_output_pending: 0,
         address_v1_total_pending: 0,
         address_v2_input_pending: 0,
+        state_v2_input_pending_batches: 0,
+        state_v2_output_pending_batches: 0,
+        address_v2_input_pending_batches: 0,
     };
 
     for t in &tree_statuses {
@@ -402,6 +445,10 @@ pub async fn get_forester_status_with_options(
                         info.input_pending_batches * info.zkp_batch_size;
                     aggregate_queue_stats.state_v2_output_pending +=
                         info.output_pending_batches * info.zkp_batch_size;
+                    aggregate_queue_stats.state_v2_input_pending_batches +=
+                        info.input_pending_batches;
+                    aggregate_queue_stats.state_v2_output_pending_batches +=
+                        info.output_pending_batches;
                 }
             }
             "AddressV1" => {
@@ -411,11 +458,17 @@ pub async fn get_forester_status_with_options(
                 if let Some(ref info) = t.v2_queue_info {
                     aggregate_queue_stats.address_v2_input_pending +=
                         info.input_pending_batches * info.zkp_batch_size;
+                    aggregate_queue_stats.address_v2_input_pending_batches +=
+                        info.input_pending_batches;
                 }
             }
             _ => {}
         }
     }
+
+    let total_pending_batches = aggregate_queue_stats.state_v2_input_pending_batches
+        + aggregate_queue_stats.state_v2_output_pending_batches
+        + aggregate_queue_stats.address_v2_input_pending_batches;
 
     Ok(ForesterStatus {
         slot,
@@ -425,6 +478,7 @@ pub async fn get_forester_status_with_options(
         active_phase_length,
         active_epoch_progress_percentage,
         hours_until_next_epoch,
+        registration_is_open,
         slots_until_next_registration,
         hours_until_next_registration,
         active_epoch_foresters,
@@ -437,6 +491,7 @@ pub async fn get_forester_status_with_options(
         total_trees,
         active_trees,
         rolled_over_trees,
+        total_pending_batches,
         total_pending_items,
         aggregate_queue_stats,
     })
@@ -585,164 +640,188 @@ fn parse_tree_status(
     let mut merkle_account =
         merkle_account.ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
 
-    let (fullness_percentage, next_index, capacity, height, threshold, queue_length, v2_queue_info) =
-        match tree.tree_type {
-            TreeType::StateV1 => {
-                let tree_account = StateMerkleTreeAccount::deserialize(
-                    &mut &merkle_account.data[8..],
-                )
+    let (
+        fullness_percentage,
+        next_index,
+        capacity,
+        height,
+        threshold,
+        queue_length,
+        queue_capacity,
+        v2_queue_info,
+    ) = match tree.tree_type {
+        TreeType::StateV1 => {
+            let tree_account = StateMerkleTreeAccount::deserialize(&mut &merkle_account.data[8..])
                 .map_err(|e| anyhow::anyhow!("Failed to deserialize StateV1 metadata: {}", e))?;
 
-                let height = STATE_MERKLE_TREE_HEIGHT;
-                let capacity = 1u64 << height;
-                let threshold_val = capacity
-                    .saturating_mul(tree_account.metadata.rollover_metadata.rollover_threshold)
-                    / 100;
+            let height = STATE_MERKLE_TREE_HEIGHT;
+            let capacity = 1u64 << height;
+            let threshold_val = capacity
+                .saturating_mul(tree_account.metadata.rollover_metadata.rollover_threshold)
+                / 100;
 
-                let merkle_tree = parse_concurrent_merkle_tree_from_bytes::<
-                    StateMerkleTreeAccount,
-                    Poseidon,
-                    26,
-                >(&merkle_account.data)
+            let merkle_tree =
+                parse_concurrent_merkle_tree_from_bytes::<StateMerkleTreeAccount, Poseidon, 26>(
+                    &merkle_account.data,
+                )
                 .map_err(|e| anyhow::anyhow!("Failed to parse StateV1 tree: {:?}", e))?;
 
-                let next_index = merkle_tree.next_index() as u64;
-                let fullness = next_index as f64 / capacity as f64 * 100.0;
+            let next_index = merkle_tree.next_index() as u64;
+            let fullness = next_index as f64 / capacity as f64 * 100.0;
 
-                let queue_len = queue_account.and_then(|acc| {
+            let (queue_len, queue_cap) = queue_account
+                .map(|acc| {
                     unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) }
                         .ok()
                         .map(|hs| {
-                            hs.iter()
+                            let len = hs
+                                .iter()
                                 .filter(|(_, cell)| cell.sequence_number.is_none())
-                                .count() as u64
+                                .count() as u64;
+                            let cap = hs.get_capacity() as u64;
+                            (len, cap)
                         })
-                });
+                        .unwrap_or((0, 0))
+                })
+                .map(|(l, c)| (Some(l), Some(c)))
+                .unwrap_or((None, None));
 
-                (
-                    fullness,
-                    next_index,
-                    capacity,
-                    height as u32,
-                    threshold_val,
-                    queue_len,
-                    None,
-                )
-            }
-            TreeType::AddressV1 => {
-                let height = ADDRESS_MERKLE_TREE_HEIGHT;
-                let capacity = 1u64 << height;
+            (
+                fullness,
+                next_index,
+                capacity,
+                height as u32,
+                threshold_val,
+                queue_len,
+                queue_cap,
+                None,
+            )
+        }
+        TreeType::AddressV1 => {
+            let height = ADDRESS_MERKLE_TREE_HEIGHT;
+            let capacity = 1u64 << height;
 
-                let threshold_val = queue_account
-                    .as_ref()
-                    .and_then(|acc| QueueAccount::deserialize(&mut &acc.data[8..]).ok())
-                    .map(|q| {
-                        capacity.saturating_mul(q.metadata.rollover_metadata.rollover_threshold)
-                            / 100
-                    })
-                    .unwrap_or(0);
+            let threshold_val = queue_account
+                .as_ref()
+                .and_then(|acc| QueueAccount::deserialize(&mut &acc.data[8..]).ok())
+                .map(|q| {
+                    capacity.saturating_mul(q.metadata.rollover_metadata.rollover_threshold) / 100
+                })
+                .unwrap_or(0);
 
-                let merkle_tree = parse_indexed_merkle_tree_from_bytes::<
-                    AddressMerkleTreeAccount,
-                    Poseidon,
-                    usize,
-                    26,
-                    16,
-                >(&merkle_account.data)
-                .map_err(|e| anyhow::anyhow!("Failed to parse AddressV1 tree: {:?}", e))?;
+            let merkle_tree = parse_indexed_merkle_tree_from_bytes::<
+                AddressMerkleTreeAccount,
+                Poseidon,
+                usize,
+                26,
+                16,
+            >(&merkle_account.data)
+            .map_err(|e| anyhow::anyhow!("Failed to parse AddressV1 tree: {:?}", e))?;
 
-                let next_index = merkle_tree
-                    .next_index()
-                    .saturating_sub(INDEXED_MERKLE_TREE_V1_INITIAL_LEAVES)
-                    as u64;
-                let fullness = next_index as f64 / capacity as f64 * 100.0;
+            let next_index = merkle_tree
+                .next_index()
+                .saturating_sub(INDEXED_MERKLE_TREE_V1_INITIAL_LEAVES)
+                as u64;
+            let fullness = next_index as f64 / capacity as f64 * 100.0;
 
-                let queue_len = queue_account.and_then(|acc| {
+            let (queue_len, queue_cap) = queue_account
+                .map(|acc| {
                     unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) }
                         .ok()
                         .map(|hs| {
-                            hs.iter()
+                            let len = hs
+                                .iter()
                                 .filter(|(_, cell)| cell.sequence_number.is_none())
-                                .count() as u64
+                                .count() as u64;
+                            let cap = hs.get_capacity() as u64;
+                            (len, cap)
                         })
-                });
+                        .unwrap_or((0, 0))
+                })
+                .map(|(l, c)| (Some(l), Some(c)))
+                .unwrap_or((None, None));
 
-                (
-                    fullness,
-                    next_index,
-                    capacity,
-                    height as u32,
-                    threshold_val,
-                    queue_len,
-                    None,
-                )
-            }
-            TreeType::StateV2 => {
-                let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
-                    &mut merkle_account.data,
-                    &tree.merkle_tree.into(),
-                )
-                .map_err(|e| anyhow::anyhow!("Failed to parse StateV2 tree: {:?}", e))?;
+            (
+                fullness,
+                next_index,
+                capacity,
+                height as u32,
+                threshold_val,
+                queue_len,
+                queue_cap,
+                None,
+            )
+        }
+        TreeType::StateV2 => {
+            let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+                &mut merkle_account.data,
+                &tree.merkle_tree.into(),
+            )
+            .map_err(|e| anyhow::anyhow!("Failed to parse StateV2 tree: {:?}", e))?;
 
-                let height = merkle_tree.height as u64;
-                let capacity = 1u64 << height;
-                let threshold_val = (1u64 << height)
-                    * merkle_tree.metadata.rollover_metadata.rollover_threshold
-                    / 100;
-                let next_index = merkle_tree.next_index;
-                let fullness = next_index as f64 / capacity as f64 * 100.0;
+            let height = merkle_tree.height as u64;
+            let capacity = 1u64 << height;
+            let threshold_val =
+                (1u64 << height) * merkle_tree.metadata.rollover_metadata.rollover_threshold / 100;
+            let next_index = merkle_tree.next_index;
+            let fullness = next_index as f64 / capacity as f64 * 100.0;
 
-                let v2_info = queue_account.and_then(|mut acc| {
-                    parse_state_v2_queue_info(&merkle_tree, &mut acc.data).ok()
-                });
-                let queue_len = v2_info.as_ref().map(|i| {
-                    (i.input_pending_batches + i.output_pending_batches) * i.zkp_batch_size
-                });
+            let v2_info = queue_account
+                .and_then(|mut acc| parse_state_v2_queue_info(&merkle_tree, &mut acc.data).ok());
+            let queue_len = v2_info
+                .as_ref()
+                .map(|i| (i.input_pending_batches + i.output_pending_batches) * i.zkp_batch_size);
+            let queue_cap = v2_info
+                .as_ref()
+                .map(|i| i.batches.len() as u64 * i.batch_size);
 
-                (
-                    fullness,
-                    next_index,
-                    capacity,
-                    height as u32,
-                    threshold_val,
-                    queue_len,
-                    v2_info,
-                )
-            }
-            TreeType::AddressV2 => {
-                let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
-                    &mut merkle_account.data,
-                    &tree.merkle_tree.into(),
-                )
-                .map_err(|e| anyhow::anyhow!("Failed to parse AddressV2 tree: {:?}", e))?;
+            (
+                fullness,
+                next_index,
+                capacity,
+                height as u32,
+                threshold_val,
+                queue_len,
+                queue_cap,
+                v2_info,
+            )
+        }
+        TreeType::AddressV2 => {
+            let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+                &mut merkle_account.data,
+                &tree.merkle_tree.into(),
+            )
+            .map_err(|e| anyhow::anyhow!("Failed to parse AddressV2 tree: {:?}", e))?;
 
-                let height = merkle_tree.height as u64;
-                let capacity = 1u64 << height;
-                let threshold_val =
-                    capacity * merkle_tree.metadata.rollover_metadata.rollover_threshold / 100;
-                let fullness = merkle_tree.next_index as f64 / capacity as f64 * 100.0;
+            let height = merkle_tree.height as u64;
+            let capacity = 1u64 << height;
+            let threshold_val =
+                capacity * merkle_tree.metadata.rollover_metadata.rollover_threshold / 100;
+            let fullness = merkle_tree.next_index as f64 / capacity as f64 * 100.0;
 
-                let v2_info = parse_address_v2_queue_info(&merkle_tree);
-                let queue_len = Some(v2_info.input_pending_batches * v2_info.zkp_batch_size);
+            let v2_info = parse_address_v2_queue_info(&merkle_tree);
+            let queue_len = Some(v2_info.input_pending_batches * v2_info.zkp_batch_size);
+            let queue_cap = Some(v2_info.batches.len() as u64 * v2_info.batch_size);
 
-                (
-                    fullness,
-                    merkle_tree.next_index,
-                    capacity,
-                    height as u32,
-                    threshold_val,
-                    queue_len,
-                    Some(v2_info),
-                )
-            }
-            TreeType::Unknown => {
-                warn!(
-                    "Encountered unknown tree type for merkle_tree={}, queue={}",
-                    tree.merkle_tree, tree.queue
-                );
-                (0.0, 0, 0, 0, 0, None, None)
-            }
-        };
+            (
+                fullness,
+                merkle_tree.next_index,
+                capacity,
+                height as u32,
+                threshold_val,
+                queue_len,
+                queue_cap,
+                Some(v2_info),
+            )
+        }
+        TreeType::Unknown => {
+            warn!(
+                "Encountered unknown tree type for merkle_tree={}, queue={}",
+                tree.merkle_tree, tree.queue
+            );
+            (0.0, 0, 0, 0, 0, None, None, None)
+        }
+    };
 
     Ok(TreeStatus {
         tree_type: tree.tree_type.to_string(),
@@ -755,6 +834,7 @@ fn parse_tree_status(
         threshold,
         is_rolledover: tree.is_rolledover,
         queue_length,
+        queue_capacity,
         v2_queue_info,
         assigned_forester: None,
         schedule: Vec::new(),

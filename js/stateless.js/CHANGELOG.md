@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.23.0-beta.10]
+
+### Breaking Changes
+
+- Default build target is now V2 when `LIGHT_PROTOCOL_VERSION` is unset. This applies to bundle replacement (`__BUILD_VERSION__`) and package scripts (`pnpm build`, `pnpm build-ci`). To force V1 builds, set `LIGHT_PROTOCOL_VERSION=V1`.
+
+### Changed
+
+- Beta-gated interface RPC paths remain enabled by default in V2, and `getAccountInfoInterface` now propagates upstream RPC errors whenever no definitive account result is available (instead of silently returning `null` on fetch failure paths).
+
 ## [0.22.0] - 2025-06-16
 
 ### Breaking Changes

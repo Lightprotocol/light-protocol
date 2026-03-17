@@ -46,20 +46,12 @@ impl Transfer {
         payer: &Keypair,
         authority: &Keypair,
     ) -> Result<Signature, RpcError> {
-        // Only set fee_payer if payer differs from authority
-        let fee_payer = if payer.pubkey() != authority.pubkey() {
-            Some(payer.pubkey())
-        } else {
-            None
-        };
-
         let ix = TransferInstruction {
             source: self.source,
             destination: self.destination,
             amount: self.amount,
             authority: authority.pubkey(),
-            max_top_up: None,
-            fee_payer,
+            fee_payer: payer.pubkey(),
         }
         .instruction()
         .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;

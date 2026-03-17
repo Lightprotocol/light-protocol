@@ -6,7 +6,7 @@ import {
     createRpc,
     VERSION,
     featureFlags,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import {
     TOKEN_PROGRAM_ID,
@@ -29,7 +29,7 @@ describe('createMintInterface', () => {
         payer = await newAccountWithLamports(rpc, 10e9);
     });
 
-    describe('CToken (compressed) - default programId', () => {
+    describe('LightToken (compressed) - default programId', () => {
         it('should create compressed mint with default programId', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
@@ -52,7 +52,7 @@ describe('createMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
             expect(fetchedMint.mintAuthority?.toBase58()).toBe(
                 mintAuthority.publicKey.toBase58(),
@@ -60,7 +60,7 @@ describe('createMintInterface', () => {
             expect(fetchedMint.isInitialized).toBe(true);
         });
 
-        it('should create compressed mint with explicit CTOKEN_PROGRAM_ID', async () => {
+        it('should create compressed mint with explicit LIGHT_TOKEN_PROGRAM_ID', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const [mintPda] = findMintAddress(mintSigner.publicKey);
@@ -73,7 +73,7 @@ describe('createMintInterface', () => {
                 6,
                 mintSigner,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             await rpc.confirmTransaction(transactionSignature, 'confirmed');
@@ -102,7 +102,7 @@ describe('createMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
             expect(fetchedMint.freezeAuthority?.toBase58()).toBe(
                 freezeAuthority.publicKey.toBase58(),
@@ -129,7 +129,7 @@ describe('createMintInterface', () => {
                 9,
                 mintSigner,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
                 metadata,
             );
 
@@ -152,7 +152,7 @@ describe('createMintInterface', () => {
                     mintSigner,
                 ),
             ).rejects.toThrow(
-                'mintAuthority must be a Signer for compressed token mints',
+                'mintAuthority must be a Signer for light-token mints',
             );
         });
     });
@@ -329,7 +329,7 @@ describe('createMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
             expect(fetchedMint.decimals).toBe(0);
         });
@@ -365,16 +365,18 @@ describe('createMintInterface', () => {
         it('should create different mint addresses for different programs', async () => {
             const mintAuthority = Keypair.generate();
 
-            // CToken mint
-            const ctokenMintSigner = Keypair.generate();
-            const [ctokenMintPda] = findMintAddress(ctokenMintSigner.publicKey);
-            const { mint: ctokenMint } = await createMintInterface(
+            // LightToken mint
+            const lightTokenMintSigner = Keypair.generate();
+            const [lightTokenMintPda] = findMintAddress(
+                lightTokenMintSigner.publicKey,
+            );
+            const { mint: lightTokenMint } = await createMintInterface(
                 rpc,
                 payer,
                 mintAuthority,
                 null,
                 9,
-                ctokenMintSigner,
+                lightTokenMintSigner,
             );
 
             // SPL mint
@@ -404,12 +406,14 @@ describe('createMintInterface', () => {
             );
 
             // All mints should be different
-            expect(ctokenMint.toBase58()).not.toBe(splMint.toBase58());
+            expect(lightTokenMint.toBase58()).not.toBe(splMint.toBase58());
             expect(splMint.toBase58()).not.toBe(t22Mint.toBase58());
-            expect(ctokenMint.toBase58()).not.toBe(t22Mint.toBase58());
+            expect(lightTokenMint.toBase58()).not.toBe(t22Mint.toBase58());
 
-            // CToken mint should be PDA
-            expect(ctokenMint.toBase58()).toBe(ctokenMintPda.toBase58());
+            // LightToken mint should be PDA
+            expect(lightTokenMint.toBase58()).toBe(
+                lightTokenMintPda.toBase58(),
+            );
 
             // SPL/T22 mints should be keypair pubkeys
             expect(splMint.toBase58()).toBe(

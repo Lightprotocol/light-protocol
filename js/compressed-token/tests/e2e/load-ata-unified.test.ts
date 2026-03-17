@@ -1,7 +1,7 @@
 /**
  * Load ATA - Unified Path (wrap=true)
  *
- * Tests the unified load path which wraps SPL/T22 AND decompresses ctoken-cold.
+ * Tests the unified load path which wraps SPL/T22 AND decompresses light-token-cold.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Keypair, Signer, PublicKey } from '@solana/web3.js';
@@ -41,7 +41,10 @@ featureFlags.version = VERSION.V2;
 
 const TEST_TOKEN_DECIMALS = 9;
 
-async function getCTokenBalance(rpc: Rpc, address: PublicKey): Promise<bigint> {
+async function getLightTokenBalance(
+    rpc: Rpc,
+    address: PublicKey,
+): Promise<bigint> {
     const accountInfo = await rpc.getAccountInfo(address);
     if (!accountInfo) return BigInt(0);
     return accountInfo.data.readBigUInt64LE(64);
@@ -89,7 +92,7 @@ describe('loadAta - Unified Path (wrap=true)', () => {
     }, 60_000);
 
     describe('SPL only', () => {
-        it('should wrap SPL balance to ctoken ATA', async () => {
+        it('should wrap SPL balance to light-token ATA', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
             const splAta = await createAssociatedTokenAccount(
@@ -124,23 +127,31 @@ describe('loadAta - Unified Path (wrap=true)', () => {
             const splBalanceBefore = await getAccount(rpc, splAta);
             expect(splBalanceBefore.amount).toBe(BigInt(3000));
 
-            const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+            const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
                 mint,
                 owner.publicKey,
             );
-            const signature = await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            const signature = await loadAtaUnified(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+            );
 
             expect(signature).not.toBeNull();
 
             const splBalanceAfter = await getAccount(rpc, splAta);
             expect(splBalanceAfter.amount).toBe(BigInt(0));
 
-            const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
-            expect(ctokenBalance).toBe(BigInt(3000));
+            const lightTokenBalance = await getLightTokenBalance(
+                rpc,
+                lightTokenAta,
+            );
+            expect(lightTokenBalance).toBe(BigInt(3000));
         });
     });
 
-    describe('ctoken-cold only (unified)', () => {
+    describe('light-token-cold only (unified)', () => {
         it('should decompress cold balance via unified path', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
@@ -155,20 +166,25 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+            const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
                 mint,
                 owner.publicKey,
             );
-            const signature = await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            const signature = await loadAtaUnified(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+            );
 
             expect(signature).not.toBeNull();
 
-            const hotBalance = await getCTokenBalance(rpc, ctokenAta);
+            const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotBalance).toBe(BigInt(4000));
         });
     });
 
-    describe('SPL + ctoken-cold', () => {
+    describe('SPL + light-token-cold', () => {
         it('should wrap SPL and decompress cold in single load', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
@@ -221,11 +237,11 @@ describe('loadAta - Unified Path (wrap=true)', () => {
             expect(splBefore).toBe(BigInt(2000));
             expect(coldBefore).toBe(BigInt(1500));
 
-            const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+            const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
                 mint,
                 owner.publicKey,
             );
-            await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            await loadAtaUnified(rpc, lightTokenAta, owner, mint);
 
             const splAfter = (await getAccount(rpc, splAta)).amount;
             const coldAfter = await getCompressedBalance(
@@ -233,7 +249,7 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 owner.publicKey,
                 mint,
             );
-            const hotBalance = await getCTokenBalance(rpc, ctokenAta);
+            const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
 
             expect(splAfter).toBe(BigInt(0));
             expect(coldAfter).toBe(BigInt(0));
@@ -241,7 +257,7 @@ describe('loadAta - Unified Path (wrap=true)', () => {
         });
     });
 
-    describe('ctoken-hot + cold', () => {
+    describe('light-token-hot + cold', () => {
         it('should decompress cold to existing hot (no ATA creation)', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
@@ -256,13 +272,13 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+            const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
                 mint,
                 owner.publicKey,
             );
-            await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            await loadAtaUnified(rpc, lightTokenAta, owner, mint);
 
-            const hotBefore = await getCTokenBalance(rpc, ctokenAta);
+            const hotBefore = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotBefore).toBe(BigInt(2000));
 
             await mintTo(
@@ -276,14 +292,14 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            await loadAtaUnified(rpc, lightTokenAta, owner, mint);
 
-            const hotAfter = await getCTokenBalance(rpc, ctokenAta);
+            const hotAfter = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotAfter).toBe(BigInt(3000));
         });
     });
 
-    describe('ctoken-hot + SPL', () => {
+    describe('light-token-hot + SPL', () => {
         it('should wrap SPL to existing hot ATA', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
@@ -298,13 +314,13 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+            const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
                 mint,
                 owner.publicKey,
             );
-            await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            await loadAtaUnified(rpc, lightTokenAta, owner, mint);
 
-            const hotBefore = await getCTokenBalance(rpc, ctokenAta);
+            const hotBefore = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotBefore).toBe(BigInt(1000));
 
             const splAta = await createAssociatedTokenAccount(
@@ -336,9 +352,9 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)),
             );
 
-            await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            await loadAtaUnified(rpc, lightTokenAta, owner, mint);
 
-            const hotAfter = await getCTokenBalance(rpc, ctokenAta);
+            const hotAfter = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotAfter).toBe(BigInt(1500));
 
             const splAfter = (await getAccount(rpc, splAta)).amount;
@@ -349,21 +365,26 @@ describe('loadAta - Unified Path (wrap=true)', () => {
     describe('nothing to load', () => {
         it('should create empty ATA when no balances exist at all', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
-            const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+            const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
                 mint,
                 owner.publicKey,
             );
 
             // Verify ATA doesn't exist before
-            const accountBefore = await rpc.getAccountInfo(ctokenAta);
+            const accountBefore = await rpc.getAccountInfo(lightTokenAta);
             expect(accountBefore).toBeNull();
 
             // loadAta should create the ATA idempotently
-            const signature = await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            const signature = await loadAtaUnified(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+            );
             expect(signature).not.toBeNull();
 
             // Verify ATA now exists with 0 balance
-            const hotBalance = await getCTokenBalance(rpc, ctokenAta);
+            const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotBalance).toBe(BigInt(0));
         });
 
@@ -381,19 +402,24 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+            const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
                 mint,
                 owner.publicKey,
             );
-            await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            await loadAtaUnified(rpc, lightTokenAta, owner, mint);
 
-            const signature = await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            const signature = await loadAtaUnified(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+            );
             expect(signature).toBeNull();
         });
     });
 
     describe('createLoadAtaInstructions unified', () => {
-        it('should throw when ATA not derived from c-token program', async () => {
+        it('should throw when ATA not derived from light-token program', async () => {
             const owner = Keypair.generate();
             const wrongAta = await import('@solana/spl-token').then(m =>
                 m.getAssociatedTokenAddressSync(
@@ -412,7 +438,7 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                     mint,
                     owner.publicKey,
                 ),
-            ).rejects.toThrow('For wrap=true, ata must be the c-token ATA');
+            ).rejects.toThrow('For wrap=true, ata must be the light-token ATA');
         });
 
         it('should build instructions for SPL + cold balance', async () => {
@@ -458,20 +484,20 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+            const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
                 mint,
                 owner.publicKey,
             );
 
-            const ixs = await createLoadAtaInstructionsUnified(
+            const batches = await createLoadAtaInstructionsUnified(
                 rpc,
-                ctokenAta,
+                lightTokenAta,
                 owner.publicKey,
                 mint,
                 payer.publicKey,
             );
 
-            expect(ixs.length).toBeGreaterThan(1);
+            expect(batches.flat().length).toBeGreaterThan(1);
         });
     });
 });
@@ -505,7 +531,7 @@ describe('loadAta - T22 Only', () => {
         t22TokenPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
     }, 60_000);
 
-    it('should wrap T22 balance to ctoken ATA', async () => {
+    it('should wrap T22 balance to light-token ATA', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         const t22AtaAccount = await getOrCreateAssociatedTokenAccount(
@@ -550,11 +576,16 @@ describe('loadAta - T22 Only', () => {
         );
         expect(t22BalanceBefore.amount).toBe(BigInt(2500));
 
-        const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+        const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
             t22Mint,
             owner.publicKey,
         );
-        const signature = await loadAtaUnified(rpc, ctokenAta, owner, t22Mint);
+        const signature = await loadAtaUnified(
+            rpc,
+            lightTokenAta,
+            owner,
+            t22Mint,
+        );
 
         expect(signature).not.toBeNull();
 
@@ -566,7 +597,10 @@ describe('loadAta - T22 Only', () => {
         );
         expect(t22BalanceAfter.amount).toBe(BigInt(0));
 
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
-        expect(ctokenBalance).toBe(BigInt(2500));
+        const lightTokenBalance = await getLightTokenBalance(
+            rpc,
+            lightTokenAta,
+        );
+        expect(lightTokenBalance).toBe(BigInt(2500));
     }, 90_000);
 });

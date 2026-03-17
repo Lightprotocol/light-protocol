@@ -36,7 +36,7 @@ pub const TOKEN_NAMESPACE_KEYS: &[&str] = &["seeds", "mint", "owner", "bump", "o
 
 /// Valid keys for `associated_token::` namespace in `#[light_account(associated_token, ...)]`.
 /// Note: `authority` is the user-facing name (maps internally to `owner` in AtaField).
-pub const ASSOCIATED_TOKEN_NAMESPACE_KEYS: &[&str] = &["authority", "mint"];
+pub const ASSOCIATED_TOKEN_NAMESPACE_KEYS: &[&str] = &["authority", "mint", "idempotent"];
 
 /// Valid keys for `mint::` namespace in `#[light_account(init, mint, ...)]` attributes.
 pub const MINT_NAMESPACE_KEYS: &[&str] = &[
@@ -69,6 +69,23 @@ pub const SHORTHAND_KEYS_BY_NAMESPACE: &[(&str, &[&str])] = &[
     ("associated_token", &["authority", "mint"]),
     // mint namespace does not support shorthand - values are typically expressions
 ];
+
+/// Keys that act as boolean flags: presence means `true`, absence means `false`.
+/// Unlike shorthand keys, these do NOT use `key = key` syntax.
+pub const BOOLEAN_FLAG_KEYS_BY_NAMESPACE: &[(&str, &[&str])] =
+    &[("associated_token", &["idempotent"])];
+
+/// Check if a key is a boolean flag within a given namespace.
+/// Boolean flags use presence/absence semantics (no `= value` allowed).
+#[inline]
+pub fn is_boolean_flag_key(namespace: &str, key: &str) -> bool {
+    for (ns, keys) in BOOLEAN_FLAG_KEYS_BY_NAMESPACE {
+        if *ns == namespace {
+            return keys.contains(&key);
+        }
+    }
+    false
+}
 
 /// Check if a keyword is a standalone flag (doesn't require a value).
 #[inline]
@@ -201,9 +218,19 @@ mod tests {
     fn test_associated_token_namespace_keys() {
         assert!(ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"authority"));
         assert!(ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"mint"));
+        assert!(ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"idempotent"));
         assert!(!ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"bump")); // bump derived on-chain
         assert!(!ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"owner")); // renamed to authority
         assert!(!ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"unknown"));
+    }
+
+    #[test]
+    fn test_boolean_flag_keys() {
+        assert!(is_boolean_flag_key("associated_token", "idempotent"));
+        assert!(!is_boolean_flag_key("associated_token", "authority"));
+        assert!(!is_boolean_flag_key("associated_token", "mint"));
+        assert!(!is_boolean_flag_key("token", "idempotent"));
+        assert!(!is_boolean_flag_key("mint", "idempotent"));
     }
 
     #[test]

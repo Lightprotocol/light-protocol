@@ -281,7 +281,8 @@ pub mod csdk_anchor_full_derived_test {
             VAULT_SEED,
         },
         instructions::d10_token_accounts::{
-            D10SingleAta, D10SingleAtaMarkonly, D10SingleAtaMarkonlyParams, D10SingleAtaParams,
+            D10SingleAta, D10SingleAtaMarkonly, D10SingleAtaMarkonlyParams,
+            D10SingleAtaNonIdempotent, D10SingleAtaNonIdempotentParams, D10SingleAtaParams,
             D10SingleVault, D10SingleVaultParams,
         },
         instructions::d11_zero_copy::{
@@ -384,8 +385,7 @@ pub mod csdk_anchor_full_derived_test {
                 amount: params.vault_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                max_top_up: None,
-                fee_payer: None,
+                fee_payer: ctx.accounts.fee_payer.to_account_info(),
             }
             .invoke()?;
         }
@@ -397,8 +397,7 @@ pub mod csdk_anchor_full_derived_test {
                 amount: params.user_ata_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                max_top_up: None,
-                fee_payer: None,
+                fee_payer: ctx.accounts.fee_payer.to_account_info(),
             }
             .invoke()?;
         }
@@ -1471,6 +1470,15 @@ pub mod csdk_anchor_full_derived_test {
         Ok(())
     }
 
+    /// D10: Non-idempotent ATA — strict creation, fails if ATA already exists.
+    #[allow(unused_variables)]
+    pub fn d10_single_ata_non_idempotent<'info>(
+        ctx: Context<'_, '_, '_, 'info, D10SingleAtaNonIdempotent<'info>>,
+        params: D10SingleAtaNonIdempotentParams,
+    ) -> Result<()> {
+        Ok(())
+    }
+
     // =========================================================================
     // D11 Zero-copy (AccountLoader) Tests
     // =========================================================================
@@ -1593,8 +1601,7 @@ pub mod csdk_anchor_full_derived_test {
                 amount: params.mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                max_top_up: None,
-                fee_payer: None,
+                fee_payer: ctx.accounts.fee_payer.to_account_info(),
             }
             .invoke()?;
         }

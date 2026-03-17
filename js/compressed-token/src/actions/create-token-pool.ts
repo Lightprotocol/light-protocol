@@ -36,7 +36,7 @@ export async function createSplInterface(
         ? tokenProgramId
         : await CompressedTokenProgram.getMintProgramId(mint, rpc);
 
-    const ix = await CompressedTokenProgram.createTokenPool({
+    const ix = await CompressedTokenProgram.createSplInterface({
         feePayer: payer.publicKey,
         mint,
         tokenProgramId,

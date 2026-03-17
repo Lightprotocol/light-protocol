@@ -375,7 +375,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     };
     let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
 
-    // For Light Token->Light Token, we need 7 accounts (no SPL bridge, but system_program is required)
+    // For Light Token->Light Token, we need 8 accounts (mint required for TransferChecked)
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
         AccountMeta::new(sender_ctoken, false), // source (Light Token)
@@ -384,6 +384,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
         AccountMeta::new(payer.pubkey(), true), // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
         AccountMeta::new_readonly(Pubkey::default(), false), // system_program
+        AccountMeta::new_readonly(mint, false),              // mint
     ];
 
     let instruction = Instruction {
@@ -806,7 +807,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     // Discriminator 20 = TransferInterfaceInvokeSigned
     let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
 
-    // For Light Token->Light Token, we only need 6 accounts (no SPL bridge)
+    // For Light Token->Light Token, we need 8 accounts (mint required for TransferChecked)
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
         AccountMeta::new(source_ctoken, false), // source (Light Token owned by PDA)
@@ -814,7 +815,8 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         AccountMeta::new_readonly(authority_pda, false), // authority (PDA)
         AccountMeta::new(payer.pubkey(), true), // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
-        AccountMeta::new_readonly(Pubkey::default(), false),
+        AccountMeta::new_readonly(Pubkey::default(), false), // system_program
+        AccountMeta::new_readonly(mint, false),              // mint
     ];
 
     let instruction = Instruction {

@@ -105,6 +105,7 @@ pub fn create_insert_leaves_instruction(
 #[allow(clippy::too_many_arguments)]
 pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
     payer: &Keypair,
+    authority: &Keypair,
     registry: bool,
     rpc: &mut R,
     merkle_tree_keypair: &Keypair,
@@ -163,7 +164,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
         );
 
         let instruction = create_initialize_merkle_tree_instruction_registry(
-            payer.pubkey(),
+            authority.pubkey(),
             merkle_tree_keypair.pubkey(),
             nullifier_queue_keypair.pubkey(),
             cpi_context_keypair.pubkey(),
@@ -172,6 +173,15 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
             program_owner,
             forester,
         );
+        let mut signers = vec![
+            payer,
+            merkle_tree_keypair,
+            nullifier_queue_keypair,
+            cpi_context_keypair,
+        ];
+        if authority.pubkey() != payer.pubkey() {
+            signers.push(authority);
+        }
         Transaction::new_signed_with_payer(
             &[
                 create_cpi_context_instruction,
@@ -180,12 +190,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
                 instruction,
             ],
             Some(&payer.pubkey()),
-            &vec![
-                payer,
-                merkle_tree_keypair,
-                nullifier_queue_keypair,
-                cpi_context_keypair,
-            ],
+            &signers,
             rpc.get_latest_blockhash().await?.0,
         )
     } else {

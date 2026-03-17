@@ -1,5 +1,5 @@
 import {
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     deriveAddressV2,
     TreeInfo,
 } from '@lightprotocol/stateless.js';
@@ -7,18 +7,19 @@ import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
 /**
- * Returns the compressed mint address as bytes.
+ * Returns the light mint address as bytes.
+ * @internal
  */
 export function deriveCMintAddress(
     mintSeed: PublicKey,
     addressTreeInfo: TreeInfo,
 ) {
-    // find_mint_address returns [CMint, bump], we want CMint
-    // In JS, just use the mintSeed directly as the CMint address
+    // find_mint_address returns [light mint, bump], we want light mint
+    // In JS, just use the mintSeed directly as the light mint address
     const address = deriveAddressV2(
         findMintAddress(mintSeed)[0].toBytes(),
         addressTreeInfo.tree,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
     return Array.from(address.toBytes());
 }
@@ -29,34 +30,45 @@ export const COMPRESSED_MINT_SEED: Buffer = Buffer.from([
 ]);
 
 /**
- * Finds the SPL mint PDA for a c-token mint.
+ * Finds the SPL mint PDA for a light-token mint.
  * @param mintSeed The mint seed public key.
  * @returns [PDA, bump]
+ * @internal
  */
 export function findMintAddress(mintSigner: PublicKey): [PublicKey, number] {
     const [address, bump] = PublicKey.findProgramAddressSync(
         [COMPRESSED_MINT_SEED, mintSigner.toBuffer()],
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
     return [address, bump];
 }
 
-/// Same as "getAssociatedTokenAddress" but returns the bump as well.
-/// Uses c-token program ID.
-export function getAssociatedCTokenAddressAndBump(
+/**
+ * Same as "getAssociatedTokenAddress" but returns the bump as well.
+ * Uses light-token program ID.
+ * @internal
+ */
+export function getAssociatedLightTokenAddressAndBump(
     owner: PublicKey,
     mint: PublicKey,
 ) {
     return PublicKey.findProgramAddressSync(
-        [owner.toBuffer(), CTOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-        CTOKEN_PROGRAM_ID,
+        [owner.toBuffer(), LIGHT_TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 }
 
-/// Same as "getAssociatedTokenAddress" but with c-token program ID.
-export function getAssociatedCTokenAddress(owner: PublicKey, mint: PublicKey) {
+/**
+ * Same as "getAssociatedTokenAddress", returning just the associated token address.
+ * Uses light-token program ID.
+ * @internal
+ */
+export function getAssociatedLightTokenAddress(
+    owner: PublicKey,
+    mint: PublicKey,
+): PublicKey {
     return PublicKey.findProgramAddressSync(
-        [owner.toBuffer(), CTOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-        CTOKEN_PROGRAM_ID,
+        [owner.toBuffer(), LIGHT_TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+        LIGHT_TOKEN_PROGRAM_ID,
     )[0];
 }

@@ -35,8 +35,9 @@ pub async fn fetch_trees<R: Rpc>(rpc: &R) -> Result<Vec<TreeAccounts>> {
         }
         Err(e) => {
             warn!(
-                "Filtered tree fetch failed, falling back to unfiltered: {:?}",
-                e
+                event = "filtered_tree_fetch_failed_fallback_unfiltered",
+                error = ?e,
+                "Filtered tree fetch failed; falling back to unfiltered fetch"
             );
             fetch_trees_unfiltered(rpc).await
         }
@@ -83,16 +84,19 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
         Ok(accounts) => {
             debug!("Fetched {} batched tree accounts", accounts.len());
             for (pubkey, mut account) in accounts {
-                // Try state first, then address
-                if let Ok(tree) = process_batch_state_account(&mut account, pubkey) {
+                if let Ok(Some(tree)) = process_batch_state_account(&mut account, pubkey) {
                     all_trees.push(tree);
-                } else if let Ok(tree) = process_batch_address_account(&mut account, pubkey) {
+                } else if let Ok(Some(tree)) = process_batch_address_account(&mut account, pubkey) {
                     all_trees.push(tree);
                 }
             }
         }
         Err(e) => {
-            warn!("Failed to fetch batched trees: {:?}", e);
+            warn!(
+                event = "fetch_batched_trees_failed",
+                error = ?e,
+                "Failed to fetch batched trees"
+            );
             errors.push(format!("batched: {}", e));
         }
     }
@@ -102,13 +106,17 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
         Ok(accounts) => {
             debug!("Fetched {} state V1 tree accounts", accounts.len());
             for (pubkey, account) in accounts {
-                if let Ok(tree) = process_state_account(&account, pubkey) {
+                if let Ok(Some(tree)) = process_state_account(&account, pubkey) {
                     all_trees.push(tree);
                 }
             }
         }
         Err(e) => {
-            warn!("Failed to fetch state V1 trees: {:?}", e);
+            warn!(
+                event = "fetch_state_v1_trees_failed",
+                error = ?e,
+                "Failed to fetch StateV1 trees"
+            );
             errors.push(format!("state_v1: {}", e));
         }
     }
@@ -118,13 +126,17 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
         Ok(accounts) => {
             debug!("Fetched {} address V1 tree accounts", accounts.len());
             for (pubkey, account) in accounts {
-                if let Ok(tree) = process_address_account(&account, pubkey) {
+                if let Ok(Some(tree)) = process_address_account(&account, pubkey) {
                     all_trees.push(tree);
                 }
             }
         }
         Err(e) => {
-            warn!("Failed to fetch address V1 trees: {:?}", e);
+            warn!(
+                event = "fetch_address_v1_trees_failed",
+                error = ?e,
+                "Failed to fetch AddressV1 trees"
+            );
             errors.push(format!("address_v1: {}", e));
         }
     }
@@ -232,9 +244,10 @@ fn process_account(pubkey: Pubkey, mut account: Account) -> Option<TreeAccounts>
         .or_else(|_| process_address_account(&account, pubkey))
         .or_else(|_| process_batch_address_account(&mut account, pubkey))
         .ok()
+        .flatten()
 }
 
-fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<Option<TreeAccounts>> {
     check_discriminator::<StateMerkleTreeAccount>(&account.data)?;
     let tree_account = StateMerkleTreeAccount::deserialize(&mut &account.data[8..])?;
     Ok(create_tree_accounts(
@@ -244,7 +257,7 @@ fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccoun
     ))
 }
 
-fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<Option<TreeAccounts>> {
     check_discriminator::<AddressMerkleTreeAccount>(&account.data)?;
     let tree_account = AddressMerkleTreeAccount::deserialize(&mut &account.data[8..])?;
     Ok(create_tree_accounts(
@@ -254,7 +267,10 @@ fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAcco
     ))
 }
 
-fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+fn process_batch_state_account(
+    account: &mut Account,
+    pubkey: Pubkey,
+) -> Result<Option<TreeAccounts>> {
     light_account_checks::checks::check_discriminator::<BatchedMerkleTreeAccount>(&account.data)
         .map_err(|_| AccountDeserializationError::BatchStateMerkleTree {
             error: "Invalid discriminator".to_string(),
@@ -273,7 +289,10 @@ fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<
     ))
 }
 
-fn process_batch_address_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+fn process_batch_address_account(
+    account: &mut Account,
+    pubkey: Pubkey,
+) -> Result<Option<TreeAccounts>> {
     light_account_checks::checks::check_discriminator::<BatchedMerkleTreeAccount>(&account.data)
         .map_err(|_| AccountDeserializationError::BatchAddressMerkleTree {
             error: "Invalid discriminator".to_string(),
@@ -296,7 +315,17 @@ fn create_tree_accounts(
     pubkey: Pubkey,
     metadata: &MerkleTreeMetadata,
     tree_type: TreeType,
-) -> TreeAccounts {
+) -> Option<TreeAccounts> {
+    if metadata.rollover_metadata.network_fee == 0 {
+        debug!(
+            event = "tree_skipped_no_network_fee",
+            tree = %pubkey,
+            tree_type = ?tree_type,
+            "Skipping tree with network_fee=0"
+        );
+        return None;
+    }
+
     let tree_accounts = TreeAccounts::new(
         pubkey,
         metadata.associated_queue.into(),
@@ -313,10 +342,10 @@ fn create_tree_accounts(
         tree_accounts.is_rolledover,
         tree_accounts.owner
     );
-    tree_accounts
+    Some(tree_accounts)
 }
 
-pub async fn fetch_protocol_group_authority<R: Rpc>(rpc: &R) -> Result<Pubkey> {
+pub async fn fetch_protocol_group_authority<R: Rpc>(rpc: &R, run_id: &str) -> Result<Pubkey> {
     let registered_program_pda =
         light_registry::account_compression_cpi::sdk::get_registered_program_pda(
             &light_registry::ID,
@@ -336,8 +365,10 @@ pub async fn fetch_protocol_group_authority<R: Rpc>(rpc: &R) -> Result<Pubkey> {
         .map_err(|e| anyhow::anyhow!("Failed to deserialize RegisteredProgram: {}", e))?;
 
     info!(
-        "Fetched protocol group authority: {}",
-        registered_program.group_authority_pda
+        event = "protocol_group_authority_fetched",
+        run_id = %run_id,
+        group_authority = %registered_program.group_authority_pda,
+        "Fetched protocol group authority"
     );
 
     Ok(registered_program.group_authority_pda)

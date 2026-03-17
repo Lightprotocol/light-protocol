@@ -14,8 +14,10 @@ use solana_sdk::signature::{Keypair, Signature, Signer};
 
 use crate::utils::create_account::create_account_instruction;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_batched_state_merkle_tree<R: Rpc>(
     payer: &Keypair,
+    authority: &Keypair,
     registry: bool,
     rpc: &mut R,
     merkle_tree_keypair: &Keypair,
@@ -66,7 +68,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
     );
     let instruction = if registry {
         create_initialize_batched_merkle_tree_instruction(
-            payer.pubkey(),
+            authority.pubkey(),
             merkle_tree_keypair.pubkey(),
             queue_keypair.pubkey(),
             cpi_context_keypair.pubkey(),
@@ -90,6 +92,16 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
         }
     };
 
+    let mut signers: Vec<&Keypair> = vec![
+        payer,
+        merkle_tree_keypair,
+        queue_keypair,
+        cpi_context_keypair,
+    ];
+    if registry && authority.pubkey() != payer.pubkey() {
+        signers.push(authority);
+    }
+
     rpc.create_and_send_transaction(
         &[
             create_mt_account_ix,
@@ -98,12 +110,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
             instruction,
         ],
         &payer.pubkey(),
-        &[
-            payer,
-            merkle_tree_keypair,
-            queue_keypair,
-            cpi_context_keypair,
-        ],
+        &signers,
     )
     .await
 }

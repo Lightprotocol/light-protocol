@@ -1,9 +1,9 @@
 import type {
     Commitment,
     PublicKey,
-    TransactionInstruction,
     Signer,
     ConfirmOptions,
+    TransactionInstruction,
     TransactionSignature,
 } from '@solana/web3.js';
 import type { Rpc } from '@lightprotocol/stateless.js';
@@ -19,38 +19,31 @@ export * from './constants';
 export * from './idl';
 export * from './layout';
 export * from './program';
+export { CompressedTokenProgram as LightTokenProgram } from './program';
 export * from './types';
 import {
-    createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
     createLoadAtaInstructions as _createLoadAtaInstructions,
     loadAta as _loadAta,
-    calculateCompressibleLoadComputeUnits,
-    CompressibleAccountInput,
-    ParsedAccountInfoInterface,
-    CompressibleLoadParams,
-    PackedCompressedAccount,
-    LoadResult,
+    selectInputsForAmount,
 } from './v3/actions/load-ata';
+import { getMintInterface } from './v3/get-mint-interface';
+
+export { selectInputsForAmount };
 
 export {
-    createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
-    calculateCompressibleLoadComputeUnits,
-    CompressibleAccountInput,
-    ParsedAccountInfoInterface,
-    CompressibleLoadParams,
-    PackedCompressedAccount,
-    LoadResult,
-};
+    estimateTransactionSize,
+    MAX_TRANSACTION_SIZE,
+    MAX_COMBINED_BATCH_BYTES,
+    MAX_LOAD_ONLY_BATCH_BYTES,
+} from './v3/utils/estimate-tx-size';
 
 // Export mint module with explicit naming to avoid conflicts
 export {
     // Instructions
     createMintInstruction,
     createTokenMetadata,
-    createAssociatedCTokenAccountInstruction,
-    createAssociatedCTokenAccountIdempotentInstruction,
+    createAssociatedLightTokenAccountInstruction,
+    createAssociatedLightTokenAccountIdempotentInstruction,
     createAssociatedTokenAccountInterfaceInstruction,
     createAssociatedTokenAccountInterfaceIdempotentInstruction,
     createAtaInterfaceIdempotentInstruction,
@@ -63,14 +56,17 @@ export {
     createUpdateMetadataAuthorityInstruction,
     createRemoveMetadataKeyInstruction,
     createWrapInstruction,
-    createDecompressInterfaceInstruction,
-    createTransferInterfaceInstruction,
-    createCTokenTransferInstruction,
+    createUnwrapInstruction,
+    createUnwrapInstructions,
+    createLightTokenFreezeAccountInstruction,
+    createLightTokenThawAccountInstruction,
+    createLightTokenTransferInstruction,
+    createLightTokenTransferCheckedInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
-    CTokenConfig,
-    CreateAssociatedCTokenAccountParams,
+    LightTokenConfig,
+    CreateAssociatedLightTokenAccountParams,
     // Constants for rent sponsor
     DEFAULT_COMPRESSIBLE_CONFIG,
     // Actions
@@ -82,8 +78,10 @@ export {
     transferInterface,
     decompressInterface,
     decompressMint,
+    createTransferInterfaceInstructions,
+    sliceLast,
     wrap,
-    mintTo as mintToCToken,
+    mintTo as mintToLightToken,
     mintToCompressed,
     mintToInterface,
     updateMintAuthority,
@@ -104,8 +102,8 @@ export {
     Account,
     AccountState,
     ParsedTokenAccount as ParsedTokenAccountInterface,
-    parseCTokenHot,
-    parseCTokenCold,
+    parseLightTokenHot,
+    parseLightTokenCold,
     toAccountInfo,
     convertTokenDataToAccount,
     // Types
@@ -156,15 +154,16 @@ export async function getAtaInterface(
 }
 
 /**
- * Create instructions to load token balances into a c-token ATA.
+ * Create instruction batches for loading token balances into an ATA.
+ * Returns batches of instructions, each batch is one transaction.
  *
- * @param rpc     RPC connection
- * @param ata     Associated token address
- * @param owner   Owner public key
- * @param mint    Mint public key
- * @param payer   Fee payer (defaults to owner)
- * @param options Optional load options
- * @returns       Array of instructions (empty if nothing to load)
+ * @param rpc               RPC connection
+ * @param ata               Associated token address
+ * @param owner             Owner public key
+ * @param mint              Mint public key
+ * @param payer             Fee payer (defaults to owner)
+ * @param options           Optional load options
+ * @returns Instruction batches - each inner array is one transaction
  */
 export async function createLoadAtaInstructions(
     rpc: Rpc,
@@ -173,12 +172,14 @@ export async function createLoadAtaInstructions(
     mint: PublicKey,
     payer?: PublicKey,
     options?: InterfaceOptions,
-): Promise<TransactionInstruction[]> {
+): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
     return _createLoadAtaInstructions(
         rpc,
         ata,
         owner,
         mint,
+        mintInterface.mint.decimals,
         payer,
         options,
         false,
@@ -186,7 +187,7 @@ export async function createLoadAtaInstructions(
 }
 
 /**
- * Load token balances into a c-token ATA.
+ * Load token balances into a light-token ATA.
  *
  * @param rpc               RPC connection
  * @param ata               Associated token address
@@ -205,6 +206,7 @@ export async function loadAta(
     payer?: Signer,
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
+    decimals?: number,
 ): Promise<TransactionSignature | null> {
     return _loadAta(
         rpc,
@@ -215,5 +217,6 @@ export async function loadAta(
         confirmOptions,
         interfaceOptions,
         false,
+        decimals,
     );
 }

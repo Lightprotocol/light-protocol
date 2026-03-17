@@ -16,6 +16,8 @@ use crate::{
     ForesterConfig, Result,
 };
 
+type PubsubClientThread = thread::JoinHandle<Result<()>>;
+
 pub async fn setup_pubsub_client(
     config: &ForesterConfig,
     queue_pubkeys: std::collections::HashSet<Pubkey>,
@@ -61,7 +63,7 @@ fn spawn_pubsub_client(
     queue_pubkeys: std::collections::HashSet<Pubkey>,
     update_tx: mpsc::Sender<QueueUpdate>,
     mut shutdown_rx: mpsc::Receiver<()>,
-) -> thread::JoinHandle<Result<()>> {
+) -> PubsubClientThread {
     thread::spawn(move || {
         let rt = Builder::new_current_thread()
             .enable_all()

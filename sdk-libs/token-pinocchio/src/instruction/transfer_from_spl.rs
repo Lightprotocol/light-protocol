@@ -43,7 +43,7 @@ pub struct TransferFromSplCpi<'info> {
     pub spl_interface_pda_bump: u8,
     pub decimals: u8,
     pub source_spl_token_account: &'info AccountInfo,
-    /// Destination ctoken account (writable)
+    /// Destination light-token account (writable)
     pub destination: &'info AccountInfo,
     pub authority: &'info AccountInfo,
     pub mint: &'info AccountInfo,
@@ -82,8 +82,8 @@ impl<'info> TransferFromSplCpi<'info> {
         &self,
     ) -> Result<(Vec<u8>, Vec<AccountMeta<'_>>, Vec<&AccountInfo>), ProgramError> {
         // Build compressions:
-        // 1. Wrap SPL tokens to Light Token pool
-        // 2. Unwrap from pool to destination ctoken account
+        // 1. Wrap SPL tokens via SPL interface PDA
+        // 2. Unwrap from pool to destination light-token account
         let wrap_from_spl = Compression::compress_spl(
             self.amount,
             0, // mint index
@@ -133,7 +133,7 @@ impl<'info> TransferFromSplCpi<'info> {
         // [1] fee_payer (signer, writable)
         // [2..] packed_accounts:
         //   - [0] mint (readonly)
-        //   - [1] destination ctoken account (writable)
+        //   - [1] destination light-token account (writable)
         //   - [2] authority (signer, readonly)
         //   - [3] source SPL token account (writable)
         //   - [4] SPL interface PDA (writable)

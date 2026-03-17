@@ -21,10 +21,11 @@ use solana_sdk::{
     clock::{Clock, Slot},
     hash::Hash,
     instruction::Instruction,
+    message::VersionedMessage,
     pubkey::Pubkey,
     rent::Rent,
     signature::{Keypair, Signature},
-    transaction::Transaction,
+    transaction::{Transaction, VersionedTransaction},
 };
 use solana_transaction_status_client_types::TransactionStatus;
 
@@ -125,6 +126,10 @@ impl Rpc for LightProgramTest {
         Ok((hash, slot))
     }
 
+    async fn get_block_height(&self) -> Result<u64, RpcError> {
+        self.get_slot().await
+    }
+
     async fn get_slot(&self) -> Result<u64, RpcError> {
         Ok(self.context.get_sysvar::<Clock>().slot)
     }
@@ -158,6 +163,17 @@ impl Rpc for LightProgramTest {
         ))
     }
 
+    async fn send_versioned_transaction_with_config(
+        &self,
+        _transaction: &VersionedTransaction,
+        _config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError> {
+        Err(RpcError::CustomError(
+            "send_versioned_transaction_with_config is unimplemented for ProgramTestConnection"
+                .to_string(),
+        ))
+    }
+
     async fn process_transaction(
         &mut self,
         transaction: Transaction,
@@ -186,6 +202,32 @@ impl Rpc for LightProgramTest {
             // Update pre_context only after successful transaction execution
             self.pre_context = Some(pre_context_snapshot);
         }
+        Ok(sig)
+    }
+
+    async fn process_versioned_transaction(
+        &mut self,
+        transaction: VersionedTransaction,
+    ) -> Result<Signature, RpcError> {
+        let sig = *transaction.signatures.first().unwrap();
+        if self.indexer.is_some() {
+            self._send_versioned_transaction_with_batched_event(transaction)
+                .await?;
+        } else {
+            let pre_context_snapshot = self.context.clone();
+
+            self.transaction_counter += 1;
+            let _res = self.context.send_transaction(transaction).map_err(|x| {
+                if self.config.log_failed_tx {
+                    println!("{}", x.meta.pretty_logs());
+                }
+                RpcError::TransactionError(x.err)
+            })?;
+
+            self.maybe_print_logs(_res.pretty_logs());
+            self.pre_context = Some(pre_context_snapshot);
+        }
+
         Ok(sig)
     }
 
@@ -358,14 +400,26 @@ impl Rpc for LightProgramTest {
 
     async fn create_and_send_versioned_transaction<'a>(
         &'a mut self,
-        _instructions: &'a [Instruction],
-        _payer: &'a Pubkey,
-        _signers: &'a [&'a Keypair],
-        _address_lookup_tables: &'a [AddressLookupTableAccount],
+        instructions: &'a [Instruction],
+        payer: &'a Pubkey,
+        signers: &'a [&'a Keypair],
+        address_lookup_tables: &'a [AddressLookupTableAccount],
     ) -> Result<Signature, RpcError> {
-        unimplemented!(
-            "create_and_send_versioned_transaction is unimplemented for LightProgramTest"
-        );
+        let blockhash = self.get_latest_blockhash().await?.0;
+        let message = solana_sdk::message::v0::Message::try_compile(
+            payer,
+            instructions,
+            address_lookup_tables,
+            blockhash,
+        )
+        .map_err(|e| RpcError::CustomError(format!("Failed to compile v0 message: {}", e)))?;
+        let transaction = VersionedTransaction::try_new(
+            solana_sdk::message::VersionedMessage::V0(message),
+            signers,
+        )
+        .map_err(|e| RpcError::SigningError(e.to_string()))?;
+
+        self.process_versioned_transaction(transaction).await
     }
 
     async fn get_account_interface(
@@ -946,6 +1000,147 @@ impl LightProgramTest {
         }
 
         // Update pre_context only after successful transaction execution
+        self.pre_context = Some(pre_context_snapshot);
+
+        Ok(event)
+    }
+
+    async fn _send_versioned_transaction_with_batched_event(
+        &mut self,
+        transaction: VersionedTransaction,
+    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
+        let mut vec = Vec::new();
+
+        let signature = *transaction.signatures.first().unwrap();
+        let pre_context_snapshot = self.context.clone();
+
+        let simulation_result = self.context.simulate_transaction(transaction.clone());
+
+        self.transaction_counter += 1;
+        let transaction_result = self.context.send_transaction(transaction.clone());
+        let slot = self.context.get_sysvar::<Clock>().slot;
+
+        let _res = transaction_result.as_ref().map_err(|x| {
+            if self.config.log_failed_tx {
+                println!("{}", x.meta.pretty_logs());
+            }
+            RpcError::TransactionError(x.err.clone())
+        })?;
+
+        self.maybe_print_logs(_res.pretty_logs());
+
+        let simulation_result = simulation_result.unwrap();
+        let event = simulation_result
+            .meta
+            .inner_instructions
+            .iter()
+            .flatten()
+            .find_map(|inner_instruction| {
+                PublicTransactionEvent::try_from_slice(&inner_instruction.instruction.data).ok()
+            });
+
+        let event = if let Some(event) = event {
+            Some(vec![BatchPublicTransactionEvent {
+                event,
+                ..Default::default()
+            }])
+        } else {
+            let mut vec_accounts = Vec::<Vec<Pubkey>>::new();
+            let mut program_ids = Vec::new();
+            let account_keys = match &transaction.message {
+                VersionedMessage::Legacy(message) => message.account_keys.clone(),
+                VersionedMessage::V0(message) => {
+                    if !message.address_table_lookups.is_empty() {
+                        return Err(RpcError::CustomError(
+                            "LightProgramTest event parsing for versioned transactions does not support address lookup tables"
+                                .to_string(),
+                        ));
+                    }
+                    message.account_keys.clone()
+                }
+            };
+
+            match &transaction.message {
+                VersionedMessage::Legacy(message) => {
+                    for instruction in &message.instructions {
+                        program_ids.push(account_keys[instruction.program_id_index as usize]);
+                        vec.push(instruction.data.clone());
+                        vec_accounts.push(
+                            instruction
+                                .accounts
+                                .iter()
+                                .map(|index| account_keys[*index as usize])
+                                .collect(),
+                        );
+                    }
+                }
+                VersionedMessage::V0(message) => {
+                    for instruction in &message.instructions {
+                        program_ids.push(account_keys[instruction.program_id_index as usize]);
+                        vec.push(instruction.data.clone());
+                        vec_accounts.push(
+                            instruction
+                                .accounts
+                                .iter()
+                                .map(|index| account_keys[*index as usize])
+                                .collect(),
+                        );
+                    }
+                }
+            }
+
+            simulation_result
+                .meta
+                .inner_instructions
+                .iter()
+                .flatten()
+                .find_map(|inner_instruction| {
+                    vec.push(inner_instruction.instruction.data.clone());
+                    program_ids.push(
+                        account_keys[inner_instruction.instruction.program_id_index as usize],
+                    );
+                    vec_accounts.push(
+                        inner_instruction
+                            .instruction
+                            .accounts
+                            .iter()
+                            .map(|index| account_keys[*index as usize])
+                            .collect(),
+                    );
+                    None::<PublicTransactionEvent>
+                });
+
+            event_from_light_transaction(
+                &program_ids.iter().map(|x| (*x).into()).collect::<Vec<_>>(),
+                vec.as_slice(),
+                vec_accounts
+                    .iter()
+                    .map(|inner_vec| inner_vec.iter().map(|x| (*x).into()).collect())
+                    .collect(),
+            )
+            .or(Ok::<
+                Option<Vec<BatchPublicTransactionEvent>>,
+                ParseIndexerEventError,
+            >(None))?
+        };
+
+        if self.config.log_light_protocol_events {
+            println!("event:\n {:?}", event);
+        }
+        let event = event.map(|e| (e, signature, slot));
+
+        if let Some(indexer) = self.indexer.as_mut() {
+            if let Some(events) = event.as_ref() {
+                for event in events.0.iter() {
+                    <TestIndexer as TestIndexerExtensions>::add_compressed_accounts_with_token_data(
+                        indexer,
+                        slot,
+                        &event.event,
+                    );
+                }
+            }
+        }
+
         self.pre_context = Some(pre_context_snapshot);
 
         Ok(event)

@@ -6,12 +6,13 @@ import {
 import { Buffer } from 'buffer';
 import {
     ValidityProofWithContext,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
     getDefaultAddressTreeInfo,
     getOutputQueue,
 } from '@lightprotocol/stateless.js';
+import { MAX_TOP_UP } from '../../constants';
 import { CompressedTokenProgram } from '../../program';
 import { MintInterface } from '../get-mint-interface';
 import {
@@ -41,15 +42,15 @@ type UpdateMetadataAction =
       };
 
 interface EncodeUpdateMetadataInstructionParams {
-    splMint: PublicKey;
-    addressTree: PublicKey;
     leafIndex: number;
     rootIndex: number;
     proof: { a: number[]; b: number[]; c: number[] } | null;
     mintInterface: MintInterface;
     action: UpdateMetadataAction;
+    maxTopUp?: number;
 }
 
+/** @internal */
 function convertActionToBorsh(action: UpdateMetadataAction): Action {
     if (action.type === 'updateField') {
         return {
@@ -78,6 +79,7 @@ function convertActionToBorsh(action: UpdateMetadataAction): Action {
     }
 }
 
+/** @internal */
 function encodeUpdateMetadataInstructionData(
     params: EncodeUpdateMetadataInstructionParams,
 ): Buffer {
@@ -89,7 +91,7 @@ function encodeUpdateMetadataInstructionData(
         );
     }
 
-    // When mint is decompressed (cmintDecompressed=true), the program reads from CMint account
+    // When mint is decompressed (cmintDecompressed=true), the program reads from light mint account
     // so we don't need to include mint data in the instruction
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
@@ -98,7 +100,7 @@ function encodeUpdateMetadataInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: params.proof === null,
         rootIndex: params.rootIndex,
-        maxTopUp: 0,
+        maxTopUp: params.maxTopUp ?? MAX_TOP_UP,
         createMint: null,
         actions: [convertActionToBorsh(params.action)],
         proof: params.proof,
@@ -143,21 +145,23 @@ function encodeUpdateMetadataInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
+/** @internal */
 function createUpdateMetadataInstruction(
     mintInterface: MintInterface,
     authority: PublicKey,
     payer: PublicKey,
     validityProof: ValidityProofWithContext | null,
     action: UpdateMetadataAction,
+    maxTopUp?: number,
 ): TransactionInstruction {
     if (!mintInterface.merkleContext) {
         throw new Error(
-            'MintInterface must have merkleContext for compressed mint operations',
+            'MintInterface must have merkleContext for light mint operations',
         );
     }
     if (!mintInterface.mintContext) {
         throw new Error(
-            'MintInterface must have mintContext for compressed mint operations',
+            'MintInterface must have mintContext for light mint operations',
         );
     }
     if (!mintInterface.tokenMetadata) {
@@ -172,13 +176,12 @@ function createUpdateMetadataInstruction(
 
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMetadataInstructionData({
-        splMint: mintInterface.mintContext.splMint,
-        addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         rootIndex: validityProof?.rootIndices[0] ?? 0,
         proof: isDecompressed ? null : (validityProof?.compressedProof ?? null),
         mintInterface,
         action,
+        maxTopUp,
     });
 
     const sys = defaultStaticAccountsStruct();
@@ -189,7 +192,7 @@ function createUpdateMetadataInstruction(
             isWritable: false,
         },
         { pubkey: authority, isSigner: true, isWritable: false },
-        // CMint account when decompressed (must come before payer for correct account ordering)
+        // light mint account when decompressed (must come before payer for correct account ordering)
         ...(isDecompressed
             ? [
                   {
@@ -235,14 +238,14 @@ function createUpdateMetadataInstruction(
     ];
 
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });
 }
 
 /**
- * Create instruction for updating a compressed mint's metadata field.
+ * Create instruction for updating a light mint's metadata field.
  *
  * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
  * (preferring nextTreeInfo.queue if available for rollover support).
@@ -250,11 +253,12 @@ function createUpdateMetadataInstruction(
  * @param mintInterface  MintInterface from getMintInterface() - must have merkleContext and tokenMetadata
  * @param authority      Metadata update authority public key (must sign)
  * @param payer          Fee payer public key
- * @param validityProof  Validity proof for the compressed mint (null for decompressed mints)
+ * @param validityProof  Validity proof for the light mint (null for decompressed light mints)
  * @param fieldType      Field to update: 'name', 'symbol', 'uri', or 'custom'
  * @param value          New value for the field
  * @param customKey      Custom key name (required if fieldType is 'custom')
  * @param extensionIndex Extension index (default: 0)
+ * @param maxTopUp        Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createUpdateMetadataFieldInstruction(
     mintInterface: MintInterface,
@@ -265,6 +269,7 @@ export function createUpdateMetadataFieldInstruction(
     value: string,
     customKey?: string,
     extensionIndex: number = 0,
+    maxTopUp?: number,
 ): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'updateField',
@@ -287,11 +292,12 @@ export function createUpdateMetadataFieldInstruction(
         payer,
         validityProof,
         action,
+        maxTopUp,
     );
 }
 
 /**
- * Create instruction for updating a compressed mint's metadata authority.
+ * Create instruction for updating a light mint's metadata authority.
  *
  * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
  * (preferring nextTreeInfo.queue if available for rollover support).
@@ -300,8 +306,9 @@ export function createUpdateMetadataFieldInstruction(
  * @param currentAuthority Current metadata update authority public key (must sign)
  * @param newAuthority     New metadata update authority public key
  * @param payer            Fee payer public key
- * @param validityProof    Validity proof for the compressed mint (null for decompressed mints)
+ * @param validityProof    Validity proof for the light mint (null for decompressed light mints)
  * @param extensionIndex   Extension index (default: 0)
+ * @param maxTopUp         Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createUpdateMetadataAuthorityInstruction(
     mintInterface: MintInterface,
@@ -310,6 +317,7 @@ export function createUpdateMetadataAuthorityInstruction(
     payer: PublicKey,
     validityProof: ValidityProofWithContext | null,
     extensionIndex: number = 0,
+    maxTopUp?: number,
 ): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'updateAuthority',
@@ -323,11 +331,12 @@ export function createUpdateMetadataAuthorityInstruction(
         payer,
         validityProof,
         action,
+        maxTopUp,
     );
 }
 
 /**
- * Create instruction for removing a metadata key from a compressed mint.
+ * Create instruction for removing a metadata key from a light mint.
  *
  * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
  * (preferring nextTreeInfo.queue if available for rollover support).
@@ -335,10 +344,11 @@ export function createUpdateMetadataAuthorityInstruction(
  * @param mintInterface  MintInterface from getMintInterface() - must have merkleContext and tokenMetadata
  * @param authority      Metadata update authority public key (must sign)
  * @param payer          Fee payer public key
- * @param validityProof  Validity proof for the compressed mint (null for decompressed mints)
+ * @param validityProof  Validity proof for the light mint (null for decompressed light mints)
  * @param key            Metadata key to remove
  * @param idempotent     If true, don't error if key doesn't exist (default: false)
  * @param extensionIndex Extension index (default: 0)
+ * @param maxTopUp        Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createRemoveMetadataKeyInstruction(
     mintInterface: MintInterface,
@@ -348,6 +358,7 @@ export function createRemoveMetadataKeyInstruction(
     key: string,
     idempotent: boolean = false,
     extensionIndex: number = 0,
+    maxTopUp?: number,
 ): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'removeKey',
@@ -362,5 +373,6 @@ export function createRemoveMetadataKeyInstruction(
         payer,
         validityProof,
         action,
+        maxTopUp,
     );
 }

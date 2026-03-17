@@ -4,23 +4,23 @@ import {
     createAssociatedTokenAccountInstruction as createSplAssociatedTokenAccountInstruction,
     createAssociatedTokenAccountIdempotentInstruction as createSplAssociatedTokenAccountIdempotentInstruction,
 } from '@solana/spl-token';
-import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { getAtaProgramId } from '../ata-utils';
 import {
-    createAssociatedCTokenAccountInstruction,
-    createAssociatedCTokenAccountIdempotentInstruction,
+    createAssociatedLightTokenAccountInstruction,
+    createAssociatedLightTokenAccountIdempotentInstruction,
     CompressibleConfig,
     DEFAULT_COMPRESSIBLE_CONFIG,
-} from './create-associated-ctoken';
+} from './create-associated-light-token';
 
 // Re-export for convenience
 export { DEFAULT_COMPRESSIBLE_CONFIG };
 
 /**
- * c-token-specific config for createAssociatedTokenAccountInterfaceInstruction
+ * light-token-specific config for createAssociatedTokenAccountInterfaceInstruction
  */
-export interface CTokenConfig {
-    compressibleConfig?: CompressibleConfig;
+export interface LightTokenConfig {
+    compressibleConfig?: CompressibleConfig | null;
     configAccount?: PublicKey;
     rentPayerPda?: PublicKey;
 }
@@ -40,7 +40,7 @@ export interface CreateAssociatedTokenAccountInterfaceInstructionParams {
 
 /**
  * Create instruction for creating an associated token account (SPL, Token-2022,
- * or c-token). Follows SPL Token API signature with optional c-token config at the
+ * or light-token). Follows SPL Token API signature with optional light-token config at the
  * end.
  *
  * @param payer                    Fee payer public key.
@@ -49,7 +49,7 @@ export interface CreateAssociatedTokenAccountInterfaceInstructionParams {
  * @param mint                     Mint address.
  * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
  * @param associatedTokenProgramId Associated token program ID.
- * @param ctokenConfig             Optional c-token-specific configuration.
+ * @param lightTokenConfig             Optional light-token-specific configuration.
  */
 export function createAssociatedTokenAccountInterfaceInstruction(
     payer: PublicKey,
@@ -58,19 +58,19 @@ export function createAssociatedTokenAccountInterfaceInstruction(
     mint: PublicKey,
     programId: PublicKey = TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
-    ctokenConfig?: CTokenConfig,
+    lightTokenConfig?: LightTokenConfig,
 ): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
-        return createAssociatedCTokenAccountInstruction(
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+        return createAssociatedLightTokenAccountInstruction(
             payer,
             owner,
             mint,
-            ctokenConfig?.compressibleConfig,
-            ctokenConfig?.configAccount,
-            ctokenConfig?.rentPayerPda,
+            lightTokenConfig?.compressibleConfig,
+            lightTokenConfig?.configAccount,
+            lightTokenConfig?.rentPayerPda,
         );
     } else {
         return createSplAssociatedTokenAccountInstruction(
@@ -86,7 +86,7 @@ export function createAssociatedTokenAccountInterfaceInstruction(
 
 /**
  * Create idempotent instruction for creating an associated token account (SPL,
- * Token-2022, or c-token). Follows SPL Token API signature with optional c-token
+ * Token-2022, or light-token). Follows SPL Token API signature with optional light-token
  * config at the end.
  *
  * @param payer                    Fee payer public key.
@@ -95,7 +95,7 @@ export function createAssociatedTokenAccountInterfaceInstruction(
  * @param mint                     Mint address.
  * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
  * @param associatedTokenProgramId Associated token program ID.
- * @param ctokenConfig             Optional c-token-specific configuration.
+ * @param lightTokenConfig             Optional light-token-specific configuration.
  */
 export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
     payer: PublicKey,
@@ -104,19 +104,19 @@ export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
     mint: PublicKey,
     programId: PublicKey = TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
-    ctokenConfig?: CTokenConfig,
+    lightTokenConfig?: LightTokenConfig,
 ): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
-        return createAssociatedCTokenAccountIdempotentInstruction(
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+        return createAssociatedLightTokenAccountIdempotentInstruction(
             payer,
             owner,
             mint,
-            ctokenConfig?.compressibleConfig,
-            ctokenConfig?.configAccount,
-            ctokenConfig?.rentPayerPda,
+            lightTokenConfig?.compressibleConfig,
+            lightTokenConfig?.configAccount,
+            lightTokenConfig?.rentPayerPda,
         );
     } else {
         return createSplAssociatedTokenAccountIdempotentInstruction(

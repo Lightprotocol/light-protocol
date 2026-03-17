@@ -15,11 +15,16 @@ async fn test_create_single_mint() {
     test_create_mints(1).await;
 }
 
+/// Test creating 2 mints in a single instruction using CPI context write mode.
+/// The first mint uses write_to_cpi_context (write mode) and the second uses execute mode.
+/// Both charge the mint creation fee - write mode validates against hardcoded RENT_SPONSOR_V1.
 #[tokio::test]
 async fn test_create_two_mints() {
     test_create_mints(2).await;
 }
 
+/// Test creating 3 mints in a single instruction using CPI context write mode.
+/// Mints 1..N-1 use write_to_cpi_context and the last one uses execute mode.
 #[tokio::test]
 async fn test_create_three_mints() {
     test_create_mints(3).await;
@@ -137,10 +142,11 @@ async fn test_create_mints(n: usize) {
     let mut signers: Vec<&Keypair> = vec![&payer];
     signers.extend(mint_signers.iter());
 
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &signers)
-        .await
-        .unwrap();
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &signers)
+        .await;
 
+    result.unwrap();
     for (i, (mint_pda, _)) in mint_pdas.iter().enumerate() {
         let mint_account = rpc
             .get_account(*mint_pda)

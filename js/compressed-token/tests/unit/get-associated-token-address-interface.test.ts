@@ -6,7 +6,7 @@ import {
     ASSOCIATED_TOKEN_PROGRAM_ID,
     getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
 
@@ -14,16 +14,16 @@ describe('getAssociatedTokenAddressInterface', () => {
     const mint = Keypair.generate().publicKey;
     const owner = Keypair.generate().publicKey;
 
-    describe('default behavior (CTOKEN_PROGRAM_ID)', () => {
-        it('should derive ATA using CTOKEN_PROGRAM_ID by default', () => {
+    describe('default behavior (LIGHT_TOKEN_PROGRAM_ID)', () => {
+        it('should derive ATA using LIGHT_TOKEN_PROGRAM_ID by default', () => {
             const result = getAssociatedTokenAddressInterface(mint, owner);
 
             const expected = getAssociatedTokenAddressSync(
                 mint,
                 owner,
                 false,
-                CTOKEN_PROGRAM_ID,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.toBase58()).toBe(expected.toBase58());
@@ -128,12 +128,12 @@ describe('getAssociatedTokenAddressInterface', () => {
     });
 
     describe('different programIds produce different ATAs', () => {
-        it('should produce different ATAs for CTOKEN vs TOKEN_PROGRAM_ID', () => {
-            const ctokenAta = getAssociatedTokenAddressInterface(
+        it('should produce different ATAs for LIGHT_TOKEN vs TOKEN_PROGRAM_ID', () => {
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner,
                 false,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
             const splAta = getAssociatedTokenAddressInterface(
                 mint,
@@ -142,7 +142,7 @@ describe('getAssociatedTokenAddressInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            expect(ctokenAta.toBase58()).not.toBe(splAta.toBase58());
+            expect(lightTokenAta.toBase58()).not.toBe(splAta.toBase58());
         });
 
         it('should produce different ATAs for TOKEN_PROGRAM_ID vs TOKEN_2022_PROGRAM_ID', () => {
@@ -168,7 +168,7 @@ describe('getAssociatedTokenAddressInterface', () => {
             // Create a PDA (off-curve point)
             const [pdaOwner] = PublicKey.findProgramAddressSync(
                 [Buffer.from('test-seed')],
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             // Should not throw with allowOwnerOffCurve = true
@@ -176,7 +176,7 @@ describe('getAssociatedTokenAddressInterface', () => {
                 mint,
                 pdaOwner,
                 true,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result).toBeInstanceOf(PublicKey);
@@ -185,7 +185,7 @@ describe('getAssociatedTokenAddressInterface', () => {
         it('should throw for PDA owners when allowOwnerOffCurve is false', () => {
             const [pdaOwner] = PublicKey.findProgramAddressSync(
                 [Buffer.from('test-seed')],
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(() =>
@@ -193,7 +193,7 @@ describe('getAssociatedTokenAddressInterface', () => {
                     mint,
                     pdaOwner,
                     false,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 ),
             ).toThrow();
         });
@@ -253,13 +253,13 @@ describe('getAssociatedTokenAddressInterface', () => {
         });
 
         it('should override auto-detected associatedTokenProgramId', () => {
-            // Force CTOKEN_PROGRAM_ID as associated program even for TOKEN_PROGRAM_ID
+            // Force LIGHT_TOKEN_PROGRAM_ID as associated program even for TOKEN_PROGRAM_ID
             const result = getAssociatedTokenAddressInterface(
                 mint,
                 owner,
                 false,
                 TOKEN_PROGRAM_ID,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             const autoDetected = getAssociatedTokenAddressInterface(
@@ -275,9 +275,9 @@ describe('getAssociatedTokenAddressInterface', () => {
     });
 
     describe('getAtaProgramId helper', () => {
-        it('should return CTOKEN_PROGRAM_ID for CTOKEN_PROGRAM_ID', () => {
-            expect(getAtaProgramId(CTOKEN_PROGRAM_ID).toBase58()).toBe(
-                CTOKEN_PROGRAM_ID.toBase58(),
+        it('should return LIGHT_TOKEN_PROGRAM_ID for LIGHT_TOKEN_PROGRAM_ID', () => {
+            expect(getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID).toBase58()).toBe(
+                LIGHT_TOKEN_PROGRAM_ID.toBase58(),
             );
         });
 

@@ -134,7 +134,9 @@ impl light_hasher::DataHasher for RegisteredUser {
     fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
         let truncated_user_pubkey = hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes());
 
-        H::hashv(&[truncated_user_pubkey.as_slice(), self.data.as_slice()])
+        let mut data_bytes = [0u8; 32];
+        data_bytes[1..].copy_from_slice(&self.data);
+        H::hashv(&[truncated_user_pubkey.as_slice(), &data_bytes])
     }
 }
 

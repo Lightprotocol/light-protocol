@@ -1,15 +1,9 @@
-import {
-    ParsedTokenAccount,
-    TreeType,
-    assertBetaEnabled,
-} from '@lightprotocol/stateless.js';
-
-// Re-export for convenience
-export { assertBetaEnabled };
+import { ParsedTokenAccount, TreeType } from '@lightprotocol/stateless.js';
 
 /**
  * Throws if any V1 compressed accounts are present.
  * v3 interface only supports V2 trees.
+ * @internal
  */
 export function assertV2Only(accounts: ParsedTokenAccount[]): void {
     const v1Count = accounts.filter(

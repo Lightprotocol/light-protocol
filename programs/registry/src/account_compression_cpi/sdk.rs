@@ -289,7 +289,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
 }
 
 pub fn create_initialize_merkle_tree_instruction(
-    payer: Pubkey,
+    authority: Pubkey,
     merkle_tree_pubkey: Pubkey,
     nullifier_queue_pubkey: Pubkey,
     cpi_context_pubkey: Pubkey,
@@ -309,7 +309,7 @@ pub fn create_initialize_merkle_tree_instruction(
         queue_config: nullifier_queue_config,
     };
     let accounts = crate::accounts::InitializeMerkleTreeAndQueue {
-        authority: payer,
+        authority,
         registered_program_pda: register_program_pda,
         merkle_tree: merkle_tree_pubkey,
         queue: nullifier_queue_pubkey,
@@ -327,7 +327,7 @@ pub fn create_initialize_merkle_tree_instruction(
 }
 
 pub fn create_initialize_batched_merkle_tree_instruction(
-    payer: Pubkey,
+    authority: Pubkey,
     merkle_tree_pubkey: Pubkey,
     queue_pubkey: Pubkey,
     cpi_context_pubkey: Pubkey,
@@ -341,7 +341,7 @@ pub fn create_initialize_batched_merkle_tree_instruction(
         params: params.try_to_vec().unwrap(),
     };
     let accounts = crate::accounts::InitializeBatchedStateMerkleTreeAndQueue {
-        authority: payer,
+        authority,
         registered_program_pda: register_program_pda,
         merkle_tree: merkle_tree_pubkey,
         queue: queue_pubkey,
@@ -379,6 +379,7 @@ pub fn create_batch_append_instruction(
         registered_program_pda,
         account_compression_program: account_compression::ID,
         log_wrapper: NOOP_PUBKEY.into(),
+        fee_payer: forester,
     };
     let instruction_data = crate::instruction::BatchAppend { bump, data };
     Instruction {
@@ -460,7 +461,7 @@ pub fn create_rollover_batch_state_tree_instruction(
 }
 
 pub fn create_initialize_batched_address_merkle_tree_instruction(
-    payer: Pubkey,
+    authority: Pubkey,
     merkle_tree_pubkey: Pubkey,
     params: InitAddressTreeAccountsInstructionData,
 ) -> Instruction {
@@ -473,7 +474,7 @@ pub fn create_initialize_batched_address_merkle_tree_instruction(
     };
     let protocol_config_pda = get_protocol_config_pda_address().0;
     let accounts = crate::accounts::InitializeBatchedAddressTree {
-        authority: payer,
+        authority,
         registered_program_pda: register_program_pda,
         merkle_tree: merkle_tree_pubkey,
         cpi_authority,
@@ -506,6 +507,7 @@ pub fn create_batch_update_address_tree_instruction(
         registered_program_pda,
         account_compression_program: account_compression::ID,
         log_wrapper: NOOP_PUBKEY.into(),
+        fee_payer: forester,
     };
     let instruction_data = crate::instruction::BatchUpdateAddressTree { bump, data };
     Instruction {

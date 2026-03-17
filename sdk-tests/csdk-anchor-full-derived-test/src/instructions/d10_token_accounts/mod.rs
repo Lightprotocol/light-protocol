@@ -13,8 +13,10 @@
 
 pub mod single_ata;
 pub mod single_ata_markonly;
+pub mod single_ata_non_idempotent;
 pub mod single_vault;
 
 pub use single_ata::*;
 pub use single_ata_markonly::*;
+pub use single_ata_non_idempotent::*;
 pub use single_vault::*;

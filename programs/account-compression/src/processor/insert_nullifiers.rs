@@ -161,6 +161,7 @@ fn process_nullifiers_v1<'info>(
     current_queue_index: u8,
     current_tree_index: u8,
 ) -> Result<usize> {
+    msg!("Warning: v1 state trees are deprecated. Migrate to v2: https://www.zkcompression.com/resources/migration-v1-to-v2");
     let nullifiers = nullifiers
         .iter()
         .filter(|x| x.queue_index == current_queue_index && x.tree_index == current_tree_index);

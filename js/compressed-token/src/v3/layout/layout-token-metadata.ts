@@ -42,7 +42,7 @@ export interface OffChainTokenMetadataJson {
  * const metadataJson = toOffChainMetadataJson({
  *     name: 'My Token',
  *     symbol: 'MTK',
- *     description: 'A compressed token',
+ *     description: 'A light-token',
  *     image: 'https://example.com/image.png',
  * });
  * const uri = await umi.uploader.uploadJson(metadataJson);

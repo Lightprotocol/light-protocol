@@ -1906,10 +1906,11 @@ pub async fn assert_created_pda<R: Rpc, I: Indexer + TestIndexerExtensions>(
     );
     let truncated_user_pubkey =
         hash_to_bn254_field_size_be(&compressed_escrow_pda_data.user_pubkey.to_bytes());
-
+    let mut data_bytes = [0u8; 32];
+    data_bytes[1..].copy_from_slice(data);
     assert_eq!(
         compressed_escrow_pda_deserialized.data_hash,
-        Poseidon::hashv(&[truncated_user_pubkey.as_slice(), data.as_slice()]).unwrap(),
+        Poseidon::hashv(&[truncated_user_pubkey.as_slice(), &data_bytes]).unwrap(),
     );
 }
 

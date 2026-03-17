@@ -1,9 +1,7 @@
 use forester::{
-    cli::StartArgs,
-    processor::v1::{
-        config::CapConfig,
-        helpers::{get_capped_priority_fee, request_priority_fee_estimate},
-    },
+    cli::{ProcessorMode, StartArgs},
+    priority_fee::request_priority_fee_estimate,
+    processor::v1::config::CapConfig,
     ForesterConfig,
 };
 use light_client::rpc::{LightClient, LightClientConfig, Rpc};
@@ -12,6 +10,20 @@ use solana_sdk::signature::Signer;
 
 use crate::test_utils::init;
 mod test_utils;
+
+fn calculate_compute_unit_price(target_lamports: u64, compute_units: u64) -> u64 {
+    ((target_lamports * 1_000_000) as f64 / compute_units as f64).ceil() as u64
+}
+
+fn get_capped_priority_fee(cap_config: CapConfig) -> u64 {
+    let max_fee_lamports = cap_config.max_fee_lamports.max(cap_config.min_fee_lamports);
+    let priority_fee_max =
+        calculate_compute_unit_price(max_fee_lamports, cap_config.compute_unit_limit);
+    let priority_fee_min =
+        calculate_compute_unit_price(cap_config.min_fee_lamports, cap_config.compute_unit_limit);
+    let capped_fee = std::cmp::min(cap_config.rec_fee_microlamports_per_cu, priority_fee_max);
+    std::cmp::max(capped_fee, priority_fee_min)
+}
 
 #[tokio::test]
 #[ignore]
@@ -30,10 +42,8 @@ async fn test_priority_fee_request() {
             std::env::var("FORESTER_WS_RPC_URL")
                 .expect("FORESTER_WS_RPC_URL must be set in environment"),
         ),
-        indexer_url: Some(
-            std::env::var("FORESTER_INDEXER_URL")
-                .expect("FORESTER_INDEXER_URL must be set in environment"),
-        ),
+        indexer_url: std::env::var("FORESTER_INDEXER_URL")
+            .expect("FORESTER_INDEXER_URL must be set in environment"),
         prover_url: Some(
             std::env::var("FORESTER_PROVER_URL")
                 .expect("FORESTER_PROVER_URL must be set in environment"),
@@ -53,6 +63,7 @@ async fn test_priority_fee_request() {
         ops_cache_ttl_seconds: 180,
         cu_limit: 1_000_000,
         enable_priority_fees: true,
+        priority_fee_microlamports: None,
         rpc_pool_size: 20,
         rpc_pool_connection_timeout_secs: 1,
         rpc_pool_idle_timeout_secs: 1,
@@ -71,6 +82,32 @@ async fn test_priority_fee_request() {
         rpc_rate_limit: None,
         photon_rate_limit: None,
         send_tx_rate_limit: None,
+        processor_mode: ProcessorMode::All,
+        queue_polling_mode: Default::default(),
+        tree_ids: vec![],
+        enable_compressible: false,
+        lookup_table_address: None,
+        api_server_port: 8080,
+        api_server_public_bind: false,
+        group_authority: None,
+        light_pda_programs: vec![],
+        helius_rpc: false,
+        prometheus_url: None,
+        prover_append_url: None,
+        prover_update_url: None,
+        prover_address_append_url: None,
+        prover_api_key: None,
+        prover_polling_interval_ms: None,
+        prover_max_wait_time_secs: None,
+        photon_grpc_url: None,
+        max_concurrent_sends: 50,
+        max_batches_per_tree: 4,
+        confirmation_max_attempts: 30,
+        confirmation_poll_interval_ms: 1000,
+        fallback_rpc_url: None,
+        fallback_indexer_url: None,
+        rpc_pool_failure_threshold: 3,
+        rpc_pool_primary_probe_interval_secs: 30,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

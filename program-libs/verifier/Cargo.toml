@@ -1,6 +1,6 @@
 [package]
 name = "light-verifier"
-version = "9.0.0"
+version = "10.0.0"
 description = "ZKP proof verifier used in Light Protocol"
 readme = "README.md"
 repository = "https://github.com/Lightprotocol/light-protocol"

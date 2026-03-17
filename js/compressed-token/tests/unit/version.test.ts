@@ -4,7 +4,7 @@ import { featureFlags, VERSION } from '@lightprotocol/stateless.js';
 describe('Versioning', () => {
     beforeAll(() => {
         const expectedVersion =
-            process.env.LIGHT_PROTOCOL_VERSION || VERSION.V1;
+            process.env.LIGHT_PROTOCOL_VERSION || VERSION.V2;
         const actualVersion = featureFlags.version.replace(/['"]/g, '');
 
         if (actualVersion !== expectedVersion) {
@@ -36,7 +36,7 @@ describe('Versioning', () => {
 
     it('should respect LIGHT_PROTOCOL_VERSION environment variable', () => {
         const expectedVersion =
-            process.env.LIGHT_PROTOCOL_VERSION || VERSION.V1;
+            process.env.LIGHT_PROTOCOL_VERSION || VERSION.V2;
         const actualVersion = featureFlags.version.replace(/['"]/g, '');
         expect(actualVersion).toBe(expectedVersion);
     });
@@ -51,12 +51,12 @@ describe('Versioning', () => {
         const actualVersion = featureFlags.version.replace(/['"]/g, '');
         const isV2 = featureFlags.isV2();
 
-        if (process.env.LIGHT_PROTOCOL_VERSION === 'V2') {
-            expect(actualVersion).toBe(VERSION.V2);
-            expect(isV2).toBe(true);
-        } else {
+        if (process.env.LIGHT_PROTOCOL_VERSION === 'V1') {
             expect(actualVersion).toBe(VERSION.V1);
             expect(isV2).toBe(false);
+        } else {
+            expect(actualVersion).toBe(VERSION.V2);
+            expect(isV2).toBe(true);
         }
     });
 });

@@ -317,7 +317,7 @@ pub fn derive_compressed_address(mint: &[u8; 32]) -> [u8; 32] {
     )
 }
 
-/// Finds the compressed mint PDA address from a mint seed.
+/// Finds the light mint PDA address from a mint seed.
 pub fn find_mint_address(mint_seed: &[u8; 32]) -> ([u8; 32], u8) {
     AccountInfo::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],

@@ -1314,7 +1314,7 @@ describe('serde', () => {
 
             expect(() =>
                 toMintInstructionDataWithMetadata(compressedMint),
-            ).toThrow('CompressedMint does not have TokenMetadata extension');
+            ).toThrow('light mint does not have TokenMetadata extension');
         });
 
         it('should throw if extensions array is empty', () => {
@@ -1336,7 +1336,7 @@ describe('serde', () => {
 
             expect(() =>
                 toMintInstructionDataWithMetadata(compressedMint),
-            ).toThrow('CompressedMint does not have TokenMetadata extension');
+            ).toThrow('light mint does not have TokenMetadata extension');
         });
     });
 

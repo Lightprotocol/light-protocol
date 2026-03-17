@@ -8,7 +8,7 @@ use pinocchio::{
     pubkey::Pubkey,
 };
 
-/// Close ctoken account via CPI.
+/// Close light-token account via CPI.
 ///
 /// # Example
 ///
@@ -51,7 +51,7 @@ impl<'info> CloseAccountCpi<'info> {
         let account_metas = [
             AccountMeta::writable(self.account.key()),
             AccountMeta::writable(self.destination.key()),
-            AccountMeta::writable_signer(self.owner.key()),
+            AccountMeta::readonly_signer(self.owner.key()),
             AccountMeta::writable(self.rent_sponsor.key()),
         ];
 

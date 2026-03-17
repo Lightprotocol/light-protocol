@@ -53,6 +53,7 @@ pub enum InstructionDiscriminator {
     InvokeCpi,
     InvokeCpiWithReadOnly,
     InvokeCpiWithAccountInfo,
+    #[cfg(feature = "reinit")]
     ReInitCpiContextAccount,
 }
 #[cfg(not(feature = "no-entrypoint"))]

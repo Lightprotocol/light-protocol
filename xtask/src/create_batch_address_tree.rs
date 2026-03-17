@@ -93,7 +93,7 @@ pub async fn create_batch_address_tree(options: Options) -> anyhow::Result<()> {
         let balance = rpc.get_balance(&payer.pubkey()).await.unwrap();
         println!("Payer balance: {:?}", balance);
         let tx_hash =
-            create_batch_address_merkle_tree(&mut rpc, &payer, merkle_tree_keypair, config)
+            create_batch_address_merkle_tree(&mut rpc, &payer, &payer, merkle_tree_keypair, config)
                 .await
                 .unwrap();
 

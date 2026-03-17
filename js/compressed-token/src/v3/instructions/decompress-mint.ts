@@ -6,7 +6,7 @@ import {
 import { Buffer } from 'buffer';
 import {
     ValidityProofWithContext,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
     getOutputQueue,
@@ -18,7 +18,11 @@ import {
     MintActionCompressedInstructionData,
     ExtensionInstructionData,
 } from '../layout/layout-mint-action';
-import { LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR } from '../../constants';
+import {
+    LIGHT_TOKEN_CONFIG,
+    LIGHT_TOKEN_RENT_SPONSOR,
+    MAX_TOP_UP,
+} from '../../constants';
 
 interface EncodeDecompressMintInstructionParams {
     leafIndex: number;
@@ -28,8 +32,10 @@ interface EncodeDecompressMintInstructionParams {
     mintInterface: MintInterface;
     rentPayment: number;
     writeTopUp: number;
+    maxTopUp?: number;
 }
 
+/** @internal */
 function encodeDecompressMintInstructionData(
     params: EncodeDecompressMintInstructionParams,
 ): Buffer {
@@ -57,7 +63,7 @@ function encodeDecompressMintInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: params.proveByIndex,
         rootIndex: params.rootIndex,
-        maxTopUp: 0,
+        maxTopUp: params.maxTopUp ?? MAX_TOP_UP,
         createMint: null,
         actions: [
             {
@@ -98,7 +104,7 @@ export interface DecompressMintInstructionParams {
     authority: PublicKey;
     /** Fee payer public key */
     payer: PublicKey;
-    /** Validity proof for the compressed mint */
+    /** Validity proof for the light mint */
     validityProof: ValidityProofWithContext;
     /** Number of epochs to prepay rent (minimum 2) */
     rentPayment?: number;
@@ -108,13 +114,15 @@ export interface DecompressMintInstructionParams {
     configAccount?: PublicKey;
     /** Rent sponsor PDA (default: LIGHT_TOKEN_RENT_SPONSOR) */
     rentSponsor?: PublicKey;
+    /** Cap on rent top-up for this instruction (units of 1k lamports; default no cap) */
+    maxTopUp?: number;
 }
 
 /**
- * Create instruction for decompressing a compressed mint.
+ * Create instruction for decompressing a light mint.
  *
- * This creates the CMint Solana account from a compressed mint, making
- * the mint available on-chain. This is required before creating CToken
+ * This creates the light mint Solana account from a light mint, making
+ * the light mint account. This is required before creating light-token
  * associated token accounts.
  *
  * DecompressMint is **permissionless** - any account can call it. The
@@ -122,6 +130,7 @@ export interface DecompressMintInstructionParams {
  *
  * @param params - Instruction parameters
  * @returns TransactionInstruction for decompressing the mint
+ * @internal
  */
 export function createDecompressMintInstruction(
     params: DecompressMintInstructionParams,
@@ -139,12 +148,12 @@ export function createDecompressMintInstruction(
 
     if (!mintInterface.merkleContext) {
         throw new Error(
-            'MintInterface must have merkleContext for compressed mint operations',
+            'MintInterface must have merkleContext for light mint operations',
         );
     }
     if (!mintInterface.mintContext) {
         throw new Error(
-            'MintInterface must have mintContext for compressed mint operations',
+            'MintInterface must have mintContext for light mint operations',
         );
     }
 
@@ -164,6 +173,7 @@ export function createDecompressMintInstruction(
         mintInterface,
         rentPayment,
         writeTopUp,
+        maxTopUp: params.maxTopUp,
     });
 
     const sys = defaultStaticAccountsStruct();
@@ -232,7 +242,7 @@ export function createDecompressMintInstruction(
     ];
 
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });

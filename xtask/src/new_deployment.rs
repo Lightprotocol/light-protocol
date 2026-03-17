@@ -258,6 +258,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
             .unwrap();
             light_program_test::accounts::state_tree_v2::create_batched_state_merkle_tree(
                 &test_keypairs.governance_authority,
+                &test_keypairs.governance_authority,
                 true,
                 &mut rpc,
                 &v2_state_tree,
@@ -268,6 +269,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
             .await?;
             light_program_test::accounts::address_tree_v2::create_batch_address_merkle_tree(
                 &mut rpc,
+                &test_keypairs.governance_authority,
                 &test_keypairs.governance_authority,
                 &v2_address_mt,
                 config.v2_address_tree_config.unwrap(),

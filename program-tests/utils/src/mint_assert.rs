@@ -92,3 +92,18 @@ pub fn assert_compressed_mint_account(
 
     expected_compressed_mint
 }
+
+/// Assert that the mint creation fee (50,000 lamports) was charged.
+/// Compares rent_sponsor balance before and after mint creation.
+#[track_caller]
+pub fn assert_mint_creation_fee(
+    rent_sponsor_lamports_before: u64,
+    rent_sponsor_lamports_after: u64,
+) {
+    assert_eq!(
+        rent_sponsor_lamports_after,
+        rent_sponsor_lamports_before + light_compressed_token::MINT_CREATION_FEE,
+        "Rent sponsor should receive {} lamports mint creation fee",
+        light_compressed_token::MINT_CREATION_FEE,
+    );
+}

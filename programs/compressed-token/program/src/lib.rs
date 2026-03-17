@@ -36,6 +36,11 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 pub const MAX_ACCOUNTS: usize = 30;
+pub const MINT_CREATION_FEE: u64 = 50_000;
+/// Hardcoded rent sponsor PDA for write-mode mint creation fee validation.
+/// Same value as LIGHT_TOKEN_RENT_SPONSOR in sdk-types/src/constants.rs.
+pub const RENT_SPONSOR_V1: pinocchio::pubkey::Pubkey =
+    light_macros::pubkey_array!("r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti");
 pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
 /// Maximum number of compression operations per instruction.
 /// Used for compression_to_input lookup array sizing.

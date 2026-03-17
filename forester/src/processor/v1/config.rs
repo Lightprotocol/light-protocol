@@ -17,6 +17,8 @@ pub struct SendBatchedTransactionsConfig {
     pub queue_config: QueueConfig,
     pub retry_config: RetryConfig,
     pub light_slot_length: u64,
+    pub confirmation_poll_interval: std::time::Duration,
+    pub confirmation_max_attempts: usize,
 }
 
 #[derive(Debug, Clone, Copy)]

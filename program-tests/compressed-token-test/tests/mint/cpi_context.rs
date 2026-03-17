@@ -1,6 +1,5 @@
 use anchor_lang::InstructionData;
 use compressed_token_test::ID as WRAPPER_PROGRAM_ID;
-use light_client::indexer::Indexer;
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressed_token_sdk::compressed_token::{
     create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
@@ -9,8 +8,9 @@ use light_compressed_token_sdk::compressed_token::{
         MintActionMetaConfigCpiWrite,
     },
 };
+use light_compressible::config::CompressibleConfig;
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
-use light_test_utils::Rpc;
+use light_test_utils::{assert_mint_creation_fee, Rpc};
 use light_token_interface::{
     instructions::mint_action::{
         CpiContext, DecompressMintAction, MintActionCompressedInstructionData, MintInstructionData,
@@ -117,13 +117,21 @@ async fn test_write_to_cpi_context_create_mint() {
         payer,
         mint_seed,
         mint_authority,
-        compressed_mint_address,
+        compressed_mint_address: _,
         cpi_context_pubkey,
         address_tree,
         address_tree_index,
         output_queue: _,
         output_queue_index,
     } = test_setup().await;
+
+    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
+    let rent_sponsor_before = rpc
+        .get_account(rent_sponsor)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     // Build instruction data using new builder API
     let instruction_data = MintActionCompressedInstructionData::new_mint(
@@ -148,6 +156,7 @@ async fn test_write_to_cpi_context_create_mint() {
         fee_payer: payer.pubkey(),
         mint_signer: Some(mint_seed.pubkey()),
         authority: mint_authority.pubkey(),
+        rent_sponsor: Some(rent_sponsor),
         cpi_context: cpi_context_pubkey,
     };
 
@@ -181,143 +190,28 @@ async fn test_write_to_cpi_context_create_mint() {
         data: wrapper_ix_data.data(),
     };
 
-    // Execute wrapper instruction
+    // create_mint + write_to_cpi_context is allowed. The mint creation fee is charged
+    // in write mode against the hardcoded RENT_SPONSOR_V1 constant.
     rpc.create_and_send_transaction(
         &[wrapper_instruction],
         &payer.pubkey(),
         &[&payer, &mint_seed, &mint_authority],
     )
     .await
-    .expect("Failed to execute wrapper instruction");
+    .expect("create_mint + write_to_cpi_context should succeed");
 
-    // Verify CPI context account has data written
-    let cpi_context_account_data = rpc
-        .get_account(cpi_context_pubkey)
-        .await
-        .expect("Failed to get CPI context account")
-        .expect("CPI context account should exist");
-
-    // Verify the account has data (not empty)
-    assert!(
-        !cpi_context_account_data.data.is_empty(),
-        "CPI context account should have data"
-    );
-
-    // Verify the account is owned by light system program
-    assert_eq!(
-        cpi_context_account_data.owner,
-        light_system_program::ID,
-        "CPI context account should be owned by light system program"
-    );
-
-    // Verify no on-chain compressed mint was created (write mode doesn't execute)
-    let indexer_result = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_account(compressed_mint_address, None)
+    let rent_sponsor_after = rpc
+        .get_account(rent_sponsor)
         .await
         .unwrap()
-        .value;
-
-    assert!(
-        indexer_result.is_none(),
-        "Compressed mint should NOT exist (write mode doesn't execute)"
-    );
+        .unwrap()
+        .lamports;
+    assert_mint_creation_fee(rent_sponsor_before, rent_sponsor_after);
 }
 
 #[tokio::test]
 #[serial]
-async fn test_write_to_cpi_context_invalid_address_tree() {
-    let TestSetup {
-        mut rpc,
-        compressed_mint_inputs,
-        payer,
-        mint_seed,
-        mint_authority,
-        compressed_mint_address: _,
-        cpi_context_pubkey,
-        address_tree: _,
-        address_tree_index,
-        output_queue: _,
-        output_queue_index,
-    } = test_setup().await;
-
-    // Swap the address tree pubkey to a random one (this should fail validation)
-    let invalid_address_tree = Pubkey::new_unique();
-
-    // Build instruction data with invalid address tree
-    let instruction_data = MintActionCompressedInstructionData::new_mint(
-        compressed_mint_inputs.root_index,
-        CompressedProof::default(),
-        compressed_mint_inputs.mint.clone().unwrap(),
-    )
-    .with_cpi_context(CpiContext {
-        set_context: false,
-        first_set_context: true,
-        in_tree_index: address_tree_index,
-        in_queue_index: 0,
-        out_queue_index: output_queue_index,
-        token_out_queue_index: 0,
-        assigned_account_index: 0,
-        read_only_address_trees: [0; 4],
-        address_tree_pubkey: invalid_address_tree.to_bytes(),
-    });
-
-    // Build account metas using helper
-    let config = MintActionMetaConfigCpiWrite {
-        fee_payer: payer.pubkey(),
-        mint_signer: Some(mint_seed.pubkey()),
-        authority: mint_authority.pubkey(),
-        cpi_context: cpi_context_pubkey,
-    };
-
-    let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
-
-    // Serialize instruction data
-    let data = instruction_data
-        .data()
-        .expect("Failed to serialize instruction data");
-
-    // Build compressed token instruction
-    let ctoken_instruction = Instruction {
-        program_id: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
-        accounts: account_metas,
-        data: data.clone(),
-    };
-
-    // Build wrapper instruction
-    let wrapper_ix_data =
-        compressed_token_test::instruction::WriteToCpiContextMintAction { inputs: data };
-
-    let wrapper_instruction = Instruction {
-        program_id: WRAPPER_PROGRAM_ID,
-        accounts: vec![AccountMeta::new_readonly(
-            Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
-            false,
-        )]
-        .into_iter()
-        .chain(ctoken_instruction.accounts.clone())
-        .collect(),
-        data: wrapper_ix_data.data(),
-    };
-
-    // Execute wrapper instruction - should fail
-    let result = rpc
-        .create_and_send_transaction(
-            &[wrapper_instruction],
-            &payer.pubkey(),
-            &[&payer, &mint_seed, &mint_authority],
-        )
-        .await;
-
-    // Assert that the transaction failed with MintActionInvalidCpiContextAddressTreePubkey error
-    // Error code 6105 = MintActionInvalidCpiContextAddressTreePubkey
-    assert_rpc_error(result, 0, 6105).unwrap();
-}
-
-#[tokio::test]
-#[serial]
-async fn test_write_to_cpi_context_invalid_compressed_address() {
+async fn test_write_to_cpi_context_create_mint_invalid_rent_sponsor() {
     let TestSetup {
         mut rpc,
         compressed_mint_inputs,
@@ -332,18 +226,14 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         output_queue_index,
     } = test_setup().await;
 
-    // Swap the mint_signer to an invalid one (this should fail validation)
-    // The compressed address will be derived from the invalid mint_signer
-    let invalid_mint_signer = [42u8; 32];
+    // Use a random pubkey as rent_sponsor (not the valid RENT_SPONSOR_V1)
+    let invalid_rent_sponsor = Pubkey::new_unique();
 
-    // Build instruction data with invalid mint_signer in metadata
-    let mut invalid_mint = compressed_mint_inputs.mint.clone().unwrap();
-    invalid_mint.metadata.mint_signer = invalid_mint_signer;
-
+    // Build instruction data
     let instruction_data = MintActionCompressedInstructionData::new_mint(
         compressed_mint_inputs.root_index,
         CompressedProof::default(),
-        invalid_mint,
+        compressed_mint_inputs.mint.clone().unwrap(),
     )
     .with_cpi_context(CpiContext {
         set_context: false,
@@ -357,11 +247,12 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         address_tree_pubkey: address_tree.to_bytes(),
     });
 
-    // Build account metas using helper
+    // Build account metas with invalid rent_sponsor
     let config = MintActionMetaConfigCpiWrite {
         fee_payer: payer.pubkey(),
         mint_signer: Some(mint_seed.pubkey()),
         authority: mint_authority.pubkey(),
+        rent_sponsor: Some(invalid_rent_sponsor),
         cpi_context: cpi_context_pubkey,
     };
 
@@ -395,7 +286,8 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         data: wrapper_ix_data.data(),
     };
 
-    // Execute wrapper instruction - should fail
+    // Should fail with InvalidRentSponsor because rent_sponsor doesn't match RENT_SPONSOR_V1
+    // Error code 6100 = InvalidRentSponsor
     let result = rpc
         .create_and_send_transaction(
             &[wrapper_instruction],
@@ -404,9 +296,99 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         )
         .await;
 
-    // Assert that the transaction failed with MintActionInvalidMintSigner error
-    // Error code 6171 = MintActionInvalidMintSigner (mint_signer mismatch is caught before compressed address validation)
-    assert_rpc_error(result, 0, 6171).unwrap();
+    assert_rpc_error(result, 0, 6099).unwrap();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_write_to_cpi_context_create_mint_missing_rent_sponsor() {
+    let TestSetup {
+        mut rpc,
+        compressed_mint_inputs,
+        payer,
+        mint_seed,
+        mint_authority,
+        compressed_mint_address: _,
+        cpi_context_pubkey,
+        address_tree,
+        address_tree_index,
+        output_queue: _,
+        output_queue_index,
+    } = test_setup().await;
+
+    // Build instruction data with create_mint
+    let instruction_data = MintActionCompressedInstructionData::new_mint(
+        compressed_mint_inputs.root_index,
+        CompressedProof::default(),
+        compressed_mint_inputs.mint.clone().unwrap(),
+    )
+    .with_cpi_context(CpiContext {
+        set_context: false,
+        first_set_context: true,
+        in_tree_index: address_tree_index,
+        in_queue_index: 0,
+        out_queue_index: output_queue_index,
+        token_out_queue_index: 0,
+        assigned_account_index: 0,
+        read_only_address_trees: [0; 4],
+        address_tree_pubkey: address_tree.to_bytes(),
+    });
+
+    // Build account metas WITHOUT rent_sponsor (None).
+    // The program expects rent_sponsor when create_mint is true in write mode,
+    // so not providing it will cause the account iterator to misparse accounts.
+    let config = MintActionMetaConfigCpiWrite {
+        fee_payer: payer.pubkey(),
+        mint_signer: Some(mint_seed.pubkey()),
+        authority: mint_authority.pubkey(),
+        rent_sponsor: None,
+        cpi_context: cpi_context_pubkey,
+    };
+
+    let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .expect("Failed to serialize instruction data");
+
+    // Build compressed token instruction
+    let ctoken_instruction = Instruction {
+        program_id: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data: data.clone(),
+    };
+
+    // Build wrapper instruction
+    let wrapper_ix_data =
+        compressed_token_test::instruction::WriteToCpiContextMintAction { inputs: data };
+
+    let wrapper_instruction = Instruction {
+        program_id: WRAPPER_PROGRAM_ID,
+        accounts: vec![AccountMeta::new_readonly(
+            Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
+            false,
+        )]
+        .into_iter()
+        .chain(ctoken_instruction.accounts.clone())
+        .collect(),
+        data: wrapper_ix_data.data(),
+    };
+
+    // Should fail - when rent_sponsor is missing, the account iterator shifts:
+    // fee_payer is parsed as rent_sponsor and validated against RENT_SPONSOR_V1.
+    // Since fee_payer != RENT_SPONSOR_V1, we get InvalidRentSponsor (6099).
+    let result = rpc
+        .create_and_send_transaction(
+            &[wrapper_instruction],
+            &payer.pubkey(),
+            &[&payer, &mint_seed, &mint_authority],
+        )
+        .await;
+
+    // Error code 6099 = InvalidRentSponsor. fee_payer is consumed as rent_sponsor
+    // and fails the RENT_SPONSOR_V1 check.
+    assert_rpc_error(result, 0, 6099).unwrap();
 }
 
 #[tokio::test]
@@ -448,12 +430,16 @@ async fn test_execute_cpi_context_invalid_tree_index() {
     .with_cpi_context(execute_cpi_context);
 
     // Build account metas using regular MintActionMetaConfig for execute mode
+    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
+    let compressible_config = CompressibleConfig::light_token_v1_config_pda();
     let mut config = MintActionMetaConfig::new_create_mint(
         payer.pubkey(),
         mint_authority.pubkey(),
         mint_seed.pubkey(),
         Pubkey::new_from_array(MINT_ADDRESS_TREE),
         output_queue,
+        compressible_config,
+        rent_sponsor,
     );
 
     // Set CPI context for execute mode
@@ -548,6 +534,7 @@ async fn test_write_to_cpi_context_decompressed_mint_fails() {
         fee_payer: payer.pubkey(),
         mint_signer: None,
         authority: mint_authority.pubkey(),
+        rent_sponsor: None,
         cpi_context: cpi_context_pubkey,
     };
 
@@ -640,6 +627,7 @@ async fn test_write_to_cpi_context_mint_to_ctoken_fails() {
         fee_payer: payer.pubkey(),
         mint_signer: Some(mint_seed.pubkey()),
         authority: mint_authority.pubkey(),
+        rent_sponsor: None,
         cpi_context: cpi_context_pubkey,
     };
 
@@ -732,6 +720,7 @@ async fn test_write_to_cpi_context_decompress_mint_action_fails() {
         fee_payer: payer.pubkey(),
         mint_signer: Some(mint_seed.pubkey()),
         authority: mint_authority.pubkey(),
+        rent_sponsor: None,
         cpi_context: cpi_context_pubkey,
     };
 

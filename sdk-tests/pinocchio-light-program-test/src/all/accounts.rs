@@ -7,7 +7,7 @@ use pinocchio::{
     sysvars::Sysvar,
 };
 
-use crate::state::{MinimalRecord, ZeroCopyRecord};
+use crate::state::{MinimalRecord, OneByteRecord, ZeroCopyRecord};
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
 pub struct CreateAllParams {
@@ -23,6 +23,7 @@ pub struct CreateAllAccounts<'a> {
     pub compression_config: &'a AccountInfo,
     pub borsh_record: &'a AccountInfo,
     pub zero_copy_record: &'a AccountInfo,
+    pub one_byte_record: &'a AccountInfo,
     pub mint_signer: &'a AccountInfo,
     pub mint: &'a AccountInfo,
     pub token_vault: &'a AccountInfo,
@@ -39,7 +40,7 @@ pub struct CreateAllAccounts<'a> {
 }
 
 impl<'a> CreateAllAccounts<'a> {
-    pub const FIXED_LEN: usize = 16;
+    pub const FIXED_LEN: usize = 17;
 
     pub fn parse(
         accounts: &'a [AccountInfo],
@@ -50,17 +51,18 @@ impl<'a> CreateAllAccounts<'a> {
         let compression_config = &accounts[2];
         let borsh_record = &accounts[3];
         let zero_copy_record = &accounts[4];
-        let mint_signer = &accounts[5];
-        let mint = &accounts[6];
-        let token_vault = &accounts[7];
-        let vault_owner = &accounts[8];
-        let ata_owner = &accounts[9];
-        let user_ata = &accounts[10];
-        let compressible_config = &accounts[11];
-        let rent_sponsor = &accounts[12];
-        let light_token_program = &accounts[13];
-        let cpi_authority = &accounts[14];
-        let system_program = &accounts[15];
+        let one_byte_record = &accounts[5];
+        let mint_signer = &accounts[6];
+        let mint = &accounts[7];
+        let token_vault = &accounts[8];
+        let vault_owner = &accounts[9];
+        let ata_owner = &accounts[10];
+        let user_ata = &accounts[11];
+        let compressible_config = &accounts[12];
+        let rent_sponsor = &accounts[13];
+        let light_token_program = &accounts[14];
+        let cpi_authority = &accounts[15];
+        let system_program = &accounts[16];
 
         if !payer.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
@@ -141,6 +143,41 @@ impl<'a> CreateAllAccounts<'a> {
             data[..8].copy_from_slice(&ZeroCopyRecord::LIGHT_DISCRIMINATOR);
         }
 
+        // Create OneByteRecord PDA
+        {
+            use light_account_pinocchio::LightDiscriminator;
+            let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+            let space = disc_len + OneByteRecord::INIT_SPACE;
+            let seeds: &[&[u8]] = &[b"one_byte_record", &params.owner];
+            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
+            if one_byte_record.key() != &expected_pda {
+                return Err(ProgramError::InvalidSeeds);
+            }
+            let rent = pinocchio::sysvars::rent::Rent::get()
+                .map_err(|_| ProgramError::UnsupportedSysvar)?;
+            let lamports = rent.minimum_balance(space);
+            let bump_bytes = [bump];
+            let seed_array = [
+                Seed::from(b"one_byte_record" as &[u8]),
+                Seed::from(params.owner.as_ref()),
+                Seed::from(bump_bytes.as_ref()),
+            ];
+            let signer = Signer::from(&seed_array);
+            pinocchio_system::instructions::CreateAccount {
+                from: payer,
+                to: one_byte_record,
+                lamports,
+                space: space as u64,
+                owner: &crate::ID,
+            }
+            .invoke_signed(&[signer])?;
+
+            let mut data = one_byte_record
+                .try_borrow_mut_data()
+                .map_err(|_| ProgramError::AccountBorrowFailed)?;
+            data[..disc_len].copy_from_slice(OneByteRecord::LIGHT_DISCRIMINATOR_SLICE);
+        }
+
         // Validate mint_signer PDA
         {
             let authority_key = authority.key();
@@ -175,6 +212,7 @@ impl<'a> CreateAllAccounts<'a> {
             compression_config,
             borsh_record,
             zero_copy_record,
+            one_byte_record,
             mint_signer,
             mint,
             token_vault,
@@ -186,8 +224,8 @@ impl<'a> CreateAllAccounts<'a> {
             light_token_program,
             cpi_authority,
             system_program,
-            mint_signers_slice: &accounts[5..6],
-            mints_slice: &accounts[6..7],
+            mint_signers_slice: &accounts[6..7],
+            mints_slice: &accounts[7..8],
         })
     }
 }
