@@ -275,7 +275,7 @@ pub struct EpochManager<R: Rpc + Indexer> {
     mint_tracker: Option<Arc<crate::compressible::mint::MintAccountTracker>>,
     /// Cached zkp_batch_size per tree to filter queue updates below threshold
     zkp_batch_sizes: Arc<DashMap<Pubkey, u64>>,
-    address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
+    address_lookup_tables: Arc<tokio::sync::RwLock<Vec<AddressLookupTableAccount>>>,
     heartbeat: Arc<ServiceHeartbeat>,
     run_id: Arc<str>,
     /// Per-epoch registration trackers to coordinate re-finalization when new foresters register mid-epoch
@@ -328,7 +328,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         compressible_tracker: Option<Arc<CTokenAccountTracker>>,
         pda_tracker: Option<Arc<crate::compressible::pda::PdaAccountTracker>>,
         mint_tracker: Option<Arc<crate::compressible::mint::MintAccountTracker>>,
-        address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
+        address_lookup_tables: Arc<tokio::sync::RwLock<Vec<AddressLookupTableAccount>>>,
         heartbeat: Arc<ServiceHeartbeat>,
         run_id: String,
     ) -> Result<Self> {
@@ -1096,6 +1096,21 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         debug!("Recovered registration info for epoch {}", epoch);
         update_epoch_registered(epoch);
 
+        // Extend ALT with new forester epoch PDA if ALT is configured
+        let forester_epoch_pda_pubkey =
+            get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
+        if let Err(e) = self
+            .extend_alt_with_forester_pda(forester_epoch_pda_pubkey)
+            .await
+        {
+            warn!(
+                event = "extend_alt_failed",
+                epoch,
+                error = ?e,
+                "Failed to extend ALT with forester PDA, continuing with static account"
+            );
+        }
+
         // Wait for the active phase
         registration_info = match self.wait_for_active_phase(&registration_info).await? {
             Some(info) => info,
@@ -1380,6 +1395,51 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         }
     }
 
+    async fn extend_alt_with_forester_pda(&self, forester_epoch_pda: Pubkey) -> anyhow::Result<()> {
+        let alt_address = match self.config.lookup_table_address {
+            Some(addr) => addr,
+            None => return Ok(()),
+        };
+
+        // Check if the PDA is already in the ALT
+        {
+            let alt = self.address_lookup_tables.read().await;
+            if alt
+                .iter()
+                .any(|t| t.addresses.contains(&forester_epoch_pda))
+            {
+                return Ok(());
+            }
+        }
+
+        let extend_ix = light_client::rpc::lut::instruction::extend_lookup_table(
+            alt_address,
+            self.config.payer_keypair.pubkey(),
+            Some(self.config.payer_keypair.pubkey()),
+            vec![forester_epoch_pda],
+        );
+        let payer_pubkey = self.config.payer_keypair.pubkey();
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        rpc.create_and_send_transaction(&[extend_ix], &payer_pubkey, &[&self.config.payer_keypair])
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to extend ALT: {e}"))?;
+
+        // Reload the ALT from on-chain
+        let updated_lut = load_lookup_table_async(&*rpc, alt_address).await?;
+        info!(
+            event = "alt_extended",
+            lookup_table = %alt_address,
+            new_address = %forester_epoch_pda,
+            address_count = updated_lut.addresses.len(),
+            "Extended ALT with forester epoch PDA"
+        );
+
+        let mut alt = self.address_lookup_tables.write().await;
+        *alt = vec![updated_lut];
+
+        Ok(())
+    }
+
     async fn recover_registration_info_internal(
         &self,
         epoch: u64,
@@ -1514,13 +1574,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 };
                 let payer = self.config.payer_keypair.pubkey();
                 let signers = [&self.config.payer_keypair];
+                let alt_guard = self.address_lookup_tables.read().await;
                 send_smart_transaction(
                     &mut *rpc,
                     SendSmartTransactionConfig {
                         instructions: vec![ix],
                         payer: &payer,
                         signers: &signers,
-                        address_lookup_tables: &self.address_lookup_tables,
+                        address_lookup_tables: &alt_guard,
                         compute_budget: ComputeBudgetConfig {
                             compute_unit_price: priority_fee,
                             compute_unit_limit: Some(self.config.transaction_config.cu_limit),
@@ -1925,13 +1986,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 };
                 let payer = self.config.payer_keypair.pubkey();
                 let signers = [&self.config.payer_keypair];
+                let alt_guard = self.address_lookup_tables.read().await;
                 match send_smart_transaction(
                     &mut *rpc,
                     SendSmartTransactionConfig {
                         instructions: vec![ix],
                         payer: &payer,
                         signers: &signers,
-                        address_lookup_tables: &self.address_lookup_tables,
+                        address_lookup_tables: &alt_guard,
                         compute_budget: ComputeBudgetConfig {
                             compute_unit_price: priority_fee,
                             compute_unit_limit: Some(self.config.transaction_config.cu_limit),
@@ -2985,7 +3047,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             return Ok(0);
         };
 
-        let batched_tx_config = SendBatchedTransactionsConfig {
+        let mut batched_tx_config = SendBatchedTransactionsConfig {
             num_batches: 1,
             build_transaction_batch_config: BuildTransactionBatchConfig {
                 batch_size: self.config.transaction_config.legacy_ixs_per_tx as u64,
@@ -3005,12 +3067,18 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             ),
             confirmation_max_attempts: self.config.transaction_config.confirmation_max_attempts
                 as usize,
+            min_queue_items: None, // set below after reading ALT
         };
 
+        let alt_snapshot = self.address_lookup_tables.read().await.clone();
+        if !alt_snapshot.is_empty() {
+            batched_tx_config.min_queue_items = self.config.min_queue_items;
+        }
         let transaction_builder = Arc::new(EpochManagerTransactions::new(
             self.rpc_pool.clone(),
             epoch_info.epoch,
             self.tx_cache.clone(),
+            alt_snapshot,
         ));
 
         let num_sent = send_batched_transactions(
@@ -3056,6 +3124,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         input_queue_hint: Option<u64>,
         output_queue_hint: Option<u64>,
         eligibility_end: Option<u64>,
+        address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
     ) -> BatchContext<R> {
         let default_prover_url = "http://127.0.0.1:3001".to_string();
         let eligibility_end = eligibility_end.unwrap_or(0);
@@ -3105,7 +3174,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             output_queue_hint,
             num_proof_workers: self.config.transaction_config.max_concurrent_batches,
             forester_eligibility_end_slot: Arc::new(AtomicU64::new(eligibility_end)),
-            address_lookup_tables: self.address_lookup_tables.clone(),
+            address_lookup_tables,
             transaction_policy: self.transaction_policy(),
             max_batches_per_tree: self.config.transaction_config.max_batches_per_tree,
         }
@@ -3211,7 +3280,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         }
 
         // No existing processor - create new one
-        let batch_context = self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+        let alt_guard = self.address_lookup_tables.read().await;
+        let batch_context = self.build_batch_context(
+            epoch_info,
+            tree_accounts,
+            None,
+            None,
+            None,
+            Arc::new(alt_guard.clone()),
+        );
         let processor = Arc::new(Mutex::new(
             QueueProcessor::new(batch_context, StateTreeStrategy).await?,
         ));
@@ -3265,7 +3342,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         }
 
         // No existing processor - create new one
-        let batch_context = self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+        let alt_guard = self.address_lookup_tables.read().await;
+        let batch_context = self.build_batch_context(
+            epoch_info,
+            tree_accounts,
+            None,
+            None,
+            None,
+            Arc::new(alt_guard.clone()),
+        );
         let processor = Arc::new(Mutex::new(
             QueueProcessor::new(batch_context, AddressTreeStrategy).await?,
         ));
@@ -3842,13 +3927,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let instruction_count = instructions.len();
                 let payer = self.config.payer_keypair.pubkey();
                 let signers = [&self.config.payer_keypair];
+                let alt_guard = self.address_lookup_tables.read().await;
                 match send_smart_transaction(
                     &mut *rpc,
                     SendSmartTransactionConfig {
                         instructions,
                         payer: &payer,
                         signers: &signers,
-                        address_lookup_tables: &self.address_lookup_tables,
+                        address_lookup_tables: &alt_guard,
                         compute_budget: ComputeBudgetConfig {
                             compute_unit_price: priority_fee,
                             compute_unit_limit: Some(self.config.transaction_config.cu_limit),
@@ -4017,13 +4103,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .await?;
         let payer = self.config.payer_keypair.pubkey();
         let signers = [&self.config.payer_keypair];
+        let alt_guard = self.address_lookup_tables.read().await;
         match send_smart_transaction(
             &mut rpc,
             SendSmartTransactionConfig {
                 instructions: vec![ix],
                 payer: &payer,
                 signers: &signers,
-                address_lookup_tables: &self.address_lookup_tables,
+                address_lookup_tables: &alt_guard,
                 compute_budget: ComputeBudgetConfig {
                     compute_unit_price: priority_fee,
                     compute_unit_limit: Some(self.config.transaction_config.cu_limit),
@@ -4468,19 +4555,19 @@ pub async fn run_service<R: Rpc + Indexer>(
                                     address_count = lut.addresses.len(),
                                     "Loaded lookup table"
                                 );
-                                Arc::new(vec![lut])
+                                Arc::new(tokio::sync::RwLock::new(vec![lut]))
                             }
                             Err(e) => {
                                 debug!(
                                     "Lookup table {} not available: {}. Using legacy transactions.",
                                     lut_address, e
                                 );
-                                Arc::new(Vec::new())
+                                Arc::new(tokio::sync::RwLock::new(Vec::new()))
                             }
                         }
                     } else {
                         debug!("No lookup table address configured. Using legacy transactions.");
-                        Arc::new(Vec::new())
+                        Arc::new(tokio::sync::RwLock::new(Vec::new()))
                     }
                 };
 
@@ -4650,6 +4737,7 @@ mod tests {
             state_tree_data: vec![],
             compressible_config: None,
             lookup_table_address: None,
+            min_queue_items: None,
         }
     }
 

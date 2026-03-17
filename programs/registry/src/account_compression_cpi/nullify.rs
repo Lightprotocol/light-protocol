@@ -3,9 +3,7 @@ use account_compression::{
 };
 use anchor_lang::prelude::*;
 
-use crate::errors::RegistryError;
-
-use crate::epoch::register_epoch::ForesterEpochPda;
+use crate::{epoch::register_epoch::ForesterEpochPda, errors::RegistryError};
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
@@ -94,80 +92,6 @@ fn nullify_single_leaf_cpi(
         vec![leaf_index],
         vec![proof],
     )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn process_nullify_2(
-    ctx: &Context<NullifyLeaves>,
-    change_log_index: u16,
-    queue_index_0: u16,
-    queue_index_1: u16,
-    leaf_index_0: u32,
-    leaf_index_1: u32,
-    proof_0: [[u8; 32]; 15],
-    proof_1: [[u8; 32]; 15],
-    shared_proof_node: [u8; 32],
-) -> Result<()> {
-    let bump = ctx.bumps.cpi_authority;
-    let bump = &[bump];
-    let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
-    let signer_seeds = &[&seeds[..]];
-
-    // Reconstruct full 16-node proofs by appending the shared node (level 15).
-    let mut full_proof_0: Vec<[u8; 32]> = proof_0.to_vec();
-    full_proof_0.push(shared_proof_node);
-    let mut full_proof_1: Vec<[u8; 32]> = proof_1.to_vec();
-    full_proof_1.push(shared_proof_node);
-
-    // First CPI: nullify leaf 0
-    {
-        let accounts = account_compression::cpi::accounts::NullifyLeaves {
-            authority: ctx.accounts.cpi_authority.to_account_info(),
-            registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
-            log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
-            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
-            nullifier_queue: ctx.accounts.nullifier_queue.to_account_info(),
-            fee_payer: Some(ctx.accounts.authority.to_account_info()),
-        };
-        let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
-            accounts,
-            signer_seeds,
-        );
-        account_compression::cpi::nullify_leaves(
-            cpi_ctx,
-            vec![change_log_index as u64],
-            vec![queue_index_0],
-            vec![leaf_index_0 as u64],
-            vec![full_proof_0],
-        )?;
-    }
-
-    // Second CPI: nullify leaf 1 (same change_log_index -- proof is patched via changelog replay)
-    {
-        let accounts = account_compression::cpi::accounts::NullifyLeaves {
-            authority: ctx.accounts.cpi_authority.to_account_info(),
-            registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
-            log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
-            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
-            nullifier_queue: ctx.accounts.nullifier_queue.to_account_info(),
-            fee_payer: Some(ctx.accounts.authority.to_account_info()),
-        };
-        let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
-            accounts,
-            signer_seeds,
-        );
-        account_compression::cpi::nullify_leaves(
-            cpi_ctx,
-            vec![change_log_index as u64],
-            vec![queue_index_1],
-            vec![leaf_index_1 as u64],
-            vec![full_proof_1],
-        )?;
-    }
-
-    Ok(())
 }
 
 /// Determines proof count from leaf_indices sentinel values.

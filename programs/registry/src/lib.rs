@@ -420,48 +420,6 @@ pub mod light_registry {
         )
     }
 
-    /// Nullifies two leaves in a single instruction via two sequential CPIs.
-    /// Uses a 1-byte custom discriminator + shared proof node to fit within
-    /// the 1232-byte transaction limit when combined with an address lookup table.
-    /// The two leaves must share the same subtree at level 15 (highest proof
-    /// level below canopy 10), so the forester pairs leaves whose indices
-    /// agree on bits 16-25.
-    /// Bump is derived on-chain via ctx.bumps.cpi_authority.
-    #[allow(clippy::too_many_arguments)]
-    #[instruction(discriminator = [78])]
-    pub fn nullify_2<'info>(
-        ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
-        change_log_index: u16,
-        queue_index_0: u16,
-        queue_index_1: u16,
-        leaf_index_0: u32,
-        leaf_index_1: u32,
-        proof_0: [[u8; 32]; 15],
-        proof_1: [[u8; 32]; 15],
-        shared_proof_node: [u8; 32],
-    ) -> Result<()> {
-        let metadata = ctx.accounts.merkle_tree.load()?.metadata;
-        check_forester(
-            &metadata,
-            ctx.accounts.authority.key(),
-            ctx.accounts.nullifier_queue.key(),
-            &mut ctx.accounts.registered_forester_pda,
-            2 * DEFAULT_WORK_V1,
-        )?;
-
-        process_nullify_2(
-            &ctx,
-            change_log_index,
-            queue_index_0,
-            queue_index_1,
-            leaf_index_0,
-            leaf_index_1,
-            proof_0,
-            proof_1,
-            shared_proof_node,
-        )
-    }
-
     /// Nullifies 2-4 leaves in a single instruction via sequential CPIs.
     /// Uses proof deduplication: nearby leaves share Merkle proof nodes at
     /// common ancestor levels. The encoding stores each unique node once and

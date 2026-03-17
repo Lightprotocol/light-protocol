@@ -8,15 +8,20 @@ use account_compression::{
     },
 };
 use forester_utils::{rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
-use light_client::{indexer::Indexer, rpc::Rpc};
+use light_client::{
+    indexer::{Indexer, MerkleProof},
+    rpc::Rpc,
+};
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
-    create_nullify_instruction, create_update_address_merkle_tree_instruction,
-    CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+    compress_proofs, create_nullify_dedup_instruction, create_nullify_instruction,
+    create_update_address_merkle_tree_instruction, CompressedProofs,
+    CreateNullifyDedupInstructionInputs, CreateNullifyInstructionInputs,
+    UpdateAddressMerkleTreeInstructionInputs,
 };
 use solana_program::instruction::Instruction;
 use tokio::time::Instant;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     logging::should_emit_rate_limited_warning,
@@ -39,6 +44,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     pool: Arc<SolanaRpcPool<R>>,
     epoch: u64,
     work_items: &[WorkItem],
+    use_dedup: bool,
 ) -> crate::Result<(Vec<MerkleProofType>, Vec<Instruction>)> {
     let mut proofs = Vec::new();
     let mut instructions = vec![];
@@ -372,25 +378,457 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         ));
     }
 
-    for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
-        proofs.push(MerkleProofType::StateProof(proof.clone()));
+    let mut items_with_proofs: Vec<(&WorkItem, MerkleProof)> = state_items
+        .iter()
+        .zip(state_proofs.into_iter())
+        .map(|(item, proof)| (*item, proof))
+        .collect();
 
-        let instruction = create_nullify_instruction(
-            CreateNullifyInstructionInputs {
-                nullifier_queue: item.tree_account.queue,
-                merkle_tree: item.tree_account.merkle_tree,
-                change_log_indices: vec![proof.root_seq % STATE_MERKLE_TREE_CHANGELOG],
-                leaves_queue_indices: vec![item.queue_item_data.index as u16],
-                indices: vec![proof.leaf_index],
-                proofs: vec![proof.proof.clone()],
-                authority,
-                derivation,
-                is_metadata_forester: false,
-            },
-            epoch,
+    if use_dedup && items_with_proofs.len() >= 2 {
+        let groups = group_state_items_for_dedup(&mut items_with_proofs);
+
+        // Push proofs in sorted order (after grouping may have sorted)
+        for (_, proof) in items_with_proofs.iter() {
+            proofs.push(MerkleProofType::StateProof(proof.clone()));
+        }
+
+        let mut count_1 = 0usize;
+        let mut count_2 = 0usize;
+        let mut count_3 = 0usize;
+        let mut count_4 = 0usize;
+        for g in &groups {
+            match g.len() {
+                1 => count_1 += 1,
+                2 => count_2 += 1,
+                3 => count_3 += 1,
+                4 => count_4 += 1,
+                _ => {}
+            }
+        }
+        let total_leaves = items_with_proofs.len();
+        let total_instructions = groups.len();
+        let dedup_savings_pct = if total_leaves > 0 {
+            ((total_leaves - total_instructions) as f64 / total_leaves as f64 * 100.0) as u32
+        } else {
+            0
+        };
+        info!(
+            event = "v1_nullify_dedup_grouping",
+            total_leaves,
+            groups_of_4 = count_4,
+            groups_of_3 = count_3,
+            groups_of_2 = count_2,
+            singletons = count_1,
+            total_instructions,
+            dedup_savings_pct,
+            "State nullify dedup grouping complete"
         );
-        instructions.push(instruction);
+
+        for group_indices in groups {
+            if group_indices.len() == 1 {
+                let (item, proof) = &items_with_proofs[group_indices[0]];
+                instructions.push(build_nullify_instruction(
+                    item, proof, authority, derivation, epoch,
+                ));
+            } else {
+                let group_proofs: Vec<[[u8; 32]; 16]> = group_indices
+                    .iter()
+                    .map(|&idx| {
+                        let proof = &items_with_proofs[idx].1.proof;
+                        let arr: [[u8; 32]; 16] = proof.as_slice().try_into().map_err(|_| {
+                            anyhow::anyhow!("proof has {} nodes, expected 16", proof.len())
+                        })?;
+                        Ok(arr)
+                    })
+                    .collect::<crate::Result<Vec<_>>>()?;
+                let proof_refs: Vec<&[[u8; 32]; 16]> = group_proofs.iter().collect();
+                let CompressedProofs {
+                    proof_2_shared,
+                    proof_3_source,
+                    proof_4_source,
+                    shared_top_node,
+                    nodes,
+                } = compress_proofs(&proof_refs).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "compress_proofs failed for group that passed try_compress_group"
+                    )
+                })?;
+
+                let first_item = &items_with_proofs[group_indices[0]];
+                let change_log_index = (first_item.1.root_seq % STATE_MERKLE_TREE_CHANGELOG) as u16;
+
+                let mut queue_indices = [0u16; 4];
+                let mut leaf_indices = [u32::MAX; 4];
+                for (slot, &idx) in group_indices.iter().enumerate() {
+                    let (item, proof) = &items_with_proofs[idx];
+                    queue_indices[slot] = item.queue_item_data.index as u16;
+                    leaf_indices[slot] = proof.leaf_index as u32;
+                }
+
+                let node_count = nodes.len();
+                let instruction = create_nullify_dedup_instruction(
+                    CreateNullifyDedupInstructionInputs {
+                        authority,
+                        nullifier_queue: first_item.0.tree_account.queue,
+                        merkle_tree: first_item.0.tree_account.merkle_tree,
+                        change_log_index,
+                        queue_indices,
+                        leaf_indices,
+                        proof_2_shared,
+                        proof_3_source,
+                        proof_4_source,
+                        shared_top_node,
+                        nodes,
+                        derivation,
+                        is_metadata_forester: false,
+                    },
+                    epoch,
+                );
+                debug!(
+                    event = "v1_nullify_dedup_instruction",
+                    group_size = group_indices.len(),
+                    node_count,
+                    ix_data_bytes = instruction.data.len(),
+                    "Created nullify_dedup instruction"
+                );
+                instructions.push(instruction);
+            }
+        }
+    } else {
+        for (_, proof) in items_with_proofs.iter() {
+            proofs.push(MerkleProofType::StateProof(proof.clone()));
+        }
+        for (item, proof) in items_with_proofs.iter() {
+            instructions.push(build_nullify_instruction(
+                item, proof, authority, derivation, epoch,
+            ));
+        }
     }
 
     Ok((proofs, instructions))
+}
+
+fn build_nullify_instruction(
+    item: &WorkItem,
+    proof: &MerkleProof,
+    authority: Pubkey,
+    derivation: Pubkey,
+    epoch: u64,
+) -> Instruction {
+    create_nullify_instruction(
+        CreateNullifyInstructionInputs {
+            nullifier_queue: item.tree_account.queue,
+            merkle_tree: item.tree_account.merkle_tree,
+            change_log_indices: vec![proof.root_seq % STATE_MERKLE_TREE_CHANGELOG],
+            leaves_queue_indices: vec![item.queue_item_data.index as u16],
+            indices: vec![proof.leaf_index],
+            proofs: vec![proof.proof.clone()],
+            authority,
+            derivation,
+            is_metadata_forester: false,
+        },
+        epoch,
+    )
+}
+
+/// Groups sorted (WorkItem, MerkleProof) pairs for dedup nullification.
+/// Returns a vec of groups: each group is a vec of indices into `items_with_proofs`
+/// that can be packed into a single nullify_dedup instruction (2-4 items),
+/// or a singleton for regular nullify.
+fn group_state_items_for_dedup(
+    items_with_proofs: &mut [(&WorkItem, MerkleProof)],
+) -> Vec<Vec<usize>> {
+    items_with_proofs.sort_by_key(|(_, proof)| proof.leaf_index);
+
+    let n = items_with_proofs.len();
+    let mut groups = Vec::new();
+    let mut i = 0;
+
+    while i < n {
+        if i + 4 <= n && try_compress_group(items_with_proofs, i, 4).is_some() {
+            groups.push((i..i + 4).collect());
+            i += 4;
+        } else if i + 3 <= n && try_compress_group(items_with_proofs, i, 3).is_some() {
+            groups.push((i..i + 3).collect());
+            i += 3;
+        } else if i + 2 <= n && try_compress_group(items_with_proofs, i, 2).is_some() {
+            groups.push((i..i + 2).collect());
+            i += 2;
+        } else {
+            groups.push(vec![i]);
+            i += 1;
+        }
+    }
+
+    groups
+}
+
+/// Attempt to compress a group of proofs starting at `start` with `count` items.
+/// Returns the compression result if successful.
+fn try_compress_group(
+    items_with_proofs: &[(&WorkItem, MerkleProof)],
+    start: usize,
+    count: usize,
+) -> Option<CompressedProofs> {
+    let proof_arrays: Vec<[[u8; 32]; 16]> = (start..start + count)
+        .map(|idx| items_with_proofs[idx].1.proof.as_slice().try_into().ok())
+        .collect::<Option<Vec<_>>>()?;
+    let refs: Vec<&[[u8; 32]; 16]> = proof_arrays.iter().collect();
+    compress_proofs(&refs)
+}
+
+#[cfg(test)]
+mod tests {
+    use forester_utils::forester_epoch::TreeAccounts;
+    use light_compressed_account::TreeType;
+    use solana_sdk::pubkey::Pubkey;
+
+    use super::*;
+    use crate::queue_helpers::QueueItemData;
+
+    fn make_work_item() -> WorkItem {
+        WorkItem {
+            tree_account: TreeAccounts {
+                merkle_tree: Pubkey::new_unique(),
+                queue: Pubkey::new_unique(),
+                tree_type: TreeType::StateV1,
+                is_rolledover: false,
+                owner: Pubkey::new_unique(),
+            },
+            queue_item_data: QueueItemData {
+                hash: [0u8; 32],
+                index: 0,
+            },
+        }
+    }
+
+    /// Create a 16-node proof where all proofs share the same top node (index 15)
+    /// but lower nodes differ unless leaves are in the same subtree.
+    fn make_proof(leaf_index: u64, shared_top: [u8; 32]) -> MerkleProof {
+        let mut proof = [[0u8; 32]; 16];
+        // Set unique values per leaf for levels 0..15
+        for (level, slot) in proof.iter_mut().enumerate().take(15) {
+            let mut node = [0u8; 32];
+            node[0..8].copy_from_slice(&leaf_index.to_le_bytes());
+            node[8] = level as u8;
+            *slot = node;
+        }
+        // All proofs share the same top node
+        proof[15] = shared_top;
+        MerkleProof {
+            hash: [0u8; 32],
+            leaf_index,
+            merkle_tree: Pubkey::new_unique(),
+            proof: proof.to_vec(),
+            root_seq: 100,
+            root: [0u8; 32],
+        }
+    }
+
+    /// Create proofs that share sibling nodes so compress_proofs succeeds.
+    /// Adjacent leaves (leaf_index differing only in low bits) share many proof nodes.
+    fn make_compressible_proofs(leaf_indices: &[u64]) -> Vec<MerkleProof> {
+        let shared_top = [0xFFu8; 32];
+        let base_proof = {
+            let mut p = [[0u8; 32]; 16];
+            for (level, slot) in p.iter_mut().enumerate().take(15) {
+                let mut node = [0u8; 32];
+                node[0] = level as u8;
+                node[1] = 0xAA;
+                *slot = node;
+            }
+            p[15] = shared_top;
+            p
+        };
+
+        leaf_indices
+            .iter()
+            .map(|&li| {
+                // All proofs share the same nodes (maximally compressible).
+                // Only the leaf_index differs.
+                MerkleProof {
+                    hash: [0u8; 32],
+                    leaf_index: li,
+                    merkle_tree: Pubkey::new_unique(),
+                    proof: base_proof.to_vec(),
+                    root_seq: 100,
+                    root: [0u8; 32],
+                }
+            })
+            .collect()
+    }
+
+    /// Describes expected grouping result for assertion.
+    #[derive(Debug, PartialEq)]
+    struct GroupingResult {
+        group_sizes: Vec<usize>,
+    }
+
+    impl GroupingResult {
+        fn from_groups(groups: &[Vec<usize>]) -> Self {
+            Self {
+                group_sizes: groups.iter().map(|g| g.len()).collect(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_group_dedup_empty() {
+        let mut items: Vec<(&WorkItem, MerkleProof)> = vec![];
+        let groups = group_state_items_for_dedup(&mut items);
+        assert_eq!(
+            GroupingResult::from_groups(&groups),
+            GroupingResult {
+                group_sizes: vec![]
+            },
+            "Empty input should produce empty grouping"
+        );
+    }
+
+    #[test]
+    fn test_group_dedup_single_item() {
+        let work_item = make_work_item();
+        let proof = make_proof(0, [0xFFu8; 32]);
+        let mut items: Vec<(&WorkItem, MerkleProof)> = vec![(&work_item, proof)];
+        let groups = group_state_items_for_dedup(&mut items);
+        assert_eq!(
+            GroupingResult::from_groups(&groups),
+            GroupingResult {
+                group_sizes: vec![1]
+            },
+            "Single item should produce one singleton group"
+        );
+    }
+
+    #[test]
+    fn test_group_dedup_2_compressible() {
+        let work_items: Vec<WorkItem> = (0..2).map(|_| make_work_item()).collect();
+        let proofs = make_compressible_proofs(&[0, 1]);
+        let mut items: Vec<(&WorkItem, MerkleProof)> = work_items.iter().zip(proofs).collect();
+        let groups = group_state_items_for_dedup(&mut items);
+        assert_eq!(
+            GroupingResult::from_groups(&groups),
+            GroupingResult {
+                group_sizes: vec![2]
+            },
+            "2 compressible leaves should form 1 group of 2"
+        );
+    }
+
+    #[test]
+    fn test_group_dedup_3_compressible() {
+        let work_items: Vec<WorkItem> = (0..3).map(|_| make_work_item()).collect();
+        let proofs = make_compressible_proofs(&[0, 1, 2]);
+        let mut items: Vec<(&WorkItem, MerkleProof)> = work_items.iter().zip(proofs).collect();
+        let groups = group_state_items_for_dedup(&mut items);
+        assert_eq!(
+            GroupingResult::from_groups(&groups),
+            GroupingResult {
+                group_sizes: vec![3]
+            },
+            "3 compressible leaves should form 1 group of 3"
+        );
+    }
+
+    #[test]
+    fn test_group_dedup_4_compressible() {
+        let work_items: Vec<WorkItem> = (0..4).map(|_| make_work_item()).collect();
+        let proofs = make_compressible_proofs(&[0, 1, 2, 3]);
+        let mut items: Vec<(&WorkItem, MerkleProof)> = work_items.iter().zip(proofs).collect();
+        let groups = group_state_items_for_dedup(&mut items);
+        assert_eq!(
+            GroupingResult::from_groups(&groups),
+            GroupingResult {
+                group_sizes: vec![4]
+            },
+            "4 compressible leaves should form 1 group of 4"
+        );
+    }
+
+    #[test]
+    fn test_group_dedup_5_compressible_makes_4_plus_1() {
+        let work_items: Vec<WorkItem> = (0..5).map(|_| make_work_item()).collect();
+        let proofs = make_compressible_proofs(&[0, 1, 2, 3, 4]);
+        let mut items: Vec<(&WorkItem, MerkleProof)> = work_items.iter().zip(proofs).collect();
+        let groups = group_state_items_for_dedup(&mut items);
+        assert_eq!(
+            GroupingResult::from_groups(&groups),
+            GroupingResult {
+                group_sizes: vec![4, 1]
+            },
+            "5 compressible leaves should form group of 4 + singleton"
+        );
+    }
+
+    #[test]
+    fn test_group_dedup_6_compressible_makes_4_plus_2() {
+        let work_items: Vec<WorkItem> = (0..6).map(|_| make_work_item()).collect();
+        let proofs = make_compressible_proofs(&[0, 1, 2, 3, 4, 5]);
+        let mut items: Vec<(&WorkItem, MerkleProof)> = work_items.iter().zip(proofs).collect();
+        let groups = group_state_items_for_dedup(&mut items);
+        assert_eq!(
+            GroupingResult::from_groups(&groups),
+            GroupingResult {
+                group_sizes: vec![4, 2]
+            },
+            "6 compressible leaves should form group of 4 + group of 2"
+        );
+    }
+
+    #[test]
+    fn test_group_dedup_incompressible_becomes_singletons() {
+        let shared_top = [0xFFu8; 32];
+        let work_items: Vec<WorkItem> = (0..3).map(|_| make_work_item()).collect();
+        // Each proof has unique nodes per leaf, so compress_proofs fails when
+        // total unique nodes exceed NULLIFY_DEDUP_MAX_NODES (28).
+        // proof_1 contributes 15 nodes; proof_2 has 15 unique => 30 total > 28.
+        let proofs: Vec<MerkleProof> = (0..3).map(|i| make_proof(i * 1000, shared_top)).collect();
+        let mut items: Vec<(&WorkItem, MerkleProof)> = work_items.iter().zip(proofs).collect();
+        let groups = group_state_items_for_dedup(&mut items);
+        // 15 (proof1) + 15 (proof2 unique) = 30 > 28 max, so pairs fail.
+        // All 3 become singletons.
+        assert_eq!(
+            GroupingResult::from_groups(&groups),
+            GroupingResult {
+                group_sizes: vec![1, 1, 1]
+            },
+            "Incompressible proofs (30 nodes > 28 max) should all become singletons"
+        );
+    }
+
+    #[test]
+    fn test_group_dedup_sorts_by_leaf_index() {
+        let work_items: Vec<WorkItem> = (0..4).map(|_| make_work_item()).collect();
+        let proofs = make_compressible_proofs(&[100, 3, 50, 1]);
+        let mut items: Vec<(&WorkItem, MerkleProof)> = work_items.iter().zip(proofs).collect();
+        let groups = group_state_items_for_dedup(&mut items);
+
+        let sorted_leaf_indices: Vec<u64> =
+            items.iter().map(|(_, proof)| proof.leaf_index).collect();
+        assert_eq!(
+            sorted_leaf_indices,
+            vec![1, 3, 50, 100],
+            "Items should be sorted by leaf_index after grouping"
+        );
+        assert_eq!(
+            GroupingResult::from_groups(&groups),
+            GroupingResult {
+                group_sizes: vec![4]
+            },
+            "All compressible, should form 1 group of 4"
+        );
+    }
+
+    #[test]
+    fn test_group_dedup_indices_reference_sorted_positions() {
+        let work_items: Vec<WorkItem> = (0..4).map(|_| make_work_item()).collect();
+        let proofs = make_compressible_proofs(&[0, 1, 2, 3]);
+        let mut items: Vec<(&WorkItem, MerkleProof)> = work_items.iter().zip(proofs).collect();
+        let groups = group_state_items_for_dedup(&mut items);
+        assert_eq!(
+            groups,
+            vec![vec![0, 1, 2, 3]],
+            "Group indices should reference positions in the sorted items array"
+        );
+    }
 }

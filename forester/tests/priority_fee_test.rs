@@ -92,6 +92,7 @@ async fn test_priority_fee_request() {
         tree_ids: vec![],
         enable_compressible: true,
         lookup_table_address: None,
+        min_queue_items: None,
         api_server_port: 8080,
         group_authority: None,
         light_pda_programs: vec![],

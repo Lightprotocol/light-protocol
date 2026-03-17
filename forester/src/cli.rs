@@ -289,6 +289,14 @@ pub struct StartArgs {
 
     #[arg(
         long,
+        env = "MIN_QUEUE_ITEMS",
+        default_value = "5000",
+        help = "Minimum queue items before processing V1 state nullifications. Delays processing to allow dedup grouping. Only applies when lookup_table_address is set."
+    )]
+    pub min_queue_items: Option<usize>,
+
+    #[arg(
+        long,
         env = "API_SERVER_PORT",
         help = "HTTP API server port (default: 8080)",
         default_value = "8080"
