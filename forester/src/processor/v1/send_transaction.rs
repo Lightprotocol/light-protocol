@@ -16,7 +16,6 @@ use solana_sdk::{
     hash::Hash,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
-    transaction::Transaction,
 };
 use tokio::time::Instant;
 use tracing::{debug, error, info, trace, warn};
@@ -78,22 +77,37 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
     let num_sent_transactions = Arc::new(AtomicUsize::new(0));
     let operation_cancel_signal = Arc::new(AtomicBool::new(false));
 
-    let data = match prepare_batch_prerequisites(
-        &payer.pubkey(),
-        derivation,
-        &pool,
-        config,
-        tree_accounts,
-        &*transaction_builder,
-        function_start_time,
-    )
-    .await
-    .map_err(ForesterError::from)?
-    {
-        Some(data) => data,
-        None => {
-            trace!(tree.id = %tree_accounts.merkle_tree, queue.id = %tree_accounts.queue, "Preparation returned no data, 0 transactions sent.");
+    const THRESHOLD_POLL_INTERVAL: Duration = Duration::from_millis(500);
+    let timeout_deadline = function_start_time + config.retry_config.timeout;
+
+    let data = loop {
+        if Instant::now() >= timeout_deadline {
+            trace!(tree.id = %tree_accounts.merkle_tree, "Timeout deadline reached while waiting for threshold, 0 transactions sent.");
             return Ok(0);
+        }
+
+        match prepare_batch_prerequisites(
+            &payer.pubkey(),
+            derivation,
+            &pool,
+            config,
+            tree_accounts,
+            &*transaction_builder,
+            function_start_time,
+            config.min_queue_items,
+        )
+        .await
+        .map_err(ForesterError::from)?
+        {
+            Some(data) => break data,
+            None => {
+                if config.min_queue_items.is_some() {
+                    tokio::time::sleep(THRESHOLD_POLL_INTERVAL).await;
+                    continue;
+                }
+                trace!(tree.id = %tree_accounts.merkle_tree, queue.id = %tree_accounts.queue, "Preparation returned no data, 0 transactions sent.");
+                return Ok(0);
+            }
         }
     };
 
@@ -154,7 +168,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         trace!(tree = %tree_accounts.merkle_tree, "Processing chunk of size {}", work_chunk.len());
         let build_start_time = Instant::now();
 
-        let (transactions_to_send, chunk_last_valid_block_height) = match transaction_builder
+        let (transactions_to_send, _) = match transaction_builder
             .build_signed_transaction_batch(
                 payer,
                 derivation,
@@ -196,12 +210,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             },
         };
 
-        if let Err(e) = execute_transaction_chunk_sending(
-            transactions_to_send,
-            chunk_last_valid_block_height,
-            &send_context,
-        )
-        .await
+        if let Err(e) = execute_transaction_chunk_sending(transactions_to_send, &send_context).await
         {
             if e.is_forester_not_eligible() {
                 warn!(
@@ -224,6 +233,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
     Ok(total_sent_successfully)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
     payer_pubkey: &Pubkey,
     derivation: &Pubkey,
@@ -232,6 +242,7 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
     tree_accounts: TreeAccounts,
     transaction_builder: &T,
     start_time: Instant,
+    min_queue_items: Option<usize>,
 ) -> Result<Option<PreparedBatchData>> {
     let tree_id_str = tree_accounts.merkle_tree.to_string();
 
@@ -266,7 +277,19 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
 
     if queue_item_data.is_empty() {
         trace!(tree = %tree_id_str, "Queue is empty, no transactions to send.");
-        return Ok(None); // Return None to indicate no work
+        return Ok(None);
+    }
+
+    if let Some(min) = min_queue_items {
+        if tree_accounts.tree_type == TreeType::StateV1 && queue_item_data.len() < min {
+            trace!(
+                tree = %tree_id_str,
+                queue_len = queue_item_data.len(),
+                min_queue_items = min,
+                "Queue below min_queue_items threshold, skipping"
+            );
+            return Ok(None);
+        }
     }
 
     let (recent_blockhash, last_valid_block_height, priority_fee) = {
@@ -343,8 +366,7 @@ fn compute_effective_max_concurrent_sends(
 }
 
 async fn execute_transaction_chunk_sending<R: Rpc>(
-    transactions: Vec<Transaction>,
-    last_valid_block_height: u64,
+    transactions: Vec<PreparedTransaction>,
     context: &ChunkSendContext<R>,
 ) -> std::result::Result<(), ForesterError> {
     if transactions.is_empty() {
@@ -358,7 +380,7 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
     let timeout_deadline = context.timeout_deadline;
     let max_concurrent_sends = context.max_concurrent_sends;
     let confirmation = context.confirmation;
-    let transaction_send_futures = transactions.into_iter().map(|tx| {
+    let transaction_send_futures = transactions.into_iter().map(|prepared_transaction| {
         let pool_clone = Arc::clone(&pool);
         let cancel_signal_clone = Arc::clone(&cancel_signal);
         let num_sent_transactions_clone = Arc::clone(&num_sent_transactions);
@@ -368,7 +390,9 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                 return TransactionSendResult::Cancelled; // Or Timeout
             }
 
-            let tx_signature = tx.signatures.first().copied().unwrap_or_default();
+            let tx_signature = prepared_transaction
+                .signature()
+                .unwrap_or_default();
             let tx_signature_str = tx_signature.to_string();
 
             match pool_clone.get_connection().await {
@@ -379,8 +403,6 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                     }
 
                     let send_time = Instant::now();
-                    let prepared_transaction =
-                        PreparedTransaction::legacy(tx, last_valid_block_height);
                     match prepared_transaction
                         .send(&mut *rpc, Some(confirmation), Some(timeout_deadline))
                         .await

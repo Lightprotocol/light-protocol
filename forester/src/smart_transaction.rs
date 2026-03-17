@@ -66,6 +66,7 @@ pub struct CreateSmartTransactionConfig {
     pub compute_unit_limit: Option<u32>,
     pub instructions: Vec<Instruction>,
     pub last_valid_block_height: u64,
+    pub address_lookup_tables: Vec<AddressLookupTableAccount>,
 }
 
 pub struct SendSmartTransactionConfig<'a> {
@@ -201,10 +202,10 @@ fn with_compute_budget_instructions(
 ///   whether it's a legacy or versioned smart transaction. The transaction's send configuration can also be changed, if provided
 ///
 /// # Returns
-/// An optimized `Transaction` and the `last_valid_block_height`
+/// A `PreparedTransaction` (legacy or versioned) and the `last_valid_block_height`
 pub async fn create_smart_transaction(
     config: CreateSmartTransactionConfig,
-) -> Result<(Transaction, u64), RpcError> {
+) -> Result<PreparedTransaction, RpcError> {
     let payer_pubkey: Pubkey = config.payer.pubkey();
     let final_instructions = with_compute_budget_instructions(
         config.instructions,
@@ -214,10 +215,28 @@ pub async fn create_smart_transaction(
         },
     );
 
-    let mut tx = Transaction::new_with_payer(&final_instructions, Some(&payer_pubkey));
-    tx.sign(&[&config.payer], config.recent_blockhash);
-
-    Ok((tx, config.last_valid_block_height))
+    if config.address_lookup_tables.is_empty() {
+        let mut tx = Transaction::new_with_payer(&final_instructions, Some(&payer_pubkey));
+        tx.sign(&[&config.payer], config.recent_blockhash);
+        Ok(PreparedTransaction::legacy(
+            tx,
+            config.last_valid_block_height,
+        ))
+    } else {
+        let message = v0::Message::try_compile(
+            &payer_pubkey,
+            &final_instructions,
+            &config.address_lookup_tables,
+            config.recent_blockhash,
+        )
+        .map_err(|e| RpcError::CustomError(format!("Failed to compile v0 message: {}", e)))?;
+        let tx = VersionedTransaction::try_new(VersionedMessage::V0(message), &[&config.payer])
+            .map_err(|e| RpcError::SigningError(e.to_string()))?;
+        Ok(PreparedTransaction::versioned(
+            tx,
+            config.last_valid_block_height,
+        ))
+    }
 }
 
 pub async fn send_transaction_with_policy<R: Rpc>(
@@ -251,7 +270,7 @@ pub async fn send_transaction_with_policy<R: Rpc>(
     .await
 }
 
-pub(crate) struct PreparedTransaction {
+pub struct PreparedTransaction {
     transaction: PreparedTransactionKind,
     last_valid_block_height: u64,
 }
@@ -269,7 +288,17 @@ impl PreparedTransaction {
         }
     }
 
-    fn signature(&self) -> Option<Signature> {
+    pub(crate) fn versioned(
+        transaction: VersionedTransaction,
+        last_valid_block_height: u64,
+    ) -> Self {
+        Self {
+            transaction: PreparedTransactionKind::Versioned(transaction),
+            last_valid_block_height,
+        }
+    }
+
+    pub(crate) fn signature(&self) -> Option<Signature> {
         match &self.transaction {
             PreparedTransactionKind::Legacy(transaction) => transaction.signatures.first().copied(),
             PreparedTransactionKind::Versioned(transaction) => {

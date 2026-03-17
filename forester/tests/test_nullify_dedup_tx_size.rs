@@ -47,8 +47,9 @@ fn test_nullify_dedup_v0_transaction_size() {
         0,
     );
 
-    // SetComputeUnitLimit instruction
-    let compute_ix = ComputeBudgetInstruction::set_compute_unit_limit(600_000);
+    // Compute budget instructions (both are added by the forester's smart_transaction logic)
+    let compute_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(600_000);
+    let compute_price_ix = ComputeBudgetInstruction::set_compute_unit_price(1);
 
     // Build synthetic ALT with the known accounts (includes ComputeBudget program ID)
     let alt_accounts =
@@ -59,11 +60,15 @@ fn test_nullify_dedup_v0_transaction_size() {
         addresses: alt_accounts,
     };
 
-    // Compile v0 message with both instructions
+    // Compile v0 message with all instructions
     let blockhash = Hash::default();
-    let message =
-        v0::Message::try_compile(&authority.pubkey(), &[compute_ix, nullify_ix], &[alt], blockhash)
-            .expect("Failed to compile v0 message");
+    let message = v0::Message::try_compile(
+        &authority.pubkey(),
+        &[compute_price_ix, compute_limit_ix, nullify_ix],
+        &[alt],
+        blockhash,
+    )
+    .expect("Failed to compile v0 message");
 
     // Create signed transaction
     let versioned_message = VersionedMessage::V0(message);

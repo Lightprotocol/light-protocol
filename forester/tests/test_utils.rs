@@ -136,6 +136,7 @@ pub fn forester_config() -> ForesterConfig {
         state_tree_data: vec![],
         compressible_config: None,
         lookup_table_address: None,
+        min_queue_items: None,
     }
 }
 
