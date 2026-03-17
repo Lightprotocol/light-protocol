@@ -244,9 +244,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     if let Some(ref input_token_account) = input.compressed_token_account {
                         let token_data = input_token_account
                             .iter()
-                            .zip(
-                                packed_tree_infos[inputs_offset..].iter(),
-                            )
+                            .zip(packed_tree_infos[inputs_offset..].iter())
                             .map(|(account, rpc_account)| {
                                 if input.to != account.token.owner {
                                     return Err(TokenSdkError::InvalidCompressInputOwner);
