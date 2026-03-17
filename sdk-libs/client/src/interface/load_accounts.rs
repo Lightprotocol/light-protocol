@@ -220,7 +220,7 @@ fn group_pda_specs<'a, V>(
     specs: &[&'a PdaSpec<V>],
     max_per_group: usize,
 ) -> Vec<Vec<&'a PdaSpec<V>>> {
-    assert!(max_per_group > 0, "max_per_group must be non-zero");
+    debug_assert!(max_per_group > 0, "max_per_group must be non-zero");
     if specs.is_empty() {
         return Vec::new();
     }
@@ -424,7 +424,9 @@ fn build_transfer2(
     fee_payer: Pubkey,
 ) -> Result<Instruction, LoadAccountsError> {
     let mut packed = PackedAccounts::default();
-    let packed_trees = proof.pack_tree_infos(&mut packed);
+    let packed_trees = proof
+        .pack_tree_infos(&mut packed)
+        .map_err(|error| LoadAccountsError::BuildInstruction(error.to_string()))?;
     let tree_infos = packed_trees
         .state_trees
         .as_ref()
