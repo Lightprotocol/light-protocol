@@ -670,20 +670,22 @@ fn parse_tree_status(
             let fullness = next_index as f64 / capacity as f64 * 100.0;
 
             let (queue_len, queue_cap) = queue_account
-                .map(|acc| {
-                    unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) }
-                        .ok()
-                        .map(|hs| {
+                .map(
+                    |acc| match unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) } {
+                        Ok(hs) => {
                             let len = hs
                                 .iter()
                                 .filter(|(_, cell)| cell.sequence_number.is_none())
                                 .count() as u64;
                             let cap = hs.get_capacity() as u64;
-                            (len, cap)
-                        })
-                        .unwrap_or((0, 0))
-                })
-                .map(|(l, c)| (Some(l), Some(c)))
+                            (Some(len), Some(cap))
+                        }
+                        Err(error) => {
+                            warn!(?error, "Failed to parse StateV1 queue hash set");
+                            (None, None)
+                        }
+                    },
+                )
                 .unwrap_or((None, None));
 
             (
@@ -725,20 +727,22 @@ fn parse_tree_status(
             let fullness = next_index as f64 / capacity as f64 * 100.0;
 
             let (queue_len, queue_cap) = queue_account
-                .map(|acc| {
-                    unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) }
-                        .ok()
-                        .map(|hs| {
+                .map(
+                    |acc| match unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) } {
+                        Ok(hs) => {
                             let len = hs
                                 .iter()
                                 .filter(|(_, cell)| cell.sequence_number.is_none())
                                 .count() as u64;
                             let cap = hs.get_capacity() as u64;
-                            (len, cap)
-                        })
-                        .unwrap_or((0, 0))
-                })
-                .map(|(l, c)| (Some(l), Some(c)))
+                            (Some(len), Some(cap))
+                        }
+                        Err(error) => {
+                            warn!(?error, "Failed to parse AddressV1 queue hash set");
+                            (None, None)
+                        }
+                    },
+                )
                 .unwrap_or((None, None));
 
             (

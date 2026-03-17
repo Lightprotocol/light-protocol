@@ -8,7 +8,7 @@ use light_compressed_token_sdk::compressed_token::{
     create_compressed_mint::find_mint_address, decompress_full::DecompressFullAccounts,
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
-use light_sdk::instruction::PackedAccounts;
+use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use light_test_utils::{
     actions::{legacy::instructions::mint_action::NewMint, mint_action_comprehensive},
     airdrop_lamports,
@@ -32,6 +32,23 @@ struct TestContext {
     destination_accounts: Vec<Pubkey>,
     compressed_amount_per_account: u64,
     total_compressed_amount: u64,
+}
+
+fn pack_input_state_tree_infos(
+    rpc_result: &light_client::indexer::ValidityProofWithContext,
+    remaining_accounts: &mut PackedAccounts,
+) -> Vec<PackedStateTreeInfo> {
+    rpc_result
+        .accounts
+        .iter()
+        .map(|account| PackedStateTreeInfo {
+            root_index: account.root_index.root_index().unwrap_or_default(),
+            merkle_tree_pubkey_index: remaining_accounts.insert_or_get(account.tree_info.tree),
+            queue_pubkey_index: remaining_accounts.insert_or_get(account.tree_info.queue),
+            leaf_index: account.leaf_index as u32,
+            prove_by_index: account.root_index.proof_by_index(),
+        })
+        .collect()
 }
 
 /// Setup function for decompress_full tests
@@ -213,7 +230,7 @@ async fn test_decompress_full_cpi() {
             .unwrap()
             .value;
 
-        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+        let packed_tree_infos = pack_input_state_tree_infos(&rpc_result, &mut remaining_accounts);
         let config = DecompressFullAccounts::new(None);
         remaining_accounts
             .add_custom_system_accounts(config)
@@ -236,12 +253,7 @@ async fn test_decompress_full_cpi() {
         let indices: Vec<_> = token_data
             .iter()
             .zip(
-                packed_tree_info
-                    .state_trees
-                    .as_ref()
-                    .unwrap()
-                    .packed_tree_infos
-                    .iter(),
+                packed_tree_infos.iter(),
             )
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())
@@ -370,7 +382,7 @@ async fn test_decompress_full_cpi_with_context() {
             .value;
 
         // Add tree accounts first, then custom system accounts (no CPI context since params is None)
-        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+        let packed_tree_infos = pack_input_state_tree_infos(&rpc_result, &mut remaining_accounts);
         let config = DecompressFullAccounts::new(None);
         remaining_accounts
             .add_custom_system_accounts(config)
@@ -393,12 +405,7 @@ async fn test_decompress_full_cpi_with_context() {
         let indices: Vec<_> = token_data
             .iter()
             .zip(
-                packed_tree_info
-                    .state_trees
-                    .as_ref()
-                    .unwrap()
-                    .packed_tree_infos
-                    .iter(),
+                packed_tree_infos.iter(),
             )
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())

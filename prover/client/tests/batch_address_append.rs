@@ -26,46 +26,54 @@ async fn prove_batch_address_append() {
     spawn_prover().await;
 
     // Initialize test data
-    let mut new_element_values = vec![];
-    let zkp_batch_size = 10;
-    for i in 1..zkp_batch_size + 1 {
-        new_element_values.push(num_bigint::ToBigUint::to_biguint(&i).unwrap());
-    }
+    let total_batch_size = 10usize;
+    let warmup_batch_size = 1usize;
+    let prior_value = 999_u32.to_biguint().unwrap();
+    let new_element_values = (1..=total_batch_size)
+        .map(|i| num_bigint::ToBigUint::to_biguint(&i).unwrap())
+        .collect::<Vec<_>>();
 
     // Initialize indexing structures
-    let relayer_merkle_tree =
+    let mut relayer_merkle_tree =
         IndexedMerkleTree::<Poseidon, usize>::new(DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize, 0)
             .unwrap();
 
-    let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
-    let current_root = relayer_merkle_tree.root();
+    let collect_non_inclusion_data = |tree: &IndexedMerkleTree<Poseidon, usize>,
+                                      values: &[BigUint]| {
+        let mut low_element_values = Vec::with_capacity(values.len());
+        let mut low_element_indices = Vec::with_capacity(values.len());
+        let mut low_element_next_indices = Vec::with_capacity(values.len());
+        let mut low_element_next_values = Vec::with_capacity(values.len());
+        let mut low_element_proofs: Vec<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]> =
+            Vec::with_capacity(values.len());
 
-    // Prepare proof components
-    let mut low_element_values = Vec::new();
-    let mut low_element_indices = Vec::new();
-    let mut low_element_next_indices = Vec::new();
-    let mut low_element_next_values = Vec::new();
-    let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
+        for new_element_value in values {
+            let non_inclusion_proof = tree.get_non_inclusion_proof(new_element_value).unwrap();
 
-    // Generate non-inclusion proofs for each element
-    for new_element_value in &new_element_values {
-        let non_inclusion_proof = relayer_merkle_tree
-            .get_non_inclusion_proof(new_element_value)
-            .unwrap();
+            low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
+            low_element_indices.push(non_inclusion_proof.leaf_index);
+            low_element_next_indices.push(non_inclusion_proof.next_index);
+            low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
+            low_element_proofs.push(
+                non_inclusion_proof
+                    .merkle_proof
+                    .as_slice()
+                    .try_into()
+                    .unwrap(),
+            );
+        }
 
-        low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
-        low_element_indices.push(non_inclusion_proof.leaf_index);
-        low_element_next_indices.push(non_inclusion_proof.next_index);
-        low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
-        low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
-    }
+        (
+            low_element_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_next_values,
+            low_element_proofs,
+        )
+    };
 
-    // Convert big integers to byte arrays
-    let new_element_values = new_element_values
-        .iter()
-        .map(|v| bigint_to_be_bytes_array::<32>(v).unwrap())
-        .collect::<Vec<_>>();
-    let hash_chain = create_hash_chain_from_slice(&new_element_values).unwrap();
+    let initial_start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
+    let initial_root = relayer_merkle_tree.root();
 
     let subtrees: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] = relayer_merkle_tree
         .merkle_tree
@@ -75,7 +83,7 @@ async fn prove_batch_address_append() {
     let mut sparse_merkle_tree = SparseMerkleTree::<
         Poseidon,
         { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
-    >::new(subtrees, start_index);
+    >::new(subtrees, initial_start_index);
 
     let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> =
         Vec::new();
@@ -83,19 +91,68 @@ async fn prove_batch_address_append() {
         IndexedChangelogEntry<usize, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>,
     > = Vec::new();
 
+    let warmup_values = vec![prior_value.clone()];
+    let (
+        warmup_low_element_values,
+        warmup_low_element_indices,
+        warmup_low_element_next_indices,
+        warmup_low_element_next_values,
+        warmup_low_element_proofs,
+    ) = collect_non_inclusion_data(&relayer_merkle_tree, &warmup_values);
+    let warmup_values = warmup_values
+        .iter()
+        .map(|v| bigint_to_be_bytes_array::<32>(v).unwrap())
+        .collect::<Vec<_>>();
+    let warmup_hash_chain = create_hash_chain_from_slice(&warmup_values).unwrap();
+
+    get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
+        initial_start_index,
+        initial_root,
+        &warmup_low_element_values,
+        &warmup_low_element_next_values,
+        &warmup_low_element_indices,
+        &warmup_low_element_next_indices,
+        &warmup_low_element_proofs,
+        &warmup_values,
+        &mut sparse_merkle_tree,
+        warmup_hash_chain,
+        warmup_batch_size,
+        &mut changelog,
+        &mut indexed_changelog,
+    )
+    .unwrap();
+
+    relayer_merkle_tree.append(&prior_value).unwrap();
+
+    let remaining_values = &new_element_values[..];
+    let (
+        low_element_values,
+        low_element_indices,
+        low_element_next_indices,
+        low_element_next_values,
+        low_element_proofs,
+    ) = collect_non_inclusion_data(&relayer_merkle_tree, remaining_values);
+    let new_element_values = remaining_values
+        .iter()
+        .map(|v| bigint_to_be_bytes_array::<32>(v).unwrap())
+        .collect::<Vec<_>>();
+    let hash_chain = create_hash_chain_from_slice(&new_element_values).unwrap();
+    let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
+    let current_root = relayer_merkle_tree.root();
+
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index,
             current_root,
-            low_element_values,
-            low_element_next_values,
-            low_element_indices,
-            low_element_next_indices,
-            low_element_proofs,
-            new_element_values,
+            &low_element_values,
+            &low_element_next_values,
+            &low_element_indices,
+            &low_element_next_indices,
+            &low_element_proofs,
+            &new_element_values,
             &mut sparse_merkle_tree,
             hash_chain,
-            zkp_batch_size,
+            total_batch_size,
             &mut changelog,
             &mut indexed_changelog,
         )

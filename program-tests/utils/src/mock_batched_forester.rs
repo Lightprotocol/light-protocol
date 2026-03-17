@@ -132,7 +132,8 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
 
         assert_eq!(computed_new_root, self.merkle_tree.root());
 
-        let proof_result = match ProofClient::local()
+        let proof_client = ProofClient::local()?;
+        let proof_result = match proof_client
             .generate_batch_append_proof(circuit_inputs)
             .await
         {
@@ -207,9 +208,8 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             batch_size,
             &[],
         )?;
-        let proof_result = ProofClient::local()
-            .generate_batch_update_proof(inputs)
-            .await?;
+        let proof_client = ProofClient::local()?;
+        let proof_result = proof_client.generate_batch_update_proof(inputs).await?;
         let new_root = self.merkle_tree.root();
         let proof = CompressedProof {
             a: proof_result.0.proof.a,
@@ -260,7 +260,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         let mut low_element_indices = Vec::new();
         let mut low_element_next_indices = Vec::new();
         let mut low_element_next_values = Vec::new();
-        let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
+        let mut low_element_proofs: Vec<[[u8; 32]; HEIGHT]> = Vec::new();
         for new_element_value in &new_element_values {
             let non_inclusion_proof = self
                 .merkle_tree
@@ -270,7 +270,18 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             low_element_indices.push(non_inclusion_proof.leaf_index);
             low_element_next_indices.push(non_inclusion_proof.next_index);
             low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
-            low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
+            let proof = non_inclusion_proof
+                .merkle_proof
+                .as_slice()
+                .try_into()
+                .map_err(|_| {
+                    ProverClientError::InvalidProofData(format!(
+                        "invalid low element proof length: expected {}, got {}",
+                        HEIGHT,
+                        non_inclusion_proof.merkle_proof.len()
+                    ))
+                })?;
+            low_element_proofs.push(proof);
         }
         let subtrees = self.merkle_tree.merkle_tree.get_subtrees();
         let mut merkle_tree = match <[[u8; 32]; HEIGHT]>::try_from(subtrees) {
@@ -287,12 +298,12 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         let inputs = match get_batch_address_append_circuit_inputs::<HEIGHT>(
             start_index,
             current_root,
-            low_element_values,
-            low_element_next_values,
-            low_element_indices,
-            low_element_next_indices,
-            low_element_proofs,
-            new_element_values.clone(),
+            &low_element_values,
+            &low_element_next_values,
+            &low_element_indices,
+            &low_element_next_indices,
+            &low_element_proofs,
+            &new_element_values,
             &mut merkle_tree,
             leaves_hashchain,
             zkp_batch_size as usize,
@@ -307,7 +318,8 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
                 )));
             }
         };
-        let proof_result = match ProofClient::local()
+        let proof_client = ProofClient::local()?;
+        let proof_result = match proof_client
             .generate_batch_address_append_proof(inputs)
             .await
         {
