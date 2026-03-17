@@ -21,6 +21,12 @@ pub struct SendBatchedTransactionsConfig {
     pub confirmation_max_attempts: usize,
 }
 
+/// Pending-item threshold below which the forester only emits *paired*
+/// state-nullify transactions, dropping unpaired singles.  When the queue is
+/// nearly empty there is no urgency, so we save a transaction by waiting for
+/// the next cycle when the single can potentially be paired.
+pub const PAIRS_ONLY_THRESHOLD: u64 = 4_000;
+
 #[derive(Debug, Clone, Copy)]
 pub struct BuildTransactionBatchConfig {
     pub batch_size: u64,
@@ -29,7 +35,7 @@ pub struct BuildTransactionBatchConfig {
     pub enable_priority_fees: bool,
     pub max_concurrent_sends: Option<usize>,
     /// When `true`, only emit paired state-nullify transactions.
-    /// Unpaired (single) nullifies are dropped.  The caller sets this based
-    /// on queue fullness: `pairs_only = queue_pending < MAX_QUEUE_FULLNESS`.
+    /// Unpaired singles are dropped and retried in the next cycle.
+    /// Computed at runtime: `pairs_only = total_pending < PAIRS_ONLY_THRESHOLD`.
     pub pairs_only: bool,
 }

@@ -87,9 +87,9 @@ pub fn create_nullify_2_instruction(
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::Nullify2 {
         bump,
-        change_log_indices: vec![inputs.change_log_index],
-        leaves_queue_indices: vec![inputs.leaves_queue_index],
-        indices: vec![inputs.index],
+        change_log_index: inputs.change_log_index,
+        leaves_queue_index: inputs.leaves_queue_index,
+        index: inputs.index,
     };
 
     let base_accounts = crate::accounts::NullifyLeaves {
@@ -678,7 +678,7 @@ mod tests {
         }
 
         assert_eq!(&ix.data[..8], crate::instruction::Nullify2::DISCRIMINATOR);
-        // 8-byte discriminator + 31-byte minimal payload.
-        assert_eq!(ix.data.len(), 39);
+        // 8-byte discriminator + 19-byte scalar payload (u8 + u64 + u16 + u64).
+        assert_eq!(ix.data.len(), 27);
     }
 }

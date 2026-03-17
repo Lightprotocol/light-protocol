@@ -3,9 +3,9 @@ use account_compression::{
 };
 use anchor_lang::prelude::*;
 
-use crate::{epoch::register_epoch::ForesterEpochPda, errors::RegistryError};
+use crate::epoch::register_epoch::ForesterEpochPda;
 
-const NULLIFY_2_PROOF_ACCOUNTS_LEN: usize = 16;
+pub(crate) const NULLIFY_2_PROOF_ACCOUNTS_LEN: usize = 16;
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
@@ -71,58 +71,4 @@ pub(crate) fn extract_proof_nodes_from_remaining_accounts(
         .iter()
         .map(|account_info| account_info.key().to_bytes())
         .collect()
-}
-
-pub(crate) fn validate_nullify_2_inputs(
-    change_log_indices: &[u64],
-    leaves_queue_indices: &[u16],
-    indices: &[u64],
-    proof_accounts_len: usize,
-) -> Result<()> {
-    if change_log_indices.len() != 1 || leaves_queue_indices.len() != 1 || indices.len() != 1 {
-        return err!(RegistryError::InvalidNullify2Inputs);
-    }
-    if proof_accounts_len != NULLIFY_2_PROOF_ACCOUNTS_LEN {
-        return err!(RegistryError::InvalidProofAccountsLength);
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::validate_nullify_2_inputs;
-    use crate::errors::RegistryError;
-
-    #[test]
-    fn nullify_2_inputs_validate_happy_path() {
-        let result = validate_nullify_2_inputs(&[1], &[1], &[42], 16);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn nullify_2_inputs_reject_empty_proof_accounts() {
-        let result = validate_nullify_2_inputs(&[1], &[1], &[42], 0);
-        assert_eq!(
-            result.err().unwrap(),
-            RegistryError::InvalidProofAccountsLength.into()
-        );
-    }
-
-    #[test]
-    fn nullify_2_inputs_reject_vector_length_mismatch() {
-        let result = validate_nullify_2_inputs(&[1, 2], &[1], &[42], 16);
-        assert_eq!(
-            result.err().unwrap(),
-            RegistryError::InvalidNullify2Inputs.into()
-        );
-    }
-
-    #[test]
-    fn nullify_2_inputs_reject_invalid_proof_accounts_length() {
-        let result = validate_nullify_2_inputs(&[1], &[1], &[42], 15);
-        assert_eq!(
-            result.err().unwrap(),
-            RegistryError::InvalidProofAccountsLength.into()
-        );
-    }
 }

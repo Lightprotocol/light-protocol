@@ -111,7 +111,7 @@
        └── YES → pair_state_nullify_batches
                      │
                      │ For each pair (i,j):
-                     │   - pair_fits_transaction_size(ix_i, ix_j)? (serialized <= 1232)
+                     │   - estimated_tx_size(ix_i, ix_j) <= 1200? (packet - safety margin)
                      │   - weight = 10000 + proof_overlap_count
                      │
                      │ Max-cardinality matching (mwmatching)

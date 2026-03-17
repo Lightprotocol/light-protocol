@@ -27,7 +27,9 @@ use crate::{
     errors::ForesterError,
     metrics::increment_transactions_failed,
     priority_fee::PriorityFeeConfig,
-    processor::v1::{config::SendBatchedTransactionsConfig, tx_builder::TransactionBuilder},
+    processor::v1::{
+        config, config::SendBatchedTransactionsConfig, tx_builder::TransactionBuilder,
+    },
     queue_helpers::fetch_queue_item_data,
     smart_transaction::{ConfirmationConfig, PreparedTransaction, SmartTransactionError},
     Result,
@@ -39,6 +41,7 @@ struct PreparedBatchData {
     last_valid_block_height: u64,
     priority_fee: Option<u64>,
     timeout_deadline: Instant,
+    total_pending: u64,
 }
 
 #[derive(Clone)]
@@ -97,22 +100,24 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         }
     };
 
-    let max_concurrent_sends = config
-        .build_transaction_batch_config
-        .max_concurrent_sends
-        .unwrap_or(1)
-        .max(1);
+    let pairs_only = tree_accounts.tree_type == TreeType::StateV1
+        && data.total_pending < config::PAIRS_ONLY_THRESHOLD;
+    let mut build_config = config.build_transaction_batch_config;
+    build_config.pairs_only = pairs_only;
+
+    let max_concurrent_sends = build_config.max_concurrent_sends.unwrap_or(1).max(1);
     let effective_max_concurrent_sends =
         compute_effective_max_concurrent_sends(config, max_concurrent_sends, data.work_items.len());
 
     info!(
         tree = %tree_accounts.merkle_tree,
-        "Starting transaction sending loop. work_items={}, work_batch_size={}, timeout={:?}, max_concurrent_sends={} (requested={})",
+        "Starting transaction sending loop. work_items={}, work_batch_size={}, timeout={:?}, max_concurrent_sends={} (requested={}), pairs_only={}",
         data.work_items.len(),
         WORK_ITEM_BATCH_SIZE,
         config.retry_config.timeout,
         effective_max_concurrent_sends,
-        max_concurrent_sends
+        max_concurrent_sends,
+        pairs_only,
     );
 
     // Blockhash expires after ~150 blocks (~60s). Refresh every 30s to stay safe.
@@ -162,7 +167,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
                 last_valid_block_height,
                 data.priority_fee,
                 work_chunk,
-                config.build_transaction_batch_config,
+                build_config,
             )
             .await
         {
@@ -248,20 +253,21 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
         }
     };
 
-    let queue_item_data = {
+    let (queue_item_data, total_pending) = {
         let mut rpc = pool.get_connection().await.map_err(|e| {
             error!(tree = %tree_id_str, "Failed to get RPC for queue data: {:?}", e);
             ForesterError::RpcPool(e)
         })?;
-        fetch_queue_item_data(&mut *rpc, &tree_accounts.queue, queue_fetch_start_index)
-            .await
-            .map_err(|e| {
-                warn!(tree = %tree_id_str, "Failed to fetch queue item data: {:?}", e);
-                ForesterError::General {
-                    error: format!("Fetch queue data failed for {}: {}", tree_id_str, e),
-                }
-            })?
-            .items
+        let result =
+            fetch_queue_item_data(&mut *rpc, &tree_accounts.queue, queue_fetch_start_index)
+                .await
+                .map_err(|e| {
+                    warn!(tree = %tree_id_str, "Failed to fetch queue item data: {:?}", e);
+                    ForesterError::General {
+                        error: format!("Fetch queue data failed for {}: {}", tree_id_str, e),
+                    }
+                })?;
+        (result.items, result.total_pending)
     };
 
     if queue_item_data.is_empty() {
@@ -315,6 +321,7 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
         last_valid_block_height,
         priority_fee,
         timeout_deadline,
+        total_pending,
     }))
 }
 

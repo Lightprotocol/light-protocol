@@ -161,6 +161,7 @@ fn find_lca(
 }
 
 /// Shrink the blossom defined by paths v→lca and u→lca.
+#[allow(clippy::too_many_arguments)]
 fn contract(
     base: &mut [usize],
     parent: &mut [usize],
@@ -234,7 +235,13 @@ mod tests {
         let pairs: Vec<_> = mates
             .iter()
             .enumerate()
-            .filter_map(|(i, &m)| if m != SENTINEL && m > i { Some((i, m)) } else { None })
+            .filter_map(|(i, &m)| {
+                if m != SENTINEL && m > i {
+                    Some((i, m))
+                } else {
+                    None
+                }
+            })
             .collect();
         assert_eq!(pairs.len(), 1);
     }
@@ -271,7 +278,13 @@ mod tests {
         let pairs: Vec<_> = mates
             .iter()
             .enumerate()
-            .filter_map(|(i, &m)| if m != SENTINEL && m > i { Some((i, m)) } else { None })
+            .filter_map(|(i, &m)| {
+                if m != SENTINEL && m > i {
+                    Some((i, m))
+                } else {
+                    None
+                }
+            })
             .collect();
         assert_eq!(pairs.len(), 2);
     }
@@ -284,7 +297,13 @@ mod tests {
         let pairs: Vec<_> = mates
             .iter()
             .enumerate()
-            .filter_map(|(i, &m)| if m != SENTINEL && m > i { Some((i, m)) } else { None })
+            .filter_map(|(i, &m)| {
+                if m != SENTINEL && m > i {
+                    Some((i, m))
+                } else {
+                    None
+                }
+            })
             .collect();
         assert_eq!(pairs.len(), 2);
     }
@@ -302,7 +321,13 @@ mod tests {
         let pairs: Vec<_> = mates
             .iter()
             .enumerate()
-            .filter_map(|(i, &m)| if m != SENTINEL && m > i { Some((i, m)) } else { None })
+            .filter_map(|(i, &m)| {
+                if m != SENTINEL && m > i {
+                    Some((i, m))
+                } else {
+                    None
+                }
+            })
             .collect();
         assert_eq!(pairs.len(), 3);
     }
@@ -318,7 +343,13 @@ mod tests {
         let pairs: Vec<_> = mates
             .iter()
             .enumerate()
-            .filter_map(|(i, &m)| if m != SENTINEL && m > i { Some((i, m)) } else { None })
+            .filter_map(|(i, &m)| {
+                if m != SENTINEL && m > i {
+                    Some((i, m))
+                } else {
+                    None
+                }
+            })
             .collect();
         assert_eq!(pairs.len(), 2); // perfect matching
     }

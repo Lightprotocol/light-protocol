@@ -12,7 +12,7 @@ use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 pub mod account_compression_cpi;
 pub mod errors;
 use account_compression_cpi::nullify::{
-    extract_proof_nodes_from_remaining_accounts, validate_nullify_2_inputs,
+    extract_proof_nodes_from_remaining_accounts, NULLIFY_2_PROOF_ACCOUNTS_LEN,
 };
 pub use account_compression_cpi::{
     batch_append::*, batch_nullify::*, batch_update_address_tree::*,
@@ -426,9 +426,9 @@ pub mod light_registry {
     pub fn nullify_2<'info>(
         ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
         bump: u8,
-        change_log_indices: Vec<u64>,
-        leaves_queue_indices: Vec<u16>,
-        indices: Vec<u64>,
+        change_log_index: u64,
+        leaves_queue_index: u16,
+        index: u64,
     ) -> Result<()> {
         let metadata = ctx.accounts.merkle_tree.load()?.metadata;
         check_forester(
@@ -439,20 +439,17 @@ pub mod light_registry {
             DEFAULT_WORK_V1,
         )?;
 
-        validate_nullify_2_inputs(
-            &change_log_indices,
-            &leaves_queue_indices,
-            &indices,
-            ctx.remaining_accounts.len(),
-        )?;
+        if ctx.remaining_accounts.len() != NULLIFY_2_PROOF_ACCOUNTS_LEN {
+            return err!(RegistryError::InvalidProofAccountsLength);
+        }
         let proof_nodes = extract_proof_nodes_from_remaining_accounts(ctx.remaining_accounts);
 
         process_nullify(
             &ctx,
             bump,
-            change_log_indices,
-            leaves_queue_indices,
-            indices,
+            vec![change_log_index],
+            vec![leaves_queue_index],
+            vec![index],
             vec![proof_nodes],
         )
     }

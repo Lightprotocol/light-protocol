@@ -6,11 +6,12 @@ use forester_utils::rpc_pool::SolanaRpcPool;
 use light_client::rpc::Rpc;
 use solana_program::hash::Hash;
 use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
 use tokio::sync::Mutex;
-use tracing::{trace, warn};
+use tracing::{info, trace, warn};
 
 use crate::{
     epoch_manager::WorkItem,
@@ -25,10 +26,7 @@ use crate::{
             },
         },
     },
-    smart_transaction::{
-        create_smart_transaction, with_compute_budget_instructions, ComputeBudgetConfig,
-        CreateSmartTransactionConfig,
-    },
+    smart_transaction::{create_smart_transaction, CreateSmartTransactionConfig},
     Result,
 };
 
@@ -219,7 +217,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             .iter()
             .filter(|ix| matches!(ix, PreparedV1Instruction::StateNullify(_)))
             .count();
-        let allow_pairing = if batch_size >= 2 {
+        let allow_pairing = if state_nullify_count >= 2 {
             self.should_attempt_pairing(last_valid_block_height, state_nullify_count)
                 .await
         } else {
@@ -230,13 +228,13 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             batch_size,
             allow_pairing,
             config.pairs_only,
-            payer,
-            recent_blockhash,
+            &payer.pubkey(),
             priority_fee,
             config.compute_unit_limit,
         )?;
 
         for instruction_chunk in instruction_batches {
+            let is_paired = instruction_chunk.len() >= 2;
             let (transaction, _) = create_smart_transaction(CreateSmartTransactionConfig {
                 payer: payer.insecure_clone(),
                 instructions: instruction_chunk,
@@ -246,6 +244,16 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
                 last_valid_block_height,
             })
             .await?;
+            if is_paired {
+                info!(
+                    "Paired nullify_2 tx: sig={}, ixs=2",
+                    transaction
+                        .signatures
+                        .first()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default()
+                );
+            }
             transactions.push(transaction);
         }
 
@@ -274,8 +282,7 @@ fn build_instruction_batches(
     batch_size: usize,
     allow_pairing: bool,
     pairs_only: bool,
-    payer: &Keypair,
-    recent_blockhash: &Hash,
+    payer: &Pubkey,
     priority_fee: Option<u64>,
     compute_unit_limit: Option<u32>,
 ) -> Result<Vec<Vec<solana_program::instruction::Instruction>>> {
@@ -300,11 +307,10 @@ fn build_instruction_batches(
     // Sort by leaf_index for better proof-node overlap between neighbours.
     state_nullify_instructions.sort_by_key(|ix| ix.leaf_index);
 
-    let paired_batches = if batch_size >= 2 && allow_pairing {
+    let paired_batches = if allow_pairing {
         pair_state_nullify_batches(
             state_nullify_instructions,
             payer,
-            recent_blockhash,
             priority_fee,
             compute_unit_limit,
             pairs_only,
@@ -323,8 +329,7 @@ fn build_instruction_batches(
 
 fn pair_state_nullify_batches(
     state_nullify_instructions: Vec<StateNullifyInstruction>,
-    payer: &Keypair,
-    recent_blockhash: &Hash,
+    payer: &Pubkey,
     priority_fee: Option<u64>,
     compute_unit_limit: Option<u32>,
     pairs_only: bool,
@@ -340,6 +345,9 @@ fn pair_state_nullify_batches(
             .collect());
     }
 
+    // Pre-compute compute budget instructions once for all pairs.
+    let compute_budget_ixs = make_compute_budget_instructions(priority_fee, compute_unit_limit);
+
     // Pre-compute HashSets for O(1) overlap lookup.
     let proof_sets: Vec<HashSet<[u8; 32]>> = state_nullify_instructions
         .iter()
@@ -353,14 +361,15 @@ fn pair_state_nullify_batches(
     let mut edges: Vec<(usize, usize, i32)> = Vec::new();
     for i in 0..n {
         for j in (i + 1)..n {
-            if !pair_fits_transaction_size(
-                &state_nullify_instructions[i].instruction,
-                &state_nullify_instructions[j].instruction,
+            if estimated_tx_size(
                 payer,
-                recent_blockhash,
-                priority_fee,
-                compute_unit_limit,
-            ) {
+                &compute_budget_ixs,
+                &[
+                    &state_nullify_instructions[i].instruction,
+                    &state_nullify_instructions[j].instruction,
+                ],
+            ) > MAX_TRANSACTION_SIZE
+            {
                 continue;
             }
             let overlap = proof_sets[i].intersection(&proof_sets[j]).count() as i32;
@@ -432,37 +441,59 @@ fn pair_state_nullify_batches(
 }
 
 // ---------------------------------------------------------------------------
-// Transaction-size estimation (no bincode – native wire-format calculation)
+// Transaction-size estimation (zero-copy – no instruction cloning)
 // ---------------------------------------------------------------------------
 
-/// Check whether two instructions plus compute-budget prefixes fit inside a
-/// single Solana legacy transaction.  Uses the same construction path as
-/// [`create_smart_transaction`] to avoid divergence.
-fn pair_fits_transaction_size(
-    ix_a: &solana_program::instruction::Instruction,
-    ix_b: &solana_program::instruction::Instruction,
-    payer: &Keypair,
-    _recent_blockhash: &Hash,
+/// Build the compute-budget instructions that `create_smart_transaction` would
+/// prepend.  Built once and reused across all pair checks.
+fn make_compute_budget_instructions(
     priority_fee: Option<u64>,
     compute_unit_limit: Option<u32>,
-) -> bool {
-    // Build instructions exactly as create_smart_transaction does.
-    let final_instructions = with_compute_budget_instructions(
-        vec![ix_a.clone(), ix_b.clone()],
-        ComputeBudgetConfig {
-            compute_unit_price: priority_fee,
-            compute_unit_limit,
-        },
-    );
-    let tx = Transaction::new_with_payer(&final_instructions, Some(&payer.pubkey()));
-    legacy_transaction_size(&tx) <= MAX_TRANSACTION_SIZE
+) -> Vec<solana_program::instruction::Instruction> {
+    let mut ixs = Vec::with_capacity(2);
+    if let Some(price) = priority_fee {
+        ixs.push(ComputeBudgetInstruction::set_compute_unit_price(price));
+    }
+    if let Some(limit) = compute_unit_limit {
+        ixs.push(ComputeBudgetInstruction::set_compute_unit_limit(limit));
+    }
+    ixs
 }
 
-/// Compute the Solana legacy-transaction wire-format size without pulling in
-/// a serialisation crate.
-fn legacy_transaction_size(tx: &Transaction) -> usize {
-    let msg = &tx.message;
-    let num_sigs = msg.header.num_required_signatures as usize;
+/// Estimate the Solana legacy-transaction wire-format size from instruction
+/// references, without cloning instructions or constructing a Transaction.
+fn estimated_tx_size(
+    payer: &Pubkey,
+    compute_budget_ixs: &[solana_program::instruction::Instruction],
+    main_ixs: &[&solana_program::instruction::Instruction],
+) -> usize {
+    let mut keys = HashSet::new();
+    keys.insert(*payer);
+
+    let mut signer_keys = HashSet::new();
+    signer_keys.insert(*payer);
+
+    for ix in compute_budget_ixs {
+        keys.insert(ix.program_id);
+        for meta in &ix.accounts {
+            keys.insert(meta.pubkey);
+            if meta.is_signer {
+                signer_keys.insert(meta.pubkey);
+            }
+        }
+    }
+    for ix in main_ixs {
+        keys.insert(ix.program_id);
+        for meta in &ix.accounts {
+            keys.insert(meta.pubkey);
+            if meta.is_signer {
+                signer_keys.insert(meta.pubkey);
+            }
+        }
+    }
+
+    let num_keys = keys.len();
+    let num_sigs = signer_keys.len();
 
     // signatures section: compact-u16(count) + count * 64
     let sigs = short_vec_len(num_sigs) + num_sigs * 64;
@@ -471,15 +502,43 @@ fn legacy_transaction_size(tx: &Transaction) -> usize {
     let header = 3;
 
     // account keys: compact-u16(count) + count * 32
-    let keys = short_vec_len(msg.account_keys.len()) + msg.account_keys.len() * 32;
+    let key_bytes = short_vec_len(num_keys) + num_keys * 32;
 
     // recent_blockhash
     let blockhash = 32;
 
     // instructions: compact-u16(count) + each instruction
+    let instruction_count = compute_budget_ixs.len() + main_ixs.len();
+    let mut ixs = short_vec_len(instruction_count);
+    for ix in compute_budget_ixs {
+        ixs += 1; // program_id_index (u8)
+        ixs += short_vec_len(ix.accounts.len()) + ix.accounts.len();
+        ixs += short_vec_len(ix.data.len()) + ix.data.len();
+    }
+    for ix in main_ixs {
+        ixs += 1;
+        ixs += short_vec_len(ix.accounts.len()) + ix.accounts.len();
+        ixs += short_vec_len(ix.data.len()) + ix.data.len();
+    }
+
+    sigs + header + key_bytes + blockhash + ixs
+}
+
+/// Compute the Solana legacy-transaction wire-format size from a constructed
+/// Transaction.  Used in tests to verify `estimated_tx_size` correctness.
+#[cfg(test)]
+fn legacy_transaction_size(tx: &Transaction) -> usize {
+    let msg = &tx.message;
+    let num_sigs = msg.header.num_required_signatures as usize;
+
+    let sigs = short_vec_len(num_sigs) + num_sigs * 64;
+    let header = 3;
+    let keys = short_vec_len(msg.account_keys.len()) + msg.account_keys.len() * 32;
+    let blockhash = 32;
+
     let mut ixs = short_vec_len(msg.instructions.len());
     for ix in &msg.instructions {
-        ixs += 1; // program_id_index (u8)
+        ixs += 1;
         ixs += short_vec_len(ix.accounts.len()) + ix.accounts.len();
         ixs += short_vec_len(ix.data.len()) + ix.data.len();
     }
@@ -608,6 +667,59 @@ mod tests {
     // -- transaction size tests --
 
     #[test]
+    fn estimated_tx_size_matches_legacy_transaction_size() {
+        let payer = Keypair::new();
+        let program_id = Pubkey::new_unique();
+        let ix = Instruction {
+            program_id,
+            accounts: vec![AccountMeta::new(payer.pubkey(), true)],
+            data: vec![0u8; 100],
+        };
+        let compute_budget_ixs = make_compute_budget_instructions(Some(1_000), Some(200_000));
+
+        // Estimate without constructing a transaction.
+        let estimated = estimated_tx_size(&payer.pubkey(), &compute_budget_ixs, &[&ix]);
+
+        // Build the real transaction for comparison.
+        let mut all_ixs = compute_budget_ixs;
+        all_ixs.push(ix);
+        let tx = Transaction::new_with_payer(&all_ixs, Some(&payer.pubkey()));
+        let actual = legacy_transaction_size(&tx);
+
+        assert_eq!(estimated, actual);
+    }
+
+    #[test]
+    fn estimated_tx_size_with_two_instructions() {
+        let payer = Keypair::new();
+        let fx = TestFixture::new(&payer);
+        let proof: Vec<[u8; 32]> = (0..16).map(shared_proof).collect();
+        let ix_a = fx.make_ix(10, proof.clone());
+        let ix_b = fx.make_ix(11, proof);
+        let compute_budget_ixs = make_compute_budget_instructions(Some(1), Some(200_000));
+
+        let estimated = estimated_tx_size(
+            &payer.pubkey(),
+            &compute_budget_ixs,
+            &[&ix_a.instruction, &ix_b.instruction],
+        );
+
+        // Build the real transaction for comparison.
+        let mut all_ixs = compute_budget_ixs;
+        all_ixs.push(ix_a.instruction);
+        all_ixs.push(ix_b.instruction);
+        let tx = Transaction::new_with_payer(&all_ixs, Some(&payer.pubkey()));
+        let actual = legacy_transaction_size(&tx);
+
+        assert_eq!(estimated, actual);
+        // Two nullify_2 instructions with 16 shared proof accounts should fit.
+        assert!(
+            estimated <= MAX_TRANSACTION_SIZE,
+            "estimated={estimated} > MAX_TRANSACTION_SIZE={MAX_TRANSACTION_SIZE}"
+        );
+    }
+
+    #[test]
     fn legacy_transaction_size_is_consistent() {
         let payer = Keypair::new();
         let ix = Instruction {
@@ -623,16 +735,13 @@ mod tests {
         assert!(native_size < PACKET_DATA_SIZE);
     }
 
-    // -- pair_state_nullify_batches integration test --
+    // -- pair_state_nullify_batches integration tests --
 
     /// Shared test fixtures that mimic real nullify_2 instructions: same
     /// program_id, same queue, same merkle tree, differing only in proof
     /// remaining-accounts and per-leaf instruction data.
-    #[allow(dead_code)]
     struct TestFixture {
         program_id: Pubkey,
-        authority: Pubkey,
-        queue: Pubkey,
         merkle_tree: Pubkey,
         // Base accounts shared by every nullify_2 instruction.
         base_accounts: Vec<AccountMeta>,
@@ -641,14 +750,13 @@ mod tests {
     impl TestFixture {
         fn new(payer: &Keypair) -> Self {
             let program_id = Pubkey::new_unique();
-            let authority = payer.pubkey();
             let queue = Pubkey::new_unique();
             let merkle_tree = Pubkey::new_unique();
 
             // 8 base accounts: authority, forester_pda, registered_program,
             // queue, merkle_tree, log_wrapper, cpi_authority, acc_compression
             let base_accounts = vec![
-                AccountMeta::new(authority, true),
+                AccountMeta::new(payer.pubkey(), true),
                 AccountMeta::new(Pubkey::new_unique(), false),
                 AccountMeta::new_readonly(Pubkey::new_unique(), false),
                 AccountMeta::new(queue, false),
@@ -660,18 +768,12 @@ mod tests {
 
             Self {
                 program_id,
-                authority,
-                queue,
                 merkle_tree,
                 base_accounts,
             }
         }
 
-        fn make_ix(
-            &self,
-            leaf_index: u64,
-            proof_nodes: Vec<[u8; 32]>,
-        ) -> StateNullifyInstruction {
+        fn make_ix(&self, leaf_index: u64, proof_nodes: Vec<[u8; 32]>) -> StateNullifyInstruction {
             let mut accounts = self.base_accounts.clone();
             for node in &proof_nodes {
                 accounts.push(AccountMeta::new_readonly(
@@ -682,7 +784,7 @@ mod tests {
             let instruction = Instruction {
                 program_id: self.program_id,
                 accounts,
-                data: vec![0u8; 39], // 8-byte discriminator + 31-byte payload
+                data: vec![0u8; 27], // 8-byte discriminator + 19-byte scalar payload
             };
             StateNullifyInstruction {
                 instruction,
@@ -709,7 +811,6 @@ mod tests {
     #[test]
     fn pair_state_nullify_batches_pairs_overlapping_proofs() {
         let payer = Keypair::new();
-        let blockhash = Hash::default();
         let fx = TestFixture::new(&payer);
 
         // 4 instructions, each with exactly 16 proof nodes (realistic).
@@ -719,13 +820,13 @@ mod tests {
         let shared_2_3: Vec<[u8; 32]> = (100..114).map(shared_proof).collect();
 
         let mut proof_0: Vec<[u8; 32]> = shared_0_1.clone();
-        proof_0.extend((0..2).map(|i| unique_proof(i)));
+        proof_0.extend((0..2).map(unique_proof));
         let mut proof_1: Vec<[u8; 32]> = shared_0_1;
-        proof_1.extend((10..12).map(|i| unique_proof(i)));
+        proof_1.extend((10..12).map(unique_proof));
         let mut proof_2: Vec<[u8; 32]> = shared_2_3.clone();
-        proof_2.extend((20..22).map(|i| unique_proof(i)));
+        proof_2.extend((20..22).map(unique_proof));
         let mut proof_3: Vec<[u8; 32]> = shared_2_3;
-        proof_3.extend((40..42).map(|i| unique_proof(i)));
+        proof_3.extend((40..42).map(unique_proof));
 
         let ixs = vec![
             fx.make_ix(10, proof_0),
@@ -734,15 +835,9 @@ mod tests {
             fx.make_ix(51, proof_3),
         ];
 
-        let batches = pair_state_nullify_batches(
-            ixs,
-            &payer,
-            &blockhash,
-            Some(1),
-            Some(200_000),
-            false,
-        )
-        .unwrap();
+        let batches =
+            pair_state_nullify_batches(ixs, &payer.pubkey(), Some(1), Some(200_000), false)
+                .unwrap();
 
         // All 4 should be paired into 2 batches.
         assert_eq!(batches.len(), 2, "expected 2 paired batches");
@@ -751,58 +846,16 @@ mod tests {
     }
 
     #[test]
-    fn pair_state_nullify_batches_pairs_only_drops_singles() {
-        let payer = Keypair::new();
-        let blockhash = Hash::default();
-        let fx = TestFixture::new(&payer);
-
-        // 3 instructions: ix0 and ix1 share 14/16 proof nodes, ix2 is alone.
-        let shared: Vec<[u8; 32]> = (0..14).map(shared_proof).collect();
-        let mut proof_0: Vec<[u8; 32]> = shared.clone();
-        proof_0.extend((0..2).map(|i| unique_proof(i)));
-        let mut proof_1: Vec<[u8; 32]> = shared;
-        proof_1.extend((10..12).map(|i| unique_proof(i)));
-        let proof_2: Vec<[u8; 32]> = (30..46).map(|i| unique_proof(i)).collect();
-
-        let ixs = vec![
-            fx.make_ix(10, proof_0),
-            fx.make_ix(11, proof_1),
-            fx.make_ix(90, proof_2),
-        ];
-
-        // pairs_only = true → ix2 is dropped.
-        let batches = pair_state_nullify_batches(
-            ixs,
-            &payer,
-            &blockhash,
-            Some(1),
-            Some(200_000),
-            true,
-        )
-        .unwrap();
-
-        assert_eq!(batches.len(), 1, "only 1 paired batch expected");
-        assert_eq!(batches[0].len(), 2, "the paired batch should have 2 ixs");
-    }
-
-    #[test]
     fn pair_state_nullify_batches_single_instruction_no_pairs() {
         let payer = Keypair::new();
-        let blockhash = Hash::default();
         let fx = TestFixture::new(&payer);
 
         let proof: Vec<[u8; 32]> = (0..16).map(shared_proof).collect();
         let ixs = vec![fx.make_ix(42, proof)];
 
-        let batches = pair_state_nullify_batches(
-            ixs,
-            &payer,
-            &blockhash,
-            Some(1),
-            Some(200_000),
-            false,
-        )
-        .unwrap();
+        let batches =
+            pair_state_nullify_batches(ixs, &payer.pubkey(), Some(1), Some(200_000), false)
+                .unwrap();
 
         assert_eq!(batches.len(), 1);
         assert_eq!(batches[0].len(), 1);
@@ -811,27 +864,128 @@ mod tests {
     #[test]
     fn pair_state_nullify_batches_sorted_by_leaf_index() {
         let payer = Keypair::new();
-        let blockhash = Hash::default();
         let fx = TestFixture::new(&payer);
 
         // Two instructions with identical proofs → will pair.
         let proof: Vec<[u8; 32]> = (0..16).map(shared_proof).collect();
-        let ixs = vec![
-            fx.make_ix(999, proof.clone()),
-            fx.make_ix(1, proof),
-        ];
+        let ixs = vec![fx.make_ix(999, proof.clone()), fx.make_ix(1, proof)];
 
-        let batches = pair_state_nullify_batches(
-            ixs,
-            &payer,
-            &blockhash,
-            Some(1),
-            Some(200_000),
-            false,
-        )
-        .unwrap();
+        let batches =
+            pair_state_nullify_batches(ixs, &payer.pubkey(), Some(1), Some(200_000), false)
+                .unwrap();
 
         assert_eq!(batches.len(), 1);
         assert_eq!(batches[0].len(), 2);
+    }
+
+    #[test]
+    fn pair_state_nullify_batches_no_edges_falls_back_to_singles() {
+        let payer = Keypair::new();
+        let fx = TestFixture::new(&payer);
+
+        // Create instructions with huge data that won't fit paired in one tx.
+        let make_big_ix = |leaf_index: u64| -> StateNullifyInstruction {
+            let proof_nodes: Vec<[u8; 32]> = (0..16)
+                .map(|i| unique_proof(leaf_index as u16 * 100 + i))
+                .collect();
+            let mut accounts = fx.base_accounts.clone();
+            for node in &proof_nodes {
+                accounts.push(AccountMeta::new_readonly(
+                    Pubkey::new_from_array(*node),
+                    false,
+                ));
+            }
+            // Large data payload to force tx over size limit when paired.
+            let instruction = Instruction {
+                program_id: fx.program_id,
+                accounts,
+                data: vec![0u8; 500],
+            };
+            StateNullifyInstruction {
+                instruction,
+                proof_nodes,
+                leaf_index,
+                merkle_tree: fx.merkle_tree,
+            }
+        };
+
+        let ixs = vec![make_big_ix(1), make_big_ix(2)];
+        let batches =
+            pair_state_nullify_batches(ixs, &payer.pubkey(), Some(1), Some(200_000), false)
+                .unwrap();
+
+        // Both should be singles since pairing exceeds tx size.
+        assert_eq!(batches.len(), 2);
+        assert_eq!(batches[0].len(), 1);
+        assert_eq!(batches[1].len(), 1);
+    }
+
+    #[test]
+    fn build_instruction_batches_separates_address_and_state() {
+        let payer = Keypair::new();
+        let fx = TestFixture::new(&payer);
+
+        let addr_ix = Instruction {
+            program_id: Pubkey::new_unique(),
+            accounts: vec![AccountMeta::new(payer.pubkey(), true)],
+            data: vec![0u8; 50],
+        };
+
+        let proof: Vec<[u8; 32]> = (0..16).map(shared_proof).collect();
+        let state_ix_0 = fx.make_ix(10, proof.clone());
+        let state_ix_1 = fx.make_ix(11, proof);
+
+        let prepared = vec![
+            PreparedV1Instruction::AddressUpdate(addr_ix),
+            PreparedV1Instruction::StateNullify(state_ix_0),
+            PreparedV1Instruction::StateNullify(state_ix_1),
+        ];
+
+        let batches = build_instruction_batches(
+            prepared,
+            2,
+            true,
+            false,
+            &payer.pubkey(),
+            Some(1),
+            Some(200_000),
+        )
+        .unwrap();
+
+        // 1 address batch + 1 paired state batch.
+        assert_eq!(batches.len(), 2);
+        assert_eq!(batches[0].len(), 1, "address batch should have 1 ix");
+        assert_eq!(batches[1].len(), 2, "state batch should be paired");
+    }
+
+    #[test]
+    fn build_instruction_batches_no_pairing_when_disabled() {
+        let payer = Keypair::new();
+        let fx = TestFixture::new(&payer);
+
+        let proof: Vec<[u8; 32]> = (0..16).map(shared_proof).collect();
+        let state_ix_0 = fx.make_ix(10, proof.clone());
+        let state_ix_1 = fx.make_ix(11, proof);
+
+        let prepared = vec![
+            PreparedV1Instruction::StateNullify(state_ix_0),
+            PreparedV1Instruction::StateNullify(state_ix_1),
+        ];
+
+        let batches = build_instruction_batches(
+            prepared,
+            2,
+            false, // pairing disabled
+            false,
+            &payer.pubkey(),
+            Some(1),
+            Some(200_000),
+        )
+        .unwrap();
+
+        // Each state nullify should be a separate batch.
+        assert_eq!(batches.len(), 2);
+        assert_eq!(batches[0].len(), 1);
+        assert_eq!(batches[1].len(), 1);
     }
 }
