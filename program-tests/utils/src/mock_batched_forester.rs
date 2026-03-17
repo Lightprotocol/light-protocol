@@ -209,9 +209,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             &[],
         )?;
         let proof_client = ProofClient::local()?;
-        let proof_result = proof_client
-            .generate_batch_update_proof(inputs)
-            .await?;
+        let proof_result = proof_client.generate_batch_update_proof(inputs).await?;
         let new_root = self.merkle_tree.root();
         let proof = CompressedProof {
             a: proof_result.0.proof.a,
