@@ -51,17 +51,20 @@ fn pack_selected_output_tree_context(
         (
             next.tree,
             next.queue,
-            next.pack_output_tree_index(remaining_accounts).map_err(|error| {
-                RpcError::CustomError(format!("Failed to pack output tree index: {error}"))
-            })?,
+            next.pack_output_tree_index(remaining_accounts)
+                .map_err(|error| {
+                    RpcError::CustomError(format!("Failed to pack output tree index: {error}"))
+                })?,
         )
     } else {
         (
             tree_info.tree,
             tree_info.queue,
-            tree_info.pack_output_tree_index(remaining_accounts).map_err(|error| {
-                RpcError::CustomError(format!("Failed to pack output tree index: {error}"))
-            })?,
+            tree_info
+                .pack_output_tree_index(remaining_accounts)
+                .map_err(|error| {
+                    RpcError::CustomError(format!("Failed to pack output tree index: {error}"))
+                })?,
         )
     };
 
@@ -354,7 +357,10 @@ async fn update_deposit_compressed_account(
         rpc_result.accounts[0].tree_info.queue.to_bytes()
     );
     let (output_tree_index, output_tree_queue_index, output_state_tree_index) =
-        pack_selected_output_tree_context(rpc_result.accounts[0].tree_info, &mut remaining_accounts)?;
+        pack_selected_output_tree_context(
+            rpc_result.accounts[0].tree_info,
+            &mut remaining_accounts,
+        )?;
     println!("output_tree_index {}", output_tree_index);
     println!("output_tree_queue_index {}", output_tree_queue_index);
     println!("output_state_tree_index {}", output_state_tree_index);
