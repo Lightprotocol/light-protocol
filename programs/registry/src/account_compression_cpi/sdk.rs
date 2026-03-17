@@ -62,62 +62,6 @@ pub fn create_nullify_instruction(
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct CreateNullify2InstructionInputs {
-    pub authority: Pubkey,
-    pub nullifier_queue: Pubkey,
-    pub merkle_tree: Pubkey,
-    pub change_log_index: u16,
-    pub queue_index_0: u16,
-    pub queue_index_1: u16,
-    pub leaf_index_0: u32,
-    pub leaf_index_1: u32,
-    pub proof_0: [[u8; 32]; 15],
-    pub proof_1: [[u8; 32]; 15],
-    pub shared_proof_node: [u8; 32],
-    pub derivation: Pubkey,
-    pub is_metadata_forester: bool,
-}
-
-pub fn create_nullify_2_instruction(
-    inputs: CreateNullify2InstructionInputs,
-    epoch: u64,
-) -> Instruction {
-    let register_program_pda = get_registered_program_pda(&crate::ID);
-    let registered_forester_pda = if inputs.is_metadata_forester {
-        None
-    } else {
-        Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
-    };
-    let (cpi_authority, _bump) = get_cpi_authority_pda();
-    let instruction_data = crate::instruction::Nullify2 {
-        change_log_index: inputs.change_log_index,
-        queue_index_0: inputs.queue_index_0,
-        queue_index_1: inputs.queue_index_1,
-        leaf_index_0: inputs.leaf_index_0,
-        leaf_index_1: inputs.leaf_index_1,
-        proof_0: inputs.proof_0,
-        proof_1: inputs.proof_1,
-        shared_proof_node: inputs.shared_proof_node,
-    };
-
-    let accounts = crate::accounts::NullifyLeaves {
-        authority: inputs.authority,
-        registered_forester_pda,
-        registered_program_pda: register_program_pda,
-        nullifier_queue: inputs.nullifier_queue,
-        merkle_tree: inputs.merkle_tree,
-        log_wrapper: NOOP_PUBKEY.into(),
-        cpi_authority,
-        account_compression_program: account_compression::ID,
-    };
-    Instruction {
-        program_id: crate::ID,
-        accounts: accounts.to_account_metas(Some(true)),
-        data: instruction_data.data(),
-    }
-}
-
 /// Returns the base accounts for populating an address lookup table
 /// for nullify v0 transactions.
 fn nullify_lookup_table_accounts_base(
@@ -142,20 +86,11 @@ fn nullify_lookup_table_accounts_base(
     accounts
 }
 
-/// Returns the known accounts for populating an address lookup table
-/// for nullify_2 v0 transactions.
-pub fn nullify_2_lookup_table_accounts(
-    merkle_tree: Pubkey,
-    nullifier_queue: Pubkey,
-    forester_pda: Option<Pubkey>,
-) -> Vec<Pubkey> {
-    nullify_lookup_table_accounts_base(merkle_tree, nullifier_queue, forester_pda)
-}
-
 /// Max number of 32-byte nodes in the dedup encoding vec.
 /// Verified by tx size test (forester/tests/test_nullify_dedup_tx_size.rs).
-/// With ALT, SetComputeUnitLimit ix, and worst-case nodes, the tx is 1230 bytes (2 byte margin).
-pub const NULLIFY_DEDUP_MAX_NODES: usize = 28;
+/// With ALT, SetComputeUnitLimit + SetComputeUnitPrice ixs, and worst-case nodes,
+/// the tx fits within the 1232 byte limit.
+pub const NULLIFY_DEDUP_MAX_NODES: usize = 27;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CreateNullifyDedupInstructionInputs {
@@ -213,13 +148,20 @@ pub fn create_nullify_dedup_instruction(
     }
 }
 
+/// Result of compressing 2-4 Merkle proofs into the dedup encoding.
+pub struct CompressedProofs {
+    pub proof_2_shared: u16,
+    pub proof_3_source: u32,
+    pub proof_4_source: u32,
+    pub shared_top_node: [u8; 32],
+    pub nodes: Vec<[u8; 32]>,
+}
+
 /// Compresses 2-4 full 16-node Merkle proofs into the dedup encoding.
-/// Returns `(proof_2_shared, proof_3_source, proof_4_source, shared_top_node, nodes)`,
+/// Returns the compressed proof data,
 /// or `None` if compression is impossible (different top nodes, too many unique nodes, or
 /// fewer than 2 or more than 4 proofs).
-pub fn compress_proofs(
-    proofs: &[&[[u8; 32]; 16]],
-) -> Option<(u16, u32, u32, [u8; 32], Vec<[u8; 32]>)> {
+pub fn compress_proofs(proofs: &[&[[u8; 32]; 16]]) -> Option<CompressedProofs> {
     if proofs.len() < 2 || proofs.len() > 4 {
         return None;
     }
@@ -285,13 +227,13 @@ pub fn compress_proofs(
         return None;
     }
 
-    Some((
+    Some(CompressedProofs {
         proof_2_shared,
         proof_3_source,
         proof_4_source,
         shared_top_node,
         nodes,
-    ))
+    })
 }
 
 /// Returns the known accounts for populating an address lookup table
@@ -302,7 +244,8 @@ pub fn nullify_dedup_lookup_table_accounts(
     nullifier_queue: Pubkey,
     forester_pda: Option<Pubkey>,
 ) -> Vec<Pubkey> {
-    let mut accounts = nullify_lookup_table_accounts_base(merkle_tree, nullifier_queue, forester_pda);
+    let mut accounts =
+        nullify_lookup_table_accounts_base(merkle_tree, nullifier_queue, forester_pda);
     accounts.push(solana_sdk::compute_budget::ID);
     accounts
 }
@@ -793,106 +736,9 @@ pub fn create_rollover_batch_address_tree_instruction(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use anchor_lang::Discriminator;
 
-    #[test]
-    fn test_nullify_2_instruction_data_size() {
-        let instruction_data = crate::instruction::Nullify2 {
-            change_log_index: 0,
-            queue_index_0: 0,
-            queue_index_1: 0,
-            leaf_index_0: 0,
-            leaf_index_1: 0,
-            proof_0: [[0u8; 32]; 15],
-            proof_1: [[0u8; 32]; 15],
-            shared_proof_node: [0u8; 32],
-        };
-        let data = instruction_data.data();
-        assert_eq!(
-            data.len(),
-            1007,
-            "nullify_2 instruction data must be exactly 1007 bytes \
-             (1 disc + 2 changelog + 2+2 queue + 4+4 leaf + 480+480 proofs + 32 shared), got {}",
-            data.len()
-        );
-    }
-
-    #[test]
-    fn test_nullify_2_instruction_accounts() {
-        let authority = Pubkey::new_unique();
-        let inputs = CreateNullify2InstructionInputs {
-            authority,
-            nullifier_queue: Pubkey::new_unique(),
-            merkle_tree: Pubkey::new_unique(),
-            change_log_index: 0,
-            queue_index_0: 0,
-            queue_index_1: 1,
-            leaf_index_0: 0,
-            leaf_index_1: 1,
-            proof_0: [[0u8; 32]; 15],
-            proof_1: [[0u8; 32]; 15],
-            shared_proof_node: [0u8; 32],
-            derivation: authority,
-            is_metadata_forester: false,
-        };
-        let ix = create_nullify_2_instruction(inputs, 0);
-        assert_eq!(ix.data.len(), 1007);
-        // 8 accounts: forester_pda, authority, cpi_authority, registered_program_pda,
-        // account_compression_program, log_wrapper, merkle_tree, nullifier_queue
-        assert_eq!(ix.accounts.len(), 8, "expected 8 accounts");
-    }
-
-    #[test]
-    fn test_nullify_2_discriminator_no_collision() {
-        let disc = crate::instruction::Nullify2::DISCRIMINATOR;
-        assert_eq!(disc.len(), 1, "nullify_2 discriminator must be 1 byte");
-
-        let existing: &[(&str, &[u8])] = &[
-            ("InitializeProtocolConfig", crate::instruction::InitializeProtocolConfig::DISCRIMINATOR),
-            ("UpdateProtocolConfig", crate::instruction::UpdateProtocolConfig::DISCRIMINATOR),
-            ("RegisterSystemProgram", crate::instruction::RegisterSystemProgram::DISCRIMINATOR),
-            ("DeregisterSystemProgram", crate::instruction::DeregisterSystemProgram::DISCRIMINATOR),
-            ("RegisterForester", crate::instruction::RegisterForester::DISCRIMINATOR),
-            ("UpdateForesterPda", crate::instruction::UpdateForesterPda::DISCRIMINATOR),
-            ("UpdateForesterPdaWeight", crate::instruction::UpdateForesterPdaWeight::DISCRIMINATOR),
-            ("RegisterForesterEpoch", crate::instruction::RegisterForesterEpoch::DISCRIMINATOR),
-            ("FinalizeRegistration", crate::instruction::FinalizeRegistration::DISCRIMINATOR),
-            ("ReportWork", crate::instruction::ReportWork::DISCRIMINATOR),
-            ("InitializeAddressMerkleTree", crate::instruction::InitializeAddressMerkleTree::DISCRIMINATOR),
-            ("InitializeStateMerkleTree", crate::instruction::InitializeStateMerkleTree::DISCRIMINATOR),
-            ("Nullify", crate::instruction::Nullify::DISCRIMINATOR),
-            ("UpdateAddressMerkleTree", crate::instruction::UpdateAddressMerkleTree::DISCRIMINATOR),
-            ("RolloverAddressMerkleTreeAndQueue", crate::instruction::RolloverAddressMerkleTreeAndQueue::DISCRIMINATOR),
-            ("RolloverStateMerkleTreeAndQueue", crate::instruction::RolloverStateMerkleTreeAndQueue::DISCRIMINATOR),
-            ("InitializeBatchedStateMerkleTree", crate::instruction::InitializeBatchedStateMerkleTree::DISCRIMINATOR),
-            ("BatchNullify", crate::instruction::BatchNullify::DISCRIMINATOR),
-            ("BatchAppend", crate::instruction::BatchAppend::DISCRIMINATOR),
-            ("InitializeBatchedAddressMerkleTree", crate::instruction::InitializeBatchedAddressMerkleTree::DISCRIMINATOR),
-            ("BatchUpdateAddressTree", crate::instruction::BatchUpdateAddressTree::DISCRIMINATOR),
-            ("RolloverBatchedAddressMerkleTree", crate::instruction::RolloverBatchedAddressMerkleTree::DISCRIMINATOR),
-            ("RolloverBatchedStateMerkleTree", crate::instruction::RolloverBatchedStateMerkleTree::DISCRIMINATOR),
-            ("MigrateState", crate::instruction::MigrateState::DISCRIMINATOR),
-            ("CreateConfigCounter", crate::instruction::CreateConfigCounter::DISCRIMINATOR),
-            ("CreateCompressibleConfig", crate::instruction::CreateCompressibleConfig::DISCRIMINATOR),
-            ("UpdateCompressibleConfig", crate::instruction::UpdateCompressibleConfig::DISCRIMINATOR),
-            ("PauseCompressibleConfig", crate::instruction::PauseCompressibleConfig::DISCRIMINATOR),
-            ("UnpauseCompressibleConfig", crate::instruction::UnpauseCompressibleConfig::DISCRIMINATOR),
-            ("DeprecateCompressibleConfig", crate::instruction::DeprecateCompressibleConfig::DISCRIMINATOR),
-            ("WithdrawFundingPool", crate::instruction::WithdrawFundingPool::DISCRIMINATOR),
-            ("Claim", crate::instruction::Claim::DISCRIMINATOR),
-            ("CompressAndClose", crate::instruction::CompressAndClose::DISCRIMINATOR),
-        ];
-
-        for (name, existing_disc) in existing {
-            assert!(
-                !existing_disc.starts_with(disc),
-                "nullify_2 1-byte discriminator {:?} collides with {name} discriminator prefix {:?}",
-                disc,
-                &existing_disc[..disc.len().min(existing_disc.len())]
-            );
-        }
-    }
+    use super::*;
 
     #[test]
     fn test_nullify_dedup_instruction_data_size() {
@@ -949,48 +795,130 @@ mod tests {
         assert_eq!(disc.len(), 1, "nullify_dedup discriminator must be 1 byte");
         assert_eq!(disc, &[79], "nullify_dedup discriminator must be [79]");
 
-        // Verify no collision with nullify_2's discriminator [78]
-        let nullify_2_disc = crate::instruction::Nullify2::DISCRIMINATOR;
-        assert_ne!(
-            disc, nullify_2_disc,
-            "nullify_dedup [79] must not collide with nullify_2 [78]"
-        );
-
         let existing: &[(&str, &[u8])] = &[
-            ("InitializeProtocolConfig", crate::instruction::InitializeProtocolConfig::DISCRIMINATOR),
-            ("UpdateProtocolConfig", crate::instruction::UpdateProtocolConfig::DISCRIMINATOR),
-            ("RegisterSystemProgram", crate::instruction::RegisterSystemProgram::DISCRIMINATOR),
-            ("DeregisterSystemProgram", crate::instruction::DeregisterSystemProgram::DISCRIMINATOR),
-            ("RegisterForester", crate::instruction::RegisterForester::DISCRIMINATOR),
-            ("UpdateForesterPda", crate::instruction::UpdateForesterPda::DISCRIMINATOR),
-            ("UpdateForesterPdaWeight", crate::instruction::UpdateForesterPdaWeight::DISCRIMINATOR),
-            ("RegisterForesterEpoch", crate::instruction::RegisterForesterEpoch::DISCRIMINATOR),
-            ("FinalizeRegistration", crate::instruction::FinalizeRegistration::DISCRIMINATOR),
+            (
+                "InitializeProtocolConfig",
+                crate::instruction::InitializeProtocolConfig::DISCRIMINATOR,
+            ),
+            (
+                "UpdateProtocolConfig",
+                crate::instruction::UpdateProtocolConfig::DISCRIMINATOR,
+            ),
+            (
+                "RegisterSystemProgram",
+                crate::instruction::RegisterSystemProgram::DISCRIMINATOR,
+            ),
+            (
+                "DeregisterSystemProgram",
+                crate::instruction::DeregisterSystemProgram::DISCRIMINATOR,
+            ),
+            (
+                "RegisterForester",
+                crate::instruction::RegisterForester::DISCRIMINATOR,
+            ),
+            (
+                "UpdateForesterPda",
+                crate::instruction::UpdateForesterPda::DISCRIMINATOR,
+            ),
+            (
+                "UpdateForesterPdaWeight",
+                crate::instruction::UpdateForesterPdaWeight::DISCRIMINATOR,
+            ),
+            (
+                "RegisterForesterEpoch",
+                crate::instruction::RegisterForesterEpoch::DISCRIMINATOR,
+            ),
+            (
+                "FinalizeRegistration",
+                crate::instruction::FinalizeRegistration::DISCRIMINATOR,
+            ),
             ("ReportWork", crate::instruction::ReportWork::DISCRIMINATOR),
-            ("InitializeAddressMerkleTree", crate::instruction::InitializeAddressMerkleTree::DISCRIMINATOR),
-            ("InitializeStateMerkleTree", crate::instruction::InitializeStateMerkleTree::DISCRIMINATOR),
+            (
+                "InitializeAddressMerkleTree",
+                crate::instruction::InitializeAddressMerkleTree::DISCRIMINATOR,
+            ),
+            (
+                "InitializeStateMerkleTree",
+                crate::instruction::InitializeStateMerkleTree::DISCRIMINATOR,
+            ),
             ("Nullify", crate::instruction::Nullify::DISCRIMINATOR),
-            ("Nullify2", crate::instruction::Nullify2::DISCRIMINATOR),
-            ("UpdateAddressMerkleTree", crate::instruction::UpdateAddressMerkleTree::DISCRIMINATOR),
-            ("RolloverAddressMerkleTreeAndQueue", crate::instruction::RolloverAddressMerkleTreeAndQueue::DISCRIMINATOR),
-            ("RolloverStateMerkleTreeAndQueue", crate::instruction::RolloverStateMerkleTreeAndQueue::DISCRIMINATOR),
-            ("InitializeBatchedStateMerkleTree", crate::instruction::InitializeBatchedStateMerkleTree::DISCRIMINATOR),
-            ("BatchNullify", crate::instruction::BatchNullify::DISCRIMINATOR),
-            ("BatchAppend", crate::instruction::BatchAppend::DISCRIMINATOR),
-            ("InitializeBatchedAddressMerkleTree", crate::instruction::InitializeBatchedAddressMerkleTree::DISCRIMINATOR),
-            ("BatchUpdateAddressTree", crate::instruction::BatchUpdateAddressTree::DISCRIMINATOR),
-            ("RolloverBatchedAddressMerkleTree", crate::instruction::RolloverBatchedAddressMerkleTree::DISCRIMINATOR),
-            ("RolloverBatchedStateMerkleTree", crate::instruction::RolloverBatchedStateMerkleTree::DISCRIMINATOR),
-            ("MigrateState", crate::instruction::MigrateState::DISCRIMINATOR),
-            ("CreateConfigCounter", crate::instruction::CreateConfigCounter::DISCRIMINATOR),
-            ("CreateCompressibleConfig", crate::instruction::CreateCompressibleConfig::DISCRIMINATOR),
-            ("UpdateCompressibleConfig", crate::instruction::UpdateCompressibleConfig::DISCRIMINATOR),
-            ("PauseCompressibleConfig", crate::instruction::PauseCompressibleConfig::DISCRIMINATOR),
-            ("UnpauseCompressibleConfig", crate::instruction::UnpauseCompressibleConfig::DISCRIMINATOR),
-            ("DeprecateCompressibleConfig", crate::instruction::DeprecateCompressibleConfig::DISCRIMINATOR),
-            ("WithdrawFundingPool", crate::instruction::WithdrawFundingPool::DISCRIMINATOR),
+            (
+                "UpdateAddressMerkleTree",
+                crate::instruction::UpdateAddressMerkleTree::DISCRIMINATOR,
+            ),
+            (
+                "RolloverAddressMerkleTreeAndQueue",
+                crate::instruction::RolloverAddressMerkleTreeAndQueue::DISCRIMINATOR,
+            ),
+            (
+                "RolloverStateMerkleTreeAndQueue",
+                crate::instruction::RolloverStateMerkleTreeAndQueue::DISCRIMINATOR,
+            ),
+            (
+                "InitializeBatchedStateMerkleTree",
+                crate::instruction::InitializeBatchedStateMerkleTree::DISCRIMINATOR,
+            ),
+            (
+                "BatchNullify",
+                crate::instruction::BatchNullify::DISCRIMINATOR,
+            ),
+            (
+                "BatchAppend",
+                crate::instruction::BatchAppend::DISCRIMINATOR,
+            ),
+            (
+                "InitializeBatchedAddressMerkleTree",
+                crate::instruction::InitializeBatchedAddressMerkleTree::DISCRIMINATOR,
+            ),
+            (
+                "BatchUpdateAddressTree",
+                crate::instruction::BatchUpdateAddressTree::DISCRIMINATOR,
+            ),
+            (
+                "RolloverBatchedAddressMerkleTree",
+                crate::instruction::RolloverBatchedAddressMerkleTree::DISCRIMINATOR,
+            ),
+            (
+                "RolloverBatchedStateMerkleTree",
+                crate::instruction::RolloverBatchedStateMerkleTree::DISCRIMINATOR,
+            ),
+            (
+                "MigrateState",
+                crate::instruction::MigrateState::DISCRIMINATOR,
+            ),
+            (
+                "CreateConfigCounter",
+                crate::instruction::CreateConfigCounter::DISCRIMINATOR,
+            ),
+            (
+                "CreateCompressibleConfig",
+                crate::instruction::CreateCompressibleConfig::DISCRIMINATOR,
+            ),
+            (
+                "UpdateCompressibleConfig",
+                crate::instruction::UpdateCompressibleConfig::DISCRIMINATOR,
+            ),
+            (
+                "PauseCompressibleConfig",
+                crate::instruction::PauseCompressibleConfig::DISCRIMINATOR,
+            ),
+            (
+                "UnpauseCompressibleConfig",
+                crate::instruction::UnpauseCompressibleConfig::DISCRIMINATOR,
+            ),
+            (
+                "DeprecateCompressibleConfig",
+                crate::instruction::DeprecateCompressibleConfig::DISCRIMINATOR,
+            ),
+            (
+                "WithdrawFundingPool",
+                crate::instruction::WithdrawFundingPool::DISCRIMINATOR,
+            ),
             ("Claim", crate::instruction::Claim::DISCRIMINATOR),
-            ("CompressAndClose", crate::instruction::CompressAndClose::DISCRIMINATOR),
+            (
+                "CompressAndClose",
+                crate::instruction::CompressAndClose::DISCRIMINATOR,
+            ),
         ];
 
         for (name, existing_disc) in existing {
@@ -1005,51 +933,51 @@ mod tests {
 
     #[test]
     fn test_compress_proofs_round_trip() {
-        // Create 4 proofs with sharing patterns that fit within MAX_NODES (28).
-        // Budget: 15 (proof_1) + 5 (proof_2 unique) + 5 (proof_3 unique) + 3 (proof_4 unique) = 28
+        // Create 4 proofs with sharing patterns that fit within MAX_NODES (27).
+        // Budget: 15 (proof_1) + 5 (proof_2 unique) + 5 (proof_3 unique) + 2 (proof_4 unique) = 27
         let shared_top = [0xCC; 32];
         let mut proof_1 = [[0u8; 32]; 16];
         let mut proof_2 = [[0u8; 32]; 16];
         let mut proof_3 = [[0u8; 32]; 16];
         let mut proof_4 = [[0u8; 32]; 16];
 
-        for i in 0..15 {
-            proof_1[i] = [i as u8 + 1; 32];
+        for (i, slot) in proof_1.iter_mut().enumerate().take(15) {
+            *slot = [i as u8 + 1; 32];
         }
         proof_1[15] = shared_top;
 
         // proof_2: 10 shared with proof_1, 5 unique (levels 0-4)
-        for i in 0..15 {
+        for (i, slot) in proof_2.iter_mut().enumerate().take(15) {
             if i < 5 {
-                proof_2[i] = [i as u8 + 100; 32]; // unique
+                *slot = [i as u8 + 100; 32]; // unique
             } else {
-                proof_2[i] = proof_1[i]; // shared
+                *slot = proof_1[i]; // shared
             }
         }
         proof_2[15] = shared_top;
 
         // proof_3: 5 from proof_1, 5 new (levels 5-9), 5 from proof_2
-        for i in 0..15 {
+        for (i, slot) in proof_3.iter_mut().enumerate().take(15) {
             if i < 5 {
-                proof_3[i] = proof_1[i]; // same as proof_1
+                *slot = proof_1[i]; // same as proof_1
             } else if i < 10 {
-                proof_3[i] = [i as u8 + 200; 32]; // new
+                *slot = [i as u8 + 200; 32]; // new
             } else {
-                proof_3[i] = proof_2[i]; // same as proof_2 (and proof_1)
+                *slot = proof_2[i]; // same as proof_2 (and proof_1)
             }
         }
         proof_3[15] = shared_top;
 
-        // proof_4: 4 from proof_1, 4 from proof_2, 4 from proof_3, 3 new
-        for i in 0..15 {
+        // proof_4: 4 from proof_1, 4 from proof_2, 5 from proof_3, 2 new
+        for (i, slot) in proof_4.iter_mut().enumerate().take(15) {
             if i < 4 {
-                proof_4[i] = proof_1[i]; // from proof_1
+                *slot = proof_1[i]; // from proof_1
             } else if i < 8 {
-                proof_4[i] = proof_2[i]; // from proof_2
-            } else if i < 12 {
-                proof_4[i] = proof_3[i]; // from proof_3
+                *slot = proof_2[i]; // from proof_2
+            } else if i < 13 {
+                *slot = proof_3[i]; // from proof_3
             } else {
-                proof_4[i] = [(i as u8).wrapping_add(250); 32]; // new
+                *slot = [(i as u8).wrapping_add(250); 32]; // new
             }
         }
         proof_4[15] = shared_top;
@@ -1057,7 +985,13 @@ mod tests {
         let proofs: Vec<&[[u8; 32]; 16]> = vec![&proof_1, &proof_2, &proof_3, &proof_4];
         let result = compress_proofs(&proofs);
         assert!(result.is_some(), "compress_proofs should succeed");
-        let (p2_shared, p3_source, p4_source, top, nodes) = result.unwrap();
+        let CompressedProofs {
+            proof_2_shared: p2_shared,
+            proof_3_source: p3_source,
+            proof_4_source: p4_source,
+            shared_top_node: top,
+            nodes,
+        } = result.unwrap();
 
         // Simulate on-chain reconstruction
         let mut cursor = 0usize;
@@ -1126,8 +1060,8 @@ mod tests {
         let shared_top = [0xCC; 32];
         let make_proof = |base: u8| -> [[u8; 32]; 16] {
             let mut p = [[0u8; 32]; 16];
-            for i in 0..15 {
-                p[i] = [base.wrapping_add(i as u8); 32];
+            for (i, slot) in p.iter_mut().enumerate().take(15) {
+                *slot = [base.wrapping_add(i as u8); 32];
             }
             p[15] = shared_top;
             p
@@ -1165,7 +1099,13 @@ mod tests {
         let proofs: Vec<&[[u8; 32]; 16]> = vec![&proof_1, &proof_2];
         let result = compress_proofs(&proofs);
         assert!(result.is_some(), "2 proofs should compress");
-        let (p2_shared, p3_source, p4_source, top, nodes) = result.unwrap();
+        let CompressedProofs {
+            proof_2_shared: p2_shared,
+            proof_3_source: p3_source,
+            proof_4_source: p4_source,
+            shared_top_node: top,
+            nodes,
+        } = result.unwrap();
 
         // proof_3_source and proof_4_source should be 0 (unused)
         assert_eq!(p3_source, 0);
@@ -1215,7 +1155,10 @@ mod tests {
         let proofs: Vec<&[[u8; 32]; 16]> = vec![&proof_1, &proof_2, &proof_3];
         let result = compress_proofs(&proofs);
         assert!(result.is_some(), "3 proofs should compress");
-        let (_, _, p4_source, _, _) = result.unwrap();
+        let CompressedProofs {
+            proof_4_source: p4_source,
+            ..
+        } = result.unwrap();
         assert_eq!(p4_source, 0, "proof_4_source should be 0 for 3 proofs");
     }
 }

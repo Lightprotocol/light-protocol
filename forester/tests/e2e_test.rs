@@ -38,6 +38,7 @@ use light_compressed_token::process_transfer::{
 use light_hasher::Poseidon;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
+use light_registry::account_compression_cpi::sdk::nullify_dedup_lookup_table_accounts;
 use light_test_utils::{
     actions::{create_compressible_token_account, CreateCompressibleTokenAccountInputs},
     conversions::sdk_to_program_token_data,
@@ -189,13 +190,40 @@ fn is_v2_address_test_enabled() -> bool {
     env::var("TEST_V2_ADDRESS").unwrap_or_else(|_| "true".to_string()) == "true"
 }
 
+/// Creates an on-chain Address Lookup Table populated with the accounts
+/// needed for nullify_dedup instructions. Returns the ALT address.
+async fn create_nullify_dedup_alt<R: Rpc>(
+    rpc: &mut R,
+    payer: &Keypair,
+    merkle_tree: Pubkey,
+    nullifier_queue: Pubkey,
+    forester_pda: Option<Pubkey>,
+) -> Pubkey {
+    use light_client::rpc::lut::instruction::{create_lookup_table, extend_lookup_table};
+
+    let slot = rpc.get_slot().await.unwrap();
+    let (create_ix, alt_address) = create_lookup_table(payer.pubkey(), payer.pubkey(), slot);
+    rpc.create_and_send_transaction(&[create_ix], &payer.pubkey(), &[payer])
+        .await
+        .unwrap();
+
+    let addresses = nullify_dedup_lookup_table_accounts(merkle_tree, nullifier_queue, forester_pda);
+    let extend_ix =
+        extend_lookup_table(alt_address, payer.pubkey(), Some(payer.pubkey()), addresses);
+    rpc.create_and_send_transaction(&[extend_ix], &payer.pubkey(), &[payer])
+        .await
+        .unwrap();
+
+    alt_address
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 #[serial]
 async fn e2e_test() {
     let state_tree_params = InitStateTreeAccountsInstructionData::test_default();
     let env = TestAccounts::get_local_test_validator_accounts();
     println!("env {:?}", env);
-    let config = ForesterConfig {
+    let mut config = ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url: get_rpc_url(),
             ws_rpc_url: Some(get_ws_rpc_url()),
@@ -259,6 +287,7 @@ async fn e2e_test() {
             max_concurrent_batches: 10,
             pda_programs: vec![],
         }),
+        min_queue_items: None,
     };
     let test_mode = TestMode::from_env();
 
@@ -294,6 +323,21 @@ async fn e2e_test() {
             LAMPORTS_PER_SOL * 100,
         )
         .await;
+    }
+
+    // Create ALT for nullify_dedup if V1 state test is enabled
+    if is_v1_state_test_enabled() {
+        let alt_addr = create_nullify_dedup_alt(
+            &mut rpc,
+            &env.protocol.forester,
+            env.v1_state_trees[0].merkle_tree,
+            env.v1_state_trees[0].nullifier_queue,
+            None,
+        )
+        .await;
+        println!("Created nullify_dedup ALT: {}", alt_addr);
+        config.lookup_table_address = Some(alt_addr);
+        config.min_queue_items = Some(10);
     }
 
     // Get initial state for V1 state tree if enabled
@@ -490,12 +534,39 @@ async fn e2e_test() {
     )
     .await;
 
+    // Spawn a slot advancement task so the forester doesn't get stuck waiting
+    // for epoch registration windows (surfpool offline mode doesn't auto-advance slots).
+    let slot_advance_rpc_url = config.external_services.rpc_url.clone();
+    let slot_advance_handle = tokio::spawn(async move {
+        let advance_rpc = LightClient::new(LightClientConfig {
+            url: slot_advance_rpc_url,
+            commitment_config: None,
+            photon_url: None,
+            fetch_active_tree: false,
+        })
+        .await
+        .unwrap();
+        loop {
+            let current_slot = match advance_rpc.get_slot().await {
+                Ok(s) => s,
+                Err(_) => break,
+            };
+            let target = current_slot + 50;
+            if advance_rpc.warp_to_slot(target).await.is_err() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
+    });
+
     wait_for_work_report(
         &mut work_report_receiver,
         &state_tree_params,
         test_iterations,
     )
     .await;
+
+    slot_advance_handle.abort();
 
     // Verify root changes based on enabled tests
     if is_v1_state_test_enabled() {
@@ -568,6 +639,31 @@ async fn e2e_test() {
         "Compressible account (subscriber) should be closed"
     );
     println!("Compressible account (subscriber) successfully closed");
+
+    // Verify dedup grouping logs when ALT is configured
+    if is_v1_state_test_enabled() {
+        let log_dir = std::path::Path::new("logs");
+        if log_dir.exists() {
+            let latest_log = std::fs::read_dir(log_dir)
+                .unwrap()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_name().to_string_lossy().starts_with("forester."))
+                .max_by_key(|e| e.metadata().unwrap().modified().unwrap());
+            if let Some(log_entry) = latest_log {
+                let content = std::fs::read_to_string(log_entry.path()).unwrap();
+                let has_dedup = content.contains("v1_nullify_dedup_grouping");
+                assert!(
+                    has_dedup,
+                    "Expected v1_nullify_dedup_grouping logs when ALT is configured"
+                );
+                println!("Verified: dedup grouping events found in forester logs");
+            } else {
+                println!("Warning: no forester log files found in logs/");
+            }
+        } else {
+            println!("Warning: logs/ directory not found");
+        }
+    }
 
     // Shutdown all services
     // Bootstrap may have already completed, so ignore send errors

@@ -5,7 +5,8 @@ use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_program_test::{program_test::LightProgramTest, ProgramTestConfig};
 use light_registry::account_compression_cpi::sdk::{
-    compress_proofs, create_nullify_dedup_instruction, CreateNullifyDedupInstructionInputs,
+    compress_proofs, create_nullify_dedup_instruction, CompressedProofs,
+    CreateNullifyDedupInstructionInputs,
 };
 use light_test_utils::e2e_test_env::init_program_test_env;
 use serial_test::serial;
@@ -52,19 +53,12 @@ async fn test_nullify_dedup_4_leaves() {
                 .compress_sol_deterministic(&forester_keypair, 1_000_000, None)
                 .await;
             e2e_env
-                .transfer_sol_deterministic(
-                    &forester_keypair,
-                    &Keypair::new().pubkey(),
-                    None,
-                )
+                .transfer_sol_deterministic(&forester_keypair, &Keypair::new().pubkey(), None)
                 .await
                 .unwrap();
         }
 
-        (
-            e2e_env.indexer.state_merkle_trees[0].clone(),
-            e2e_env.rpc,
-        )
+        (e2e_env.indexer.state_merkle_trees[0].clone(), e2e_env.rpc)
     };
 
     // Read on-chain state
@@ -121,8 +115,13 @@ async fn test_nullify_dedup_4_leaves() {
     }
 
     let proof_refs: Vec<&[[u8; 32]; 16]> = proofs.iter().collect();
-    let (proof_2_shared, proof_3_source, proof_4_source, shared_top_node, nodes) =
-        compress_proofs(&proof_refs).expect("compress_proofs should succeed for 4 leaves");
+    let CompressedProofs {
+        proof_2_shared,
+        proof_3_source,
+        proof_4_source,
+        shared_top_node,
+        nodes,
+    } = compress_proofs(&proof_refs).expect("compress_proofs should succeed for 4 leaves");
 
     let queue_indices: [u16; 4] = [
         items_to_nullify[0].0 as u16,
@@ -179,13 +178,12 @@ async fn test_nullify_dedup_4_leaves() {
     }
 
     // Verify root changed
-    let onchain_tree_post =
-        get_concurrent_merkle_tree::<StateMerkleTreeAccount, _, Poseidon, 26>(
-            &mut rpc,
-            state_tree_bundle.accounts.merkle_tree,
-        )
-        .await
-        .unwrap();
+    let onchain_tree_post = get_concurrent_merkle_tree::<StateMerkleTreeAccount, _, Poseidon, 26>(
+        &mut rpc,
+        state_tree_bundle.accounts.merkle_tree,
+    )
+    .await
+    .unwrap();
     assert_ne!(
         pre_root,
         onchain_tree_post.root(),
@@ -247,19 +245,12 @@ async fn test_nullify_dedup_3_leaves() {
                 .compress_sol_deterministic(&forester_keypair, 1_000_000, None)
                 .await;
             e2e_env
-                .transfer_sol_deterministic(
-                    &forester_keypair,
-                    &Keypair::new().pubkey(),
-                    None,
-                )
+                .transfer_sol_deterministic(&forester_keypair, &Keypair::new().pubkey(), None)
                 .await
                 .unwrap();
         }
 
-        (
-            e2e_env.indexer.state_merkle_trees[0].clone(),
-            e2e_env.rpc,
-        )
+        (e2e_env.indexer.state_merkle_trees[0].clone(), e2e_env.rpc)
     };
 
     let nullifier_queue = unsafe {
@@ -299,8 +290,13 @@ async fn test_nullify_dedup_3_leaves() {
     }
 
     let proof_refs: Vec<&[[u8; 32]; 16]> = proofs.iter().collect();
-    let (proof_2_shared, proof_3_source, proof_4_source, shared_top_node, nodes) =
-        compress_proofs(&proof_refs).expect("compress_proofs should succeed for 3 leaves");
+    let CompressedProofs {
+        proof_2_shared,
+        proof_3_source,
+        proof_4_source,
+        shared_top_node,
+        nodes,
+    } = compress_proofs(&proof_refs).expect("compress_proofs should succeed for 3 leaves");
 
     let ix = create_nullify_dedup_instruction(
         CreateNullifyDedupInstructionInputs {
@@ -360,13 +356,12 @@ async fn test_nullify_dedup_3_leaves() {
             .update(&[0u8; 32], li)
             .unwrap();
     }
-    let onchain_tree_post =
-        get_concurrent_merkle_tree::<StateMerkleTreeAccount, _, Poseidon, 26>(
-            &mut rpc,
-            state_tree_bundle.accounts.merkle_tree,
-        )
-        .await
-        .unwrap();
+    let onchain_tree_post = get_concurrent_merkle_tree::<StateMerkleTreeAccount, _, Poseidon, 26>(
+        &mut rpc,
+        state_tree_bundle.accounts.merkle_tree,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         onchain_tree_post.root(),
         state_tree_bundle.merkle_tree.root(),
@@ -414,19 +409,12 @@ async fn test_nullify_dedup_2_leaves() {
                 .compress_sol_deterministic(&forester_keypair, 1_000_000, None)
                 .await;
             e2e_env
-                .transfer_sol_deterministic(
-                    &forester_keypair,
-                    &Keypair::new().pubkey(),
-                    None,
-                )
+                .transfer_sol_deterministic(&forester_keypair, &Keypair::new().pubkey(), None)
                 .await
                 .unwrap();
         }
 
-        (
-            e2e_env.indexer.state_merkle_trees[0].clone(),
-            e2e_env.rpc,
-        )
+        (e2e_env.indexer.state_merkle_trees[0].clone(), e2e_env.rpc)
     };
 
     let nullifier_queue = unsafe {
@@ -466,8 +454,13 @@ async fn test_nullify_dedup_2_leaves() {
     }
 
     let proof_refs: Vec<&[[u8; 32]; 16]> = proofs.iter().collect();
-    let (proof_2_shared, proof_3_source, proof_4_source, shared_top_node, nodes) =
-        compress_proofs(&proof_refs).expect("compress_proofs should succeed for 2 leaves");
+    let CompressedProofs {
+        proof_2_shared,
+        proof_3_source,
+        proof_4_source,
+        shared_top_node,
+        nodes,
+    } = compress_proofs(&proof_refs).expect("compress_proofs should succeed for 2 leaves");
 
     let ix = create_nullify_dedup_instruction(
         CreateNullifyDedupInstructionInputs {
@@ -527,13 +520,12 @@ async fn test_nullify_dedup_2_leaves() {
             .update(&[0u8; 32], li)
             .unwrap();
     }
-    let onchain_tree_post =
-        get_concurrent_merkle_tree::<StateMerkleTreeAccount, _, Poseidon, 26>(
-            &mut rpc,
-            state_tree_bundle.accounts.merkle_tree,
-        )
-        .await
-        .unwrap();
+    let onchain_tree_post = get_concurrent_merkle_tree::<StateMerkleTreeAccount, _, Poseidon, 26>(
+        &mut rpc,
+        state_tree_bundle.accounts.merkle_tree,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         onchain_tree_post.root(),
         state_tree_bundle.merkle_tree.root(),
@@ -580,18 +572,11 @@ async fn test_nullify_dedup_1_leaf_fails() {
             .compress_sol_deterministic(&forester_keypair, 1_000_000, None)
             .await;
         e2e_env
-            .transfer_sol_deterministic(
-                &forester_keypair,
-                &Keypair::new().pubkey(),
-                None,
-            )
+            .transfer_sol_deterministic(&forester_keypair, &Keypair::new().pubkey(), None)
             .await
             .unwrap();
 
-        (
-            e2e_env.indexer.state_merkle_trees[0].clone(),
-            e2e_env.rpc,
-        )
+        (e2e_env.indexer.state_merkle_trees[0].clone(), e2e_env.rpc)
     };
 
     let nullifier_queue = unsafe {

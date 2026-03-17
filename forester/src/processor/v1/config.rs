@@ -19,6 +19,10 @@ pub struct SendBatchedTransactionsConfig {
     pub light_slot_length: u64,
     pub confirmation_poll_interval: std::time::Duration,
     pub confirmation_max_attempts: usize,
+    /// Minimum number of queue items required before processing begins.
+    /// Only applies to StateV1 trees. When `None`, processing starts immediately.
+    /// When the timeout deadline is near, this threshold is ignored to prevent starvation.
+    pub min_queue_items: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy)]

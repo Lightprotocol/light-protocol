@@ -30,6 +30,9 @@ pub struct ForesterConfig {
     pub compressible_config: Option<crate::compressible::config::CompressibleConfig>,
     /// Address lookup table for versioned transactions. If None, legacy transactions are used.
     pub lookup_table_address: Option<Pubkey>,
+    /// Minimum queue items before processing V1 state nullifications.
+    /// Delays processing to allow dedup grouping. Only applies when lookup_table_address is set.
+    pub min_queue_items: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -421,6 +424,7 @@ impl ForesterConfig {
                     })
                 })
                 .transpose()?,
+            min_queue_items: args.min_queue_items,
         })
     }
 
@@ -475,6 +479,7 @@ impl ForesterConfig {
             state_tree_data: vec![],
             compressible_config: None,
             lookup_table_address: None,
+            min_queue_items: None,
         })
     }
 }
@@ -495,6 +500,7 @@ impl Clone for ForesterConfig {
             state_tree_data: self.state_tree_data.clone(),
             compressible_config: self.compressible_config.clone(),
             lookup_table_address: self.lookup_table_address,
+            min_queue_items: self.min_queue_items,
         }
     }
 }
