@@ -105,7 +105,11 @@ impl InitializeRentFreeConfig {
             compression_authority: self.compression_authority.to_bytes(),
             rent_config: self.rent_config,
             write_top_up: self.write_top_up,
-            address_space: self.address_space.iter().map(|pubkey| pubkey.to_bytes()).collect(),
+            address_space: self
+                .address_space
+                .iter()
+                .map(|pubkey| pubkey.to_bytes())
+                .collect(),
             config_bump: self.config_bump,
         };
 
