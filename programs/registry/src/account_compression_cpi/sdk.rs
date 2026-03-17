@@ -63,6 +63,87 @@ pub fn create_nullify_instruction(
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct CreateNullify2InstructionInputs {
+    pub authority: Pubkey,
+    pub nullifier_queue: Pubkey,
+    pub merkle_tree: Pubkey,
+    pub change_log_index: u16,
+    pub queue_index_0: u16,
+    pub queue_index_1: u16,
+    pub leaf_index_0: u32,
+    pub leaf_index_1: u32,
+    pub proof_0: [[u8; 32]; 15],
+    pub proof_1: [[u8; 32]; 15],
+    pub shared_proof_node: [u8; 32],
+    pub derivation: Pubkey,
+    pub is_metadata_forester: bool,
+}
+
+pub fn create_nullify_2_instruction(
+    inputs: CreateNullify2InstructionInputs,
+    epoch: u64,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let registered_forester_pda = if inputs.is_metadata_forester {
+        None
+    } else {
+        Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
+    };
+    let (cpi_authority, _bump) = get_cpi_authority_pda();
+    let instruction_data = crate::instruction::Nullify2 {
+        change_log_index: inputs.change_log_index,
+        queue_index_0: inputs.queue_index_0,
+        queue_index_1: inputs.queue_index_1,
+        leaf_index_0: inputs.leaf_index_0,
+        leaf_index_1: inputs.leaf_index_1,
+        proof_0: inputs.proof_0,
+        proof_1: inputs.proof_1,
+        shared_proof_node: inputs.shared_proof_node,
+    };
+
+    let accounts = crate::accounts::NullifyLeaves {
+        authority: inputs.authority,
+        registered_forester_pda,
+        registered_program_pda: register_program_pda,
+        nullifier_queue: inputs.nullifier_queue,
+        merkle_tree: inputs.merkle_tree,
+        log_wrapper: NOOP_PUBKEY.into(),
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+/// Returns the known accounts for populating an address lookup table
+/// for nullify_2 v0 transactions. These are the accounts that don't change
+/// between nullify_2 calls on the same tree.
+pub fn nullify_2_lookup_table_accounts(
+    merkle_tree: Pubkey,
+    nullifier_queue: Pubkey,
+    forester_pda: Option<Pubkey>,
+) -> Vec<Pubkey> {
+    let (cpi_authority, _) = get_cpi_authority_pda();
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+    let mut accounts = vec![
+        cpi_authority,
+        registered_program_pda,
+        account_compression::ID,
+        Pubkey::new_from_array(NOOP_PUBKEY),
+        merkle_tree,
+        nullifier_queue,
+        crate::ID,
+    ];
+    if let Some(pda) = forester_pda {
+        accounts.push(pda);
+    }
+    accounts
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct CreateMigrateStateInstructionInputs {
     pub authority: Pubkey,
     pub output_queue: Pubkey,
@@ -543,5 +624,109 @@ pub fn create_rollover_batch_address_tree_instruction(
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),
         data: instruction_data.data(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anchor_lang::Discriminator;
+
+    #[test]
+    fn test_nullify_2_instruction_data_size() {
+        let instruction_data = crate::instruction::Nullify2 {
+            change_log_index: 0,
+            queue_index_0: 0,
+            queue_index_1: 0,
+            leaf_index_0: 0,
+            leaf_index_1: 0,
+            proof_0: [[0u8; 32]; 15],
+            proof_1: [[0u8; 32]; 15],
+            shared_proof_node: [0u8; 32],
+        };
+        let data = instruction_data.data();
+        assert_eq!(
+            data.len(),
+            1007,
+            "nullify_2 instruction data must be exactly 1007 bytes \
+             (1 disc + 2 changelog + 2+2 queue + 4+4 leaf + 480+480 proofs + 32 shared), got {}",
+            data.len()
+        );
+    }
+
+    #[test]
+    fn test_nullify_2_instruction_accounts() {
+        let authority = Pubkey::new_unique();
+        let inputs = CreateNullify2InstructionInputs {
+            authority,
+            nullifier_queue: Pubkey::new_unique(),
+            merkle_tree: Pubkey::new_unique(),
+            change_log_index: 0,
+            queue_index_0: 0,
+            queue_index_1: 1,
+            leaf_index_0: 0,
+            leaf_index_1: 1,
+            proof_0: [[0u8; 32]; 15],
+            proof_1: [[0u8; 32]; 15],
+            shared_proof_node: [0u8; 32],
+            derivation: authority,
+            is_metadata_forester: false,
+        };
+        let ix = create_nullify_2_instruction(inputs, 0);
+        assert_eq!(ix.data.len(), 1007);
+        // 8 accounts: forester_pda, authority, cpi_authority, registered_program_pda,
+        // account_compression_program, log_wrapper, merkle_tree, nullifier_queue
+        assert_eq!(ix.accounts.len(), 8, "expected 8 accounts");
+    }
+
+    #[test]
+    fn test_nullify_2_discriminator_no_collision() {
+        let disc = crate::instruction::Nullify2::DISCRIMINATOR;
+        assert_eq!(disc.len(), 1, "nullify_2 discriminator must be 1 byte");
+
+        let existing: &[(&str, &[u8])] = &[
+            ("InitializeProtocolConfig", crate::instruction::InitializeProtocolConfig::DISCRIMINATOR),
+            ("UpdateProtocolConfig", crate::instruction::UpdateProtocolConfig::DISCRIMINATOR),
+            ("RegisterSystemProgram", crate::instruction::RegisterSystemProgram::DISCRIMINATOR),
+            ("DeregisterSystemProgram", crate::instruction::DeregisterSystemProgram::DISCRIMINATOR),
+            ("RegisterForester", crate::instruction::RegisterForester::DISCRIMINATOR),
+            ("UpdateForesterPda", crate::instruction::UpdateForesterPda::DISCRIMINATOR),
+            ("UpdateForesterPdaWeight", crate::instruction::UpdateForesterPdaWeight::DISCRIMINATOR),
+            ("RegisterForesterEpoch", crate::instruction::RegisterForesterEpoch::DISCRIMINATOR),
+            ("FinalizeRegistration", crate::instruction::FinalizeRegistration::DISCRIMINATOR),
+            ("ReportWork", crate::instruction::ReportWork::DISCRIMINATOR),
+            ("InitializeAddressMerkleTree", crate::instruction::InitializeAddressMerkleTree::DISCRIMINATOR),
+            ("InitializeStateMerkleTree", crate::instruction::InitializeStateMerkleTree::DISCRIMINATOR),
+            ("Nullify", crate::instruction::Nullify::DISCRIMINATOR),
+            ("UpdateAddressMerkleTree", crate::instruction::UpdateAddressMerkleTree::DISCRIMINATOR),
+            ("RolloverAddressMerkleTreeAndQueue", crate::instruction::RolloverAddressMerkleTreeAndQueue::DISCRIMINATOR),
+            ("RolloverStateMerkleTreeAndQueue", crate::instruction::RolloverStateMerkleTreeAndQueue::DISCRIMINATOR),
+            ("InitializeBatchedStateMerkleTree", crate::instruction::InitializeBatchedStateMerkleTree::DISCRIMINATOR),
+            ("BatchNullify", crate::instruction::BatchNullify::DISCRIMINATOR),
+            ("BatchAppend", crate::instruction::BatchAppend::DISCRIMINATOR),
+            ("InitializeBatchedAddressMerkleTree", crate::instruction::InitializeBatchedAddressMerkleTree::DISCRIMINATOR),
+            ("BatchUpdateAddressTree", crate::instruction::BatchUpdateAddressTree::DISCRIMINATOR),
+            ("RolloverBatchedAddressMerkleTree", crate::instruction::RolloverBatchedAddressMerkleTree::DISCRIMINATOR),
+            ("RolloverBatchedStateMerkleTree", crate::instruction::RolloverBatchedStateMerkleTree::DISCRIMINATOR),
+            ("MigrateState", crate::instruction::MigrateState::DISCRIMINATOR),
+            ("CreateConfigCounter", crate::instruction::CreateConfigCounter::DISCRIMINATOR),
+            ("CreateCompressibleConfig", crate::instruction::CreateCompressibleConfig::DISCRIMINATOR),
+            ("UpdateCompressibleConfig", crate::instruction::UpdateCompressibleConfig::DISCRIMINATOR),
+            ("PauseCompressibleConfig", crate::instruction::PauseCompressibleConfig::DISCRIMINATOR),
+            ("UnpauseCompressibleConfig", crate::instruction::UnpauseCompressibleConfig::DISCRIMINATOR),
+            ("DeprecateCompressibleConfig", crate::instruction::DeprecateCompressibleConfig::DISCRIMINATOR),
+            ("WithdrawFundingPool", crate::instruction::WithdrawFundingPool::DISCRIMINATOR),
+            ("Claim", crate::instruction::Claim::DISCRIMINATOR),
+            ("CompressAndClose", crate::instruction::CompressAndClose::DISCRIMINATOR),
+        ];
+
+        for (name, existing_disc) in existing {
+            assert!(
+                !existing_disc.starts_with(disc),
+                "nullify_2 1-byte discriminator {:?} collides with {name} discriminator prefix {:?}",
+                disc,
+                &existing_disc[..disc.len().min(existing_disc.len())]
+            );
+        }
     }
 }
