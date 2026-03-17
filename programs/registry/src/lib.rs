@@ -462,6 +462,48 @@ pub mod light_registry {
         )
     }
 
+    /// Nullifies 2-4 leaves in a single instruction via sequential CPIs.
+    /// Uses proof deduplication: nearby leaves share Merkle proof nodes at
+    /// common ancestor levels. The encoding stores each unique node once and
+    /// uses bitvecs/2-bit source fields to reconstruct all proofs on-chain.
+    /// All leaves must share the same subtree at level 15 (shared_top_node).
+    #[allow(clippy::too_many_arguments)]
+    #[instruction(discriminator = [79])]
+    pub fn nullify_dedup<'info>(
+        ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
+        change_log_index: u16,
+        queue_indices: [u16; 4],
+        leaf_indices: [u32; 4],
+        proof_2_shared: u16,
+        proof_3_source: u32,
+        proof_4_source: u32,
+        shared_top_node: [u8; 32],
+        nodes: Vec<[u8; 32]>,
+    ) -> Result<()> {
+        let metadata = ctx.accounts.merkle_tree.load()?.metadata;
+        let count = account_compression_cpi::nullify::count_from_leaf_indices(&leaf_indices)?;
+        check_forester(
+            &metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.nullifier_queue.key(),
+            &mut ctx.accounts.registered_forester_pda,
+            count as u64 * DEFAULT_WORK_V1,
+        )?;
+
+        process_nullify_dedup(
+            &ctx,
+            count,
+            change_log_index,
+            queue_indices,
+            leaf_indices,
+            proof_2_shared,
+            proof_3_source,
+            proof_4_source,
+            shared_top_node,
+            nodes,
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_address_merkle_tree(
         ctx: Context<UpdateAddressMerkleTree>,
