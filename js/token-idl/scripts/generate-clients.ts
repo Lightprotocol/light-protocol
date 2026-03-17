@@ -3,7 +3,7 @@
  */
 
 import { createFromRoot } from 'codama';
-import { renderJavaScriptVisitor } from '@codama/renderers-js';
+import { renderVisitor } from '@codama/renderers-js';
 import { setInstructionAccountDefaultValuesVisitor } from '@codama/visitors';
 import { publicKeyValueNode } from 'codama';
 import path from 'path';
@@ -45,7 +45,7 @@ codama.update(
 // Generate TypeScript client
 console.log(`Generating TypeScript client to ${typescriptOutputDir}...`);
 codama.accept(
-    renderJavaScriptVisitor(typescriptOutputDir, {
+    renderVisitor(typescriptOutputDir, {
         formatCode: true,
         dependencyMap: {
             // Map codama codecs to @solana/codecs

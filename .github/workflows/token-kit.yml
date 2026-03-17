@@ -56,6 +56,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate token-sdk clients from IDL
+        run: cd js/token-idl && pnpm run generate
+
       - name: Build token-sdk
         run: cd js/token-sdk && pnpm build
 

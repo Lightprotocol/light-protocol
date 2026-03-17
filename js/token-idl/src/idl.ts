@@ -30,6 +30,7 @@ import {
     structFieldTypeNode,
     arrayTypeNode,
     fixedSizeTypeNode,
+    prefixedCountNode,
 } from 'codama';
 
 // ============================================================================
@@ -167,7 +168,7 @@ const compressibleExtensionDataType = structTypeNode([
                 }),
                 structFieldTypeNode({
                     name: 'seeds',
-                    type: arrayTypeNode(bytesTypeNode()),
+                    type: arrayTypeNode(bytesTypeNode(), prefixedCountNode(numberTypeNode('u32'))),
                 }),
             ]),
         ),
@@ -1097,7 +1098,7 @@ export const lightTokenIdl = rootNode(
                     instructionArgumentNode({
                         name: 'compressions',
                         type: optionTypeNode(
-                            arrayTypeNode(compressionStructType),
+                            arrayTypeNode(compressionStructType, prefixedCountNode(numberTypeNode('u32'))),
                         ),
                     }),
                     // Note: proof, inTokenData, outTokenData, inLamports, outLamports, inTlv, outTlv
