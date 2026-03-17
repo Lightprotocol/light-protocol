@@ -189,7 +189,10 @@ pub struct PackedTreeInfos {
 }
 
 impl ValidityProofWithContext {
-    pub fn pack_tree_infos(&self, packed_accounts: &mut PackedAccounts) -> PackedTreeInfos {
+    pub fn pack_tree_infos(
+        &self,
+        packed_accounts: &mut PackedAccounts,
+    ) -> Result<PackedTreeInfos, IndexerError> {
         let mut packed_tree_infos = Vec::new();
         let mut address_trees = Vec::new();
         let mut output_tree_index = None;
@@ -211,19 +214,28 @@ impl ValidityProofWithContext {
             if let Some(next) = account.tree_info.next_tree_info {
                 // SAFETY: account will always have a state Merkle tree context.
                 // pack_output_tree_index only panics on an address Merkle tree context.
-                let index = next.pack_output_tree_index(packed_accounts).unwrap();
-                if output_tree_index.is_none() {
-                    output_tree_index = Some(index);
+                let index = next.pack_output_tree_index(packed_accounts)?;
+                match output_tree_index {
+                    Some(existing) if existing != index => {
+                        return Err(IndexerError::InvalidParameters(format!(
+                            "mixed output tree indices in state proof: {existing} != {index}"
+                        )));
+                    }
+                    Some(_) => {}
+                    None => output_tree_index = Some(index),
                 }
             } else {
                 // SAFETY: account will always have a state Merkle tree context.
                 // pack_output_tree_index only panics on an address Merkle tree context.
-                let index = account
-                    .tree_info
-                    .pack_output_tree_index(packed_accounts)
-                    .unwrap();
-                if output_tree_index.is_none() {
-                    output_tree_index = Some(index);
+                let index = account.tree_info.pack_output_tree_index(packed_accounts)?;
+                match output_tree_index {
+                    Some(existing) if existing != index => {
+                        return Err(IndexerError::InvalidParameters(format!(
+                            "mixed output tree indices in state proof: {existing} != {index}"
+                        )));
+                    }
+                    Some(_) => {}
+                    None => output_tree_index = Some(index),
                 }
             }
         }
@@ -244,13 +256,17 @@ impl ValidityProofWithContext {
         } else {
             Some(PackedStateTreeInfos {
                 packed_tree_infos,
-                output_tree_index: output_tree_index.unwrap(),
+                output_tree_index: output_tree_index.ok_or_else(|| {
+                    IndexerError::InvalidParameters(
+                        "missing output tree index for non-empty state proof".to_string(),
+                    )
+                })?,
             })
         };
-        PackedTreeInfos {
+        Ok(PackedTreeInfos {
             state_trees: packed_tree_infos,
             address_trees,
-        }
+        })
     }
 
     pub fn from_api_model(

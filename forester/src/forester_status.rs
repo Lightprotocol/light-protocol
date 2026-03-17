@@ -671,19 +671,21 @@ fn parse_tree_status(
 
             let (queue_len, queue_cap) = queue_account
                 .map(|acc| {
-                    unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) }
-                        .ok()
-                        .map(|hs| {
+                    match unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) } {
+                        Ok(hs) => {
                             let len = hs
                                 .iter()
                                 .filter(|(_, cell)| cell.sequence_number.is_none())
                                 .count() as u64;
                             let cap = hs.get_capacity() as u64;
-                            (len, cap)
-                        })
-                        .unwrap_or((0, 0))
+                            (Some(len), Some(cap))
+                        }
+                        Err(error) => {
+                            warn!(?error, "Failed to parse StateV1 queue hash set");
+                            (None, None)
+                        }
+                    }
                 })
-                .map(|(l, c)| (Some(l), Some(c)))
                 .unwrap_or((None, None));
 
             (
@@ -726,19 +728,21 @@ fn parse_tree_status(
 
             let (queue_len, queue_cap) = queue_account
                 .map(|acc| {
-                    unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) }
-                        .ok()
-                        .map(|hs| {
+                    match unsafe { parse_hash_set_from_bytes::<QueueAccount>(&acc.data) } {
+                        Ok(hs) => {
                             let len = hs
                                 .iter()
                                 .filter(|(_, cell)| cell.sequence_number.is_none())
                                 .count() as u64;
                             let cap = hs.get_capacity() as u64;
-                            (len, cap)
-                        })
-                        .unwrap_or((0, 0))
+                            (Some(len), Some(cap))
+                        }
+                        Err(error) => {
+                            warn!(?error, "Failed to parse AddressV1 queue hash set");
+                            (None, None)
+                        }
+                    }
                 })
-                .map(|(l, c)| (Some(l), Some(c)))
                 .unwrap_or((None, None));
 
             (

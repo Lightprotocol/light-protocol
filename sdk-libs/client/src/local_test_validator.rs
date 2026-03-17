@@ -1,6 +1,7 @@
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 use light_prover_client::helpers::get_project_root;
+use tokio::process::Command;
 
 /// Configuration for an upgradeable program to deploy to the validator.
 #[derive(Debug, Clone)]
@@ -57,25 +58,25 @@ impl Default for LightValidatorConfig {
 
 pub async fn spawn_validator(config: LightValidatorConfig) {
     if let Some(project_root) = get_project_root() {
-        let path = "cli/test_bin/run test-validator";
-        let mut path = format!("{}/{}", project_root.trim(), path);
+        let command = "cli/test_bin/run test-validator";
+        let mut command = format!("{}/{}", project_root.trim(), command);
         if !config.enable_indexer {
-            path.push_str(" --skip-indexer");
+            command.push_str(" --skip-indexer");
         }
 
         if let Some(limit_ledger_size) = config.limit_ledger_size {
-            path.push_str(&format!(" --limit-ledger-size {}", limit_ledger_size));
+            command.push_str(&format!(" --limit-ledger-size {}", limit_ledger_size));
         }
 
         for sbf_program in config.sbf_programs.iter() {
-            path.push_str(&format!(
+            command.push_str(&format!(
                 " --sbf-program {} {}",
                 sbf_program.0, sbf_program.1
             ));
         }
 
         for upgradeable_program in config.upgradeable_programs.iter() {
-            path.push_str(&format!(
+            command.push_str(&format!(
                 " --upgradeable-program {} {} {}",
                 upgradeable_program.program_id,
                 upgradeable_program.program_path,
@@ -84,18 +85,18 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
         }
 
         if !config.enable_prover {
-            path.push_str(" --skip-prover");
+            command.push_str(" --skip-prover");
         }
 
         if config.use_surfpool {
-            path.push_str(" --use-surfpool");
+            command.push_str(" --use-surfpool");
         }
 
         for arg in config.validator_args.iter() {
-            path.push_str(&format!(" {}", arg));
+            command.push_str(&format!(" {}", arg));
         }
 
-        println!("Starting validator with command: {}", path);
+        println!("Starting validator with command: {}", command);
 
         if config.use_surfpool {
             // The CLI starts surfpool, prover, and photon, then exits once all
@@ -103,24 +104,28 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             // is up before the test proceeds.
             let mut child = Command::new("sh")
                 .arg("-c")
-                .arg(path)
+                .arg(command)
                 .stdin(Stdio::null())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
                 .spawn()
                 .expect("Failed to start server process");
-            let status = child.wait().expect("Failed to wait for CLI process");
+            let status = child
+                .wait()
+                .await
+                .expect("Failed to wait for CLI process");
             assert!(status.success(), "CLI exited with error: {}", status);
         } else {
-            let child = Command::new("sh")
+            let _child = Command::new("sh")
                 .arg("-c")
-                .arg(path)
+                .arg(command)
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
                 .expect("Failed to start server process");
-            std::mem::drop(child);
+            // Intentionally detaching the spawned child; the caller only waits
+            // for the validator services to become available.
             tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
         }
     }

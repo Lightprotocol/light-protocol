@@ -1,10 +1,4 @@
-use std::{
-    any::Any,
-    collections::HashMap,
-    fmt::Debug,
-    panic::{catch_unwind, AssertUnwindSafe},
-    time::Duration,
-};
+use std::{collections::HashMap, fmt::Debug, time::Duration};
 
 #[cfg(feature = "devenv")]
 use account_compression::{
@@ -101,29 +95,13 @@ use crate::accounts::{
 };
 use crate::indexer::TestIndexerExtensions;
 
-fn panic_payload_message(payload: &(dyn Any + Send)) -> String {
-    if let Some(message) = payload.downcast_ref::<String>() {
-        message.clone()
-    } else if let Some(message) = payload.downcast_ref::<&str>() {
-        (*message).to_string()
-    } else {
-        "non-string panic payload".to_string()
-    }
-}
-
 fn build_compressed_proof(body: &str) -> Result<CompressedProof, IndexerError> {
     let proof_json = deserialize_gnark_proof_json(body)
         .map_err(|error| IndexerError::CustomError(error.to_string()))?;
-    let (proof_a, proof_b, proof_c) = catch_unwind(AssertUnwindSafe(|| {
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        compress_proof(&proof_a, &proof_b, &proof_c)
-    }))
-    .map_err(|payload| {
-        IndexerError::CustomError(format!(
-            "failed to parse prover proof payload: {}",
-            panic_payload_message(payload.as_ref())
-        ))
-    })?;
+    let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json)
+        .map_err(|error| IndexerError::CustomError(error.to_string()))?;
+    let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c)
+        .map_err(|error| IndexerError::CustomError(error.to_string()))?;
 
     Ok(CompressedProof {
         a: proof_a,

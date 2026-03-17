@@ -654,8 +654,8 @@ impl ProofClient {
             ProverClientError::ProverServerError(format!("Failed to deserialize proof JSON: {}", e))
         })?;
 
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json)?;
+        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c)?;
 
         Ok(ProofResult {
             proof: ProofCompressed {

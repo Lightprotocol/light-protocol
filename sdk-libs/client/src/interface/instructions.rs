@@ -234,7 +234,7 @@ where
     let output_queue = get_output_queue(&cold_accounts[0].0.tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
-    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts);
+    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts)?;
     let tree_infos = &packed_tree_infos
         .state_trees
         .as_ref()
@@ -313,7 +313,7 @@ pub fn build_compress_accounts_idempotent(
     let output_queue = get_output_queue(&proof.accounts[0].tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
-    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts);
+    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts)?;
     let tree_infos = packed_tree_infos
         .state_trees
         .as_ref()
