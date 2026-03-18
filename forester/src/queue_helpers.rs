@@ -164,6 +164,8 @@ pub struct QueueLengthAndCapacity {
 pub struct QueueItemData {
     pub hash: [u8; 32],
     pub index: usize,
+    /// Leaf index in the Merkle tree. Available when fetched from indexer.
+    pub leaf_index: Option<u64>,
 }
 
 /// Result of fetching V1 queue data, including items and capacity.
@@ -230,7 +232,7 @@ pub async fn fetch_queue_item_data<R: Rpc>(
         .filter(|(index, _, is_pending)| {
             *index >= start_index as usize && *index < end_index && *is_pending
         })
-        .map(|(index, hash, _)| QueueItemData { hash, index })
+        .map(|(index, hash, _)| QueueItemData { hash, index, leaf_index: None })
         .collect();
 
     tracing::debug!(

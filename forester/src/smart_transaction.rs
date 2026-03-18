@@ -273,6 +273,8 @@ pub async fn send_transaction_with_policy<R: Rpc>(
 pub struct PreparedTransaction {
     transaction: PreparedTransactionKind,
     last_valid_block_height: u64,
+    /// Optional label for logging (e.g. "StateV1MultiNullify(4)")
+    label: Option<String>,
 }
 
 enum PreparedTransactionKind {
@@ -285,6 +287,7 @@ impl PreparedTransaction {
         Self {
             transaction: PreparedTransactionKind::Legacy(transaction),
             last_valid_block_height,
+            label: None,
         }
     }
 
@@ -295,7 +298,17 @@ impl PreparedTransaction {
         Self {
             transaction: PreparedTransactionKind::Versioned(transaction),
             last_valid_block_height,
+            label: None,
         }
+    }
+
+    pub(crate) fn with_label(mut self, label: String) -> Self {
+        self.label = Some(label);
+        self
+    }
+
+    pub(crate) fn label(&self) -> &str {
+        self.label.as_deref().unwrap_or("V1Nullify")
     }
 
     pub(crate) fn signature(&self) -> Option<Signature> {
@@ -389,10 +402,7 @@ async fn prepare_transaction<R: Rpc>(
         transaction
             .try_sign(signers, blockhash)
             .map_err(|e| RpcError::SigningError(e.to_string()))?;
-        Ok(PreparedTransaction {
-            transaction: PreparedTransactionKind::Legacy(transaction),
-            last_valid_block_height,
-        })
+        Ok(PreparedTransaction::legacy(transaction, last_valid_block_height))
     } else {
         let message =
             v0::Message::try_compile(payer, &final_instructions, address_lookup_tables, blockhash)
@@ -401,10 +411,7 @@ async fn prepare_transaction<R: Rpc>(
                 })?;
         let transaction = VersionedTransaction::try_new(VersionedMessage::V0(message), signers)
             .map_err(|e| RpcError::SigningError(e.to_string()))?;
-        Ok(PreparedTransaction {
-            transaction: PreparedTransactionKind::Versioned(transaction),
-            last_valid_block_height,
-        })
+        Ok(PreparedTransaction::versioned(transaction, last_valid_block_height))
     }
 }
 

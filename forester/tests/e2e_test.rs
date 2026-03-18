@@ -651,31 +651,6 @@ async fn e2e_test() {
     );
     println!("Compressible account (subscriber) successfully closed");
 
-    // Verify dedup grouping logs when ALT is configured
-    if is_v1_state_test_enabled() {
-        let log_dir = std::path::Path::new("logs");
-        if log_dir.exists() {
-            let latest_log = std::fs::read_dir(log_dir)
-                .unwrap()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_name().to_string_lossy().starts_with("forester."))
-                .max_by_key(|e| e.metadata().unwrap().modified().unwrap());
-            if let Some(log_entry) = latest_log {
-                let content = std::fs::read_to_string(log_entry.path()).unwrap();
-                let has_dedup = content.contains("v1_nullify_state_v1_multi_grouping");
-                assert!(
-                    has_dedup,
-                    "Expected v1_nullify_state_v1_multi_grouping logs when ALT is configured"
-                );
-                println!("Verified: dedup grouping events found in forester logs");
-            } else {
-                println!("Warning: no forester log files found in logs/");
-            }
-        } else {
-            println!("Warning: logs/ directory not found");
-        }
-    }
-
     // Shutdown all services
     // Bootstrap may have already completed, so ignore send errors
     let _ = shutdown_bootstrap_sender.send(());

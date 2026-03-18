@@ -1701,6 +1701,62 @@ impl Indexer for PhotonIndexer {
         .await
     }
 
+    async fn get_queue_leaf_indices(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        limit: u16,
+        start_index: Option<u64>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Items<super::QueueLeafIndex>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let tree_hash =
+                photon_api::types::Hash(bs58::encode(&merkle_tree_pubkey).into_string());
+
+            let params = photon_api::types::PostGetQueueLeafIndicesBodyParams {
+                tree: tree_hash,
+                limit,
+                start_index,
+            };
+            let request =
+                photon_api::apis::default_api::make_get_queue_leaf_indices_body(params);
+
+            let result = photon_api::apis::default_api::get_queue_leaf_indices_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            Self::check_api_error("get_queue_leaf_indices", result.error)?;
+            let api_response =
+                Self::extract_result("get_queue_leaf_indices", result.result)?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let items = api_response
+                .value
+                .into_iter()
+                .map(|item| {
+                    Ok(super::QueueLeafIndex {
+                        hash: super::base58::decode_base58_to_fixed_array(&item.hash.0)?,
+                        queue_index: item.queue_index,
+                        leaf_index: item.leaf_index,
+                    })
+                })
+                .collect::<Result<Vec<_>, IndexerError>>()?;
+
+            Ok(Response {
+                context: super::response::Context {
+                    slot: api_response.context.slot,
+                },
+                value: Items { items },
+            })
+        })
+        .await
+    }
+
     async fn get_subtrees(
         &self,
         _merkle_tree_pubkey: [u8; 32],
