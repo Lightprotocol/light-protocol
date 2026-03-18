@@ -12,6 +12,7 @@ mod create_vkeyrs_from_gnark_key;
 mod export_photon_test_data;
 mod fee;
 mod fetch_accounts;
+mod fetch_block_events;
 mod fetch_failed_txs;
 mod hash_set;
 mod new_deployment;
@@ -82,6 +83,9 @@ enum Command {
     ///   cargo xtask fetch-failed-txs --minutes 10 --network mainnet
     ///   cargo xtask fetch-failed-txs --minutes 30 --network devnet
     FetchFailedTxs(fetch_failed_txs::Options),
+    /// Fetch the last N blocks from a start slot and parse Light Protocol events
+    /// Example: cargo xtask fetch-block-events --start-slot 300000000 --network mainnet
+    FetchBlockEvents(fetch_block_events::Options),
     /// Create compressible config (config counter + compressible config)
     /// Creates the config counter PDA and a compressible config with default RentConfig.
     /// Example: cargo xtask create-compressible-config --network devnet
@@ -130,6 +134,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::ReinitCpiAccounts(opts) => reinit_cpi_accounts::reinit_cpi_accounts(opts).await,
         Command::FetchAccounts(opts) => fetch_accounts::fetch_accounts(opts).await,
         Command::FetchFailedTxs(opts) => fetch_failed_txs::fetch_failed_txs(opts).await,
+        Command::FetchBlockEvents(opts) => fetch_block_events::fetch_block_events(opts).await,
         Command::CreateCompressibleConfig(opts) => {
             create_compressible_config::create_compressible_config(opts).await
         }
