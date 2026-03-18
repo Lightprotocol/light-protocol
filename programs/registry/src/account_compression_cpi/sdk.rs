@@ -82,7 +82,7 @@ fn nullify_lookup_table_accounts_base(merkle_tree: Pubkey, nullifier_queue: Pubk
 /// Verified by tx size test (forester/tests/test_nullify_state_v1_multi_tx_size.rs).
 /// With ALT, SetComputeUnitLimit + SetComputeUnitPrice ixs, and worst-case nodes,
 /// the tx fits within the 1232 byte limit.
-pub const NULLIFY_STATE_V1_MULTI_MAX_NODES: usize = 26;
+pub const NULLIFY_STATE_V1_MULTI_MAX_NODES: usize = 27;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CreateNullifyStateV1MultiInstructionInputs {
@@ -92,10 +92,7 @@ pub struct CreateNullifyStateV1MultiInstructionInputs {
     pub change_log_index: u16,
     pub queue_indices: [u16; 4],
     pub leaf_indices: [u32; 4],
-    pub proof_2_shared: u16,
-    pub proof_3_source: u32,
-    pub proof_4_source: u32,
-    pub shared_top_node: [u8; 32],
+    pub proof_bitvecs: [u32; 4],
     pub nodes: Vec<[u8; 32]>,
     pub derivation: Pubkey,
     pub is_metadata_forester: bool,
@@ -116,10 +113,7 @@ pub fn create_nullify_state_v1_multi_instruction(
         change_log_index: inputs.change_log_index,
         queue_indices: inputs.queue_indices,
         leaf_indices: inputs.leaf_indices,
-        proof_2_shared: inputs.proof_2_shared,
-        proof_3_source: inputs.proof_3_source,
-        proof_4_source: inputs.proof_4_source,
-        shared_top_node: inputs.shared_top_node,
+        proof_bitvecs: inputs.proof_bitvecs,
         nodes: inputs.nodes,
     };
 
@@ -140,90 +134,57 @@ pub fn create_nullify_state_v1_multi_instruction(
     }
 }
 
-/// Result of compressing 2-4 Merkle proofs into the dedup encoding.
+/// Result of compressing 2-4 Merkle proofs into a deduplicated node pool.
 pub struct CompressedProofs {
-    pub proof_2_shared: u16,
-    pub proof_3_source: u32,
-    pub proof_4_source: u32,
-    pub shared_top_node: [u8; 32],
+    /// Bitvecs for proofs 2-4, each selecting 16 nodes from the pool.
+    /// proof_1 is always nodes[0..16].
+    pub proof_bitvecs: [u32; 4],
     pub nodes: Vec<[u8; 32]>,
 }
 
-/// Compresses 2-4 full 16-node Merkle proofs into the dedup encoding.
-/// Returns the compressed proof data,
-/// or `None` if compression is impossible (different top nodes, too many unique nodes, or
-/// fewer than 2 or more than 4 proofs).
+/// Compresses 2-4 full 16-node Merkle proofs into a deduplicated node pool.
+/// The pool is built level-by-level so that iterating set bits in ascending
+/// order produces nodes in proof-level order.
+/// Proof 1 is always nodes[0..16]. Proofs 2-4 each have a bitvec selecting
+/// which pool nodes form that proof.
+/// Returns `None` if fewer than 2, more than 4 proofs, or too many unique nodes.
 pub fn compress_proofs(proofs: &[&[[u8; 32]; 16]]) -> Option<CompressedProofs> {
+    use bitvec::prelude::*;
+
     if proofs.len() < 2 || proofs.len() > 4 {
         return None;
     }
 
-    // All proofs must share the same node at index 15
-    let shared_top_node = proofs[0][15];
-    for p in &proofs[1..] {
-        if p[15] != shared_top_node {
-            return None;
-        }
-    }
-
+    // Build level-ordered deduplicated pool. For each level, add unique
+    // nodes across all proofs. Ascending pool index == ascending level.
     let mut nodes: Vec<[u8; 32]> = Vec::new();
+    let mut pool_indices = [[0usize; 16]; 4];
 
-    // proof_1: levels 0..14
-    for i in 0..15 {
-        nodes.push(proofs[0][i]);
-    }
-
-    // proof_2: bitvec
-    let mut proof_2_shared: u16 = 0;
-    for i in 0..15 {
-        if proofs[1][i] == proofs[0][i] {
-            proof_2_shared |= 1 << i;
-        } else {
-            nodes.push(proofs[1][i]);
-        }
-    }
-
-    // proof_3
-    let mut proof_3_source: u32 = 0;
-    if proofs.len() >= 3 {
-        for i in 0..15 {
-            if proofs[2][i] == proofs[0][i] {
-                // 00 = proof_1
-            } else if proofs[2][i] == proofs[1][i] {
-                proof_3_source |= 0b01 << (i * 2);
+    for level in 0..16 {
+        for (proof_idx, proof) in proofs.iter().enumerate() {
+            if let Some(idx) = nodes.iter().position(|n| *n == proof[level]) {
+                pool_indices[proof_idx][level] = idx;
             } else {
-                proof_3_source |= 0b10 << (i * 2);
-                nodes.push(proofs[2][i]);
+                pool_indices[proof_idx][level] = nodes.len();
+                nodes.push(proof[level]);
             }
         }
     }
 
-    // proof_4
-    let mut proof_4_source: u32 = 0;
-    if proofs.len() >= 4 {
-        for i in 0..15 {
-            if proofs[3][i] == proofs[0][i] {
-                // 00 = proof_1
-            } else if proofs[3][i] == proofs[1][i] {
-                proof_4_source |= 0b01 << (i * 2);
-            } else if proofs[3][i] == proofs[2][i] {
-                proof_4_source |= 0b10 << (i * 2);
-            } else {
-                proof_4_source |= 0b11 << (i * 2);
-                nodes.push(proofs[3][i]);
-            }
-        }
-    }
-
-    if nodes.len() > NULLIFY_STATE_V1_MULTI_MAX_NODES {
+    if nodes.len() > NULLIFY_STATE_V1_MULTI_MAX_NODES || nodes.len() > 32 {
         return None;
     }
 
+    let mut proof_bitvecs = [0u32; 4];
+    for (proof_idx, _) in proofs.iter().enumerate() {
+        let bv = proof_bitvecs[proof_idx].view_bits_mut::<Lsb0>();
+        for level in 0..16 {
+            bv.set(pool_indices[proof_idx][level], true);
+        }
+    }
+
     Some(CompressedProofs {
-        proof_2_shared,
-        proof_3_source,
-        proof_4_source,
-        shared_top_node,
+        proof_bitvecs,
         nodes,
     })
 }
@@ -726,26 +687,38 @@ pub fn create_rollover_batch_address_tree_instruction(
 
 #[cfg(test)]
 mod tests {
+    use bitvec::prelude::*;
+
     use super::*;
+
+    /// Simulates on-chain reconstruction for testing round-trips.
+    fn reconstruct_proof(nodes: &[[u8; 32]], bits: u32) -> [[u8; 32]; 16] {
+        let bv = bits.view_bits::<Lsb0>();
+        let mut proof = [[0u8; 32]; 16];
+        let mut proof_idx = 0;
+        for (i, node) in nodes.iter().enumerate() {
+            if bv[i] {
+                proof[proof_idx] = *node;
+                proof_idx += 1;
+            }
+        }
+        assert_eq!(proof_idx, 16, "bitvec must select exactly 16 nodes");
+        proof
+    }
 
     #[test]
     fn test_nullify_state_v1_multi_instruction_data_size() {
-        // Worst case: max_nodes unique nodes
         let instruction_data = crate::instruction::NullifyStateV1Multi {
             change_log_index: 0,
             queue_indices: [0; 4],
             leaf_indices: [0; 4],
-            proof_2_shared: 0,
-            proof_3_source: 0,
-            proof_4_source: 0,
-            shared_top_node: [0u8; 32],
+            proof_bitvecs: [0; 4],
             nodes: vec![[0u8; 32]; NULLIFY_STATE_V1_MULTI_MAX_NODES],
         };
         let data = instruction_data.data();
-        // 8 disc + 2 changelog + 8 queue_indices + 16 leaf_indices + 2 proof_2_shared
-        // + 4 proof_3_source + 4 proof_4_source + 32 shared_top_node
+        // 8 disc + 2 changelog + 8 queue_indices + 16 leaf_indices + 16 proof_bitvecs
         // + 4 vec_prefix + N*32 nodes
-        let expected = 8 + 2 + 8 + 16 + 2 + 4 + 4 + 32 + 4 + NULLIFY_STATE_V1_MULTI_MAX_NODES * 32;
+        let expected = 8 + 2 + 8 + 16 + 16 + 4 + NULLIFY_STATE_V1_MULTI_MAX_NODES * 32;
         assert_eq!(
             data.len(),
             expected,
@@ -765,11 +738,8 @@ mod tests {
             change_log_index: 0,
             queue_indices: [0, 1, 2, 3],
             leaf_indices: [0, 1, 2, 3],
-            proof_2_shared: 0,
-            proof_3_source: 0,
-            proof_4_source: 0,
-            shared_top_node: [0u8; 32],
-            nodes: vec![[0u8; 32]; 15],
+            proof_bitvecs: [0; 4],
+            nodes: vec![[0u8; 32]; 16],
             derivation: authority,
             is_metadata_forester: false,
         };
@@ -779,137 +749,67 @@ mod tests {
 
     #[test]
     fn test_compress_proofs_round_trip() {
-        // Create 4 proofs with sharing patterns that fit within MAX_NODES (27).
-        // Budget: 15 (proof_1) + 5 (proof_2 unique) + 5 (proof_3 unique) + 2 (proof_4 unique) = 27
-        let shared_top = [0xCC; 32];
         let mut proof_1 = [[0u8; 32]; 16];
         let mut proof_2 = [[0u8; 32]; 16];
         let mut proof_3 = [[0u8; 32]; 16];
         let mut proof_4 = [[0u8; 32]; 16];
 
-        for (i, slot) in proof_1.iter_mut().enumerate().take(15) {
-            *slot = [i as u8 + 1; 32];
+        for (i, elem) in proof_1.iter_mut().enumerate() {
+            *elem = [i as u8 + 1; 32];
         }
-        proof_1[15] = shared_top;
 
-        // proof_2: 10 shared with proof_1, 5 unique (levels 0-4)
-        for (i, slot) in proof_2.iter_mut().enumerate().take(15) {
-            if i < 5 {
-                *slot = [i as u8 + 100; 32]; // unique
-            } else {
-                *slot = proof_1[i]; // shared
-            }
-        }
-        proof_2[15] = shared_top;
-
-        // proof_3: 5 from proof_1, 5 new (levels 5-9), 5 from proof_2
-        for (i, slot) in proof_3.iter_mut().enumerate().take(15) {
-            if i < 5 {
-                *slot = proof_1[i]; // same as proof_1
-            } else if i < 10 {
-                *slot = [i as u8 + 200; 32]; // new
-            } else {
-                *slot = proof_2[i]; // same as proof_2 (and proof_1)
-            }
-        }
-        proof_3[15] = shared_top;
-
-        // proof_4: 4 from proof_1, 4 from proof_2, 5 from proof_3, 2 new
-        for (i, slot) in proof_4.iter_mut().enumerate().take(15) {
+        // proof_2: differs at levels 0-3, shares 4-15 (total: 16 + 4 = 20)
+        for i in 0..16 {
             if i < 4 {
-                *slot = proof_1[i]; // from proof_1
-            } else if i < 8 {
-                *slot = proof_2[i]; // from proof_2
-            } else if i < 13 {
-                *slot = proof_3[i]; // from proof_3
+                proof_2[i] = [i as u8 + 100; 32];
             } else {
-                *slot = [(i as u8).wrapping_add(250); 32]; // new
+                proof_2[i] = proof_1[i];
             }
         }
-        proof_4[15] = shared_top;
+
+        // proof_3: differs at levels 0-2, shares 3-15 (total: 20 + 3 = 23)
+        for i in 0..16 {
+            if i < 3 {
+                proof_3[i] = [i as u8 + 200; 32];
+            } else {
+                proof_3[i] = proof_1[i];
+            }
+        }
+
+        // proof_4: differs at levels 0-1, shares 2-15 (total: 23 + 2 = 25)
+        for i in 0..16 {
+            if i < 2 {
+                proof_4[i] = [(i as u8).wrapping_add(250); 32];
+            } else {
+                proof_4[i] = proof_1[i];
+            }
+        }
 
         let proofs: Vec<&[[u8; 32]; 16]> = vec![&proof_1, &proof_2, &proof_3, &proof_4];
         let result = compress_proofs(&proofs);
         assert!(result.is_some(), "compress_proofs should succeed");
-        let CompressedProofs {
-            proof_2_shared: p2_shared,
-            proof_3_source: p3_source,
-            proof_4_source: p4_source,
-            shared_top_node: top,
-            nodes,
-        } = result.unwrap();
+        let compressed = result.unwrap();
 
-        // Simulate on-chain reconstruction
-        let mut cursor = 0usize;
-
-        // Reconstruct proof_1
-        let mut r_proof_1 = [[0u8; 32]; 16];
-        r_proof_1[..15].copy_from_slice(&nodes[cursor..cursor + 15]);
-        r_proof_1[15] = top;
-        cursor += 15;
+        let r_proof_1 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[0]);
         assert_eq!(r_proof_1, proof_1);
 
-        // Reconstruct proof_2
-        let mut r_proof_2 = [[0u8; 32]; 16];
-        for i in 0..15 {
-            if (p2_shared >> i) & 1 == 1 {
-                r_proof_2[i] = r_proof_1[i];
-            } else {
-                r_proof_2[i] = nodes[cursor];
-                cursor += 1;
-            }
-        }
-        r_proof_2[15] = top;
+        let r_proof_2 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[1]);
         assert_eq!(r_proof_2, proof_2);
 
-        // Reconstruct proof_3
-        let mut r_proof_3 = [[0u8; 32]; 16];
-        for i in 0..15 {
-            let src = (p3_source >> (i * 2)) & 0b11;
-            match src {
-                0b00 => r_proof_3[i] = r_proof_1[i],
-                0b01 => r_proof_3[i] = r_proof_2[i],
-                0b10 => {
-                    r_proof_3[i] = nodes[cursor];
-                    cursor += 1;
-                }
-                _ => panic!("unexpected source 0b11 for proof_3"),
-            }
-        }
-        r_proof_3[15] = top;
+        let r_proof_3 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[2]);
         assert_eq!(r_proof_3, proof_3);
 
-        // Reconstruct proof_4
-        let mut r_proof_4 = [[0u8; 32]; 16];
-        for i in 0..15 {
-            let src = (p4_source >> (i * 2)) & 0b11;
-            match src {
-                0b00 => r_proof_4[i] = r_proof_1[i],
-                0b01 => r_proof_4[i] = r_proof_2[i],
-                0b10 => r_proof_4[i] = r_proof_3[i],
-                0b11 => {
-                    r_proof_4[i] = nodes[cursor];
-                    cursor += 1;
-                }
-                _ => unreachable!(),
-            }
-        }
-        r_proof_4[15] = top;
+        let r_proof_4 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[3]);
         assert_eq!(r_proof_4, proof_4);
-
-        assert_eq!(cursor, nodes.len(), "all nodes should be consumed");
     }
 
     #[test]
     fn test_compress_proofs_returns_none_when_too_many_nodes() {
-        // All 4 proofs with completely unique nodes at every level = 15 + 15 + 15 + 15 = 60 nodes
-        let shared_top = [0xCC; 32];
         let make_proof = |base: u8| -> [[u8; 32]; 16] {
             let mut p = [[0u8; 32]; 16];
-            for (i, slot) in p.iter_mut().enumerate().take(15) {
+            for (i, slot) in p.iter_mut().enumerate() {
                 *slot = [base.wrapping_add(i as u8); 32];
             }
-            p[15] = shared_top;
             p
         };
         let p1 = make_proof(1);
@@ -927,84 +827,72 @@ mod tests {
 
     #[test]
     fn test_compress_proofs_2_proofs() {
-        let shared_top = [0xCC; 32];
         let mut proof_1 = [[0u8; 32]; 16];
         let mut proof_2 = [[0u8; 32]; 16];
-        for i in 0..15 {
+        for i in 0..16 {
             proof_1[i] = [i as u8 + 1; 32];
-            // Share half the nodes
             if i % 2 == 0 {
                 proof_2[i] = proof_1[i];
             } else {
                 proof_2[i] = [i as u8 + 100; 32];
             }
         }
-        proof_1[15] = shared_top;
-        proof_2[15] = shared_top;
 
         let proofs: Vec<&[[u8; 32]; 16]> = vec![&proof_1, &proof_2];
         let result = compress_proofs(&proofs);
         assert!(result.is_some(), "2 proofs should compress");
-        let CompressedProofs {
-            proof_2_shared: p2_shared,
-            proof_3_source: p3_source,
-            proof_4_source: p4_source,
-            shared_top_node: top,
-            nodes,
-        } = result.unwrap();
+        let compressed = result.unwrap();
 
-        // proof_3_source and proof_4_source should be 0 (unused)
-        assert_eq!(p3_source, 0);
-        assert_eq!(p4_source, 0);
-        assert_eq!(top, shared_top);
+        // Unused bitvecs should be 0
+        assert_eq!(compressed.proof_bitvecs[2], 0);
+        assert_eq!(compressed.proof_bitvecs[3], 0);
 
-        // Verify proof_2_shared bitvec
-        for i in 0..15 {
-            if i % 2 == 0 {
-                assert_eq!((p2_shared >> i) & 1, 1, "level {} should be shared", i);
-            } else {
-                assert_eq!((p2_shared >> i) & 1, 0, "level {} should not be shared", i);
-            }
-        }
+        // 16 for proof_1 + 8 unique for proof_2 (odd indices)
+        assert_eq!(compressed.nodes.len(), 16 + 8);
 
-        // 15 for proof_1 + 7 unique for proof_2 (odd indices 1,3,5,7,9,11,13)
-        assert_eq!(nodes.len(), 15 + 7);
+        // Round-trip
+        let r_proof_1 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[0]);
+        assert_eq!(r_proof_1, proof_1);
+
+        let r_proof_2 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[1]);
+        assert_eq!(r_proof_2, proof_2);
     }
 
     #[test]
     fn test_compress_proofs_3_proofs() {
-        let shared_top = [0xCC; 32];
         let mut proof_1 = [[0u8; 32]; 16];
         let mut proof_2 = [[0u8; 32]; 16];
         let mut proof_3 = [[0u8; 32]; 16];
-        for i in 0..15 {
+        for i in 0..16 {
             proof_1[i] = [i as u8 + 1; 32];
-            // proof_2 shares some levels with proof_1 to stay within MAX_NODES
             if i % 2 == 0 {
-                proof_2[i] = proof_1[i]; // shared
+                proof_2[i] = proof_1[i];
             } else {
                 proof_2[i] = [i as u8 + 50; 32];
             }
-            // proof_3 alternates between proof_1 and proof_2
             if i % 3 == 0 {
                 proof_3[i] = proof_1[i];
-            } else if i % 3 == 1 {
-                proof_3[i] = proof_2[i];
             } else {
-                proof_3[i] = [i as u8 + 100; 32]; // new
+                proof_3[i] = proof_2[i];
             }
         }
-        proof_1[15] = shared_top;
-        proof_2[15] = shared_top;
-        proof_3[15] = shared_top;
 
         let proofs: Vec<&[[u8; 32]; 16]> = vec![&proof_1, &proof_2, &proof_3];
         let result = compress_proofs(&proofs);
         assert!(result.is_some(), "3 proofs should compress");
-        let CompressedProofs {
-            proof_4_source: p4_source,
-            ..
-        } = result.unwrap();
-        assert_eq!(p4_source, 0, "proof_4_source should be 0 for 3 proofs");
+        let compressed = result.unwrap();
+        assert_eq!(
+            compressed.proof_bitvecs[3], 0,
+            "proof_4 bitvec should be 0 for 3 proofs"
+        );
+
+        let r_proof_1 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[0]);
+        assert_eq!(r_proof_1, proof_1);
+
+        let r_proof_2 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[1]);
+        assert_eq!(r_proof_2, proof_2);
+
+        let r_proof_3 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[2]);
+        assert_eq!(r_proof_3, proof_3);
     }
 }

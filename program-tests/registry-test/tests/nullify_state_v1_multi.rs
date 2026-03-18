@@ -106,20 +106,9 @@ async fn test_nullify_state_v1_multi_4_leaves() {
         proofs.push(proof_arr);
     }
 
-    // Verify shared top node
-    for i in 1..4 {
-        assert_eq!(
-            proofs[0][15], proofs[i][15],
-            "Level 15 proof node must be shared between all leaves"
-        );
-    }
-
     let proof_refs: Vec<&[[u8; 32]; 16]> = proofs.iter().collect();
     let CompressedProofs {
-        proof_2_shared,
-        proof_3_source,
-        proof_4_source,
-        shared_top_node,
+        proof_bitvecs,
         nodes,
     } = compress_proofs(&proof_refs).expect("compress_proofs should succeed for 4 leaves");
 
@@ -144,10 +133,7 @@ async fn test_nullify_state_v1_multi_4_leaves() {
             change_log_index: change_log_index as u16,
             queue_indices,
             leaf_indices: leaf_indices_arr,
-            proof_2_shared,
-            proof_3_source,
-            proof_4_source,
-            shared_top_node,
+            proof_bitvecs,
             nodes,
             derivation: forester_keypair.pubkey(),
             is_metadata_forester: true,
@@ -291,10 +277,7 @@ async fn test_nullify_state_v1_multi_3_leaves() {
 
     let proof_refs: Vec<&[[u8; 32]; 16]> = proofs.iter().collect();
     let CompressedProofs {
-        proof_2_shared,
-        proof_3_source,
-        proof_4_source,
-        shared_top_node,
+        proof_bitvecs,
         nodes,
     } = compress_proofs(&proof_refs).expect("compress_proofs should succeed for 3 leaves");
 
@@ -316,10 +299,7 @@ async fn test_nullify_state_v1_multi_3_leaves() {
                 leaf_indices[2] as u32,
                 u32::MAX,
             ],
-            proof_2_shared,
-            proof_3_source,
-            proof_4_source,
-            shared_top_node,
+            proof_bitvecs,
             nodes,
             derivation: forester_keypair.pubkey(),
             is_metadata_forester: true,
@@ -455,10 +435,7 @@ async fn test_nullify_state_v1_multi_2_leaves() {
 
     let proof_refs: Vec<&[[u8; 32]; 16]> = proofs.iter().collect();
     let CompressedProofs {
-        proof_2_shared,
-        proof_3_source,
-        proof_4_source,
-        shared_top_node,
+        proof_bitvecs,
         nodes,
     } = compress_proofs(&proof_refs).expect("compress_proofs should succeed for 2 leaves");
 
@@ -480,10 +457,7 @@ async fn test_nullify_state_v1_multi_2_leaves() {
                 u32::MAX,
                 u32::MAX,
             ],
-            proof_2_shared,
-            proof_3_source,
-            proof_4_source,
-            shared_top_node,
+            proof_bitvecs,
             nodes,
             derivation: forester_keypair.pubkey(),
             is_metadata_forester: true,
@@ -613,8 +587,7 @@ async fn test_nullify_state_v1_multi_1_leaf_fails() {
         .unwrap();
     let proof_arr: [[u8; 32]; 16] = proof.try_into().unwrap();
 
-    let nodes: Vec<[u8; 32]> = proof_arr[..15].to_vec();
-    let shared_top_node = proof_arr[15];
+    let nodes: Vec<[u8; 32]> = proof_arr.to_vec();
 
     let ix = create_nullify_state_v1_multi_instruction(
         CreateNullifyStateV1MultiInstructionInputs {
@@ -624,10 +597,7 @@ async fn test_nullify_state_v1_multi_1_leaf_fails() {
             change_log_index: change_log_index as u16,
             queue_indices: [items_to_nullify[0].0 as u16, 0, 0, 0],
             leaf_indices: [leaf_index as u32, u32::MAX, u32::MAX, u32::MAX],
-            proof_2_shared: 0,
-            proof_3_source: 0,
-            proof_4_source: 0,
-            shared_top_node,
+            proof_bitvecs: [0; 4],
             nodes,
             derivation: forester_keypair.pubkey(),
             is_metadata_forester: true,
