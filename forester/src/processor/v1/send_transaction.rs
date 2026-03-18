@@ -9,7 +9,7 @@ use std::{
 
 use forester_utils::{forester_epoch::TreeAccounts, rpc_pool::SolanaRpcPool};
 use futures::StreamExt;
-use light_client::rpc::Rpc;
+use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
 use light_registry::utils::get_forester_epoch_pda_from_authority;
 use solana_sdk::{
@@ -80,7 +80,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
     let num_sent_transactions = Arc::new(AtomicUsize::new(0));
     let operation_cancel_signal = Arc::new(AtomicBool::new(false));
 
-    let data = match prepare_batch_prerequisites(
+    let mut data = match prepare_batch_prerequisites(
         &payer.pubkey(),
         derivation,
         &pool,
@@ -99,6 +99,52 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             return Ok(0);
         }
     };
+
+    // When presort is enabled, fetch leaf indices from the indexer and sort
+    // work items by leaf_index so adjacent leaves land in the same chunk for
+    // better dedup grouping. Falls back silently on error.
+    if config.enable_presort
+        && tree_accounts.tree_type == TreeType::StateV1
+        && !data.work_items.is_empty()
+    {
+        let rpc = pool.get_connection().await.map_err(ForesterError::from)?;
+        if let Ok(indexer) = rpc.indexer() {
+            let merkle_tree_pubkey = tree_accounts.merkle_tree.to_bytes();
+            let limit = data.work_items.len().min(u16::MAX as usize) as u16;
+            match indexer
+                .get_queue_leaf_indices(merkle_tree_pubkey, limit, None, None)
+                .await
+            {
+                Ok(response) => {
+                    let leaf_index_map: std::collections::HashMap<[u8; 32], u64> = response
+                        .value
+                        .items
+                        .into_iter()
+                        .map(|item| (item.hash, item.leaf_index))
+                        .collect();
+                    data.work_items.sort_by_key(|item| {
+                        leaf_index_map
+                            .get(&item.queue_item_data.hash)
+                            .copied()
+                            .unwrap_or(u64::MAX)
+                    });
+                    info!(
+                        tree = %tree_accounts.merkle_tree,
+                        count = data.work_items.len(),
+                        leaf_indices = leaf_index_map.len(),
+                        "Pre-sorted work items by leaf_index for dedup grouping"
+                    );
+                }
+                Err(e) => {
+                    warn!(
+                        tree = %tree_accounts.merkle_tree,
+                        error = %e,
+                        "Failed to fetch queue leaf indices, proceeding without pre-sort"
+                    );
+                }
+            }
+        }
+    }
 
     let mut build_config = config.build_transaction_batch_config;
     build_config.queue_item_count = data.work_items.len();

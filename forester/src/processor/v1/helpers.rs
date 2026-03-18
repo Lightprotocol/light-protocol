@@ -93,16 +93,6 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         None
     };
 
-    let state_data = if !state_items.is_empty() {
-        let states: Vec<[u8; 32]> = state_items
-            .iter()
-            .map(|item| item.queue_item_data.hash)
-            .collect();
-        Some(states)
-    } else {
-        None
-    };
-
     let rpc = pool.get_connection().await?;
     if let Err(e) = wait_for_indexer(&*rpc).await {
         if should_emit_rate_limited_warning("v1_wait_for_indexer", Duration::from_secs(30)) {
@@ -236,6 +226,16 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         all_proofs
     } else {
         Vec::new()
+    };
+
+    let state_data = if !state_items.is_empty() {
+        let states: Vec<[u8; 32]> = state_items
+            .iter()
+            .map(|item| item.queue_item_data.hash)
+            .collect();
+        Some(states)
+    } else {
+        None
     };
 
     let state_proofs = if let Some(states) = state_data {
