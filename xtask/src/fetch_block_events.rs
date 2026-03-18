@@ -145,11 +145,8 @@ fn parse_and_print_tx(encoded: EncodedTransactionWithStatusMeta, total_events: &
                             continue;
                         }
                     };
-                    let ix_accounts: Vec<LightPubkey> = c
-                        .accounts
-                        .iter()
-                        .map(|i| accounts[*i as usize])
-                        .collect();
+                    let ix_accounts: Vec<LightPubkey> =
+                        c.accounts.iter().map(|i| accounts[*i as usize]).collect();
                     inner_map[idx].push((program_id, data, ix_accounts));
                 }
             }
@@ -186,21 +183,22 @@ fn parse_and_print_tx(encoded: EncodedTransactionWithStatusMeta, total_events: &
                     let inputs = event.event.input_compressed_account_hashes.len();
                     let outputs = event.event.output_compressed_account_hashes.len();
                     let new_addrs = event.new_addresses.len();
-                    let compress_info =
-                        if event.event.is_compress || event.event.compress_or_decompress_lamports.is_some() {
-                            let dir = if event.event.is_compress {
-                                "compress"
-                            } else {
-                                "decompress"
-                            };
-                            if let Some(lamports) = event.event.compress_or_decompress_lamports {
-                                format!(" ({dir}: {lamports} lamports)")
-                            } else {
-                                format!(" ({dir})")
-                            }
+                    let compress_info = if event.event.is_compress
+                        || event.event.compress_or_decompress_lamports.is_some()
+                    {
+                        let dir = if event.event.is_compress {
+                            "compress"
                         } else {
-                            String::new()
+                            "decompress"
                         };
+                        if let Some(lamports) = event.event.compress_or_decompress_lamports {
+                            format!(" ({dir}: {lamports} lamports)")
+                        } else {
+                            format!(" ({dir})")
+                        }
+                    } else {
+                        String::new()
+                    };
                     tx_event_lines.push(format!(
                         "    event[{i}] tx_hash={tx_hash}  inputs={inputs} outputs={outputs} new_addresses={new_addrs}{compress_info}"
                     ));
