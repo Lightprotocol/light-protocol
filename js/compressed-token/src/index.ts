@@ -86,6 +86,8 @@ export {
     createApproveInterfaceInstructions,
     revokeInterface,
     createRevokeInterfaceInstructions,
+    transferDelegatedInterface,
+    createTransferDelegatedInterfaceInstructions,
     wrap,
     mintTo as mintToLightToken,
     mintToCompressed,

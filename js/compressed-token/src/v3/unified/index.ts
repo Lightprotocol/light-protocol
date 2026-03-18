@@ -43,6 +43,10 @@ import {
     revokeInterface as _revokeInterface,
     createRevokeInterfaceInstructions as _createRevokeInterfaceInstructions,
 } from '../actions/approve-interface';
+import {
+    transferDelegatedInterface as _transferDelegatedInterface,
+    createTransferDelegatedInterfaceInstructions as _createTransferDelegatedInterfaceInstructions,
+} from '../actions/transfer-delegated-interface';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import {
     createUnwrapInstructions as _createUnwrapInstructions,
@@ -613,6 +617,78 @@ export async function createRevokeInterfaceInstructions(
     );
 }
 
+/**
+ * Transfer tokens from a light-token ATA as an approved delegate.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022) and dispatches
+ * to the appropriate instruction.
+ *
+ * @param rpc            RPC connection
+ * @param payer          Fee payer (signer)
+ * @param source         Source ATA (owner's account)
+ * @param mint           Mint address
+ * @param recipient      Recipient wallet address (ATA derived + created internally)
+ * @param delegate       Delegate authority (signer)
+ * @param owner          Owner of the source ATA (does not sign)
+ * @param amount         Amount to transfer
+ * @param confirmOptions Optional confirm options
+ * @returns Transaction signature
+ */
+export async function transferDelegatedInterface(
+    rpc: Rpc,
+    payer: Signer,
+    source: PublicKey,
+    mint: PublicKey,
+    recipient: PublicKey,
+    delegate: Signer,
+    owner: PublicKey,
+    amount: number | bigint | BN,
+    confirmOptions?: ConfirmOptions,
+) {
+    const mintInfo = await getMintInterface(rpc, mint);
+    return _transferDelegatedInterface(
+        rpc,
+        payer,
+        source,
+        mint,
+        recipient,
+        delegate,
+        owner,
+        amount,
+        confirmOptions,
+        mintInfo.programId,
+    );
+}
+
+/**
+ * Build instruction batches for a delegated transfer on a light-token ATA.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022).
+ */
+export async function createTransferDelegatedInterfaceInstructions(
+    rpc: Rpc,
+    payer: PublicKey,
+    mint: PublicKey,
+    amount: number | bigint | BN,
+    delegate: PublicKey,
+    owner: PublicKey,
+    recipient: PublicKey,
+    decimals?: number,
+): Promise<TransactionInstruction[][]> {
+    const mintInfo = await getMintInterface(rpc, mint);
+    const resolvedDecimals = decimals ?? mintInfo.mint.decimals;
+    return _createTransferDelegatedInterfaceInstructions(
+        rpc,
+        payer,
+        mint,
+        amount,
+        delegate,
+        owner,
+        recipient,
+        resolvedDecimals,
+        mintInfo.programId,
+    );
+}
 export {
     getAccountInterface,
     AccountInterface,
