@@ -33,6 +33,9 @@ pub struct ForesterConfig {
     /// Minimum queue items before processing V1 state nullifications.
     /// Delays processing to allow dedup grouping. Only applies when lookup_table_address is set.
     pub min_queue_items: Option<usize>,
+    /// Enable nullify_state_v1_multi instruction for batching 2-4 V1 state nullifications.
+    /// Requires lookup_table_address to be set.
+    pub enable_v1_multi_nullify: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -425,6 +428,7 @@ impl ForesterConfig {
                 })
                 .transpose()?,
             min_queue_items: args.min_queue_items,
+            enable_v1_multi_nullify: args.enable_v1_multi_nullify,
         })
     }
 
@@ -480,6 +484,7 @@ impl ForesterConfig {
             compressible_config: None,
             lookup_table_address: None,
             min_queue_items: None,
+            enable_v1_multi_nullify: false,
         })
     }
 }
@@ -501,6 +506,7 @@ impl Clone for ForesterConfig {
             compressible_config: self.compressible_config.clone(),
             lookup_table_address: self.lookup_table_address,
             min_queue_items: self.min_queue_items,
+            enable_v1_multi_nullify: self.enable_v1_multi_nullify,
         }
     }
 }

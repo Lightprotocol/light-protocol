@@ -93,6 +93,7 @@ async fn test_priority_fee_request() {
         enable_compressible: true,
         lookup_table_address: None,
         min_queue_items: None,
+        enable_v1_multi_nullify: false,
         api_server_port: 8080,
         group_authority: None,
         light_pda_programs: vec![],

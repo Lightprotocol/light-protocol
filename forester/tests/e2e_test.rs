@@ -38,7 +38,7 @@ use light_compressed_token::process_transfer::{
 use light_hasher::Poseidon;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
-use light_registry::account_compression_cpi::sdk::nullify_dedup_lookup_table_accounts;
+use light_registry::account_compression_cpi::sdk::nullify_state_v1_multi_lookup_table_accounts;
 use light_test_utils::{
     actions::{create_compressible_token_account, CreateCompressibleTokenAccountInputs},
     conversions::sdk_to_program_token_data,
@@ -191,13 +191,12 @@ fn is_v2_address_test_enabled() -> bool {
 }
 
 /// Creates an on-chain Address Lookup Table populated with the accounts
-/// needed for nullify_dedup instructions. Returns the ALT address.
-async fn create_nullify_dedup_alt<R: Rpc>(
+/// needed for nullify_state_v1_multi instructions. Returns the ALT address.
+async fn create_nullify_state_v1_multi_alt<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     merkle_tree: Pubkey,
     nullifier_queue: Pubkey,
-    forester_pda: Option<Pubkey>,
 ) -> Pubkey {
     use light_client::rpc::lut::instruction::{create_lookup_table, extend_lookup_table};
 
@@ -207,7 +206,7 @@ async fn create_nullify_dedup_alt<R: Rpc>(
         .await
         .unwrap();
 
-    let addresses = nullify_dedup_lookup_table_accounts(merkle_tree, nullifier_queue, forester_pda);
+    let addresses = nullify_state_v1_multi_lookup_table_accounts(merkle_tree, nullifier_queue);
     let extend_ix =
         extend_lookup_table(alt_address, payer.pubkey(), Some(payer.pubkey()), addresses);
     rpc.create_and_send_transaction(&[extend_ix], &payer.pubkey(), &[payer])
@@ -288,6 +287,7 @@ async fn e2e_test() {
             pda_programs: vec![],
         }),
         min_queue_items: None,
+        enable_v1_multi_nullify: false,
     };
     let test_mode = TestMode::from_env();
 
@@ -325,19 +325,19 @@ async fn e2e_test() {
         .await;
     }
 
-    // Create ALT for nullify_dedup if V1 state test is enabled
+    // Create ALT for nullify_state_v1_multi if V1 state test is enabled
     if is_v1_state_test_enabled() {
-        let alt_addr = create_nullify_dedup_alt(
+        let alt_addr = create_nullify_state_v1_multi_alt(
             &mut rpc,
             &env.protocol.forester,
             env.v1_state_trees[0].merkle_tree,
             env.v1_state_trees[0].nullifier_queue,
-            None,
         )
         .await;
-        println!("Created nullify_dedup ALT: {}", alt_addr);
+        println!("Created nullify_state_v1_multi ALT: {}", alt_addr);
         config.lookup_table_address = Some(alt_addr);
         config.min_queue_items = Some(10);
+        config.enable_v1_multi_nullify = true;
     }
 
     // Get initial state for V1 state tree if enabled
@@ -651,10 +651,10 @@ async fn e2e_test() {
                 .max_by_key(|e| e.metadata().unwrap().modified().unwrap());
             if let Some(log_entry) = latest_log {
                 let content = std::fs::read_to_string(log_entry.path()).unwrap();
-                let has_dedup = content.contains("v1_nullify_dedup_grouping");
+                let has_dedup = content.contains("v1_nullify_state_v1_multi_grouping");
                 assert!(
                     has_dedup,
-                    "Expected v1_nullify_dedup_grouping logs when ALT is configured"
+                    "Expected v1_nullify_state_v1_multi_grouping logs when ALT is configured"
                 );
                 println!("Verified: dedup grouping events found in forester logs");
             } else {

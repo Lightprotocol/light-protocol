@@ -5,8 +5,8 @@ use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_program_test::{program_test::LightProgramTest, ProgramTestConfig};
 use light_registry::account_compression_cpi::sdk::{
-    compress_proofs, create_nullify_dedup_instruction, CompressedProofs,
-    CreateNullifyDedupInstructionInputs,
+    compress_proofs, create_nullify_state_v1_multi_instruction, CompressedProofs,
+    CreateNullifyStateV1MultiInstructionInputs,
 };
 use light_test_utils::e2e_test_env::init_program_test_env;
 use serial_test::serial;
@@ -14,7 +14,7 @@ use solana_sdk::signature::{Keypair, Signer};
 
 #[serial]
 #[tokio::test]
-async fn test_nullify_dedup_4_leaves() {
+async fn test_nullify_state_v1_multi_4_leaves() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
         .await
         .unwrap();
@@ -136,8 +136,8 @@ async fn test_nullify_dedup_4_leaves() {
         leaf_indices[3] as u32,
     ];
 
-    let ix = create_nullify_dedup_instruction(
-        CreateNullifyDedupInstructionInputs {
+    let ix = create_nullify_state_v1_multi_instruction(
+        CreateNullifyStateV1MultiInstructionInputs {
             authority: forester_keypair.pubkey(),
             nullifier_queue: state_tree_bundle.accounts.nullifier_queue,
             merkle_tree: state_tree_bundle.accounts.merkle_tree,
@@ -172,7 +172,7 @@ async fn test_nullify_dedup_4_leaves() {
             .unwrap();
         assert!(
             bucket.sequence_number.is_some(),
-            "Queue item {} should be marked after nullify_dedup",
+            "Queue item {} should be marked after nullify_state_v1_multi",
             idx
         );
     }
@@ -187,7 +187,7 @@ async fn test_nullify_dedup_4_leaves() {
     assert_ne!(
         pre_root,
         onchain_tree_post.root(),
-        "Root should have changed after nullify_dedup"
+        "Root should have changed after nullify_state_v1_multi"
     );
 
     // Locally update and verify root match
@@ -206,7 +206,7 @@ async fn test_nullify_dedup_4_leaves() {
 
 #[serial]
 #[tokio::test]
-async fn test_nullify_dedup_3_leaves() {
+async fn test_nullify_state_v1_multi_3_leaves() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
         .await
         .unwrap();
@@ -298,8 +298,8 @@ async fn test_nullify_dedup_3_leaves() {
         nodes,
     } = compress_proofs(&proof_refs).expect("compress_proofs should succeed for 3 leaves");
 
-    let ix = create_nullify_dedup_instruction(
-        CreateNullifyDedupInstructionInputs {
+    let ix = create_nullify_state_v1_multi_instruction(
+        CreateNullifyStateV1MultiInstructionInputs {
             authority: forester_keypair.pubkey(),
             nullifier_queue: state_tree_bundle.accounts.nullifier_queue,
             merkle_tree: state_tree_bundle.accounts.merkle_tree,
@@ -370,7 +370,7 @@ async fn test_nullify_dedup_3_leaves() {
 
 #[serial]
 #[tokio::test]
-async fn test_nullify_dedup_2_leaves() {
+async fn test_nullify_state_v1_multi_2_leaves() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
         .await
         .unwrap();
@@ -462,8 +462,8 @@ async fn test_nullify_dedup_2_leaves() {
         nodes,
     } = compress_proofs(&proof_refs).expect("compress_proofs should succeed for 2 leaves");
 
-    let ix = create_nullify_dedup_instruction(
-        CreateNullifyDedupInstructionInputs {
+    let ix = create_nullify_state_v1_multi_instruction(
+        CreateNullifyStateV1MultiInstructionInputs {
             authority: forester_keypair.pubkey(),
             nullifier_queue: state_tree_bundle.accounts.nullifier_queue,
             merkle_tree: state_tree_bundle.accounts.merkle_tree,
@@ -534,7 +534,7 @@ async fn test_nullify_dedup_2_leaves() {
 
 #[serial]
 #[tokio::test]
-async fn test_nullify_dedup_1_leaf_fails() {
+async fn test_nullify_state_v1_multi_1_leaf_fails() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
         .await
         .unwrap();
@@ -616,8 +616,8 @@ async fn test_nullify_dedup_1_leaf_fails() {
     let nodes: Vec<[u8; 32]> = proof_arr[..15].to_vec();
     let shared_top_node = proof_arr[15];
 
-    let ix = create_nullify_dedup_instruction(
-        CreateNullifyDedupInstructionInputs {
+    let ix = create_nullify_state_v1_multi_instruction(
+        CreateNullifyStateV1MultiInstructionInputs {
             authority: forester_keypair.pubkey(),
             nullifier_queue: state_tree_bundle.accounts.nullifier_queue,
             merkle_tree: state_tree_bundle.accounts.merkle_tree,
@@ -641,6 +641,6 @@ async fn test_nullify_dedup_1_leaf_fails() {
 
     assert!(
         result.is_err(),
-        "nullify_dedup with 1 leaf should fail with InvalidProofEncoding"
+        "nullify_state_v1_multi with 1 leaf should fail with InvalidProofEncoding"
     );
 }

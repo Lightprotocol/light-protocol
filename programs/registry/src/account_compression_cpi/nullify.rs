@@ -110,7 +110,7 @@ pub fn count_from_leaf_indices(leaf_indices: &[u32; 4]) -> Result<usize> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn process_nullify_dedup(
+pub fn process_nullify_state_v1_multi(
     ctx: &Context<NullifyLeaves>,
     count: usize,
     change_log_index: u16,
