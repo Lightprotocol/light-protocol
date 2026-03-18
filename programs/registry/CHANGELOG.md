@@ -2,6 +2,21 @@
 
 All notable changes to this package will be documented in this file.
 
+## 2026-03-18
+
+### Features
+
+- `batch_append()` reimburses the forester fee payer 2x the network fee from the output queue when network_fee >= 5,000 lamports. A `fee_payer` account is now required in the instruction. (#2335)
+- `batch_update_address_tree()` reimburses the forester fee payer 1x the network fee from the merkle tree when network_fee >= 5,000 lamports. A `fee_payer` account is now required in the instruction. (#2335)
+- `nullify_dedup` instruction batches 2-4 nullifications in one transaction using proof deduplication.
+- `nullify_2` uses a shared proof node and a 1-byte discriminator.
+- Forester dedup integration adds `min_queue_items` threshold, versioned transaction support, and a transaction size fix.
+- V1 state multi-nullify is disabled when the queue exceeds 10,000 items.
+
+### Fixes
+
+- `count_from_leaf_indices()` rejects non-trailing sentinels.
+
 ## 2026-03-10
 
 ### Breaking Changes
