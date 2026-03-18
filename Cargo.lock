@@ -4199,6 +4199,7 @@ dependencies = [
  "account-compression",
  "aligned-sized",
  "anchor-lang",
+ "bitvec",
  "borsh 0.10.4",
  "light-account-checks",
  "light-batched-merkle-tree",

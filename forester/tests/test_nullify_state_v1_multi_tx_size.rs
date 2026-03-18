@@ -31,10 +31,7 @@ fn test_nullify_state_v1_multi_v0_transaction_size() {
             change_log_index: 1400,
             queue_indices: [100, 200, 300, 400],
             leaf_indices: [67_000_000, 67_000_001, 67_000_002, 67_000_003],
-            proof_2_shared: 0,
-            proof_3_source: 0,
-            proof_4_source: 0,
-            shared_top_node: [0xCC; 32],
+            proof_bitvecs: [0; 4],
             nodes: vec![[0xAA; 32]; NULLIFY_STATE_V1_MULTI_MAX_NODES],
             derivation: authority.pubkey(),
             is_metadata_forester: false,
@@ -73,7 +70,7 @@ fn test_nullify_state_v1_multi_v0_transaction_size() {
     // Full tx = compact-u16 sig count (1) + signatures (64 * n) + serialized message
     let tx_size = 1 + tx.signatures.len() * 64 + serialized.len();
 
-    let ix_data_size = 8 + 2 + 8 + 16 + 2 + 4 + 4 + 32 + 4 + NULLIFY_STATE_V1_MULTI_MAX_NODES * 32;
+    let ix_data_size = 8 + 2 + 8 + 16 + 16 + 4 + NULLIFY_STATE_V1_MULTI_MAX_NODES * 32;
 
     println!(
         "nullify_state_v1_multi v0 transaction size: {} bytes (limit: 1232)",
