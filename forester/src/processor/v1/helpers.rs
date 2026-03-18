@@ -443,10 +443,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                     .collect::<crate::Result<Vec<_>>>()?;
                 let proof_refs: Vec<&[[u8; 32]; 16]> = group_proofs.iter().collect();
                 let CompressedProofs {
-                    proof_2_shared,
-                    proof_3_source,
-                    proof_4_source,
-                    shared_top_node,
+                    proof_bitvecs,
                     nodes,
                 } = compress_proofs(&proof_refs).ok_or_else(|| {
                     anyhow::anyhow!(
@@ -474,10 +471,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                         change_log_index,
                         queue_indices,
                         leaf_indices,
-                        proof_2_shared,
-                        proof_3_source,
-                        proof_4_source,
-                        shared_top_node,
+                        proof_bitvecs,
                         nodes,
                         derivation,
                         is_metadata_forester: false,
