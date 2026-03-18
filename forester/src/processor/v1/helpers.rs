@@ -14,9 +14,9 @@ use light_client::{
 };
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
-    compress_proofs, create_nullify_dedup_instruction, create_nullify_instruction,
+    compress_proofs, create_nullify_instruction, create_nullify_state_v1_multi_instruction,
     create_update_address_merkle_tree_instruction, CompressedProofs,
-    CreateNullifyDedupInstructionInputs, CreateNullifyInstructionInputs,
+    CreateNullifyInstructionInputs, CreateNullifyStateV1MultiInstructionInputs,
     UpdateAddressMerkleTreeInstructionInputs,
 };
 use solana_program::instruction::Instruction;
@@ -44,7 +44,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     pool: Arc<SolanaRpcPool<R>>,
     epoch: u64,
     work_items: &[WorkItem],
-    use_dedup: bool,
+    use_multi_nullify: bool,
 ) -> crate::Result<(Vec<MerkleProofType>, Vec<Instruction>)> {
     let mut proofs = Vec::new();
     let mut instructions = vec![];
@@ -384,7 +384,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         .map(|(item, proof)| (*item, proof))
         .collect();
 
-    if use_dedup && items_with_proofs.len() >= 2 {
+    if use_multi_nullify && items_with_proofs.len() >= 2 {
         let groups = group_state_items_for_dedup(&mut items_with_proofs);
 
         // Push proofs in sorted order (after grouping may have sorted)
@@ -413,7 +413,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
             0
         };
         info!(
-            event = "v1_nullify_dedup_grouping",
+            event = "v1_nullify_state_v1_multi_grouping",
             total_leaves,
             groups_of_4 = count_4,
             groups_of_3 = count_3,
@@ -466,8 +466,8 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                 }
 
                 let node_count = nodes.len();
-                let instruction = create_nullify_dedup_instruction(
-                    CreateNullifyDedupInstructionInputs {
+                let instruction = create_nullify_state_v1_multi_instruction(
+                    CreateNullifyStateV1MultiInstructionInputs {
                         authority,
                         nullifier_queue: first_item.0.tree_account.queue,
                         merkle_tree: first_item.0.tree_account.merkle_tree,
@@ -485,11 +485,11 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                     epoch,
                 );
                 debug!(
-                    event = "v1_nullify_dedup_instruction",
+                    event = "v1_nullify_state_v1_multi_instruction",
                     group_size = group_indices.len(),
                     node_count,
                     ix_data_bytes = instruction.data.len(),
-                    "Created nullify_dedup instruction"
+                    "Created nullify_state_v1_multi instruction"
                 );
                 instructions.push(instruction);
             }
@@ -533,7 +533,7 @@ fn build_nullify_instruction(
 
 /// Groups sorted (WorkItem, MerkleProof) pairs for dedup nullification.
 /// Returns a vec of groups: each group is a vec of indices into `items_with_proofs`
-/// that can be packed into a single nullify_dedup instruction (2-4 items),
+/// that can be packed into a single nullify_state_v1_multi instruction (2-4 items),
 /// or a singleton for regular nullify.
 fn group_state_items_for_dedup(
     items_with_proofs: &mut [(&WorkItem, MerkleProof)],
@@ -780,8 +780,8 @@ mod tests {
         let shared_top = [0xFFu8; 32];
         let work_items: Vec<WorkItem> = (0..3).map(|_| make_work_item()).collect();
         // Each proof has unique nodes per leaf, so compress_proofs fails when
-        // total unique nodes exceed NULLIFY_DEDUP_MAX_NODES (28).
-        // proof_1 contributes 15 nodes; proof_2 has 15 unique => 30 total > 28.
+        // total unique nodes exceed NULLIFY_STATE_V1_MULTI_MAX_NODES (26).
+        // proof_1 contributes 15 nodes; proof_2 has 15 unique => 30 total > 26.
         let proofs: Vec<MerkleProof> = (0..3).map(|i| make_proof(i * 1000, shared_top)).collect();
         let mut items: Vec<(&WorkItem, MerkleProof)> = work_items.iter().zip(proofs).collect();
         let groups = group_state_items_for_dedup(&mut items);

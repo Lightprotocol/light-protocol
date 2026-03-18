@@ -426,8 +426,7 @@ pub mod light_registry {
     /// uses bitvecs/2-bit source fields to reconstruct all proofs on-chain.
     /// All leaves must share the same subtree at level 15 (shared_top_node).
     #[allow(clippy::too_many_arguments)]
-    #[instruction(discriminator = [79])]
-    pub fn nullify_dedup<'info>(
+    pub fn nullify_state_v1_multi<'info>(
         ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
         change_log_index: u16,
         queue_indices: [u16; 4],
@@ -448,7 +447,7 @@ pub mod light_registry {
             count as u64 * DEFAULT_WORK_V1,
         )?;
 
-        process_nullify_dedup(
+        process_nullify_state_v1_multi(
             &ctx,
             count,
             change_log_index,

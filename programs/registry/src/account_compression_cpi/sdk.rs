@@ -64,14 +64,10 @@ pub fn create_nullify_instruction(
 
 /// Returns the base accounts for populating an address lookup table
 /// for nullify v0 transactions.
-fn nullify_lookup_table_accounts_base(
-    merkle_tree: Pubkey,
-    nullifier_queue: Pubkey,
-    forester_pda: Option<Pubkey>,
-) -> Vec<Pubkey> {
+fn nullify_lookup_table_accounts_base(merkle_tree: Pubkey, nullifier_queue: Pubkey) -> Vec<Pubkey> {
     let (cpi_authority, _) = get_cpi_authority_pda();
     let registered_program_pda = get_registered_program_pda(&crate::ID);
-    let mut accounts = vec![
+    vec![
         cpi_authority,
         registered_program_pda,
         account_compression::ID,
@@ -79,21 +75,17 @@ fn nullify_lookup_table_accounts_base(
         merkle_tree,
         nullifier_queue,
         crate::ID,
-    ];
-    if let Some(pda) = forester_pda {
-        accounts.push(pda);
-    }
-    accounts
+    ]
 }
 
 /// Max number of 32-byte nodes in the dedup encoding vec.
-/// Verified by tx size test (forester/tests/test_nullify_dedup_tx_size.rs).
+/// Verified by tx size test (forester/tests/test_nullify_state_v1_multi_tx_size.rs).
 /// With ALT, SetComputeUnitLimit + SetComputeUnitPrice ixs, and worst-case nodes,
 /// the tx fits within the 1232 byte limit.
-pub const NULLIFY_DEDUP_MAX_NODES: usize = 27;
+pub const NULLIFY_STATE_V1_MULTI_MAX_NODES: usize = 26;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct CreateNullifyDedupInstructionInputs {
+pub struct CreateNullifyStateV1MultiInstructionInputs {
     pub authority: Pubkey,
     pub nullifier_queue: Pubkey,
     pub merkle_tree: Pubkey,
@@ -109,8 +101,8 @@ pub struct CreateNullifyDedupInstructionInputs {
     pub is_metadata_forester: bool,
 }
 
-pub fn create_nullify_dedup_instruction(
-    inputs: CreateNullifyDedupInstructionInputs,
+pub fn create_nullify_state_v1_multi_instruction(
+    inputs: CreateNullifyStateV1MultiInstructionInputs,
     epoch: u64,
 ) -> Instruction {
     let register_program_pda = get_registered_program_pda(&crate::ID);
@@ -120,7 +112,7 @@ pub fn create_nullify_dedup_instruction(
         Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
     };
     let (cpi_authority, _bump) = get_cpi_authority_pda();
-    let instruction_data = crate::instruction::NullifyDedup {
+    let instruction_data = crate::instruction::NullifyStateV1Multi {
         change_log_index: inputs.change_log_index,
         queue_indices: inputs.queue_indices,
         leaf_indices: inputs.leaf_indices,
@@ -223,7 +215,7 @@ pub fn compress_proofs(proofs: &[&[[u8; 32]; 16]]) -> Option<CompressedProofs> {
         }
     }
 
-    if nodes.len() > NULLIFY_DEDUP_MAX_NODES {
+    if nodes.len() > NULLIFY_STATE_V1_MULTI_MAX_NODES {
         return None;
     }
 
@@ -237,15 +229,13 @@ pub fn compress_proofs(proofs: &[&[[u8; 32]; 16]]) -> Option<CompressedProofs> {
 }
 
 /// Returns the known accounts for populating an address lookup table
-/// for nullify_dedup v0 transactions. Includes ComputeBudget program ID
-/// since nullify_dedup transactions also include a SetComputeUnitLimit instruction.
-pub fn nullify_dedup_lookup_table_accounts(
+/// for nullify_state_v1_multi v0 transactions. Includes ComputeBudget program ID
+/// since nullify_state_v1_multi transactions also include a SetComputeUnitLimit instruction.
+pub fn nullify_state_v1_multi_lookup_table_accounts(
     merkle_tree: Pubkey,
     nullifier_queue: Pubkey,
-    forester_pda: Option<Pubkey>,
 ) -> Vec<Pubkey> {
-    let mut accounts =
-        nullify_lookup_table_accounts_base(merkle_tree, nullifier_queue, forester_pda);
+    let mut accounts = nullify_lookup_table_accounts_base(merkle_tree, nullifier_queue);
     accounts.push(solana_sdk::compute_budget::ID);
     accounts
 }
@@ -736,14 +726,12 @@ pub fn create_rollover_batch_address_tree_instruction(
 
 #[cfg(test)]
 mod tests {
-    use anchor_lang::Discriminator;
-
     use super::*;
 
     #[test]
-    fn test_nullify_dedup_instruction_data_size() {
+    fn test_nullify_state_v1_multi_instruction_data_size() {
         // Worst case: max_nodes unique nodes
-        let instruction_data = crate::instruction::NullifyDedup {
+        let instruction_data = crate::instruction::NullifyStateV1Multi {
             change_log_index: 0,
             queue_indices: [0; 4],
             leaf_indices: [0; 4],
@@ -751,26 +739,26 @@ mod tests {
             proof_3_source: 0,
             proof_4_source: 0,
             shared_top_node: [0u8; 32],
-            nodes: vec![[0u8; 32]; NULLIFY_DEDUP_MAX_NODES],
+            nodes: vec![[0u8; 32]; NULLIFY_STATE_V1_MULTI_MAX_NODES],
         };
         let data = instruction_data.data();
-        // 1 disc + 2 changelog + 8 queue_indices + 16 leaf_indices + 2 proof_2_shared
+        // 8 disc + 2 changelog + 8 queue_indices + 16 leaf_indices + 2 proof_2_shared
         // + 4 proof_3_source + 4 proof_4_source + 32 shared_top_node
         // + 4 vec_prefix + N*32 nodes
-        let expected = 1 + 2 + 8 + 16 + 2 + 4 + 4 + 32 + 4 + NULLIFY_DEDUP_MAX_NODES * 32;
+        let expected = 8 + 2 + 8 + 16 + 2 + 4 + 4 + 32 + 4 + NULLIFY_STATE_V1_MULTI_MAX_NODES * 32;
         assert_eq!(
             data.len(),
             expected,
-            "nullify_dedup instruction data must be exactly {} bytes, got {}",
+            "nullify_state_v1_multi instruction data must be exactly {} bytes, got {}",
             expected,
             data.len()
         );
     }
 
     #[test]
-    fn test_nullify_dedup_instruction_accounts() {
+    fn test_nullify_state_v1_multi_instruction_accounts() {
         let authority = Pubkey::new_unique();
-        let inputs = CreateNullifyDedupInstructionInputs {
+        let inputs = CreateNullifyStateV1MultiInstructionInputs {
             authority,
             nullifier_queue: Pubkey::new_unique(),
             merkle_tree: Pubkey::new_unique(),
@@ -785,150 +773,8 @@ mod tests {
             derivation: authority,
             is_metadata_forester: false,
         };
-        let ix = create_nullify_dedup_instruction(inputs, 0);
+        let ix = create_nullify_state_v1_multi_instruction(inputs, 0);
         assert_eq!(ix.accounts.len(), 8, "expected 8 accounts");
-    }
-
-    #[test]
-    fn test_nullify_dedup_discriminator_no_collision() {
-        let disc = crate::instruction::NullifyDedup::DISCRIMINATOR;
-        assert_eq!(disc.len(), 1, "nullify_dedup discriminator must be 1 byte");
-        assert_eq!(disc, &[79], "nullify_dedup discriminator must be [79]");
-
-        let existing: &[(&str, &[u8])] = &[
-            (
-                "InitializeProtocolConfig",
-                crate::instruction::InitializeProtocolConfig::DISCRIMINATOR,
-            ),
-            (
-                "UpdateProtocolConfig",
-                crate::instruction::UpdateProtocolConfig::DISCRIMINATOR,
-            ),
-            (
-                "RegisterSystemProgram",
-                crate::instruction::RegisterSystemProgram::DISCRIMINATOR,
-            ),
-            (
-                "DeregisterSystemProgram",
-                crate::instruction::DeregisterSystemProgram::DISCRIMINATOR,
-            ),
-            (
-                "RegisterForester",
-                crate::instruction::RegisterForester::DISCRIMINATOR,
-            ),
-            (
-                "UpdateForesterPda",
-                crate::instruction::UpdateForesterPda::DISCRIMINATOR,
-            ),
-            (
-                "UpdateForesterPdaWeight",
-                crate::instruction::UpdateForesterPdaWeight::DISCRIMINATOR,
-            ),
-            (
-                "RegisterForesterEpoch",
-                crate::instruction::RegisterForesterEpoch::DISCRIMINATOR,
-            ),
-            (
-                "FinalizeRegistration",
-                crate::instruction::FinalizeRegistration::DISCRIMINATOR,
-            ),
-            ("ReportWork", crate::instruction::ReportWork::DISCRIMINATOR),
-            (
-                "InitializeAddressMerkleTree",
-                crate::instruction::InitializeAddressMerkleTree::DISCRIMINATOR,
-            ),
-            (
-                "InitializeStateMerkleTree",
-                crate::instruction::InitializeStateMerkleTree::DISCRIMINATOR,
-            ),
-            ("Nullify", crate::instruction::Nullify::DISCRIMINATOR),
-            (
-                "UpdateAddressMerkleTree",
-                crate::instruction::UpdateAddressMerkleTree::DISCRIMINATOR,
-            ),
-            (
-                "RolloverAddressMerkleTreeAndQueue",
-                crate::instruction::RolloverAddressMerkleTreeAndQueue::DISCRIMINATOR,
-            ),
-            (
-                "RolloverStateMerkleTreeAndQueue",
-                crate::instruction::RolloverStateMerkleTreeAndQueue::DISCRIMINATOR,
-            ),
-            (
-                "InitializeBatchedStateMerkleTree",
-                crate::instruction::InitializeBatchedStateMerkleTree::DISCRIMINATOR,
-            ),
-            (
-                "BatchNullify",
-                crate::instruction::BatchNullify::DISCRIMINATOR,
-            ),
-            (
-                "BatchAppend",
-                crate::instruction::BatchAppend::DISCRIMINATOR,
-            ),
-            (
-                "InitializeBatchedAddressMerkleTree",
-                crate::instruction::InitializeBatchedAddressMerkleTree::DISCRIMINATOR,
-            ),
-            (
-                "BatchUpdateAddressTree",
-                crate::instruction::BatchUpdateAddressTree::DISCRIMINATOR,
-            ),
-            (
-                "RolloverBatchedAddressMerkleTree",
-                crate::instruction::RolloverBatchedAddressMerkleTree::DISCRIMINATOR,
-            ),
-            (
-                "RolloverBatchedStateMerkleTree",
-                crate::instruction::RolloverBatchedStateMerkleTree::DISCRIMINATOR,
-            ),
-            (
-                "MigrateState",
-                crate::instruction::MigrateState::DISCRIMINATOR,
-            ),
-            (
-                "CreateConfigCounter",
-                crate::instruction::CreateConfigCounter::DISCRIMINATOR,
-            ),
-            (
-                "CreateCompressibleConfig",
-                crate::instruction::CreateCompressibleConfig::DISCRIMINATOR,
-            ),
-            (
-                "UpdateCompressibleConfig",
-                crate::instruction::UpdateCompressibleConfig::DISCRIMINATOR,
-            ),
-            (
-                "PauseCompressibleConfig",
-                crate::instruction::PauseCompressibleConfig::DISCRIMINATOR,
-            ),
-            (
-                "UnpauseCompressibleConfig",
-                crate::instruction::UnpauseCompressibleConfig::DISCRIMINATOR,
-            ),
-            (
-                "DeprecateCompressibleConfig",
-                crate::instruction::DeprecateCompressibleConfig::DISCRIMINATOR,
-            ),
-            (
-                "WithdrawFundingPool",
-                crate::instruction::WithdrawFundingPool::DISCRIMINATOR,
-            ),
-            ("Claim", crate::instruction::Claim::DISCRIMINATOR),
-            (
-                "CompressAndClose",
-                crate::instruction::CompressAndClose::DISCRIMINATOR,
-            ),
-        ];
-
-        for (name, existing_disc) in existing {
-            assert!(
-                !existing_disc.starts_with(disc),
-                "nullify_dedup 1-byte discriminator {:?} collides with {name} discriminator prefix {:?}",
-                disc,
-                &existing_disc[..disc.len().min(existing_disc.len())]
-            );
-        }
     }
 
     #[test]
