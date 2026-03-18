@@ -512,9 +512,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         }
         for (item, proof) in items_with_proofs.iter() {
             instructions.push(LabeledInstruction {
-                instruction: build_nullify_instruction(
-                    item, proof, authority, derivation, epoch,
-                ),
+                instruction: build_nullify_instruction(item, proof, authority, derivation, epoch),
                 label: "StateV1Nullify".to_string(),
             });
         }

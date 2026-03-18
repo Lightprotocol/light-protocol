@@ -1718,8 +1718,7 @@ impl Indexer for PhotonIndexer {
                 limit,
                 start_index,
             };
-            let request =
-                photon_api::apis::default_api::make_get_queue_leaf_indices_body(params);
+            let request = photon_api::apis::default_api::make_get_queue_leaf_indices_body(params);
 
             let result = photon_api::apis::default_api::get_queue_leaf_indices_post(
                 &self.configuration,
@@ -1728,8 +1727,7 @@ impl Indexer for PhotonIndexer {
             .await?;
 
             Self::check_api_error("get_queue_leaf_indices", result.error)?;
-            let api_response =
-                Self::extract_result("get_queue_leaf_indices", result.result)?;
+            let api_response = Self::extract_result("get_queue_leaf_indices", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
