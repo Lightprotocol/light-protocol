@@ -15,4 +15,5 @@ light-zero-copy = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+bs58 = { workspace = true }
 rand = { workspace = true }
