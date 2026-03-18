@@ -92,7 +92,7 @@ function throwIfUnexpectedRpcErrors(
     }
 }
 
-export type FrozenOperation = 'load' | 'transfer' | 'unwrap';
+export type FrozenOperation = 'load' | 'transfer' | 'unwrap' | 'approve' | 'revoke';
 
 export function checkNotFrozen(
     iface: AccountInterface,

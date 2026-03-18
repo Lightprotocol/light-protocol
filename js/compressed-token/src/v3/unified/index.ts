@@ -37,6 +37,12 @@ import {
     createTransferToAccountInterfaceInstructions as _createTransferToAccountInterfaceInstructions,
 } from '../actions/transfer-interface';
 import type { TransferOptions as _TransferOptions } from '../actions/transfer-interface';
+import {
+    approveInterface as _approveInterface,
+    createApproveInterfaceInstructions as _createApproveInterfaceInstructions,
+    revokeInterface as _revokeInterface,
+    createRevokeInterfaceInstructions as _createRevokeInterfaceInstructions,
+} from '../actions/approve-interface';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import {
     createUnwrapInstructions as _createUnwrapInstructions,
@@ -493,6 +499,118 @@ export type {
     _TransferOptions as TransferToAccountOptions,
 };
 
+/**
+ * Approve a delegate for a light-token associated token account.
+ *
+ * @param rpc            RPC connection
+ * @param payer          Fee payer (signer)
+ * @param tokenAccount   Light-token ATA address
+ * @param mint           Mint address
+ * @param delegate       Delegate to approve
+ * @param amount         Amount to delegate
+ * @param owner          Owner of the token account (signer)
+ * @param confirmOptions Optional confirm options
+ * @returns Transaction signature
+ */
+export async function approveInterface(
+    rpc: Rpc,
+    payer: Signer,
+    tokenAccount: PublicKey,
+    mint: PublicKey,
+    delegate: PublicKey,
+    amount: number | bigint | BN,
+    owner: Signer,
+    confirmOptions?: ConfirmOptions,
+) {
+    return _approveInterface(
+        rpc,
+        payer,
+        tokenAccount,
+        mint,
+        delegate,
+        amount,
+        owner,
+        confirmOptions,
+    );
+}
+
+/**
+ * Build instruction batches for approving a delegate on a light-token ATA.
+ */
+export async function createApproveInterfaceInstructions(
+    rpc: Rpc,
+    payer: PublicKey,
+    mint: PublicKey,
+    tokenAccount: PublicKey,
+    delegate: PublicKey,
+    amount: number | bigint | BN,
+    owner: PublicKey,
+    decimals: number,
+): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
+    return _createApproveInterfaceInstructions(
+        rpc,
+        payer,
+        mint,
+        tokenAccount,
+        delegate,
+        amount,
+        owner,
+        decimals ?? mintInterface.mint.decimals,
+    );
+}
+
+/**
+ * Revoke delegation for a light-token associated token account.
+ *
+ * @param rpc            RPC connection
+ * @param payer          Fee payer (signer)
+ * @param tokenAccount   Light-token ATA address
+ * @param mint           Mint address
+ * @param owner          Owner of the token account (signer)
+ * @param confirmOptions Optional confirm options
+ * @returns Transaction signature
+ */
+export async function revokeInterface(
+    rpc: Rpc,
+    payer: Signer,
+    tokenAccount: PublicKey,
+    mint: PublicKey,
+    owner: Signer,
+    confirmOptions?: ConfirmOptions,
+) {
+    return _revokeInterface(
+        rpc,
+        payer,
+        tokenAccount,
+        mint,
+        owner,
+        confirmOptions,
+    );
+}
+
+/**
+ * Build instruction batches for revoking delegation on a light-token ATA.
+ */
+export async function createRevokeInterfaceInstructions(
+    rpc: Rpc,
+    payer: PublicKey,
+    mint: PublicKey,
+    tokenAccount: PublicKey,
+    owner: PublicKey,
+    decimals: number,
+): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
+    return _createRevokeInterfaceInstructions(
+        rpc,
+        payer,
+        mint,
+        tokenAccount,
+        owner,
+        decimals ?? mintInterface.mint.decimals,
+    );
+}
+
 export {
     getAccountInterface,
     AccountInterface,
@@ -540,6 +658,8 @@ export {
     createLightTokenTransferCheckedInstruction,
     createLightTokenFreezeAccountInstruction,
     createLightTokenThawAccountInstruction,
+    createLightTokenApproveInstruction,
+    createLightTokenRevokeInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
