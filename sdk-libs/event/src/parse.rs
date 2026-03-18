@@ -639,16 +639,37 @@ fn create_batched_transaction_event(
         tx_hash: associated_instructions
             .insert_into_queues_instruction
             .tx_hash,
-        new_addresses: associated_instructions
-            .insert_into_queues_instruction
-            .addresses
-            .iter()
-            .map(|x| NewAddress {
-                address: x.address,
-                mt_pubkey: associated_instructions.accounts[x.tree_index as usize],
-                queue_index: u64::MAX,
-            })
-            .collect::<Vec<_>>(),
+        new_addresses: {
+            let mut addr_seq_map: Vec<_> = associated_instructions
+                .insert_into_queues_instruction
+                .address_sequence_numbers
+                .iter()
+                .map(|s| (s.tree_pubkey, u64::from(s.seq)))
+                .collect();
+
+            associated_instructions
+                .insert_into_queues_instruction
+                .addresses
+                .iter()
+                .map(|x| {
+                    let tree_pubkey = associated_instructions.accounts[x.tree_index as usize];
+                    let queue_index = addr_seq_map
+                        .iter_mut()
+                        .find(|(pk, _)| *pk == tree_pubkey)
+                        .map(|(_, seq)| {
+                            let idx = *seq;
+                            *seq += 1;
+                            idx
+                        })
+                        .unwrap_or(u64::MAX);
+                    NewAddress {
+                        address: x.address,
+                        mt_pubkey: tree_pubkey,
+                        queue_index,
+                    }
+                })
+                .collect::<Vec<_>>()
+        },
         address_sequence_numbers: associated_instructions
             .insert_into_queues_instruction
             .address_sequence_numbers
@@ -656,127 +677,58 @@ fn create_batched_transaction_event(
             .map(From::from)
             .filter(|x: &MerkleTreeSequenceNumber| !(*x).is_empty())
             .collect::<Vec<MerkleTreeSequenceNumber>>(),
-        batch_input_accounts: associated_instructions
-            .insert_into_queues_instruction
-            .nullifiers
-            .iter()
-            .filter(|x| {
-                input_sequence_numbers.iter().any(|y| {
-                    y.tree_pubkey == associated_instructions.accounts[x.tree_index as usize]
+        batch_input_accounts: {
+            // Build a map from tree_pubkey -> incrementing sequence number for queue index assignment.
+            let mut seq_map: Vec<_> = associated_instructions
+                .insert_into_queues_instruction
+                .input_sequence_numbers
+                .iter()
+                .map(|s| (s.tree_pubkey, u64::from(s.seq)))
+                .collect();
+
+            associated_instructions
+                .insert_into_queues_instruction
+                .nullifiers
+                .iter()
+                .filter(|x| {
+                    input_sequence_numbers.iter().any(|y| {
+                        y.tree_pubkey == associated_instructions.accounts[x.tree_index as usize]
+                    })
                 })
-            })
-            .map(|n| {
-                Ok(BatchNullifyContext {
-                    tx_hash: associated_instructions
-                        .insert_into_queues_instruction
-                        .tx_hash,
-                    account_hash: n.account_hash,
-                    nullifier: {
-                        // The nullifier is computed inside the account compression program.
-                        // -> it is not part of the cpi system to account compression program that we index.
-                        // -> we need to compute the nullifier here.
-                        create_nullifier(
-                            &n.account_hash,
-                            n.leaf_index.into(),
-                            &associated_instructions
-                                .insert_into_queues_instruction
-                                .tx_hash,
-                        )?
-                    },
-                    nullifier_queue_index: u64::MAX,
+                .map(|n| {
+                    let tree_pubkey = associated_instructions.accounts[n.tree_index as usize];
+                    // Find the matching sequence entry and consume the next index.
+                    let queue_index = seq_map
+                        .iter_mut()
+                        .find(|(pk, _)| *pk == tree_pubkey)
+                        .map(|(_, seq)| {
+                            let idx = *seq;
+                            *seq += 1;
+                            idx
+                        })
+                        .unwrap_or(u64::MAX);
+
+                    Ok(BatchNullifyContext {
+                        tx_hash: associated_instructions
+                            .insert_into_queues_instruction
+                            .tx_hash,
+                        account_hash: n.account_hash,
+                        nullifier: {
+                            create_nullifier(
+                                &n.account_hash,
+                                n.leaf_index.into(),
+                                &associated_instructions
+                                    .insert_into_queues_instruction
+                                    .tx_hash,
+                            )?
+                        },
+                        nullifier_queue_index: queue_index,
+                    })
                 })
-            })
-            .collect::<Result<Vec<_>, ParseIndexerEventError>>()?,
+                .collect::<Result<Vec<_>, ParseIndexerEventError>>()?
+        },
         input_sequence_numbers,
     };
 
-    let nullifier_queue_indices = create_nullifier_queue_indices(
-        associated_instructions,
-        batched_transaction_event.batch_input_accounts.len(),
-    );
-
-    batched_transaction_event
-        .batch_input_accounts
-        .iter_mut()
-        .zip(nullifier_queue_indices.iter())
-        .for_each(|(context, index)| {
-            context.nullifier_queue_index = *index;
-        });
-
-    let address_queue_indices = create_address_queue_indices(
-        associated_instructions,
-        batched_transaction_event.new_addresses.len(),
-    );
-
-    batched_transaction_event
-        .new_addresses
-        .iter_mut()
-        .zip(address_queue_indices.iter())
-        .for_each(|(context, index)| {
-            context.queue_index = *index;
-        });
-
     Ok(batched_transaction_event)
-}
-
-fn create_nullifier_queue_indices(
-    associated_instructions: &AssociatedInstructions,
-    len: usize,
-) -> Vec<u64> {
-    let input_merkle_tree_pubkeys = associated_instructions
-        .executing_system_instruction
-        .input_compressed_accounts
-        .iter()
-        .map(|x| {
-            associated_instructions
-                .executing_system_instruction
-                .accounts[x.merkle_context.merkle_tree_pubkey_index as usize]
-        })
-        .collect::<Vec<_>>();
-    let mut nullifier_queue_indices = vec![u64::MAX; len];
-    let mut internal_input_sequence_numbers = associated_instructions
-        .insert_into_queues_instruction
-        .input_sequence_numbers
-        .to_vec();
-    // For every sequence number:
-    // 1. Find every input compressed account
-    // 2. assign sequence number as nullifier queue index
-    // 3. increment the sequence number
-    internal_input_sequence_numbers.iter_mut().for_each(|seq| {
-        for (i, merkle_tree_pubkey) in input_merkle_tree_pubkeys.iter().enumerate() {
-            if *merkle_tree_pubkey == seq.tree_pubkey {
-                nullifier_queue_indices[i] = seq.seq.into();
-                seq.seq += 1;
-            }
-        }
-    });
-    nullifier_queue_indices
-}
-
-fn create_address_queue_indices(
-    associated_instructions: &AssociatedInstructions,
-    len: usize,
-) -> Vec<u64> {
-    let address_merkle_tree_pubkeys = associated_instructions
-        .insert_into_queues_instruction
-        .addresses
-        .iter()
-        .map(|x| associated_instructions.accounts[x.tree_index as usize])
-        .collect::<Vec<_>>();
-    let mut address_queue_indices = vec![u64::MAX; len];
-    let mut internal_address_sequence_numbers = associated_instructions
-        .insert_into_queues_instruction
-        .address_sequence_numbers
-        .to_vec();
-    internal_address_sequence_numbers
-        .iter_mut()
-        .for_each(|seq| {
-            for (i, merkle_tree_pubkey) in address_merkle_tree_pubkeys.iter().enumerate() {
-                if *merkle_tree_pubkey == seq.tree_pubkey {
-                    address_queue_indices[i] = seq.seq.into();
-                    seq.seq += 1;
-                }
-            }
-        });
-    address_queue_indices
 }

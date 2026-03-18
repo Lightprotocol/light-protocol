@@ -11,3 +11,5 @@
 pub mod error;
 pub mod event;
 pub mod parse;
+#[cfg(test)]
+mod regression_test;
