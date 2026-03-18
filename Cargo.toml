@@ -95,6 +95,9 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
+# Pin time <0.3.46 -- 0.3.46+ pulls time-core 0.1.8 which uses edition2024,
+# incompatible with Solana platform-tools Cargo 1.84.
+time = ">=0.3, <0.3.46"
 solana-banks-client = { version = "2.3" }
 solana-banks-interface = { version = "2.3" }
 solana-program = "2.3"
