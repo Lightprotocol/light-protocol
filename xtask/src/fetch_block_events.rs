@@ -9,6 +9,13 @@ use solana_transaction_status::{
     UiInstruction, UiTransactionEncoding,
 };
 
+#[derive(Clone)]
+struct ParsedInstruction {
+    program_id: LightPubkey,
+    data: Vec<u8>,
+    accounts: Vec<LightPubkey>,
+}
+
 #[derive(Debug, Parser)]
 pub struct Options {
     /// Starting slot
@@ -124,10 +131,9 @@ fn parse_and_print_tx(encoded: EncodedTransactionWithStatusMeta, total_events: &
         .map(|pk| LightPubkey::new_from_array(pk.to_bytes()))
         .collect();
 
-    // Build inner instruction map: outer_ix_index -> [(program_id, data, accounts)]
+    // Build inner instruction map: outer_ix_index -> [ParsedInstruction]
     let outer_count = versioned_tx.message.instructions().len();
-    let mut inner_map: Vec<Vec<(LightPubkey, Vec<u8>, Vec<LightPubkey>)>> =
-        vec![Vec::new(); outer_count];
+    let mut inner_map: Vec<Vec<ParsedInstruction>> = vec![Vec::new(); outer_count];
 
     if let OptionSerializer::Some(inner_ixs_vec) = &meta.inner_instructions {
         for inner_ixs in inner_ixs_vec {
@@ -145,9 +151,9 @@ fn parse_and_print_tx(encoded: EncodedTransactionWithStatusMeta, total_events: &
                             continue;
                         }
                     };
-                    let ix_accounts: Vec<LightPubkey> =
+                    let ix_accounts =
                         c.accounts.iter().map(|i| accounts[*i as usize]).collect();
-                    inner_map[idx].push((program_id, data, ix_accounts));
+                    inner_map[idx].push(ParsedInstruction { program_id, data, accounts: ix_accounts });
                 }
             }
         }
@@ -158,22 +164,18 @@ fn parse_and_print_tx(encoded: EncodedTransactionWithStatusMeta, total_events: &
     let mut tx_event_lines: Vec<String> = Vec::new();
 
     for (outer_idx, compiled_ix) in versioned_tx.message.instructions().iter().enumerate() {
-        let outer_program_id = accounts[compiled_ix.program_id_index as usize];
-        let outer_data: Vec<u8> = compiled_ix.data.clone();
-        let outer_accounts: Vec<LightPubkey> = compiled_ix
+        let mut program_ids = vec![accounts[compiled_ix.program_id_index as usize]];
+        let mut data = vec![compiled_ix.data.clone()];
+        let mut ix_accounts = vec![compiled_ix
             .accounts
             .iter()
             .map(|i| accounts[*i as usize])
-            .collect();
+            .collect::<Vec<_>>()];
 
-        let mut program_ids = vec![outer_program_id];
-        let mut data = vec![outer_data];
-        let mut ix_accounts = vec![outer_accounts];
-
-        for (pid, d, accs) in &inner_map[outer_idx] {
-            program_ids.push(*pid);
-            data.push(d.clone());
-            ix_accounts.push(accs.clone());
+        for ix in &inner_map[outer_idx] {
+            program_ids.push(ix.program_id);
+            data.push(ix.data.clone());
+            ix_accounts.push(ix.accounts.clone());
         }
 
         match event_from_light_transaction(&program_ids, &data, ix_accounts) {
