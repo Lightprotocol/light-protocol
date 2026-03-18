@@ -2,6 +2,10 @@ use light_client::rpc::RetryConfig;
 
 use crate::config::QueueConfig;
 
+/// Maximum queue size for which multi-nullify grouping is enabled.
+/// Above this threshold, fall back to single-nullify for more reliable throughput.
+pub const MULTI_NULLIFY_MAX_QUEUE_SIZE: usize = 10_000;
+
 #[derive(Debug, Clone, Copy)]
 pub struct CapConfig {
     pub rec_fee_microlamports_per_cu: u64,

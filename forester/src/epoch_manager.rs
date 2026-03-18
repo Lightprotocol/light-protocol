@@ -4774,6 +4774,7 @@ mod tests {
             queue_item_data: QueueItemData {
                 hash: [0u8; 32],
                 index: 0,
+                leaf_index: None,
             },
         };
 
@@ -4796,6 +4797,7 @@ mod tests {
             queue_item_data: QueueItemData {
                 hash: [0u8; 32],
                 index: 0,
+                leaf_index: None,
             },
         };
 

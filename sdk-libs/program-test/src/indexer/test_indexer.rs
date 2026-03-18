@@ -28,8 +28,8 @@ use light_client::{
         GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
         Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
         NewAddressProofWithContext, OwnerBalance, PaginatedOptions, QueueElementsResult,
-        QueueElementsV2Options, Response, RetryConfig, RootIndex, SignatureWithMetadata,
-        StateMerkleTreeAccounts, TokenBalance, ValidityProofWithContext,
+        QueueElementsV2Options, QueueLeafIndex, Response, RetryConfig, RootIndex,
+        SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance, ValidityProofWithContext,
     },
 };
 use light_compressed_account::{
@@ -894,6 +894,16 @@ impl Indexer for TestIndexer {
                 "Merkle tree not found".to_string(),
             ))
         }
+    }
+
+    async fn get_queue_leaf_indices(
+        &self,
+        _merkle_tree_pubkey: [u8; 32],
+        _limit: u16,
+        _start_index: Option<u64>,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Items<QueueLeafIndex>>, IndexerError> {
+        unimplemented!("get_queue_leaf_indices")
     }
 
     async fn get_queue_info(

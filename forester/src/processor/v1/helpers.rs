@@ -37,6 +37,14 @@ use crate::{
     errors::ForesterError,
 };
 
+/// A labeled instruction for logging purposes.
+#[derive(Clone)]
+pub struct LabeledInstruction {
+    pub instruction: Instruction,
+    /// Label for logging, e.g. "StateV1Nullify" or "StateV1MultiNullify(3)"
+    pub label: String,
+}
+
 /// Work items should be of only one type and tree
 pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     authority: Pubkey,
@@ -45,7 +53,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     epoch: u64,
     work_items: &[WorkItem],
     use_multi_nullify: bool,
-) -> crate::Result<(Vec<MerkleProofType>, Vec<Instruction>)> {
+) -> crate::Result<(Vec<MerkleProofType>, Vec<LabeledInstruction>)> {
     let mut proofs = Vec::new();
     let mut instructions = vec![];
 
@@ -366,7 +374,10 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
             },
             epoch,
         );
-        instructions.push(instruction);
+        instructions.push(LabeledInstruction {
+            instruction,
+            label: "AddressV1Update".to_string(),
+        });
     }
 
     // Process state proofs and create instructions
@@ -427,9 +438,12 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         for group_indices in groups {
             if group_indices.len() == 1 {
                 let (item, proof) = &items_with_proofs[group_indices[0]];
-                instructions.push(build_nullify_instruction(
-                    item, proof, authority, derivation, epoch,
-                ));
+                instructions.push(LabeledInstruction {
+                    instruction: build_nullify_instruction(
+                        item, proof, authority, derivation, epoch,
+                    ),
+                    label: "StateV1Nullify".to_string(),
+                });
             } else {
                 let group_proofs: Vec<[[u8; 32]; 16]> = group_indices
                     .iter()
@@ -478,14 +492,18 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                     },
                     epoch,
                 );
+                let group_size = group_indices.len();
                 debug!(
                     event = "v1_nullify_state_v1_multi_instruction",
-                    group_size = group_indices.len(),
+                    group_size,
                     node_count,
                     ix_data_bytes = instruction.data.len(),
                     "Created nullify_state_v1_multi instruction"
                 );
-                instructions.push(instruction);
+                instructions.push(LabeledInstruction {
+                    instruction,
+                    label: format!("StateV1MultiNullify({})", group_size),
+                });
             }
         }
     } else {
@@ -493,9 +511,12 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
             proofs.push(MerkleProofType::StateProof(proof.clone()));
         }
         for (item, proof) in items_with_proofs.iter() {
-            instructions.push(build_nullify_instruction(
-                item, proof, authority, derivation, epoch,
-            ));
+            instructions.push(LabeledInstruction {
+                instruction: build_nullify_instruction(
+                    item, proof, authority, derivation, epoch,
+                ),
+                label: "StateV1Nullify".to_string(),
+            });
         }
     }
 
@@ -592,6 +613,7 @@ mod tests {
             queue_item_data: QueueItemData {
                 hash: [0u8; 32],
                 index: 0,
+                leaf_index: None,
             },
         }
     }

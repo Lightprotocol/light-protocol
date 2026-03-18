@@ -4,8 +4,8 @@ use light_client::indexer::{
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
     Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
     NewAddressProofWithContext, OwnerBalance, PaginatedOptions, QueueElementsResult,
-    QueueElementsV2Options, Response, RetryConfig, SignatureWithMetadata, TokenBalance,
-    ValidityProofWithContext,
+    QueueElementsV2Options, QueueLeafIndex, Response, RetryConfig, SignatureWithMetadata,
+    TokenBalance, ValidityProofWithContext,
 };
 use solana_sdk::pubkey::Pubkey;
 
@@ -193,6 +193,21 @@ impl Indexer for LightProgramTest {
             .as_mut()
             .ok_or(IndexerError::NotInitialized)?
             .get_queue_elements(merkle_tree_pubkey, options, config)
+            .await?)
+    }
+
+    async fn get_queue_leaf_indices(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        limit: u16,
+        start_index: Option<u64>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Items<QueueLeafIndex>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_queue_leaf_indices(merkle_tree_pubkey, limit, start_index, config)
             .await?)
     }
 

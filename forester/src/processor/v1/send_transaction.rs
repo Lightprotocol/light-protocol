@@ -26,7 +26,10 @@ use crate::{
     errors::ForesterError,
     metrics::increment_transactions_failed,
     priority_fee::PriorityFeeConfig,
-    processor::v1::{config::SendBatchedTransactionsConfig, tx_builder::TransactionBuilder},
+    processor::v1::{
+        config::{SendBatchedTransactionsConfig, MULTI_NULLIFY_MAX_QUEUE_SIZE},
+        tx_builder::TransactionBuilder,
+    },
     queue_helpers::fetch_queue_item_data,
     smart_transaction::{ConfirmationConfig, PreparedTransaction, SmartTransactionError},
     Result,
@@ -77,44 +80,29 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
     let num_sent_transactions = Arc::new(AtomicUsize::new(0));
     let operation_cancel_signal = Arc::new(AtomicBool::new(false));
 
-    const THRESHOLD_POLL_INTERVAL: Duration = Duration::from_millis(500);
-    let timeout_deadline = function_start_time + config.retry_config.timeout;
-
-    let data = loop {
-        if Instant::now() >= timeout_deadline {
-            trace!(tree.id = %tree_accounts.merkle_tree, "Timeout deadline reached while waiting for threshold, 0 transactions sent.");
+    let data = match prepare_batch_prerequisites(
+        &payer.pubkey(),
+        derivation,
+        &pool,
+        config,
+        tree_accounts,
+        &*transaction_builder,
+        function_start_time,
+        config.min_queue_items,
+    )
+    .await
+    .map_err(ForesterError::from)?
+    {
+        Some(data) => data,
+        None => {
+            trace!(tree.id = %tree_accounts.merkle_tree, queue.id = %tree_accounts.queue, "Preparation returned no data, 0 transactions sent.");
             return Ok(0);
-        }
-
-        match prepare_batch_prerequisites(
-            &payer.pubkey(),
-            derivation,
-            &pool,
-            config,
-            tree_accounts,
-            &*transaction_builder,
-            function_start_time,
-            config.min_queue_items,
-        )
-        .await
-        .map_err(ForesterError::from)?
-        {
-            Some(data) => break data,
-            None => {
-                if config.min_queue_items.is_some() {
-                    tokio::time::sleep(THRESHOLD_POLL_INTERVAL).await;
-                    continue;
-                }
-                trace!(tree.id = %tree_accounts.merkle_tree, queue.id = %tree_accounts.queue, "Preparation returned no data, 0 transactions sent.");
-                return Ok(0);
-            }
         }
     };
 
     let mut build_config = config.build_transaction_batch_config;
     build_config.queue_item_count = data.work_items.len();
 
-    const MULTI_NULLIFY_MAX_QUEUE_SIZE: usize = 10_000;
     if data.work_items.len() > MULTI_NULLIFY_MAX_QUEUE_SIZE {
         warn!(
             tree = %tree_accounts.merkle_tree,
@@ -392,6 +380,7 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
         let pool_clone = Arc::clone(&pool);
         let cancel_signal_clone = Arc::clone(&cancel_signal);
         let num_sent_transactions_clone = Arc::clone(&num_sent_transactions);
+        let tx_label = prepared_transaction.label().to_string();
 
         async move {
             if cancel_signal_clone.load(Ordering::SeqCst) || Instant::now() >= timeout_deadline {
@@ -418,10 +407,11 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                         Ok(signature) => {
                             if !cancel_signal_clone.load(Ordering::SeqCst) {
                                 num_sent_transactions_clone.fetch_add(1, Ordering::SeqCst);
-                                trace!(
-                                    tx.signature = %signature,
-                                    elapsed = ?send_time.elapsed(),
-                                    "Transaction sent and confirmed successfully"
+                                info!(
+                                    "tx sent: {} type={} e2e={}ms",
+                                    signature,
+                                    tx_label,
+                                    send_time.elapsed().as_millis(),
                                 );
                                 TransactionSendResult::Success(signature)
                             } else {

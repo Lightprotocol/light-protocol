@@ -138,6 +138,14 @@ impl AddressQueueData {
     }
 }
 
+/// Lightweight queue leaf index entry (hash, queue_index, leaf_index)
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct QueueLeafIndex {
+    pub hash: [u8; 32],
+    pub queue_index: u64,
+    pub leaf_index: u64,
+}
+
 /// V2 Queue Elements Result with deduplicated node data
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct QueueElementsResult {
