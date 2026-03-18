@@ -155,7 +155,11 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             }
         };
 
-        let batch_size = config.batch_size.max(1) as usize;
+        let batch_size = if !self.address_lookup_tables.is_empty() {
+            1
+        } else {
+            config.batch_size.max(1) as usize
+        };
 
         for instruction_chunk in all_instructions.chunks(batch_size) {
             let prepared = create_smart_transaction(CreateSmartTransactionConfig {
