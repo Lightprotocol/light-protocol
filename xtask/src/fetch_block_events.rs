@@ -151,9 +151,12 @@ fn parse_and_print_tx(encoded: EncodedTransactionWithStatusMeta, total_events: &
                             continue;
                         }
                     };
-                    let ix_accounts =
-                        c.accounts.iter().map(|i| accounts[*i as usize]).collect();
-                    inner_map[idx].push(ParsedInstruction { program_id, data, accounts: ix_accounts });
+                    let ix_accounts = c.accounts.iter().map(|i| accounts[*i as usize]).collect();
+                    inner_map[idx].push(ParsedInstruction {
+                        program_id,
+                        data,
+                        accounts: ix_accounts,
+                    });
                 }
             }
         }
