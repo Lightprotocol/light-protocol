@@ -111,11 +111,19 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         }
     };
 
-    let max_concurrent_sends = config
-        .build_transaction_batch_config
-        .max_concurrent_sends
-        .unwrap_or(1)
-        .max(1);
+    let mut build_config = config.build_transaction_batch_config;
+    build_config.queue_item_count = data.work_items.len();
+
+    const MULTI_NULLIFY_MAX_QUEUE_SIZE: usize = 10_000;
+    if data.work_items.len() > MULTI_NULLIFY_MAX_QUEUE_SIZE {
+        warn!(
+            tree = %tree_accounts.merkle_tree,
+            "v1 state multi-nullify disabled: queue_item_count {} exceeds threshold {}",
+            data.work_items.len(), MULTI_NULLIFY_MAX_QUEUE_SIZE
+        );
+    }
+
+    let max_concurrent_sends = build_config.max_concurrent_sends.unwrap_or(1).max(1);
     let effective_max_concurrent_sends =
         compute_effective_max_concurrent_sends(config, max_concurrent_sends, data.work_items.len());
 
@@ -176,7 +184,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
                 last_valid_block_height,
                 data.priority_fee,
                 work_chunk,
-                config.build_transaction_batch_config,
+                build_config,
             )
             .await
         {

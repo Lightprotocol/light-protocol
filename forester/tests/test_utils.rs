@@ -137,6 +137,7 @@ pub fn forester_config() -> ForesterConfig {
         compressible_config: None,
         lookup_table_address: None,
         min_queue_items: None,
+        enable_v1_multi_nullify: false,
     }
 }
 

@@ -46,6 +46,7 @@ pub struct EpochManagerTransactions<R: Rpc> {
     pub phantom: std::marker::PhantomData<R>,
     pub processed_hash_cache: Arc<Mutex<ProcessedHashCache>>,
     pub address_lookup_tables: Vec<AddressLookupTableAccount>,
+    pub enable_v1_multi_nullify: bool,
 }
 
 impl<R: Rpc> EpochManagerTransactions<R> {
@@ -54,6 +55,7 @@ impl<R: Rpc> EpochManagerTransactions<R> {
         epoch: u64,
         cache: Arc<Mutex<ProcessedHashCache>>,
         address_lookup_tables: Vec<AddressLookupTableAccount>,
+        enable_v1_multi_nullify: bool,
     ) -> Self {
         Self {
             pool,
@@ -61,6 +63,7 @@ impl<R: Rpc> EpochManagerTransactions<R> {
             phantom: std::marker::PhantomData,
             processed_hash_cache: cache,
             address_lookup_tables,
+            enable_v1_multi_nullify,
         }
     }
 }
@@ -120,7 +123,10 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             .map(|&item| item.clone())
             .collect::<Vec<_>>();
 
-        let use_dedup = !self.address_lookup_tables.is_empty();
+        const MULTI_NULLIFY_MAX_QUEUE_SIZE: usize = 10_000;
+        let use_multi_nullify = self.enable_v1_multi_nullify
+            && !self.address_lookup_tables.is_empty()
+            && config.queue_item_count <= MULTI_NULLIFY_MAX_QUEUE_SIZE;
         let mut transactions = vec![];
         let all_instructions = match fetch_proofs_and_create_instructions(
             payer.pubkey(),
@@ -128,7 +134,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             self.pool.clone(),
             self.epoch,
             work_items.as_slice(),
-            use_dedup,
+            use_multi_nullify,
         )
         .await
         {

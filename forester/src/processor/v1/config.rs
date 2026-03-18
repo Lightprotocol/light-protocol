@@ -32,4 +32,7 @@ pub struct BuildTransactionBatchConfig {
     pub compute_unit_limit: Option<u32>,
     pub enable_priority_fees: bool,
     pub max_concurrent_sends: Option<usize>,
+    /// Number of items in the queue at the time of batch preparation.
+    /// Used to disable multi-nullify when queue is very large (>10,000 items).
+    pub queue_item_count: usize,
 }

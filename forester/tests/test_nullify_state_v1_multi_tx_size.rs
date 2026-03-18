@@ -1,9 +1,6 @@
-use light_registry::{
-    account_compression_cpi::sdk::{
-        create_nullify_dedup_instruction, nullify_dedup_lookup_table_accounts,
-        CreateNullifyDedupInstructionInputs, NULLIFY_DEDUP_MAX_NODES,
-    },
-    utils::get_forester_epoch_pda_from_authority,
+use light_registry::account_compression_cpi::sdk::{
+    create_nullify_state_v1_multi_instruction, nullify_state_v1_multi_lookup_table_accounts,
+    CreateNullifyStateV1MultiInstructionInputs, NULLIFY_STATE_V1_MULTI_MAX_NODES,
 };
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
@@ -15,21 +12,19 @@ use solana_sdk::{
     transaction::VersionedTransaction,
 };
 
-/// Validates that a nullify_dedup v0 transaction with ALT and SetComputeUnitLimit
+/// Validates that a nullify_state_v1_multi v0 transaction with ALT and SetComputeUnitLimit
 /// fits within the 1232-byte Solana transaction size limit.
 ///
 /// This is a pure serialization check -- no validator needed.
 #[test]
-fn test_nullify_dedup_v0_transaction_size() {
+fn test_nullify_state_v1_multi_v0_transaction_size() {
     let authority = Keypair::new();
     let merkle_tree = Pubkey::new_unique();
     let nullifier_queue = Pubkey::new_unique();
-    let epoch = 0u64;
-    let forester_pda = get_forester_epoch_pda_from_authority(&authority.pubkey(), epoch).0;
 
     // Worst case: MAX_NODES unique nodes
-    let nullify_ix = create_nullify_dedup_instruction(
-        CreateNullifyDedupInstructionInputs {
+    let nullify_ix = create_nullify_state_v1_multi_instruction(
+        CreateNullifyStateV1MultiInstructionInputs {
             authority: authority.pubkey(),
             nullifier_queue,
             merkle_tree,
@@ -40,7 +35,7 @@ fn test_nullify_dedup_v0_transaction_size() {
             proof_3_source: 0,
             proof_4_source: 0,
             shared_top_node: [0xCC; 32],
-            nodes: vec![[0xAA; 32]; NULLIFY_DEDUP_MAX_NODES],
+            nodes: vec![[0xAA; 32]; NULLIFY_STATE_V1_MULTI_MAX_NODES],
             derivation: authority.pubkey(),
             is_metadata_forester: false,
         },
@@ -52,8 +47,7 @@ fn test_nullify_dedup_v0_transaction_size() {
     let compute_price_ix = ComputeBudgetInstruction::set_compute_unit_price(1);
 
     // Build synthetic ALT with the known accounts (includes ComputeBudget program ID)
-    let alt_accounts =
-        nullify_dedup_lookup_table_accounts(merkle_tree, nullifier_queue, Some(forester_pda));
+    let alt_accounts = nullify_state_v1_multi_lookup_table_accounts(merkle_tree, nullifier_queue);
     let alt_address = Pubkey::new_unique();
     let alt = AddressLookupTableAccount {
         key: alt_address,
@@ -79,17 +73,20 @@ fn test_nullify_dedup_v0_transaction_size() {
     // Full tx = compact-u16 sig count (1) + signatures (64 * n) + serialized message
     let tx_size = 1 + tx.signatures.len() * 64 + serialized.len();
 
-    let ix_data_size = 1 + 2 + 8 + 16 + 2 + 4 + 4 + 32 + 4 + NULLIFY_DEDUP_MAX_NODES * 32;
+    let ix_data_size = 8 + 2 + 8 + 16 + 2 + 4 + 4 + 32 + 4 + NULLIFY_STATE_V1_MULTI_MAX_NODES * 32;
 
     println!(
-        "nullify_dedup v0 transaction size: {} bytes (limit: 1232)",
+        "nullify_state_v1_multi v0 transaction size: {} bytes (limit: 1232)",
         tx_size
     );
-    println!("  nullify_dedup instruction data: {} bytes", ix_data_size);
+    println!(
+        "  nullify_state_v1_multi instruction data: {} bytes",
+        ix_data_size
+    );
     println!(
         "  max_nodes: {} ({} bytes payload)",
-        NULLIFY_DEDUP_MAX_NODES,
-        NULLIFY_DEDUP_MAX_NODES * 32
+        NULLIFY_STATE_V1_MULTI_MAX_NODES,
+        NULLIFY_STATE_V1_MULTI_MAX_NODES * 32
     );
     println!("  margin: {} bytes", 1232_i64 - tx_size as i64);
 
@@ -120,7 +117,7 @@ fn test_nullify_dedup_v0_transaction_size() {
 
     assert!(
         tx_size <= 1232,
-        "nullify_dedup v0 transaction is {} bytes, exceeds 1232 byte limit by {} bytes",
+        "nullify_state_v1_multi v0 transaction is {} bytes, exceeds 1232 byte limit by {} bytes",
         tx_size,
         tx_size - 1232
     );

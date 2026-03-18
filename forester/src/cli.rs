@@ -297,6 +297,14 @@ pub struct StartArgs {
 
     #[arg(
         long,
+        env = "ENABLE_V1_MULTI_NULLIFY",
+        help = "Enable nullify_state_v1_multi instruction for batching 2-4 V1 state nullifications per instruction. Requires --lookup-table-address.",
+        default_value = "false"
+    )]
+    pub enable_v1_multi_nullify: bool,
+
+    #[arg(
+        long,
         env = "API_SERVER_PORT",
         help = "HTTP API server port (default: 8080)",
         default_value = "8080"
