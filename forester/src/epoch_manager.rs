@@ -2985,7 +2985,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             return Ok(0);
         };
 
-        let mut batched_tx_config = SendBatchedTransactionsConfig {
+        let batched_tx_config = SendBatchedTransactionsConfig {
             num_batches: 1,
             build_transaction_batch_config: BuildTransactionBatchConfig {
                 batch_size: self.config.transaction_config.legacy_ixs_per_tx as u64,
@@ -3006,13 +3006,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             ),
             confirmation_max_attempts: self.config.transaction_config.confirmation_max_attempts
                 as usize,
-            min_queue_items: None, // set below after reading ALT
+            min_queue_items: self.config.min_queue_items,
         };
 
         let alt_snapshot = (*self.address_lookup_tables).clone();
-        if self.config.enable_v1_multi_nullify && !alt_snapshot.is_empty() {
-            batched_tx_config.min_queue_items = self.config.min_queue_items;
-        }
         let transaction_builder = Arc::new(EpochManagerTransactions::new(
             self.rpc_pool.clone(),
             epoch_info.epoch,
