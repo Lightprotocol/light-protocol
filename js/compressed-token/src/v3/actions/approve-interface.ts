@@ -12,7 +12,14 @@ import {
     sendAndConfirmTx,
     dedupeSigner,
     assertBetaEnabled,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
+import {
+    TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID,
+    createApproveInstruction as createSplApproveInstruction,
+    createRevokeInstruction as createSplRevokeInstruction,
+} from '@solana/spl-token';
 import BN from 'bn.js';
 import {
     createLightTokenApproveInstruction,
@@ -40,18 +47,20 @@ function calculateApproveCU(loadBatch: InternalLoadBatch | null): number {
 }
 
 /**
- * Approve a delegate for a light-token associated token account.
+ * Approve a delegate for an associated token account.
  *
- * Loads cold accounts if needed, then sends the approve instruction.
+ * Supports light-token, SPL, and Token-2022 mints. For light-token mints,
+ * loads cold accounts if needed before sending the approve instruction.
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
- * @param tokenAccount   Light-token ATA address
+ * @param tokenAccount   ATA address
  * @param mint           Mint address
  * @param delegate       Delegate to approve
  * @param amount         Amount to delegate
  * @param owner          Owner of the token account (signer)
  * @param confirmOptions Optional confirm options
+ * @param programId      Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
  * @returns Transaction signature
  */
 export async function approveInterface(
@@ -63,12 +72,15 @@ export async function approveInterface(
     amount: number | bigint | BN,
     owner: Signer,
     confirmOptions?: ConfirmOptions,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
 
     const expectedAta = getAssociatedTokenAddressInterface(
         mint,
         owner.publicKey,
+        false,
+        programId,
     );
     if (!tokenAccount.equals(expectedAta)) {
         throw new Error(
@@ -86,6 +98,7 @@ export async function approveInterface(
         amount,
         owner.publicKey,
         mintInterface.mint.decimals,
+        programId,
     );
 
     const additionalSigners = dedupeSigner(payer, [owner]);
@@ -115,18 +128,20 @@ export async function approveInterface(
 }
 
 /**
- * Build instruction batches for approving a delegate on a light-token ATA.
+ * Build instruction batches for approving a delegate on an ATA.
  *
+ * Supports light-token, SPL, and Token-2022 mints.
  * Returns `TransactionInstruction[][]`. Send [0..n-2] in parallel, then [n-1].
  *
  * @param rpc          RPC connection
  * @param payer        Fee payer public key
  * @param mint         Mint address
- * @param tokenAccount Light-token ATA address
+ * @param tokenAccount ATA address
  * @param delegate     Delegate to approve
  * @param amount       Amount to delegate
  * @param owner        Owner public key
  * @param decimals     Token decimals
+ * @param programId    Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
  * @returns Instruction batches
  */
 export async function createApproveInterfaceInstructions(
@@ -138,20 +153,49 @@ export async function createApproveInterfaceInstructions(
     amount: number | bigint | BN,
     owner: PublicKey,
     decimals: number,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionInstruction[][]> {
     assertBetaEnabled();
 
     const amountBigInt = BigInt(amount.toString());
+
+    const isSplOrT22 =
+        programId.equals(TOKEN_PROGRAM_ID) ||
+        programId.equals(TOKEN_2022_PROGRAM_ID);
 
     const accountInterface = await _getAtaInterface(
         rpc,
         tokenAccount,
         owner,
         mint,
+        undefined,
+        isSplOrT22 ? programId : undefined,
     );
 
     checkNotFrozen(accountInterface, 'approve');
 
+    if (isSplOrT22) {
+        const approveIx = createSplApproveInstruction(
+            tokenAccount,
+            delegate,
+            owner,
+            amountBigInt,
+            [],
+            programId,
+        );
+
+        const numSigners = payer.equals(owner) ? 1 : 2;
+        const txIxs = [
+            ComputeBudgetProgram.setComputeUnitLimit({
+                units: APPROVE_BASE_CU,
+            }),
+            approveIx,
+        ];
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
+        return [txIxs];
+    }
+
+    // Light-token path: load cold accounts if needed
     const internalBatches = await _buildLoadBatches(
         rpc,
         payer,
@@ -223,16 +267,18 @@ export async function createApproveInterfaceInstructions(
 }
 
 /**
- * Revoke delegation for a light-token associated token account.
+ * Revoke delegation for an associated token account.
  *
- * Loads cold accounts if needed, then sends the revoke instruction.
+ * Supports light-token, SPL, and Token-2022 mints. For light-token mints,
+ * loads cold accounts if needed before sending the revoke instruction.
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
- * @param tokenAccount   Light-token ATA address
+ * @param tokenAccount   ATA address
  * @param mint           Mint address
  * @param owner          Owner of the token account (signer)
  * @param confirmOptions Optional confirm options
+ * @param programId      Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
  * @returns Transaction signature
  */
 export async function revokeInterface(
@@ -242,12 +288,15 @@ export async function revokeInterface(
     mint: PublicKey,
     owner: Signer,
     confirmOptions?: ConfirmOptions,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
 
     const expectedAta = getAssociatedTokenAddressInterface(
         mint,
         owner.publicKey,
+        false,
+        programId,
     );
     if (!tokenAccount.equals(expectedAta)) {
         throw new Error(
@@ -263,6 +312,7 @@ export async function revokeInterface(
         tokenAccount,
         owner.publicKey,
         mintInterface.mint.decimals,
+        programId,
     );
 
     const additionalSigners = dedupeSigner(payer, [owner]);
@@ -287,16 +337,18 @@ export async function revokeInterface(
 }
 
 /**
- * Build instruction batches for revoking delegation on a light-token ATA.
+ * Build instruction batches for revoking delegation on an ATA.
  *
+ * Supports light-token, SPL, and Token-2022 mints.
  * Returns `TransactionInstruction[][]`. Send [0..n-2] in parallel, then [n-1].
  *
  * @param rpc          RPC connection
  * @param payer        Fee payer public key
  * @param mint         Mint address
- * @param tokenAccount Light-token ATA address
+ * @param tokenAccount ATA address
  * @param owner        Owner public key
  * @param decimals     Token decimals
+ * @param programId    Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
  * @returns Instruction batches
  */
 export async function createRevokeInterfaceInstructions(
@@ -306,18 +358,45 @@ export async function createRevokeInterfaceInstructions(
     tokenAccount: PublicKey,
     owner: PublicKey,
     decimals: number,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionInstruction[][]> {
     assertBetaEnabled();
+
+    const isSplOrT22 =
+        programId.equals(TOKEN_PROGRAM_ID) ||
+        programId.equals(TOKEN_2022_PROGRAM_ID);
 
     const accountInterface = await _getAtaInterface(
         rpc,
         tokenAccount,
         owner,
         mint,
+        undefined,
+        isSplOrT22 ? programId : undefined,
     );
 
     checkNotFrozen(accountInterface, 'revoke');
 
+    if (isSplOrT22) {
+        const revokeIx = createSplRevokeInstruction(
+            tokenAccount,
+            owner,
+            [],
+            programId,
+        );
+
+        const numSigners = payer.equals(owner) ? 1 : 2;
+        const txIxs = [
+            ComputeBudgetProgram.setComputeUnitLimit({
+                units: APPROVE_BASE_CU,
+            }),
+            revokeIx,
+        ];
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
+        return [txIxs];
+    }
+
+    // Light-token path: load cold accounts if needed
     const internalBatches = await _buildLoadBatches(
         rpc,
         payer,

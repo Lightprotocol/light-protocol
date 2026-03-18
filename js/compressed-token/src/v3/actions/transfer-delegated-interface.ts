@@ -5,28 +5,33 @@ import {
     TransactionInstruction,
     TransactionSignature,
 } from '@solana/web3.js';
-import { Rpc, assertBetaEnabled } from '@lightprotocol/stateless.js';
+import {
+    Rpc,
+    assertBetaEnabled,
+    LIGHT_TOKEN_PROGRAM_ID,
+} from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import { transferInterface } from './transfer-interface';
 import { createTransferInterfaceInstructions } from '../instructions/transfer-interface';
 
 /**
- * Transfer tokens from a light-token ATA as an approved delegate.
+ * Transfer tokens from an ATA as an approved delegate.
  *
- * Convenience wrapper around {@link transferInterface} that makes the
- * delegate-transfer API explicit: the delegate is a {@link Signer} (authority),
- * the owner is a {@link PublicKey} (used only for ATA derivation, does NOT
- * sign).
+ * Supports light-token, SPL, and Token-2022 mints. Convenience wrapper
+ * around {@link transferInterface} that makes the delegate-transfer API
+ * explicit: the delegate is a {@link Signer} (authority), the owner is a
+ * {@link PublicKey} (used only for ATA derivation, does NOT sign).
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
- * @param source         Source light-token ATA (owner's account)
+ * @param source         Source ATA (owner's account)
  * @param mint           Mint address
- * @param destination    Destination light-token ATA
+ * @param destination    Destination ATA
  * @param delegate       Delegate authority (signer)
  * @param owner          Owner of the source ATA (does not sign)
  * @param amount         Amount to transfer (must be within approved allowance)
  * @param confirmOptions Optional confirm options
+ * @param programId      Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
  * @returns Transaction signature
  */
 export async function transferDelegatedInterface(
@@ -39,6 +44,7 @@ export async function transferDelegatedInterface(
     owner: PublicKey,
     amount: number | bigint | BN,
     confirmOptions?: ConfirmOptions,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
 
@@ -50,15 +56,16 @@ export async function transferDelegatedInterface(
         destination,
         delegate,
         amount,
-        undefined,
+        programId,
         confirmOptions,
         { owner },
     );
 }
 
 /**
- * Build instruction batches for a delegated transfer on a light-token ATA.
+ * Build instruction batches for a delegated transfer on an ATA.
  *
+ * Supports light-token, SPL, and Token-2022 mints.
  * Returns `TransactionInstruction[][]`. Send [0..n-2] in parallel, then [n-1].
  *
  * @param rpc         RPC connection
@@ -69,6 +76,7 @@ export async function transferDelegatedInterface(
  * @param owner       Owner of the source ATA (for derivation)
  * @param destination Destination ATA address
  * @param decimals    Token decimals
+ * @param programId   Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
  * @returns Instruction batches
  */
 export async function createTransferDelegatedInterfaceInstructions(
@@ -80,6 +88,7 @@ export async function createTransferDelegatedInterfaceInstructions(
     owner: PublicKey,
     destination: PublicKey,
     decimals: number,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionInstruction[][]> {
     assertBetaEnabled();
 
@@ -91,6 +100,6 @@ export async function createTransferDelegatedInterfaceInstructions(
         delegate,
         destination,
         decimals,
-        { owner },
+        { owner, programId },
     );
 }

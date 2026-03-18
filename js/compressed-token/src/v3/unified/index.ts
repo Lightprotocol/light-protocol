@@ -504,11 +504,14 @@ export type {
 };
 
 /**
- * Approve a delegate for a light-token associated token account.
+ * Approve a delegate for an associated token account.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022) and dispatches
+ * to the appropriate instruction.
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
- * @param tokenAccount   Light-token ATA address
+ * @param tokenAccount   ATA address
  * @param mint           Mint address
  * @param delegate       Delegate to approve
  * @param amount         Amount to delegate
@@ -526,6 +529,7 @@ export async function approveInterface(
     owner: Signer,
     confirmOptions?: ConfirmOptions,
 ) {
+    const mintInfo = await getMintInterface(rpc, mint);
     return _approveInterface(
         rpc,
         payer,
@@ -535,11 +539,14 @@ export async function approveInterface(
         amount,
         owner,
         confirmOptions,
+        mintInfo.programId,
     );
 }
 
 /**
- * Build instruction batches for approving a delegate on a light-token ATA.
+ * Build instruction batches for approving a delegate on an ATA.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022).
  */
 export async function createApproveInterfaceInstructions(
     rpc: Rpc,
@@ -551,8 +558,8 @@ export async function createApproveInterfaceInstructions(
     owner: PublicKey,
     decimals?: number,
 ): Promise<TransactionInstruction[][]> {
-    const resolvedDecimals =
-        decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
+    const mintInfo = await getMintInterface(rpc, mint);
+    const resolvedDecimals = decimals ?? mintInfo.mint.decimals;
     return _createApproveInterfaceInstructions(
         rpc,
         payer,
@@ -562,15 +569,19 @@ export async function createApproveInterfaceInstructions(
         amount,
         owner,
         resolvedDecimals,
+        mintInfo.programId,
     );
 }
 
 /**
- * Revoke delegation for a light-token associated token account.
+ * Revoke delegation for an associated token account.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022) and dispatches
+ * to the appropriate instruction.
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
- * @param tokenAccount   Light-token ATA address
+ * @param tokenAccount   ATA address
  * @param mint           Mint address
  * @param owner          Owner of the token account (signer)
  * @param confirmOptions Optional confirm options
@@ -584,6 +595,7 @@ export async function revokeInterface(
     owner: Signer,
     confirmOptions?: ConfirmOptions,
 ) {
+    const mintInfo = await getMintInterface(rpc, mint);
     return _revokeInterface(
         rpc,
         payer,
@@ -591,11 +603,14 @@ export async function revokeInterface(
         mint,
         owner,
         confirmOptions,
+        mintInfo.programId,
     );
 }
 
 /**
- * Build instruction batches for revoking delegation on a light-token ATA.
+ * Build instruction batches for revoking delegation on an ATA.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022).
  */
 export async function createRevokeInterfaceInstructions(
     rpc: Rpc,
@@ -605,8 +620,8 @@ export async function createRevokeInterfaceInstructions(
     owner: PublicKey,
     decimals?: number,
 ): Promise<TransactionInstruction[][]> {
-    const resolvedDecimals =
-        decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
+    const mintInfo = await getMintInterface(rpc, mint);
+    const resolvedDecimals = decimals ?? mintInfo.mint.decimals;
     return _createRevokeInterfaceInstructions(
         rpc,
         payer,
@@ -614,11 +629,12 @@ export async function createRevokeInterfaceInstructions(
         tokenAccount,
         owner,
         resolvedDecimals,
+        mintInfo.programId,
     );
 }
 
 /**
- * Transfer tokens from a light-token ATA as an approved delegate.
+ * Transfer tokens from an ATA as an approved delegate.
  *
  * Auto-detects mint type (light-token, SPL, or Token-2022) and dispatches
  * to the appropriate instruction.
@@ -661,7 +677,7 @@ export async function transferDelegatedInterface(
 }
 
 /**
- * Build instruction batches for a delegated transfer on a light-token ATA.
+ * Build instruction batches for a delegated transfer on an ATA.
  *
  * Auto-detects mint type (light-token, SPL, or Token-2022).
  */
