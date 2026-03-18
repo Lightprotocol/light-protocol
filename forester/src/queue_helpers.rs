@@ -232,7 +232,11 @@ pub async fn fetch_queue_item_data<R: Rpc>(
         .filter(|(index, _, is_pending)| {
             *index >= start_index as usize && *index < end_index && *is_pending
         })
-        .map(|(index, hash, _)| QueueItemData { hash, index, leaf_index: None })
+        .map(|(index, hash, _)| QueueItemData {
+            hash,
+            index,
+            leaf_index: None,
+        })
         .collect();
 
     tracing::debug!(

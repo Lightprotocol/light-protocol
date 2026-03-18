@@ -170,8 +170,10 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
                 .map(|li| li.label.as_str())
                 .collect::<Vec<_>>()
                 .join("+");
-            let instructions: Vec<Instruction> =
-                labeled_chunk.iter().map(|li| li.instruction.clone()).collect();
+            let instructions: Vec<Instruction> = labeled_chunk
+                .iter()
+                .map(|li| li.instruction.clone())
+                .collect();
             let prepared = create_smart_transaction(CreateSmartTransactionConfig {
                 payer: payer.insecure_clone(),
                 instructions,
