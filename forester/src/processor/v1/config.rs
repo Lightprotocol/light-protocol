@@ -27,6 +27,10 @@ pub struct SendBatchedTransactionsConfig {
     /// Only applies to StateV1 trees. When `None`, processing starts immediately.
     /// When the timeout deadline is reached, returns 0 (re-scheduled next light slot).
     pub min_queue_items: Option<usize>,
+    /// When true, fetch leaf indices from the indexer and sort work items by
+    /// leaf_index before chunking, so adjacent leaves land in the same batch
+    /// for better dedup grouping.
+    pub enable_presort: bool,
 }
 
 #[derive(Debug, Clone, Copy)]

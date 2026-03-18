@@ -3006,7 +3006,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             ),
             confirmation_max_attempts: self.config.transaction_config.confirmation_max_attempts
                 as usize,
-            min_queue_items: self.config.min_queue_items,
+            min_queue_items: if self.config.enable_v1_multi_nullify
+                && !self.address_lookup_tables.is_empty()
+            {
+                self.config.min_queue_items
+            } else {
+                None
+            },
+            enable_presort: self.config.enable_v1_multi_nullify
+                && !self.address_lookup_tables.is_empty(),
         };
 
         let alt_snapshot = (*self.address_lookup_tables).clone();
