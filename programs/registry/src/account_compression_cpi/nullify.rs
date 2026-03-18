@@ -97,16 +97,12 @@ fn nullify_single_leaf_cpi(
 /// Determines proof count from leaf_indices sentinel values.
 /// Returns Err(InvalidProofEncoding) if fewer than 2 leaves are specified.
 pub fn count_from_leaf_indices(leaf_indices: &[u32; 4]) -> Result<usize> {
-    if leaf_indices[0] == u32::MAX || leaf_indices[1] == u32::MAX {
-        return err!(RegistryError::InvalidProofEncoding);
+    match *leaf_indices {
+        [a, b, u32::MAX, u32::MAX] if a != u32::MAX && b != u32::MAX => Ok(2),
+        [a, b, c, u32::MAX] if a != u32::MAX && b != u32::MAX && c != u32::MAX => Ok(3),
+        [a, b, c, d] if a != u32::MAX && b != u32::MAX && c != u32::MAX && d != u32::MAX => Ok(4),
+        _ => err!(RegistryError::InvalidProofEncoding),
     }
-    Ok(if leaf_indices[2] == u32::MAX {
-        2
-    } else if leaf_indices[3] == u32::MAX {
-        3
-    } else {
-        4
-    })
 }
 
 #[allow(clippy::too_many_arguments)]
