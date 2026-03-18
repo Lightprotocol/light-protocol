@@ -3975,7 +3975,7 @@ dependencies = [
 
 [[package]]
 name = "light-event"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "borsh 0.10.4",
  "light-compressed-account",
