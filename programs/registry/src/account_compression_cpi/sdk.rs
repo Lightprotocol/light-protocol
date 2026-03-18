@@ -62,9 +62,8 @@ pub fn create_nullify_instruction(
     }
 }
 
-/// Returns the base accounts for populating an address lookup table
-/// for nullify v0 transactions.
-fn nullify_lookup_table_accounts_base(merkle_tree: Pubkey, nullifier_queue: Pubkey) -> Vec<Pubkey> {
+/// Returns the common accounts shared by all forester lookup tables.
+fn common_lookup_table_accounts() -> Vec<Pubkey> {
     let (cpi_authority, _) = get_cpi_authority_pda();
     let registered_program_pda = get_registered_program_pda(&crate::ID);
     vec![
@@ -72,9 +71,8 @@ fn nullify_lookup_table_accounts_base(merkle_tree: Pubkey, nullifier_queue: Pubk
         registered_program_pda,
         account_compression::ID,
         Pubkey::new_from_array(NOOP_PUBKEY),
-        merkle_tree,
-        nullifier_queue,
         crate::ID,
+        solana_sdk::compute_budget::ID,
     ]
 }
 
@@ -196,9 +194,55 @@ pub fn nullify_state_v1_multi_lookup_table_accounts(
     merkle_tree: Pubkey,
     nullifier_queue: Pubkey,
 ) -> Vec<Pubkey> {
-    let mut accounts = nullify_lookup_table_accounts_base(merkle_tree, nullifier_queue);
-    accounts.push(solana_sdk::compute_budget::ID);
+    let mut accounts = common_lookup_table_accounts();
+    accounts.push(merkle_tree);
+    accounts.push(nullifier_queue);
     accounts
+}
+
+/// Parameters for creating a unified forester address lookup table
+/// that covers all tree types.
+pub struct ForesterLookupTableParams {
+    /// (merkle_tree, nullifier_queue)
+    pub v1_state_trees: Vec<(Pubkey, Pubkey)>,
+    /// (merkle_tree, queue)
+    pub v1_address_trees: Vec<(Pubkey, Pubkey)>,
+    /// (merkle_tree, output_queue)
+    pub v2_state_trees: Vec<(Pubkey, Pubkey)>,
+    /// merkle_tree (== queue for v2 address trees)
+    pub v2_address_trees: Vec<Pubkey>,
+}
+
+/// Returns a deduplicated list of accounts for a unified forester ALT
+/// that covers all tree types. `v0::Message::try_compile` automatically
+/// selects which ALT entries to reference per instruction, so unused
+/// entries cost nothing.
+pub fn forester_lookup_table_accounts(params: &ForesterLookupTableParams) -> Vec<Pubkey> {
+    let mut accounts = common_lookup_table_accounts();
+
+    for (merkle_tree, nullifier_queue) in &params.v1_state_trees {
+        push_if_absent(&mut accounts, *merkle_tree);
+        push_if_absent(&mut accounts, *nullifier_queue);
+    }
+    for (merkle_tree, queue) in &params.v1_address_trees {
+        push_if_absent(&mut accounts, *merkle_tree);
+        push_if_absent(&mut accounts, *queue);
+    }
+    for (merkle_tree, output_queue) in &params.v2_state_trees {
+        push_if_absent(&mut accounts, *merkle_tree);
+        push_if_absent(&mut accounts, *output_queue);
+    }
+    for merkle_tree in &params.v2_address_trees {
+        push_if_absent(&mut accounts, *merkle_tree);
+    }
+
+    accounts
+}
+
+fn push_if_absent(accounts: &mut Vec<Pubkey>, key: Pubkey) {
+    if !accounts.contains(&key) {
+        accounts.push(key);
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

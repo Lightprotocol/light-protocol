@@ -38,7 +38,9 @@ use light_compressed_token::process_transfer::{
 use light_hasher::Poseidon;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
-use light_registry::account_compression_cpi::sdk::nullify_state_v1_multi_lookup_table_accounts;
+use light_registry::account_compression_cpi::sdk::{
+    forester_lookup_table_accounts, ForesterLookupTableParams,
+};
 use light_test_utils::{
     actions::{create_compressible_token_account, CreateCompressibleTokenAccountInputs},
     conversions::sdk_to_program_token_data,
@@ -192,12 +194,7 @@ fn is_v2_address_test_enabled() -> bool {
 
 /// Creates an on-chain Address Lookup Table populated with the accounts
 /// needed for nullify_state_v1_multi instructions. Returns the ALT address.
-async fn create_nullify_state_v1_multi_alt<R: Rpc>(
-    rpc: &mut R,
-    payer: &Keypair,
-    merkle_tree: Pubkey,
-    nullifier_queue: Pubkey,
-) -> Pubkey {
+async fn create_forester_alt<R: Rpc>(rpc: &mut R, payer: &Keypair, env: &TestAccounts) -> Pubkey {
     use light_client::rpc::lut::instruction::{create_lookup_table, extend_lookup_table};
 
     let slot = rpc.get_slot().await.unwrap();
@@ -206,7 +203,25 @@ async fn create_nullify_state_v1_multi_alt<R: Rpc>(
         .await
         .unwrap();
 
-    let addresses = nullify_state_v1_multi_lookup_table_accounts(merkle_tree, nullifier_queue);
+    let params = ForesterLookupTableParams {
+        v1_state_trees: env
+            .v1_state_trees
+            .iter()
+            .map(|t| (t.merkle_tree, t.nullifier_queue))
+            .collect(),
+        v1_address_trees: env
+            .v1_address_trees
+            .iter()
+            .map(|t| (t.merkle_tree, t.queue))
+            .collect(),
+        v2_state_trees: env
+            .v2_state_trees
+            .iter()
+            .map(|t| (t.merkle_tree, t.output_queue))
+            .collect(),
+        v2_address_trees: env.v2_address_trees.clone(),
+    };
+    let addresses = forester_lookup_table_accounts(&params);
     let extend_ix =
         extend_lookup_table(alt_address, payer.pubkey(), Some(payer.pubkey()), addresses);
     rpc.create_and_send_transaction(&[extend_ix], &payer.pubkey(), &[payer])
@@ -325,17 +340,13 @@ async fn e2e_test() {
         .await;
     }
 
-    // Create ALT for nullify_state_v1_multi if V1 state test is enabled
+    // Create unified ALT for all forester operations.
+    // v0::Message::try_compile selects relevant entries per instruction automatically.
+    let alt_addr = create_forester_alt(&mut rpc, &env.protocol.forester, &env).await;
+    println!("Created forester ALT: {}", alt_addr);
+    config.lookup_table_address = Some(alt_addr);
+
     if is_v1_state_test_enabled() {
-        let alt_addr = create_nullify_state_v1_multi_alt(
-            &mut rpc,
-            &env.protocol.forester,
-            env.v1_state_trees[0].merkle_tree,
-            env.v1_state_trees[0].nullifier_queue,
-        )
-        .await;
-        println!("Created nullify_state_v1_multi ALT: {}", alt_addr);
-        config.lookup_table_address = Some(alt_addr);
         config.min_queue_items = Some(10);
         config.enable_v1_multi_nullify = true;
     }

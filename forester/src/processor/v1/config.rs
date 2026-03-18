@@ -21,7 +21,7 @@ pub struct SendBatchedTransactionsConfig {
     pub confirmation_max_attempts: usize,
     /// Minimum number of queue items required before processing begins.
     /// Only applies to StateV1 trees. When `None`, processing starts immediately.
-    /// When the timeout deadline is near, this threshold is ignored to prevent starvation.
+    /// When the timeout deadline is reached, returns 0 (re-scheduled next light slot).
     pub min_queue_items: Option<usize>,
 }
 
