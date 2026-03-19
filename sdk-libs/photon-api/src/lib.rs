@@ -12,7 +12,11 @@
 include!("codegen.rs");
 
 fn ensure_ring_provider() {
-    let _ = rustls::crypto::ring::default_provider().install_default();
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    });
 }
 
 pub mod apis {
