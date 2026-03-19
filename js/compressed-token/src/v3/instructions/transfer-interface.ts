@@ -141,7 +141,7 @@ export function createLightTokenTransferCheckedInstruction(
     });
 }
 
-export async function createTransferInterfaceInstructions(
+export async function createTransferToAccountInterfaceInstructions(
     rpc: Rpc,
     payer: PublicKey,
     mint: PublicKey,

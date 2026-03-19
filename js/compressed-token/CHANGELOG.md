@@ -2,10 +2,11 @@
 
 ### Breaking Changes
 
-- **`transferInterface` and `createTransferInterfaceInstructions`**: `destination` is now the token account address (SPL-style), not the recipient wallet. `ensureRecipientAta` removed; caller must create the destination ATA before transfer via `getOrCreateAtaInterface` or `createAssociatedTokenAccountInterfaceIdempotentInstruction`.
-    - **Action:** `transferInterface(rpc, payer, source, mint, destination, owner, amount, ...)` — `destination` is the token account (e.g. `getAssociatedTokenAddressInterface(mint, recipient.publicKey)`).
-    - **Instruction builder:** `createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, destination, decimals, options?)` — same `destination` semantics.
-    - **`decimals` is now required** on `createTransferInterfaceInstructions` (instruction-level API). Fetch with `getMintInterface(rpc, mint).mint.decimals` if you were not already threading mint decimals.
+- **`transferInterface` and `createTransferInterfaceInstructions`** now take a recipient wallet address and ensure recipient ATA internally.
+    - **Action:** `transferInterface(rpc, payer, source, mint, recipient, owner, amount, ...)` — `recipient` is the wallet public key.
+    - **Instruction builder:** `createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, recipient, decimals, options?)` — derives destination ATA and inserts idempotent ATA-create internally.
+    - **Advanced explicit-account path:** use `transferToAccountInterface(...)` and `createTransferToAccountInterfaceInstructions(...)` for destination token-account routing (program-owned/custom accounts), preserving the previous destination-account behavior.
+    - **`decimals` is required** on v3 action-level instruction builders. Fetch with `getMintInterface(rpc, mint).mint.decimals` if not already threaded.
 
 - **Root export removed:** `createLoadAtaInstructionsFromInterface` is no longer exported from the package root. Use `createLoadAtaInstructions` (public API) and pass ATA/owner/mint directly.
 

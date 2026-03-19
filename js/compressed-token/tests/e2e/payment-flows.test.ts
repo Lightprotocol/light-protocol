@@ -33,8 +33,8 @@ import {
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { getOrCreateAtaInterface } from '../../src/v3/actions/get-or-create-ata-interface';
 import {
-    transferInterface,
-    createTransferInterfaceInstructions,
+    transferToAccountInterface as transferInterface,
+    createTransferToAccountInterfaceInstructions as createTransferInterfaceInstructions,
     sliceLast,
 } from '../../src/v3/actions/transfer-interface';
 import {

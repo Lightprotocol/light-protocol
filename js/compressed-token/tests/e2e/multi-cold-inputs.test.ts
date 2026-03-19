@@ -49,7 +49,7 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { getAtaInterface } from '../../src/v3/get-account-interface';
-import { transferInterface } from '../../src/v3/actions/transfer-interface';
+import { transferToAccountInterface as transferInterface } from '../../src/v3/actions/transfer-interface';
 import {
     loadAta,
     createLoadAtaInstructions,
