@@ -28,14 +28,14 @@ pub struct Options {
     minutes: u64,
 
     /// Number of buckets to show going back in time
-    #[clap(long, default_value_t = 6)]
+    #[clap(long, default_value_t = 3)]
     buckets: u64,
 
     /// Network: mainnet | devnet | testnet | local
     #[clap(long, default_value = "mainnet")]
     network: String,
 
-    /// Custom RPC URL (overrides --network)
+    /// Custom RPC URL (overrides --network and SOLANA_RPC_URL)
     #[clap(long)]
     rpc_url: Option<String>,
 
@@ -58,6 +58,10 @@ pub struct Options {
     /// Include both known forester keypairs
     #[clap(long)]
     forester: bool,
+
+    /// Short mode: 1-minute buckets, 10 buckets (overrides --minutes and --buckets)
+    #[clap(long, short)]
+    short: bool,
 }
 
 fn network_to_url(network: &str) -> String {
@@ -446,6 +450,12 @@ fn lookup_registry_error(code: u32) -> Option<&'static str> {
 // ---------------------------------------------------------------------------
 
 pub async fn fetch_keypair_txs(opts: Options) -> Result<()> {
+    let (minutes, buckets) = if opts.short {
+        (1, 10)
+    } else {
+        (opts.minutes, opts.buckets)
+    };
+
     // Expand pubkeys from preset flags (additive with positional args).
     let mut pubkeys = opts.pubkeys.clone();
     if opts.system {
@@ -466,30 +476,35 @@ pub async fn fetch_keypair_txs(opts: Options) -> Result<()> {
         );
     }
 
-    let rpc_url = opts
-        .rpc_url
-        .unwrap_or_else(|| network_to_url(&opts.network));
+    let rpc_url = opts.rpc_url.unwrap_or_else(|| {
+        std::env::var("SOLANA_RPC_URL").unwrap_or_else(|_| network_to_url(&opts.network))
+    });
 
     println!(
         "Fetching transactions for {} address(es)  |  bucket: {} min  |  looking back {} buckets",
         pubkeys.len(),
-        opts.minutes,
-        opts.buckets
+        minutes,
+        buckets
     );
-    println!("RPC: {}", rpc_url);
+    let display_url = if let Some(idx) = rpc_url.find("api-key=") {
+        format!("{}api-key=***", &rpc_url[..idx])
+    } else {
+        rpc_url.clone()
+    };
+    println!("RPC: {}", display_url);
     println!();
 
     let client = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
 
     let now = Utc::now().timestamp();
-    let bucket_secs = opts.minutes as i64 * 60;
-    let total_lookback = bucket_secs * opts.buckets as i64;
+    let bucket_secs = minutes as i64 * 60;
+    let total_lookback = bucket_secs * buckets as i64;
     let cutoff = now - total_lookback;
 
     // Build header: Address | -10m ok | fail | TPS | -20m ok | fail | TPS | ... | Total | Fail
     let mut header = vec!["Address".to_string()];
-    for k in 1..=opts.buckets {
-        header.push(format!("-{}m ok", k * opts.minutes));
+    for k in 1..=buckets {
+        header.push(format!("-{}m ok", k * minutes));
         header.push("fail".to_string());
         header.push("TPS".to_string());
     }
@@ -505,10 +520,10 @@ pub async fn fetch_keypair_txs(opts: Options) -> Result<()> {
     for pubkey_str in &pubkeys {
         let pubkey = Pubkey::from_str(pubkey_str)?;
 
-        let mut ok_counts = vec![0u64; opts.buckets as usize];
-        let mut fail_counts = vec![0u64; opts.buckets as usize];
+        let mut ok_counts = vec![0u64; buckets as usize];
+        let mut fail_counts = vec![0u64; buckets as usize];
         let mut error_maps: Vec<HashMap<String, u64>> = if opts.verbose {
-            (0..opts.buckets as usize).map(|_| HashMap::new()).collect()
+            (0..buckets as usize).map(|_| HashMap::new()).collect()
         } else {
             Vec::new()
         };
@@ -540,7 +555,7 @@ pub async fn fetch_keypair_txs(opts: Options) -> Result<()> {
                     } else {
                         (age / bucket_secs) as usize
                     };
-                    if bucket_idx < opts.buckets as usize {
+                    if bucket_idx < buckets as usize {
                         match &sig_info.err {
                             None => ok_counts[bucket_idx] += 1,
                             Some(err) => {
@@ -596,7 +611,7 @@ pub async fn fetch_keypair_txs(opts: Options) -> Result<()> {
                 if errors.is_empty() {
                     continue;
                 }
-                let label = format!("-{}m", (k + 1) as u64 * opts.minutes);
+                let label = format!("-{}m", (k + 1) as u64 * minutes);
                 let mut sorted: Vec<_> = errors.iter().collect();
                 sorted.sort_by(|a, b| b.1.cmp(a.1));
                 println!("  {}:", label);
