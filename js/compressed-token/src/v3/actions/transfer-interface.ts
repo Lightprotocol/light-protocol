@@ -33,71 +33,6 @@ export interface InterfaceOptions {
     owner?: PublicKey;
 }
 
-function assertSourceMatchesExpectedAta(
-    source: PublicKey,
-    mint: PublicKey,
-    effectiveOwner: PublicKey,
-    programId: PublicKey,
-) {
-    const expectedSource = getAssociatedTokenAddressInterface(
-        mint,
-        effectiveOwner,
-        false,
-        programId,
-    );
-    if (!source.equals(expectedSource)) {
-        throw new Error(
-            `Source mismatch. Expected ${expectedSource.toBase58()}, got ${source.toBase58()}`,
-        );
-    }
-}
-
-async function executeTransferBatches(
-    rpc: Rpc,
-    payer: Signer,
-    owner: Signer,
-    batches: TransactionInstruction[][],
-    confirmOptions?: ConfirmOptions,
-): Promise<TransactionSignature> {
-    const additionalSigners = dedupeSigner(payer, [owner]);
-    const { rest: loads, last: transferIxs } = sliceLast(batches);
-
-    await Promise.all(
-        loads.map(async ixs => {
-            const { blockhash } = await rpc.getLatestBlockhash();
-            const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
-            return sendAndConfirmTx(rpc, tx, confirmOptions);
-        }),
-    );
-
-    const { blockhash } = await rpc.getLatestBlockhash();
-    const tx = buildAndSignTx(transferIxs, payer, blockhash, additionalSigners);
-    return sendAndConfirmTx(rpc, tx, confirmOptions);
-}
-
-function withFinalBatchPrepInstruction(
-    batches: TransactionInstruction[][],
-    prepIx: TransactionInstruction,
-): TransactionInstruction[][] {
-    if (batches.length === 0) return [[prepIx]];
-
-    const finalBatch = batches[batches.length - 1];
-    let insertionIdx = 0;
-    while (
-        insertionIdx < finalBatch.length &&
-        finalBatch[insertionIdx].programId.equals(ComputeBudgetProgram.programId)
-    ) {
-        insertionIdx += 1;
-    }
-
-    const patchedFinalBatch = [
-        ...finalBatch.slice(0, insertionIdx),
-        prepIx,
-        ...finalBatch.slice(insertionIdx),
-    ];
-    return [...batches.slice(0, -1), patchedFinalBatch];
-}
-
 export async function transferToAccountInterface(
     rpc: Rpc,
     payer: Signer,
@@ -115,7 +50,17 @@ export async function transferToAccountInterface(
     assertBetaEnabled();
 
     const effectiveOwner = options?.owner ?? owner.publicKey;
-    assertSourceMatchesExpectedAta(source, mint, effectiveOwner, programId);
+    const expectedSource = getAssociatedTokenAddressInterface(
+        mint,
+        effectiveOwner,
+        false,
+        programId,
+    );
+    if (!source.equals(expectedSource)) {
+        throw new Error(
+            `Source mismatch. Expected ${expectedSource.toBase58()}, got ${source.toBase58()}`,
+        );
+    }
 
     const amountBigInt = BigInt(amount.toString());
 
@@ -136,7 +81,18 @@ export async function transferToAccountInterface(
         },
     );
 
-    return executeTransferBatches(rpc, payer, owner, batches, confirmOptions);
+    const additionalSigners = dedupeSigner(payer, [owner]);
+    const { rest: loads, last: transferIxs } = sliceLast(batches);
+    await Promise.all(
+        loads.map(async ixs => {
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+            return sendAndConfirmTx(rpc, tx, confirmOptions);
+        }),
+    );
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const tx = buildAndSignTx(transferIxs, payer, blockhash, additionalSigners);
+    return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
 export async function transferInterface(
@@ -156,7 +112,17 @@ export async function transferInterface(
     assertBetaEnabled();
 
     const effectiveOwner = options?.owner ?? owner.publicKey;
-    assertSourceMatchesExpectedAta(source, mint, effectiveOwner, programId);
+    const expectedSource = getAssociatedTokenAddressInterface(
+        mint,
+        effectiveOwner,
+        false,
+        programId,
+    );
+    if (!source.equals(expectedSource)) {
+        throw new Error(
+            `Source mismatch. Expected ${expectedSource.toBase58()}, got ${source.toBase58()}`,
+        );
+    }
 
     const resolvedDecimals =
         decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
@@ -175,7 +141,18 @@ export async function transferInterface(
         },
     );
 
-    return executeTransferBatches(rpc, payer, owner, batches, confirmOptions);
+    const additionalSigners = dedupeSigner(payer, [owner]);
+    const { rest: loads, last: transferIxs } = sliceLast(batches);
+    await Promise.all(
+        loads.map(async ixs => {
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+            return sendAndConfirmTx(rpc, tx, confirmOptions);
+        }),
+    );
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const tx = buildAndSignTx(transferIxs, payer, blockhash, additionalSigners);
+    return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
 export interface TransferToAccountOptions extends InterfaceOptions {
@@ -223,7 +200,23 @@ export async function createTransferInterfaceInstructions(
             programId,
         );
 
-    return withFinalBatchPrepInstruction(batches, ensureRecipientAtaIx);
+    if (batches.length === 0) return [[ensureRecipientAtaIx]];
+
+    const finalBatch = batches[batches.length - 1];
+    let insertionIdx = 0;
+    while (
+        insertionIdx < finalBatch.length &&
+        finalBatch[insertionIdx].programId.equals(ComputeBudgetProgram.programId)
+    ) {
+        insertionIdx += 1;
+    }
+
+    const patchedFinalBatch = [
+        ...finalBatch.slice(0, insertionIdx),
+        ensureRecipientAtaIx,
+        ...finalBatch.slice(insertionIdx),
+    ];
+    return [...batches.slice(0, -1), patchedFinalBatch];
 }
 
 export {
