@@ -3,10 +3,11 @@
   "checkpoint_id": "ca2f5cb4ca53",
   "session_id": "65707055-904b-421c-a462-3a5b23a62183",
   "strategy": "manual-commit",
-  "created_at": "2026-03-19T15:16:51.428099Z",
+  "created_at": "2026-03-19T18:41:48.493447Z",
   "branch": "jorrit/chore-add-forester-tps-xtask",
   "checkpoints_count": 0,
   "files_touched": [
+    "sdk-tests/csdk-anchor-full-derived-test/tests/integration_tests.rs",
     "xtask/src/fetch_keypair_txs.rs",
     "xtask/src/main.rs"
   ],
@@ -21,13 +22,13 @@
     "api_call_count": 679
   },
   "initial_attribution": {
-    "calculated_at": "2026-03-19T15:16:39.554726Z",
-    "agent_lines": 0,
-    "human_added": 14759,
+    "calculated_at": "2026-03-19T18:41:37.684689Z",
+    "agent_lines": 429,
+    "human_added": 0,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 14759,
-    "agent_percentage": 0
+    "total_committed": 429,
+    "agent_percentage": 100
   },
   "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/65707055-904b-421c-a462-3a5b23a62183.jsonl"
 }
