@@ -36,9 +36,7 @@ import {
     createTransferInterfaceInstructions as _createTransferInterfaceInstructions,
     createTransferToAccountInterfaceInstructions as _createTransferToAccountInterfaceInstructions,
 } from '../actions/transfer-interface';
-import type {
-    TransferOptions as _TransferOptions,
-} from '../actions/transfer-interface';
+import type { TransferOptions as _TransferOptions } from '../actions/transfer-interface';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import {
     createUnwrapInstructions as _createUnwrapInstructions,

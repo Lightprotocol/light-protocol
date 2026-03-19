@@ -179,50 +179,50 @@ describe('calculateLoadBatchComputeUnits', () => {
 // ---------------------------------------------------------------------------
 
 describe('calculateTransferCU', () => {
-    it('hot sender (null batch): 10_000 base * 1.3 = 13_000 → clamped to 50_000', () => {
+    it('hot sender (null batch): (10_000 base + 10_000 transfer buffer) * 1.3 = 26_000 → clamped to 50_000', () => {
         const cu = calculateTransferCU(null);
         expect(cu).toBe(50_000);
     });
 
-    it('empty load batch: 10_000 base * 1.3 = 13_000 → clamped to 50_000', () => {
+    it('empty load batch: (10_000 base + 10_000 transfer buffer) * 1.3 = 26_000 → clamped to 50_000', () => {
         const cu = calculateTransferCU(emptyBatch());
         expect(cu).toBe(50_000);
     });
 
-    it('ATA creation in batch: (10_000 + 30_000) * 1.3 = 52_000', () => {
+    it('ATA creation in batch: (10_000 + 10_000 + 30_000) * 1.3 = 65_000', () => {
         const cu = calculateTransferCU(emptyBatch({ hasAtaCreation: true }));
-        expect(cu).toBe(52_000);
+        expect(cu).toBe(65_000);
     });
 
-    it('1 wrap in batch: (10_000 + 50_000) * 1.3 = 78_000', () => {
+    it('1 wrap in batch: (10_000 + 10_000 + 50_000) * 1.3 = 91_000', () => {
         const cu = calculateTransferCU(emptyBatch({ wrapCount: 1 }));
-        expect(cu).toBe(78_000);
+        expect(cu).toBe(91_000);
     });
 
-    it('1 full-proof compressed account: (10_000 + 50_000 + 100_000 + 30_000) * 1.3 = 247_000', () => {
+    it('1 full-proof compressed account: (10_000 + 10_000 + 50_000 + 100_000 + 30_000) * 1.3 = 260_000', () => {
         const acc = mockParsedAccount(false);
         const cu = calculateTransferCU(
             emptyBatch({ compressedAccounts: [acc] }),
         );
-        expect(cu).toBe(247_000);
+        expect(cu).toBe(260_000);
     });
 
-    it('1 proveByIndex account: (10_000 + 50_000 + 10_000) * 1.3 = 91_000', () => {
+    it('1 proveByIndex account: (10_000 + 10_000 + 50_000 + 10_000) * 1.3 = 104_000', () => {
         const acc = mockParsedAccount(true);
         const cu = calculateTransferCU(
             emptyBatch({ compressedAccounts: [acc] }),
         );
-        expect(cu).toBe(91_000);
+        expect(cu).toBe(104_000);
     });
 
-    it('8 full-proof accounts: (10_000 + 50_000 + 100_000 + 8*30_000) * 1.3 = 520_000', () => {
+    it('8 full-proof accounts: (10_000 + 10_000 + 50_000 + 100_000 + 8*30_000) * 1.3 = 533_000', () => {
         const accounts = Array.from({ length: 8 }, () =>
             mockParsedAccount(false),
         );
         const cu = calculateTransferCU(
             emptyBatch({ compressedAccounts: accounts }),
         );
-        expect(cu).toBe(520_000);
+        expect(cu).toBe(533_000);
     });
 
     it('ATA + 1 wrap + 8 full-proof: combines all costs', () => {
@@ -236,10 +236,10 @@ describe('calculateTransferCU', () => {
                 compressedAccounts: accounts,
             }),
         );
-        // (10_000 + 30_000 + 50_000 + 50_000 + 100_000 + 8*30_000) * 1.3
-        // = (10_000+30_000+50_000+50_000+100_000+240_000) * 1.3
-        // = 480_000 * 1.3 = 624_000
-        expect(cu).toBe(624_000);
+        // (10_000 + 10_000 + 30_000 + 50_000 + 50_000 + 100_000 + 8*30_000) * 1.3
+        // = (10_000+10_000+30_000+50_000+50_000+100_000+240_000) * 1.3
+        // = 490_000 * 1.3 = 637_000
+        expect(cu).toBe(637_000);
     });
 
     it('caps at 1_400_000', () => {
@@ -252,7 +252,7 @@ describe('calculateTransferCU', () => {
         expect(cu).toBe(1_400_000);
     });
 
-    it('transfer CU exceeds load CU (transfer adds 10_000 base)', () => {
+    it('transfer CU exceeds load CU (transfer adds 10_000 base + 10_000 transfer buffer)', () => {
         const acc = mockParsedAccount(false);
         const loadCu = calculateLoadBatchComputeUnits(
             emptyBatch({ compressedAccounts: [acc] }),

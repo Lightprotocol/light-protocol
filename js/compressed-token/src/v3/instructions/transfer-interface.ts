@@ -43,7 +43,10 @@ const TRANSFER_EXTRA_BUFFER_CU = 10_000;
 export function calculateTransferCU(
     loadBatch: InternalLoadBatch | null,
 ): number {
-    return calculateCombinedCU(TRANSFER_BASE_CU + TRANSFER_EXTRA_BUFFER_CU, loadBatch);
+    return calculateCombinedCU(
+        TRANSFER_BASE_CU + TRANSFER_EXTRA_BUFFER_CU,
+        loadBatch,
+    );
 }
 
 /**
