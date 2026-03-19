@@ -82,6 +82,12 @@ members = [
 
 resolver = "2"
 
+[patch.crates-io]
+# Local version uses ark-ff 0.5 (crates.io 0.2.0 uses 0.4), eliminating the
+# duplicate ark-ff 0.4 compilation. Switch to a git dep or publish to
+# crates.io before merging.
+groth16-solana = { path = "../groth16-solana" }
+
 [profile.dev]
 opt-level = 0
 debug = "line-tables-only"
@@ -136,7 +142,7 @@ solana-msg = { version = "2.2" }
 solana-message = "2.2"
 solana-zk-token-sdk = "2.3"
 solana-logger = "2.3"
-solana-bn254 = "2.2"
+solana-bn254 = "3.2.1"
 solana-sysvar = { version = "2.2" }
 solana-rent = { version = "2.2" }
 solana-program-error = { version = "2.2" }
