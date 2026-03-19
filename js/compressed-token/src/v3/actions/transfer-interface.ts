@@ -202,8 +202,6 @@ export async function createTransferInterfaceInstructions(
             programId,
         );
 
-    if (batches.length === 0) return [[ensureRecipientAtaIx]];
-
     const finalBatch = batches[batches.length - 1];
     let insertionIdx = 0;
     while (
