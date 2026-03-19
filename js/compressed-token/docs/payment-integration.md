@@ -1,10 +1,14 @@
 # Payment Integration: `createTransferInterfaceInstructions`
 
 Build transfer instructions for production payment flows. Returns
-`TransactionInstruction[][]` with CU budgeting, sender ATA creation,
-loading (decompression), and the transfer instruction. Destination token
-account must exist; create it via `getOrCreateAtaInterface` or
-`createAssociatedTokenAccountInterfaceIdempotentInstruction` before transfer.
+`TransactionInstruction[][]` with load/decompression batches followed by the
+final transfer batch.
+
+`createTransferInterfaceInstructions` now takes a **recipient wallet** and
+derives/ensures destination ATA internally.
+
+If you need an explicit destination token account (program-owned/custom), use
+`createTransferToAccountInterfaceInstructions`.
 
 ## Import
 
@@ -12,9 +16,7 @@ account must exist; create it via `getOrCreateAtaInterface` or
 // Standard (no SPL/T22 wrapping; decimals required)
 import {
     createTransferInterfaceInstructions,
-    getAssociatedTokenAddressInterface,
-    getOrCreateAtaInterface,
-    createAssociatedTokenAccountInterfaceIdempotentInstruction,
+    createTransferToAccountInterfaceInstructions,
     getMintInterface,
     sliceLast,
 } from '@lightprotocol/compressed-token';
@@ -22,8 +24,7 @@ import {
 // Unified (auto-wraps SPL/T22 to c-token ATA; decimals resolved internally)
 import {
     createTransferInterfaceInstructions,
-    getAssociatedTokenAddressInterface,
-    getOrCreateAtaInterface,
+    createTransferToAccountInterfaceInstructions,
     sliceLast,
 } from '@lightprotocol/compressed-token/unified';
 ```
@@ -31,14 +32,8 @@ import {
 ## Usage
 
 ```typescript
-// 1. Ensure destination exists, then build instruction batches
-const destination = getAssociatedTokenAddressInterface(
-    mint,
-    recipient.publicKey,
-);
-await getOrCreateAtaInterface(rpc, payer, mint, recipient.publicKey);
-
-// Standard path: decimals is required (7th arg). Unified path: omit decimals (fetched internally).
+// 1. Build instruction batches (wallet-recipient path)
+// Standard path: decimals is required. Unified path resolves decimals internally.
 const decimals = (await getMintInterface(rpc, mint)).mint.decimals;
 const batches = await createTransferInterfaceInstructions(
     rpc,
@@ -46,11 +41,11 @@ const batches = await createTransferInterfaceInstructions(
     mint,
     amount,
     sender.publicKey,
-    destination,
+    recipient.publicKey,
     decimals, // omit when using unified import
 );
 
-// 2. Customize (optional) -- append memo, priority fee, etc. to the last batch
+// 2. Customize (optional) -- append memo/priority fee to the final batch
 batches.at(-1)!.push(memoIx);
 
 // 3. Build all transactions
@@ -64,6 +59,23 @@ const signed = await wallet.signAllTransactions(txns);
 const { rest, last } = sliceLast(signed);
 await Promise.all(rest.map(tx => send(tx)));
 await send(last);
+```
+
+## Explicit destination-account variant
+
+```typescript
+const destinationTokenAccount = /* PDA or program-owned token account */;
+const decimals = (await getMintInterface(rpc, mint)).mint.decimals;
+
+const batches = await createTransferToAccountInterfaceInstructions(
+    rpc,
+    payer.publicKey,
+    mint,
+    amount,
+    sender.publicKey,
+    destinationTokenAccount,
+    decimals,
+);
 ```
 
 ## Return type
@@ -89,6 +101,7 @@ Use `sliceLast(batches)` to get `{ rest, last }` for clean send orchestration.
 | --------------------------- | :-------------------------------------------------------------------------------: | :------------------: |
 | `ComputeBudgetProgram`      |                                        yes                                        |         yes          |
 | Sender (owner) ATA creation |                                 yes (idempotent)                                  |   yes (if needed)    |
+| Recipient ATA creation      |                                        --                                         |         yes          |
 | Decompress instructions     |                                        yes                                        |   yes (if needed)    |
 | Wrap SPL/T22 (unified only) | first load batch (when multiple batches); single batch = load + transfer together |          --          |
 | Transfer instruction        |                                        --                                         |         yes          |

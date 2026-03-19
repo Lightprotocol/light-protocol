@@ -81,7 +81,12 @@ const batches = await createTransferInterfaceInstructions(
 const { rest: loads, last: transferTx } = sliceLast(batches);
 ```
 
-Options include `ensureRecipientAta` (default: `true`) which prepends an idempotent ATA creation instruction to the transfer transaction, and `programId` which dispatches to SPL `transferChecked` for `TOKEN_PROGRAM_ID`/`TOKEN_2022_PROGRAM_ID`.
+Options at this point included `ensureRecipientAta` (default: `true`) and
+`programId`. `ensureRecipientAta` was removed again in `0.23.0-beta.10` when
+the split was introduced:
+`transferInterface/createTransferInterfaceInstructions` (wallet-recipient) and
+`transferToAccountInterface/createTransferToAccountInterfaceInstructions`
+(explicit destination-account).
 
 #### `createLoadAtaInstructions`
 
@@ -128,7 +133,8 @@ Options include `ensureRecipientAta` (default: `true`) which prepends an idempot
 
 - **`createTransferInterfaceInstructions`**: Instruction builder for transfers with multi-transaction batching, frozen account pre-checks, zero-amount rejection, and `programId`-based dispatch (Light token vs SPL `transferChecked`).
 - **`sliceLast`** helper: Splits instruction batches into `{ rest, last }` for parallel-then-sequential sending.
-- **`TransferOptions`** interface: `wrap`, `programId`, `ensureRecipientAta`, extends `InterfaceOptions`.
+- **`TransferOptions`** at this point included:
+  `wrap`, `programId`, `ensureRecipientAta`, extends `InterfaceOptions`.
 - **Version-aware proof chunking**: V1 inputs chunked with sizes {8,4,2,1}, V2 with {8,7,6,5,4,3,2,1}. V1 and V2 never mixed in a single proof request.
 - **`assertUniqueInputHashes`**: Runtime enforcement that no compressed account hash appears in more than one parallel batch.
 - **`chunkAccountsByTreeVersion`**: Exported utility for splitting compressed accounts by tree version into prover-compatible groups.

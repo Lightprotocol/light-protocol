@@ -173,6 +173,9 @@ export async function createTransferInterfaceInstructions(
     decimals: number,
     options?: TransferToAccountOptions,
 ): Promise<TransactionInstruction[][]> {
+    // Convenience path intentionally derives ATA from a wallet recipient.
+    // PDA/off-curve recipients should use transferToAccountInterface with an
+    // explicitly derived destination token account.
     const programId = options?.programId ?? LIGHT_TOKEN_PROGRAM_ID;
     const destination = getAssociatedTokenAddressInterface(
         mint,

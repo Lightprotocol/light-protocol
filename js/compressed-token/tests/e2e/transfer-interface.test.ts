@@ -21,6 +21,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import {
     TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID,
     getAccount,
     getAssociatedTokenAddressSync,
     createAssociatedTokenAccount,
@@ -1643,6 +1644,124 @@ describe('transfer-interface', () => {
                 TOKEN_PROGRAM_ID,
             );
             expect(senderAfter.amount).toBe(BigInt(2500));
+        }, 120_000);
+    });
+
+    describe('transferInterface recipient-wallet with Token-2022 programId (no-wrap)', () => {
+        let t22Mint: PublicKey;
+        let t22TokenPoolInfos: TokenPoolInfo[];
+
+        beforeAll(async () => {
+            const mintKeypair = Keypair.generate();
+            const created = await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                mintKeypair,
+                undefined,
+                TOKEN_2022_PROGRAM_ID,
+            );
+            t22Mint = created.mint;
+            t22TokenPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
+        }, 60_000);
+
+        it('should build T22 transfer plan and include idempotent recipient ATA creation', async () => {
+            const sender = await newAccountWithLamports(rpc, 2e9);
+            const recipient = Keypair.generate();
+
+            await mintTo(
+                rpc,
+                payer,
+                t22Mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(2200),
+                stateTreeInfo,
+                selectTokenPoolInfo(t22TokenPoolInfos),
+            );
+
+            const batches = await createTransferToRecipientInstructions(
+                rpc,
+                payer.publicKey,
+                t22Mint,
+                BigInt(700),
+                sender.publicKey,
+                recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
+                {
+                    programId: TOKEN_2022_PROGRAM_ID,
+                    splInterfaceInfos: t22TokenPoolInfos,
+                },
+            );
+            expect(batches.length).toBeGreaterThan(0);
+
+            const recipientT22Ata = getAssociatedTokenAddressSync(
+                t22Mint,
+                recipient.publicKey,
+                false,
+                TOKEN_2022_PROGRAM_ID,
+                getAtaProgramId(TOKEN_2022_PROGRAM_ID),
+            );
+            const transferBatch = batches[batches.length - 1];
+            const hasRecipientAtaCreate = transferBatch.some(ix =>
+                ix.keys.some(k => k.pubkey.equals(recipientT22Ata)),
+            );
+            expect(hasRecipientAtaCreate).toBe(true);
+        }, 120_000);
+
+        it('should transfer to Token-2022 ATA without pre-creating recipient ATA', async () => {
+            const sender = await newAccountWithLamports(rpc, 2e9);
+            const recipient = await newAccountWithLamports(rpc, 1e9);
+
+            await mintTo(
+                rpc,
+                payer,
+                t22Mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(3000),
+                stateTreeInfo,
+                selectTokenPoolInfo(t22TokenPoolInfos),
+            );
+
+            const senderT22Ata = getAssociatedTokenAddressSync(
+                t22Mint,
+                sender.publicKey,
+                false,
+                TOKEN_2022_PROGRAM_ID,
+                getAtaProgramId(TOKEN_2022_PROGRAM_ID),
+            );
+            const recipientT22Ata = getAssociatedTokenAddressSync(
+                t22Mint,
+                recipient.publicKey,
+                false,
+                TOKEN_2022_PROGRAM_ID,
+                getAtaProgramId(TOKEN_2022_PROGRAM_ID),
+            );
+
+            const signature = await transferToRecipientInterface(
+                rpc,
+                payer,
+                senderT22Ata,
+                t22Mint,
+                recipient.publicKey,
+                sender,
+                BigInt(900),
+                TOKEN_2022_PROGRAM_ID,
+                undefined,
+                { splInterfaceInfos: t22TokenPoolInfos },
+                false,
+            );
+            expect(signature).toBeDefined();
+
+            const recipientAccount = await getAccount(
+                rpc,
+                recipientT22Ata,
+                undefined,
+                TOKEN_2022_PROGRAM_ID,
+            );
+            expect(recipientAccount.amount).toBe(BigInt(900));
         }, 120_000);
     });
 });

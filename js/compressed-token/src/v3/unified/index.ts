@@ -341,6 +341,8 @@ export async function getOrCreateAtaInterface(
  * Create transfer instructions for a unified token transfer.
  *
  * Unified variant: always wraps SPL/T22 to light-token associated token account.
+ * Recipient must be an on-curve wallet address. For PDA/off-curve owners,
+ * use createTransferToAccountInterfaceInstructions with an explicit destination ATA.
  *
  * Returns `TransactionInstruction[][]`. Send [0..n-2] in parallel, then [n-1].
  * Use `sliceLast` to separate the parallel prefix from the final transfer.
