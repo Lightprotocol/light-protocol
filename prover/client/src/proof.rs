@@ -8,8 +8,8 @@ use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use num_traits::Num;
 use solana_bn254::compression::prelude::{
-    alt_bn128_g1_compress, alt_bn128_g1_decompress, alt_bn128_g2_compress, alt_bn128_g2_decompress,
-    convert_endianness,
+    alt_bn128_g1_compress_be, alt_bn128_g1_decompress_be, alt_bn128_g2_compress_be,
+    alt_bn128_g2_decompress_be, convert_endianness,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -37,9 +37,9 @@ impl From<ProofCompressed> for CompressedProof {
 
 impl ProofCompressed {
     pub fn try_decompress(&self) -> Result<Proof, ProverClientError> {
-        let proof_a = alt_bn128_g1_decompress(&self.a)?;
-        let proof_b = alt_bn128_g2_decompress(&self.b)?;
-        let proof_c = alt_bn128_g1_decompress(&self.c)?;
+        let proof_a = alt_bn128_g1_decompress_be(&self.a)?;
+        let proof_b = alt_bn128_g2_decompress_be(&self.b)?;
+        let proof_c = alt_bn128_g1_decompress_be(&self.c)?;
         Ok(Proof {
             a: proof_a,
             b: proof_b,
@@ -84,9 +84,9 @@ pub fn compress_proof(
     proof_b: &[u8; 128],
     proof_c: &[u8; 64],
 ) -> ([u8; 32], [u8; 64], [u8; 32]) {
-    let proof_a = alt_bn128_g1_compress(proof_a).unwrap();
-    let proof_b = alt_bn128_g2_compress(proof_b).unwrap();
-    let proof_c = alt_bn128_g1_compress(proof_c).unwrap();
+    let proof_a = alt_bn128_g1_compress_be(proof_a).unwrap();
+    let proof_b = alt_bn128_g2_compress_be(proof_b).unwrap();
+    let proof_c = alt_bn128_g1_compress_be(proof_c).unwrap();
     (proof_a, proof_b, proof_c)
 }
 
