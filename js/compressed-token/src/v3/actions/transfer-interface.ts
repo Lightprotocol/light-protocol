@@ -15,9 +15,7 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
-import {
-    createTransferToAccountInterfaceInstructions,
-} from '../instructions/transfer-interface';
+import { createTransferToAccountInterfaceInstructions } from '../instructions/transfer-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { getMintInterface } from '../get-mint-interface';
 import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
@@ -209,7 +207,9 @@ export async function createTransferInterfaceInstructions(
     let insertionIdx = 0;
     while (
         insertionIdx < finalBatch.length &&
-        finalBatch[insertionIdx].programId.equals(ComputeBudgetProgram.programId)
+        finalBatch[insertionIdx].programId.equals(
+            ComputeBudgetProgram.programId,
+        )
     ) {
         insertionIdx += 1;
     }

@@ -5,17 +5,17 @@ Concise v3 interface reference for reads (`getAtaInterface`), loads
 
 ## 1. API Surface
 
-| Method                                         | Path        | Purpose                                                          |
-| ---------------------------------------------- | ----------- | ---------------------------------------------------------------- |
-| `getAtaInterface`                              | v3, unified | Aggregate balance from hot/cold/SPL/T22 sources                 |
-| `getOrCreateAtaInterface`                      | v3          | Create ATA if missing, return interface                         |
-| `createLoadAtaInstructions`                    | v3          | Build load/decompress batches                                   |
-| `loadAta`                                      | v3          | Execute load/decompress batches                                 |
-| `transferInterface`                            | v3          | Action: transfer to recipient wallet (ATA derived/ensured)      |
-| `createTransferInterfaceInstructions`          | v3          | Builder: recipient wallet input, destination ATA derived/ensured |
-| `transferToAccountInterface`                   | v3          | Action: explicit destination token account (legacy behavior)    |
-| `createTransferToAccountInterfaceInstructions` | v3          | Builder: explicit destination token account                     |
-| `createLightTokenTransferInstruction`          | instructions| Raw light-token transfer ix (no load/wrap)                     |
+| Method                                         | Path         | Purpose                                                          |
+| ---------------------------------------------- | ------------ | ---------------------------------------------------------------- |
+| `getAtaInterface`                              | v3, unified  | Aggregate balance from hot/cold/SPL/T22 sources                  |
+| `getOrCreateAtaInterface`                      | v3           | Create ATA if missing, return interface                          |
+| `createLoadAtaInstructions`                    | v3           | Build load/decompress batches                                    |
+| `loadAta`                                      | v3           | Execute load/decompress batches                                  |
+| `transferInterface`                            | v3           | Action: transfer to recipient wallet (ATA derived/ensured)       |
+| `createTransferInterfaceInstructions`          | v3           | Builder: recipient wallet input, destination ATA derived/ensured |
+| `transferToAccountInterface`                   | v3           | Action: explicit destination token account (legacy behavior)     |
+| `createTransferToAccountInterfaceInstructions` | v3           | Builder: explicit destination token account                      |
+| `createLightTokenTransferInstruction`          | instructions | Raw light-token transfer ix (no load/wrap)                       |
 
 Unified (`/unified`) always forces `wrap=true`.
 Standard (`v3`) defaults to `wrap=false`.
@@ -119,10 +119,10 @@ Same execution model, but destination account is caller-provided and not derived
 
 `createTransferToAccountInterfaceInstructions` transfer instruction dispatch:
 
-| Condition                               | Transfer ix                                |
-| --------------------------------------- | ------------------------------------------ |
-| `programId` is SPL or T22 and `!wrap`   | SPL `createTransferCheckedInstruction`     |
-| otherwise                               | `createLightTokenTransferCheckedInstruction` |
+| Condition                             | Transfer ix                                  |
+| ------------------------------------- | -------------------------------------------- |
+| `programId` is SPL or T22 and `!wrap` | SPL `createTransferCheckedInstruction`       |
+| otherwise                             | `createLightTokenTransferCheckedInstruction` |
 
 ## 6. Concurrency Model
 
