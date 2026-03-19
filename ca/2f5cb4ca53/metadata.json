@@ -5,6 +5,7 @@
   "branch": "jorrit/chore-add-forester-tps-xtask",
   "checkpoints_count": 5,
   "files_touched": [
+    "sdk-tests/csdk-anchor-full-derived-test/tests/integration_tests.rs",
     "xtask/src/fetch_keypair_txs.rs",
     "xtask/src/main.rs"
   ],
