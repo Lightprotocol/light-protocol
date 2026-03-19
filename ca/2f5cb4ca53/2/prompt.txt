@@ -1,0 +1,161 @@
+Implement the following plan:
+
+# Plan: xtask fetch-keypair-txs
+
+**Date:** 2026-03-19
+
+## IMPORTANT
+
+- Add a new xtask subcommand `fetch-keypair-txs`
+- For each provided public key, query `getSignaturesForAddress` and count txs in the last N minutes
+- Default network: mainnet, default window: 10 minutes
+- Work through todos one by one
+
+---
+
+## Context
+
+The user wants to monitor how many transactions a set of addresses sent on Solana over a series of time buckets. The output should show tx counts per X-minute interval (not just a total), giving a temporal view of activity across keypairs.
+
+---
+
+## Files to Create / Modify
+
+| File | Action |
+|------|--------|
+| `xtask/src/fetch_keypair_txs.rs` | Create new |
+| `xtask/src/main.rs` | Add module + Command variant + dispatch arm |
+
+---
+
+## Implementation
+
+### `fetch_keypair_txs.rs`
+
+Pattern mirrors `fetch_failed_txs.rs`.
+
+**Options:**
+```rust
+pub struct Options {
+    /// One or more base58 public keys (positional, space-separated)
+    #[clap(required = true)]
+    pubkeys: Vec<String>,
+
+    /// Bucket size in minutes (default: 10)
+    #[clap(long, default_value_t = 10)]
+    minutes: u64,
+
+    /// Number of buckets to show going back in time (default: 6)
+    #[clap(long, default_value_t = 6)]
+    buckets: u64,
+
+    /// Network: mainnet | devnet | testnet | local
+    #[clap(long, default_value = "mainnet")]
+    network: String,
+
+    /// Custom RPC URL (overrides --network)
+    #[clap(long)]
+    rpc_url: Option<String>,
+}
+```
+
+**Core logic:**
+1. Compute `total_lookback = minutes * buckets` seconds
+2. For each pubkey: call `client.get_signatures_for_address(&pubkey)` — returns up to 1000 most-recent confirmed sigs
+3. Build `buckets` time slots: `[now - k*minutes*60 .. now - (k-1)*minutes*60)` for k = 1..=buckets (slot 0 = most recent)
+4. Bin each sig's `block_time` into the appropriate slot; count per slot
+5. Drop any sig older than `now - total_lookback`
+
+**Output:** one row per pubkey, alternating count + TPS columns per bucket, plus a Total column at the end.
+
+- Each bucket pair: count column (`-10m`) + TPS column (`TPS`) where `TPS = count / (minutes * 60)`
+- **Total**: sum of txs across all buckets (no total TPS column)
+
+```
+Fetching transactions for 2 address(es)  |  bucket: 10 min  |  looking back 6 buckets
+RPC: https://api.mainnet-beta.solana.com
+
+╭──────────────────┬──────┬───────┬──────┬───────┬──────┬───────┬───────╮
+│ Address          │ -10m │ TPS   │ -20m │ TPS   │ ...  │ ...   │ Total │
+├──────────────────┼──────┼───────┼──────┼───────┼──────┼───────┼───────┤
+│ 8GDc4p...eC7     │ 5    │ 0.008 │ 3    │ 0.005 │ ...  │ ...   │ 27    │
+│ 3PrXqm...Mun     │ 2    │ 0.003 │ 1    │ 0.002 │ ...  │ ...   │ 7     │
+╰──────────────────┴──────┴───────┴──────┴───────┴──────┴───────┴───────╯
+```
+
+**Addresses** are shortened (`first6...last3`) to keep the table readable.
+
+**Column generation (dynamic):** header row = `["Address", "-10m", "TPS", "-20m", "TPS", ..., "Total"]`, built programmatically in a loop. Use `tabled::builder::Builder` since column count depends on `--buckets`.
+
+**Reuse from existing code:**
+- `network_to_url()` — copy from `fetch_failed_txs.rs`
+- `CommitmentConfig::confirmed()`
+- `chrono::Utc`, `tabled`
+
+**Note:** `tabled` requires a statically-known column set. Since bucket count is dynamic, build the table with `tabled::builder::Builder` (row-by-row string building) instead of a `#[derive(Tabled)]` struct.
+
+### `main.rs` changes
+
+1. Add `mod fetch_keypair_txs;` after `fetch_block_events`
+2. Add to `Command` enum:
+```rust
+/// Count transactions per time bucket for a list of addresses
+/// Example: cargo xtask fetch-keypair-txs REDACTED REDACTED --minutes 10 --buckets 6 --network mainnet
+FetchKeypairTxs(fetch_keypair_txs::Options),
+```
+3. Add dispatch arm:
+```rust
+Command::FetchKeypairTxs(opts) => fetch_keypair_txs::fetch_keypair_txs(opts).await,
+```
+
+---
+
+## Todos
+
+1. Create `xtask/src/fetch_keypair_txs.rs`
+2. Register module, Command variant, and dispatch arm in `xtask/src/main.rs`
+
+---
+
+## Verification
+
+```bash
+cargo build -p xtask
+cargo xtask fetch-keypair-txs REDACTED REDACTED --minutes 10 --buckets 6 --network mainnet
+cargo xtask fetch-keypair-txs REDACTED --minutes 5 --network devnet
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+for both keypairs
+
+---
+
+ok but we dont have more than 1k per bucket any
+
+---
+
+give me the forester status command
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+in forester/ to do cargo run what flags to I have?
+
+---
+
+ok back to the xtask can we get the number of failed and successful tx?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+does it say what the error is?
