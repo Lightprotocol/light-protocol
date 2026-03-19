@@ -87,6 +87,26 @@ opt-level = 0
 debug = "line-tables-only"
 strip = "none"
 
+# Compile proc-macro crates at full optimization. They run at build time, so
+# faster generated code means faster downstream compilation.
+[profile.dev.package.syn]
+opt-level = 3
+
+[profile.dev.package.proc-macro2]
+opt-level = 3
+
+[profile.dev.package.quote]
+opt-level = 3
+
+[profile.dev.package.serde_derive]
+opt-level = 3
+
+[profile.dev.package.ark-ff-macros]
+opt-level = 3
+
+[profile.dev.package.ark-ff-asm]
+opt-level = 3
+
 [profile.release]
 overflow-checks = true
 
