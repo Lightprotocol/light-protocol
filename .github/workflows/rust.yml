@@ -25,6 +25,7 @@ concurrency:
 env:
   RUST_MIN_STACK: 8388608
   RUSTFLAGS: "-D warnings"
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   test:

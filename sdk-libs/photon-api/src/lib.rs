@@ -11,6 +11,10 @@
 // To regenerate after OpenAPI spec changes: cargo build -p photon-api --features generate
 include!("codegen.rs");
 
+fn ensure_ring_provider() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
 pub mod apis {
     use super::*;
 
@@ -32,6 +36,7 @@ pub mod apis {
 
     impl Default for Configuration {
         fn default() -> Self {
+            ensure_ring_provider();
             Self {
                 base_path: "https://devnet.helius-rpc.com".to_string(),
                 api_key: None,
@@ -54,6 +59,7 @@ pub mod apis {
         /// let config = Configuration::new("https://rpc.example.com?api-key=YOUR_KEY".to_string());
         /// ```
         pub fn new(url: String) -> Self {
+            ensure_ring_provider();
             let (base_path, api_key) = Self::parse_url(&url);
             Self {
                 base_path,

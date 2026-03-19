@@ -51,6 +51,7 @@ jobs:
 
     env:
       REDIS_URL: redis://localhost:6379
+      CARGO_INCREMENTAL: "0"
 
     strategy:
       matrix:

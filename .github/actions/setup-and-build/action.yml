@@ -27,7 +27,7 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config build-essential protobuf-compiler
+        sudo apt-get install -y libudev-dev pkg-config build-essential protobuf-compiler lld clang libssl-dev libzstd-dev
 
     - name: Load versions
       id: versions
@@ -127,6 +127,7 @@ runs:
         echo "CARGO_FEATURES=v2_ix" >> $GITHUB_ENV
         echo "REDIS_URL=redis://localhost:6379" >> $GITHUB_ENV
         echo "SBF_OUT_DIR=target/deploy" >> $GITHUB_ENV
+        echo "ZSTD_SYS_USE_PKG_CONFIG=1" >> $GITHUB_ENV
 
     - name: Get pnpm store directory
       id: pnpm-store
