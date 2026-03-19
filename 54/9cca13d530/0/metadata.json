@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "549cca13d530",
+  "session_id": "7ea942a1-ab04-4066-8e91-03a1782a313a",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-19T22:14:44.035573Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/rust.yml",
+    ".github/workflows/sdk-tests.yml",
+    "Cargo.lock",
+    ".github/actions/setup-and-build/action.yml",
+    "Cargo.toml",
+    "sdk-libs/photon-api/Cargo.toml",
+    "sdk-libs/photon-api/src/lib.rs",
+    ".github/workflows/forester-tests.yml",
+    ".github/workflows/programs.yml"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "ee6afcbd-869e-4f11-9734-6fdcd8997cb0",
+  "token_usage": {
+    "input_tokens": 91,
+    "cache_creation_tokens": 244738,
+    "cache_read_tokens": 5002760,
+    "output_tokens": 4386,
+    "api_call_count": 59
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-19T22:14:43.491451Z",
+    "agent_lines": 0,
+    "human_added": 28098,
+    "human_modified": 1063,
+    "human_removed": 0,
+    "total_committed": 28098,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol/7ea942a1-ab04-4066-8e91-03a1782a313a.jsonl"
+}

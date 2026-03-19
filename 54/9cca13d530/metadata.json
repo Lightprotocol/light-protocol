@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "549cca13d530",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/actions/setup-and-build/action.yml",
+    ".github/workflows/forester-tests.yml",
+    ".github/workflows/programs.yml",
+    ".github/workflows/rust.yml",
+    ".github/workflows/sdk-tests.yml",
+    "Cargo.lock",
+    "Cargo.toml",
+    "sdk-libs/photon-api/Cargo.toml",
+    "sdk-libs/photon-api/src/lib.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/54/9cca13d530/0/metadata.json",
+      "transcript": "/54/9cca13d530/0/full.jsonl",
+      "context": "/54/9cca13d530/0/context.md",
+      "content_hash": "/54/9cca13d530/0/content_hash.txt",
+      "prompt": "/54/9cca13d530/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 91,
+    "cache_creation_tokens": 244738,
+    "cache_read_tokens": 5002760,
+    "output_tokens": 4386,
+    "api_call_count": 59
+  }
+}
