@@ -14,6 +14,7 @@ mod fee;
 mod fetch_accounts;
 mod fetch_block_events;
 mod fetch_failed_txs;
+mod fetch_keypair_txs;
 mod hash_set;
 mod new_deployment;
 mod print_state_tree;
@@ -86,6 +87,9 @@ enum Command {
     /// Fetch the last N blocks from a start slot and parse Light Protocol events
     /// Example: cargo xtask fetch-block-events --start-slot 300000000 --network mainnet
     FetchBlockEvents(fetch_block_events::Options),
+    /// Count transactions per time bucket for a list of addresses
+    /// Example: cargo xtask fetch-keypair-txs 8GDc4p3fpbxJZmpZB3Lx3yN1984XS2HVnMi7J7rTyeC7 3PrXqmhEcgPo2a5aTtCTYzgmuXRSx5imbUTDkz6SZMun --minutes 10 --buckets 6 --network mainnet
+    FetchKeypairTxs(fetch_keypair_txs::Options),
     /// Create compressible config (config counter + compressible config)
     /// Creates the config counter PDA and a compressible config with default RentConfig.
     /// Example: cargo xtask create-compressible-config --network devnet
@@ -135,6 +139,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::FetchAccounts(opts) => fetch_accounts::fetch_accounts(opts).await,
         Command::FetchFailedTxs(opts) => fetch_failed_txs::fetch_failed_txs(opts).await,
         Command::FetchBlockEvents(opts) => fetch_block_events::fetch_block_events(opts).await,
+        Command::FetchKeypairTxs(opts) => fetch_keypair_txs::fetch_keypair_txs(opts).await,
         Command::CreateCompressibleConfig(opts) => {
             create_compressible_config::create_compressible_config(opts).await
         }
