@@ -2743,6 +2743,7 @@ dependencies = [
 [[package]]
 name = "groth16-solana"
 version = "0.2.0"
+source = "git+https://github.com/Lightprotocol/groth16-solana?rev=4e6cacff2f4ff53744fda0509f5e62545fd99aa6#4e6cacff2f4ff53744fda0509f5e62545fd99aa6"
 dependencies = [
  "ark-bn254 0.5.0",
  "ark-ec 0.5.0",

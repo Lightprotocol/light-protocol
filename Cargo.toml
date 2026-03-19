@@ -83,10 +83,9 @@ members = [
 resolver = "2"
 
 [patch.crates-io]
-# Local version uses ark-ff 0.5 (crates.io 0.2.0 uses 0.4), eliminating the
-# duplicate ark-ff 0.4 compilation. Switch to a git dep or publish to
-# crates.io before merging.
-groth16-solana = { path = "../groth16-solana" }
+# Uses ark-ff 0.5 (crates.io 0.2.0 uses 0.4), eliminating the duplicate
+# ark-ff 0.4 compilation from the dep graph.
+groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana", rev = "4e6cacff2f4ff53744fda0509f5e62545fd99aa6" }
 
 [profile.dev]
 opt-level = 0
