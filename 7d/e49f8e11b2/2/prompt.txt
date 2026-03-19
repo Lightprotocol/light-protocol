@@ -1,0 +1,481 @@
+Implement the following plan:
+
+# Plan: Reimburse Forester for TX Fees on V1 Tree Operations
+
+## IMPORTANT
+- Split the task into todos
+- Use subagents where it makes sense
+- Work through todos one by one
+- If stuck or starting to do random stuff, use a subagent to research
+
+## Context
+
+Foresters maintain V1 Merkle trees by dequeuing nullifiers and addresses, but they currently pay Solana transaction fees out of pocket with no reimbursement. The `network_fee` field in tree metadata (described as "Tip for maintaining the account") exists for exactly this purpose but is never paid out. Users already pay `network_fee` (5000 lamports for state, 10000 for address) per operation, and these fees accumulate in the tree/queue accounts. This plan adds the actual lamport transfer from queue accounts to the forester when they perform V1 operations on trees with `network_fee > 0`.
+
+## Scope
+
+- Only V1 (non-batched) tree instructions in `account-compression`
+- Only trees where `network_fee > 0` (light forester trees)
+- Two instructions: `nullify_leaves` and `update_address_merkle_tree`
+- Not V1 rollover (already reimburses rent; rollover is a one-time event)
+- Not V2 batched operations (out of scope)
+
+## Design
+
+### How it works
+
+1. Add a `fee_payer` account to V1 `NullifyLeaves` and `UpdateAddressMerkleTree` instruction structs
+2. After the tree operation, read `network_fee` from tree metadata
+3. If `network_fee > 0`, transfer `network_fee` lamports from the queue account to `fee_payer`
+4. Registry CPI wrappers pass the forester's `authority` (wallet) as `fee_payer`
+
+### Why queue accounts?
+Network fees accumulate in queue accounts when users insert items. When the forester dequeues items, the fee is paid back from the same queue. This is economically clean: fees in, reimbursement out.
+
+### Reimbursement amount
+- `nullify_leaves`: `merkle_tree.metadata.rollover_metadata.network_fee` per nullify (currently 5000 lamports)
+- `update_address_merkle_tree`: `merkle_tree.metadata.rollover_metadata.network_fee` per update (currently 10000 lamports)
+
+## Tasks
+
+### Task 1: Add fee_payer to `NullifyLeaves` in account-compression
+
+**File:** `programs/account-compression/src/instructions/nullify_leaves.rs`
+
+- Add `/// CHECK: receives network fee reimbursement` + `#[account(mut)]` + `pub fee_payer: Option<UncheckedAccount<'info>>` to `NullifyLeaves` struct
+- After `insert_nullifier()` succeeds in `process_nullify_leaves`, add reimbursement logic:
+  ```rust
+  if let Some(fee_payer) = ctx.accounts.fee_payer.as_ref() {
+      let merkle_tree_account = ctx.accounts.merkle_tree.load()?;
+      let network_fee = merkle_tree_account.metadata.rollover_metadata.network_fee;
+      if network_fee > 0 {
+          transfer_lamports(
+              &ctx.accounts.nullifier_queue.to_account_info(),
+              &fee_payer.to_account_info(),
+              network_fee,
+          )?;
+      }
+  }
+  ```
+- Add import for `transfer_lamports` from `crate::utils::transfer_lamports`
+- Update the SDK function `create_nullify_instruction` in the same file to accept optional `fee_payer: Option<&Pubkey>` parameter
+
+### Task 2: Add fee_payer to `UpdateAddressMerkleTree` in account-compression
+
+**File:** `programs/account-compression/src/instructions/update_address_merkle_tree.rs`
+
+- Add `/// CHECK: receives network fee reimbursement` + `#[account(mut)]` + `pub fee_payer: Option<UncheckedAccount<'info>>` to `UpdateAddressMerkleTree` struct
+- After the tree update and queue marking in `process_update_address_merkle_tree`, add reimbursement:
+  ```rust
+  if let Some(fee_payer) = ctx.accounts.fee_payer.as_ref() {
+      let merkle_tree_account = ctx.accounts.merkle_tree.load()?;
+      let network_fee = merkle_tree_account.metadata.rollover_metadata.network_fee;
+      if network_fee > 0 {
+          transfer_lamports(
+              &ctx.accounts.queue.to_account_info(),
+              &fee_payer.to_account_info(),
+              network_fee,
+          )?;
+      }
+  }
+  ```
+- Add import for `transfer_lamports`
+
+### Task 3: Update registry CPI wrappers to pass fee_payer
+
+**Files:**
+- `programs/registry/src/account_compression_cpi/nullify.rs`
+- `programs/registry/src/account_compression_cpi/update_address_tree.rs`
+
+For nullify.rs:
+- Add the forester's `authority` as the `fee_payer` in the CPI accounts struct:
+  ```rust
+  let accounts = account_compression::cpi::accounts::NullifyLeaves {
+      authority: ctx.accounts.cpi_authority.to_account_info(),
+      registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
+      log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
+      merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+      nullifier_queue: ctx.accounts.nullifier_queue.to_account_info(),
+      fee_payer: Some(ctx.accounts.authority.to_account_info()),  // forester wallet
+  };
+  ```
+
+For update_address_tree.rs:
+- Same pattern - pass `ctx.accounts.authority` as `fee_payer`
+
+### Task 4: Update SDK instruction builders
+
+**Files:**
+- `programs/account-compression/src/instructions/nullify_leaves.rs` (sdk_nullify module)
+- `programs/registry/src/sdk.rs` (registry SDK)
+
+For account-compression SDK (`sdk_nullify`):
+- Add `fee_payer: Option<&Pubkey>` parameter to `create_nullify_instruction`
+- Include it in the `NullifyLeaves` accounts struct
+
+For registry SDK:
+- Update `create_nullify_instruction` and `create_update_address_merkle_tree_instruction` if they build account lists manually
+
+### Task 5: Update forester client code
+
+**Files:**
+- `forester/src/processor/v1/helpers.rs`
+- `forester/src/processor/v1/tx_builder.rs`
+
+- Ensure the forester passes its payer keypair as `fee_payer` when building V1 instructions
+
+### Task 6: Update test utilities (`test_forester.rs`)
+
+**File:** `program-tests/utils/src/test_forester.rs`
+
+#### `nullify_compressed_accounts()` (line 52):
+- Before the nullify loop, capture pre-balances:
+  ```rust
+  let pre_queue_lamports = rpc.get_account(state_tree_bundle.accounts.nullifier_queue).await?.lamports;
+  let pre_forester_lamports = rpc.get_account(forester.pubkey()).await?.lamports;
+  ```
+- After the loop, add balance assertions:
+  ```rust
+  // Assert forester received network_fee per nullified account
+  // and queue lost network_fee per nullified account
+  // (net of tx fees which also affect forester balance)
+  ```
+- Read `network_fee` from the on-chain tree metadata to know expected reimbursement
+- Assert queue lamports decreased by `num_nullified * network_fee`
+
+#### `empty_address_queue_test()` (line 288):
+- Similar pre/post balance captures for address queue and forester
+- Assert address queue lamports decreased by `network_fee` per update
+- Note: address V1 trees created after the deprecation have `network_fee=0` and a designated forester, so these asserts only apply when `network_fee > 0`
+
+### Task 7: Update registry test assertions
+
+**File:** `program-tests/registry-test/tests/tests.rs`
+
+#### `test_custom_forester()` (line 632):
+- This test uses custom forester trees with `network_fee=0` and `fee_assert=false`
+- Verify it still passes with `fee_payer=None` (no reimbursement for `network_fee=0` trees)
+
+#### Failing instruction tests (line 1171-1220):
+- `create_nullify_instruction` and `create_update_address_merkle_tree_instruction` calls in the error-path tests need to be updated if the SDK struct changes
+- These tests intentionally create invalid instructions, so they just need to compile with the new fields
+
+#### Add new test: forester reimbursement happy path
+- Create a test that:
+  1. Creates a V1 state tree with `network_fee=5000`
+  2. Inserts items (so fees accumulate in queue)
+  3. Runs forester nullify
+  4. Asserts forester balance increased by `network_fee` (minus tx fee)
+  5. Asserts queue balance decreased by `network_fee`
+
+## Verification
+
+1. `cargo build -p account-compression` - program compiles
+2. `cargo build -p light-registry` - registry compiles
+3. `cargo test -p account-compression` - unit tests pass
+4. `cargo test-sbf -p account-compression-test` - integration tests pass
+5. `cargo test-sbf -p registry-test` - registry tests pass (forester reimbursement assertions)
+6. `cargo test-sbf -p system-test` - system integration tests pass (fee calculations)
+7. `cargo build -p forester` - forester compiles
+
+## Key files
+
+| File | Purpose |
+|------|---------|
+| `programs/account-compression/src/instructions/nullify_leaves.rs` | V1 nullify - add fee_payer + reimbursement |
+| `programs/account-compression/src/instructions/update_address_merkle_tree.rs` | V1 address update - add fee_payer + reimbursement |
+| `programs/account-compression/src/utils/transfer_lamports.rs` | Existing `transfer_lamports` utility (reuse) |
+| `programs/registry/src/account_compression_cpi/nullify.rs` | Registry CPI wrapper - pass fee_payer |
+| `programs/registry/src/account_compression_cpi/update_address_tree.rs` | Registry CPI wrapper - pass fee_payer |
+| `programs/registry/src/sdk.rs` | Registry SDK instruction builders |
+| `program-libs/merkle-tree-metadata/src/rollover.rs` | RolloverMetadata.network_fee definition |
+| `forester/src/processor/v1/helpers.rs` | Forester V1 instruction creation |
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+does just format and just lint run?
+
+---
+
+commit the changes
+
+---
+
+commit them as a separate commit as test fix
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>bhr0p7t6b</task-id>
+<tool-use-id>toolu_019mMgXz8TahJ9pmt1Snr96K</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Create commit" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Verify each finding against the current code and only fix it if needed.
+
+In `@programs/system/src/context.rs` around lines 162 - 169, The doc comment for
+the V1/V2 fee rules is inconsistent: it says "per input tree" but the examples
+compute fees per input and hard-code 5_000/10_000 values; update the comment
+block (the V1/V2 state tree fee documentation in programs/system/src/context.rs)
+to state the correct billing unit (e.g., "per input" or "per input tree" — make
+it match the examples), and replace the hard-coded numeric examples with wording
+that references the dynamic fee parameters (e.g., fee_per_input_tree,
+fee_per_output_tree, fee_per_address or the actual variable names used in the
+surrounding API) so the examples illustrate applying those variables rather than
+fixed 5_000/10_000 constants; ensure the three example cases (create account,
+token transfer, transfer with 2 inputs) reflect the corrected unit and use the
+fee variable names consistently.
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+I want actual numbers
+
+---
+
+fetch the errors
+
+---
+
+[Request interrupted by user]
+
+---
+
+from teh pr
+
+---
+
+where in the forester code are we building the registry program ixs?
+
+---
+
+the helpers might need to be updated
+
+---
+
+[Request interrupted by user]
+
+---
+
+did you rebuilt the program?
+
+---
+
+I rebuilt them try again
+
+---
+
+[Request interrupted by user]
+
+---
+
+I rebuilt them try again
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user asked to implement a detailed plan: "Reimburse Forester for TX Fees on V1 Tree Operations." The goal is to transfer `network_fee` lamports from queue accounts to the forester when they perform `nullify_leaves` and `update_address_merkle_tree` V1 operations on trees with `network_fee > 0`. The plan has 7 tasks covering account-compression program changes, registry CPI wrappers, SDK updates, forester client, and test utilities. After implementation, the user asked to run format/lint, commit, fetch CI errors from PR #2329, and fix the failures.
+
+2. Key Technical Concepts:
+   - Anchor framework `Option<UncheckedAccount<'info>>` for optional accounts in instruction structs
+   - Anchor zero-copy accounts (`AccountLoader`, `#[account(zero_copy)]`) and `bytemuck::from_bytes` for off-chain deserialization
+   - CPI (Cross-Program Invocation) from registry to account-compression with PDA signer
+   - `transfer_lamports` utility that directly modifies lamport balances (program-owned accounts can debit, any account can be credited)
+   - Solana CPI writable account rules: inner CPI can only write accounts that are writable in the outer transaction
+   - RefCell borrow conflicts: mutable data borrows must be released before re-borrowing
+   - Anchor error code 3005 = `AccountNotEnoughKeys`
+   - `network_fee` stored in `merkle_tree.metadata.rollover_metadata.network_fee`
+
+3. Files and Code Sections:
+
+   - **`programs/account-compression/src/instructions/nullify_leaves.rs`**
+     - Core file: adds `fee_payer` to NullifyLeaves struct and reimbursement logic
+     - Added `transfer_lamports` import
+     - Added `fee_payer: Option<UncheckedAccount<'info>>` with `#[account(mut)]` to struct
+     - Reads `network_fee` before `insert_nullifier` call to avoid borrow conflicts:
+     ```rust
+     let network_fee = {
+         let merkle_tree_account = ctx.accounts.merkle_tree.load()?;
+         merkle_tree_account.metadata.rollover_metadata.network_fee
+     };
+     insert_nullifier(proofs, change_log_indices, leaves_queue_indices, leaf_indices, ctx)?;
+     if let Some(fee_payer) = ctx.accounts.fee_payer.as_ref() {
+         if network_fee > 0 {
+             transfer_lamports(
+                 &ctx.accounts.nullifier_queue.to_account_info(),
+                 &fee_payer.to_account_info(),
+                 network_fee,
+             )?;
+         }
+     }
+     ```
+     - Updated SDK `create_nullify_instruction` to accept `fee_payer: Option<&Pubkey>` and pass `fee_payer: fee_payer.copied()` in accounts struct
+
+   - **`programs/account-compression/src/instructions/update_address_merkle_tree.rs`**
+     - Core file: adds `fee_payer` to UpdateAddressMerkleTree struct and reimbursement logic
+     - Added `transfer_lamports` import
+     - Added `fee_payer: Option<UncheckedAccount<'info>>` with `#[account(mut)]` to struct
+     - Reads `network_fee` from existing `load_mut()` block (to avoid borrow conflict with later `try_borrow_mut_data`):
+     ```rust
+     let network_fee = {
+         let merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
+         // ...existing association check and signer check...
+         merkle_tree.metadata.rollover_metadata.network_fee
+     };
+     ```
+     - After tree update and queue marking:
+     ```rust
+     if let Some(fee_payer) = ctx.accounts.fee_payer.as_ref() {
+         if network_fee > 0 {
+             transfer_lamports(
+                 &ctx.accounts.queue.to_account_info(),
+                 &fee_payer.to_account_info(),
+                 network_fee,
+             )?;
+         }
+     }
+     ```
+
+   - **`programs/registry/src/account_compression_cpi/nullify.rs`**
+     - Registry CPI wrapper for nullify
+     - Made `authority` mutable: `#[account(mut)] pub authority: Signer<'info>`
+     - Added `fee_payer: Some(ctx.accounts.authority.to_account_info())` to CPI accounts
+
+   - **`programs/registry/src/account_compression_cpi/update_address_tree.rs`**
+     - Registry CPI wrapper for address tree update
+     - Made `authority` mutable: `#[account(mut)] pub authority: Signer<'info>`
+     - Added `fee_payer: Some(ctx.accounts.authority.to_account_info())` to CPI accounts
+
+   - **`program-tests/utils/src/test_forester.rs`**
+     - Test utilities for forester operations
+     - Added `bytemuck` usage to read zero-copy account headers
+     - In `nullify_compressed_accounts`: added pre-balance capture and post-balance assertion:
+     ```rust
+     let state_tree_header: &StateMerkleTreeAccount = bytemuck::from_bytes(
+         &merkle_tree_account.data[8..8 + std::mem::size_of::<StateMerkleTreeAccount>()],
+     );
+     let network_fee = state_tree_header.metadata.rollover_metadata.network_fee;
+     ```
+     - In `empty_address_queue_test`: same pattern for `AddressMerkleTreeAccount`
+     - Added balance assertions after operations checking queue lamports decreased by `network_fee`
+
+   - **`program-tests/utils/Cargo.toml`**
+     - Added `bytemuck = { workspace = true }` dependency
+
+   - **`program-tests/account-compression-test/tests/merkle_tree_tests.rs`**
+     - Updated `sdk_nullify::create_nullify_instruction` call to pass `None` for new `fee_payer` parameter
+
+   - **`sdk-libs/instruction-decoder/src/programs/account_compression.rs`**
+     - Added `"fee_payer"` to account_names for NullifyLeaves and UpdateAddressMerkleTree
+
+   - **`programs/system/src/context.rs`**
+     - Fixed doc comment: "per input tree" -> "per input", "per output tree" -> "per output"
+     - Updated examples with actual numbers and explicit arithmetic
+
+   - **`programs/registry/src/account_compression_cpi/sdk.rs`** (NOT modified)
+     - Builds instructions for registry program, not account-compression directly
+     - fee_payer handled by CPI wrapper, not SDK
+
+   - **`forester/src/processor/v1/helpers.rs`** (NOT modified)
+     - Builds registry instructions at lines 346 (address) and 479 (state)
+     - Uses registry SDK which handles fee_payer through CPI
+
+   - **`program-tests/utils/src/test_forester.rs` - `update_merkle_tree` function** (raw instruction path)
+     - When `signer_is_owner == true`, builds raw instruction with 5 AccountMetas directly targeting account-compression
+     - This path does NOT include fee_payer - relies on Anchor Optional account handling for empty remaining accounts
+
+4. Errors and fixes:
+   - **`bytemuck::from_bytes>SizeMismatch`** in CI:
+     - Caused by using `StateMerkleTreeAccount::try_deserialize()` on zero-copy accounts - the data slice is larger than the struct
+     - Fixed by using `bytemuck::from_bytes(&data[8..8 + size_of::<T>()])` to read just the header
+     - Added `bytemuck` dependency to `program-tests/utils/Cargo.toml`
+   
+   - **Borrow conflict in `update_address_merkle_tree.rs`**:
+     - `ctx.accounts.merkle_tree.load()` would fail at runtime because `try_borrow_mut_data()` from earlier in the same function still held a mutable borrow
+     - Fixed by reading `network_fee` from the existing `load_mut()` block that runs earlier and drops its borrow
+   
+   - **`Custom(3005)` = `AccountNotEnoughKeys`** (UNRESOLVED):
+     - Tests fail with this Anchor error when running `test_address_queue_and_tree_functional_default`
+     - The raw instruction path in `test_forester.rs:update_merkle_tree` (signer_is_owner=true) provides only 5 accounts
+     - The `UpdateAddressMerkleTree` struct now has 6 fields (with optional fee_payer at end)
+     - Anchor should handle empty remaining accounts for `Option<UncheckedAccount>` by returning None, but error 3005 suggests it doesn't
+     - User rebuilt the SBF programs and asked to try again - still failing
+     - This likely requires the raw instruction path to include a sentinel account (program ID) for the optional fee_payer, OR investigating if the SBF binary is actually up to date
+
+   - **User rejected commit message** for JS test files - wanted "test fix" style message, interrupted before completion
+
+   - **User rejected abstract variable names** in doc comment fix - wanted actual numbers (5000, 10000) in the examples
+
+5. Problem Solving:
+   - Successfully implemented the core fee reimbursement logic across account-compression and registry programs
+   - Identified and fixed the bytemuck deserialization issue for zero-copy accounts
+   - Identified and fixed the RefCell borrow conflict in update_address_merkle_tree.rs
+   - Ongoing: `AccountNotEnoughKeys` error in tests where raw instruction path provides 5 accounts but struct expects 6 (optional fee_payer)
+
+6. All user messages:
+   - "Implement the following plan: [detailed plan for reimburse forester for TX fees]"
+   - "does just format and just lint run?"
+   - "commit the changes"
+   - "commit them as a separate commit as test fix" (interrupted)
+   - "Verify each finding against the current code and only fix it if needed. [detailed description of doc comment fix in context.rs]"
+   - "I want actual numbers"
+   - "fetch the errors from the pr" (interrupted, then continued)
+   - "does this make sense?" (while I was working on the doc comment)
+   - "https://github.REDACTED?pr=2329 this is definitely not flaky"
+   - "where in the forester code are we building the registry program ixs?"
+   - "the helpers might need to be updated"
+   - "you need to run the tests to make sure they work"
+   - "did you rebuilt the program?"
+   - "I rebuilt them try again"
+
+7. Pending Tasks:
+   - Fix the `AccountNotEnoughKeys` (3005) error in address merkle tree tests - the raw instruction path in `test_forester.rs:update_merkle_tree` needs to handle the new optional `fee_payer` account
+   - Commit the JS test files as a separate "test fix" commit (user interrupted this)
+   - Run full test suite to verify all changes work
+   - The doc comment change in `programs/system/src/context.rs` is staged but not committed
+
+8. Current Work:
+   The test `test_address_queue_and_tree_functional_default` fails with `Custom(3005)` (`AccountNotEnoughKeys`). The user said "I rebuilt them try again" - I ran the test again and it still failed with the same error. The issue is in the raw instruction path in `program-tests/utils/src/test_forester.rs` function `update_merkle_tree` (around line 640-651) where `signer_is_owner == true` builds a raw `Instruction` with only 5 `AccountMeta` entries but the `UpdateAddressMerkleTree` struct now has 6 fields. The 6th field `fee_payer: Option<UncheckedAccount>` should be None when accounts are empty, but Anchor appears to require either a sentinel or an actual account.
+
+9. Optional Next Step:
+   Re-run the failing test `cargo test-sbf -p account-compression-test -- test_address_queue_and_tree_functional_default --nocapture` since the user said "I rebuilt them try again." If it still fails, the fix is to either: (a) add a sentinel `AccountMeta` (program ID) for the optional `fee_payer` in the raw instruction path, or (b) investigate whether the SBF program binary actually got rebuilt with the new optional field. The user's last message was "I rebuilt them try again" indicating they want me to re-run the test.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+<task-notification>
+<task-id>bfyyb6n0d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Run system tests" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+https://github.com/Lightprotocol/light-protocol/actions/runs/22868056305/job/66340102900?pr=2329

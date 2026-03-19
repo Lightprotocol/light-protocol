@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "beb8e7abdeef",
+  "session_id": "a3ba6276-ec38-4667-9dc3-8a56a98566e8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T16:55:42.526423Z",
+  "branch": "jorrit/chore-limit-tree-creations-to-protocol-auth",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "program-tests/account-compression-test/tests/batched_merkle_tree_test.rs",
+    "program-tests/registry-test/tests/tests.rs",
+    "program-tests/utils/src/e2e_test_env.rs",
+    "programs/registry/src/account_compression_cpi/sdk.rs",
+    "programs/registry/src/lib.rs",
+    "sdk-libs/program-test/src/accounts/address_tree_v2.rs",
+    "sdk-libs/program-test/src/accounts/initialize.rs",
+    "sdk-libs/program-test/src/accounts/state_tree.rs",
+    "sdk-libs/program-test/src/accounts/state_tree_v2.rs",
+    "sdk-libs/program-test/src/indexer/test_indexer.rs",
+    "xtask/src/create_batch_address_tree.rs",
+    "xtask/src/create_batch_state_tree.rs",
+    "xtask/src/create_state_tree.rs",
+    "xtask/src/new_deployment.rs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "dc2b701d78ac",
+  "token_usage": {
+    "input_tokens": 137,
+    "cache_creation_tokens": 210259,
+    "cache_read_tokens": 11820976,
+    "output_tokens": 49186,
+    "api_call_count": 126
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T16:55:41.418031Z",
+    "agent_lines": 115,
+    "human_added": 27,
+    "human_modified": 8,
+    "human_removed": 0,
+    "total_committed": 150,
+    "agent_percentage": 76.66666666666667
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/a3ba6276-ec38-4667-9dc3-8a56a98566e8.jsonl"
+}

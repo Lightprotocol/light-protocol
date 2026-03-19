@@ -1,0 +1,59 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7423e3c1c43d",
+  "strategy": "manual-commit",
+  "branch": "jorrit/chore-add-v1-tree-deprecation-msg",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/system-cpi-test/tests/test_program_owned_trees.rs",
+    "program-tests/system-test/tests/test.rs",
+    "program-tests/utils/src/e2e_test_env.rs",
+    "programs/system/src/context.rs",
+    "programs/system/src/processor/create_outputs_cpi_data.rs",
+    "sdk-libs/client/src/fee.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/74/23e3c1c43d/0/metadata.json",
+      "transcript": "/74/23e3c1c43d/0/full.jsonl",
+      "context": "/74/23e3c1c43d/0/context.md",
+      "content_hash": "/74/23e3c1c43d/0/content_hash.txt",
+      "prompt": "/74/23e3c1c43d/0/prompt.txt"
+    },
+    {
+      "metadata": "/74/23e3c1c43d/1/metadata.json",
+      "transcript": "/74/23e3c1c43d/1/full.jsonl",
+      "context": "/74/23e3c1c43d/1/context.md",
+      "content_hash": "/74/23e3c1c43d/1/content_hash.txt",
+      "prompt": "/74/23e3c1c43d/1/prompt.txt"
+    },
+    {
+      "metadata": "/74/23e3c1c43d/2/metadata.json",
+      "transcript": "/74/23e3c1c43d/2/full.jsonl",
+      "context": "/74/23e3c1c43d/2/context.md",
+      "content_hash": "/74/23e3c1c43d/2/content_hash.txt",
+      "prompt": "/74/23e3c1c43d/2/prompt.txt"
+    },
+    {
+      "metadata": "/74/23e3c1c43d/3/metadata.json",
+      "transcript": "/74/23e3c1c43d/3/full.jsonl",
+      "context": "/74/23e3c1c43d/3/context.md",
+      "content_hash": "/74/23e3c1c43d/3/content_hash.txt",
+      "prompt": "/74/23e3c1c43d/3/prompt.txt"
+    },
+    {
+      "metadata": "/74/23e3c1c43d/4/metadata.json",
+      "transcript": "/74/23e3c1c43d/4/full.jsonl",
+      "context": "/74/23e3c1c43d/4/context.md",
+      "content_hash": "/74/23e3c1c43d/4/content_hash.txt",
+      "prompt": "/74/23e3c1c43d/4/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9375,
+    "cache_creation_tokens": 2342853,
+    "cache_read_tokens": 119693820,
+    "output_tokens": 276663,
+    "api_call_count": 1153
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "beb8e7abdeef",
+  "session_id": "23ba8c9b-b75d-4793-a9e1-17a1e6c79ec2",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T16:54:57.348736Z",
+  "branch": "jorrit/chore-limit-tree-creations-to-protocol-auth",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/system-test/tests/test.rs",
+    "sdk-libs/program-test/src/indexer/test_indexer.rs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "19e354b8b9a0",
+  "token_usage": {
+    "input_tokens": 150,
+    "cache_creation_tokens": 262779,
+    "cache_read_tokens": 15346275,
+    "output_tokens": 41589,
+    "api_call_count": 148
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T16:54:56.479338Z",
+    "agent_lines": 13,
+    "human_added": 136,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 151,
+    "agent_percentage": 8.609271523178808
+  }
+}

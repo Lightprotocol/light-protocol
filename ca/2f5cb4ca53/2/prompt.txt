@@ -1,0 +1,281 @@
+Implement the following plan:
+
+# Plan: xtask fetch-keypair-txs
+
+**Date:** 2026-03-19
+
+## IMPORTANT
+
+- Add a new xtask subcommand `fetch-keypair-txs`
+- For each provided public key, query `getSignaturesForAddress` and count txs in the last N minutes
+- Default network: mainnet, default window: 10 minutes
+- Work through todos one by one
+
+---
+
+## Context
+
+The user wants to monitor how many transactions a set of addresses sent on Solana over a series of time buckets. The output should show tx counts per X-minute interval (not just a total), giving a temporal view of activity across keypairs.
+
+---
+
+## Files to Create / Modify
+
+| File | Action |
+|------|--------|
+| `xtask/src/fetch_keypair_txs.rs` | Create new |
+| `xtask/src/main.rs` | Add module + Command variant + dispatch arm |
+
+---
+
+## Implementation
+
+### `fetch_keypair_txs.rs`
+
+Pattern mirrors `fetch_failed_txs.rs`.
+
+**Options:**
+```rust
+pub struct Options {
+    /// One or more base58 public keys (positional, space-separated)
+    #[clap(required = true)]
+    pubkeys: Vec<String>,
+
+    /// Bucket size in minutes (default: 10)
+    #[clap(long, default_value_t = 10)]
+    minutes: u64,
+
+    /// Number of buckets to show going back in time (default: 6)
+    #[clap(long, default_value_t = 6)]
+    buckets: u64,
+
+    /// Network: mainnet | devnet | testnet | local
+    #[clap(long, default_value = "mainnet")]
+    network: String,
+
+    /// Custom RPC URL (overrides --network)
+    #[clap(long)]
+    rpc_url: Option<String>,
+}
+```
+
+**Core logic:**
+1. Compute `total_lookback = minutes * buckets` seconds
+2. For each pubkey: call `client.get_signatures_for_address(&pubkey)` — returns up to 1000 most-recent confirmed sigs
+3. Build `buckets` time slots: `[now - k*minutes*60 .. now - (k-1)*minutes*60)` for k = 1..=buckets (slot 0 = most recent)
+4. Bin each sig's `block_time` into the appropriate slot; count per slot
+5. Drop any sig older than `now - total_lookback`
+
+**Output:** one row per pubkey, alternating count + TPS columns per bucket, plus a Total column at the end.
+
+- Each bucket pair: count column (`-10m`) + TPS column (`TPS`) where `TPS = count / (minutes * 60)`
+- **Total**: sum of txs across all buckets (no total TPS column)
+
+```
+Fetching transactions for 2 address(es)  |  bucket: 10 min  |  looking back 6 buckets
+RPC: https://api.mainnet-beta.solana.com
+
+╭──────────────────┬──────┬───────┬──────┬───────┬──────┬───────┬───────╮
+│ Address          │ -10m │ TPS   │ -20m │ TPS   │ ...  │ ...   │ Total │
+├──────────────────┼──────┼───────┼──────┼───────┼──────┼───────┼───────┤
+│ 8GDc4p...eC7     │ 5    │ 0.008 │ 3    │ 0.005 │ ...  │ ...   │ 27    │
+│ 3PrXqm...Mun     │ 2    │ 0.003 │ 1    │ 0.002 │ ...  │ ...   │ 7     │
+╰──────────────────┴──────┴───────┴──────┴───────┴──────┴───────┴───────╯
+```
+
+**Addresses** are shortened (`first6...last3`) to keep the table readable.
+
+**Column generation (dynamic):** header row = `["Address", "-10m", "TPS", "-20m", "TPS", ..., "Total"]`, built programmatically in a loop. Use `tabled::builder::Builder` since column count depends on `--buckets`.
+
+**Reuse from existing code:**
+- `network_to_url()` — copy from `fetch_failed_txs.rs`
+- `CommitmentConfig::confirmed()`
+- `chrono::Utc`, `tabled`
+
+**Note:** `tabled` requires a statically-known column set. Since bucket count is dynamic, build the table with `tabled::builder::Builder` (row-by-row string building) instead of a `#[derive(Tabled)]` struct.
+
+### `main.rs` changes
+
+1. Add `mod fetch_keypair_txs;` after `fetch_block_events`
+2. Add to `Command` enum:
+```rust
+/// Count transactions per time bucket for a list of addresses
+/// Example: cargo xtask fetch-keypair-txs REDACTED REDACTED --minutes 10 --buckets 6 --network mainnet
+FetchKeypairTxs(fetch_keypair_txs::Options),
+```
+3. Add dispatch arm:
+```rust
+Command::FetchKeypairTxs(opts) => fetch_keypair_txs::fetch_keypair_txs(opts).await,
+```
+
+---
+
+## Todos
+
+1. Create `xtask/src/fetch_keypair_txs.rs`
+2. Register module, Command variant, and dispatch arm in `xtask/src/main.rs`
+
+---
+
+## Verification
+
+```bash
+cargo build -p xtask
+cargo xtask fetch-keypair-txs REDACTED REDACTED --minutes 10 --buckets 6 --network mainnet
+cargo xtask fetch-keypair-txs REDACTED --minutes 5 --network devnet
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+for both keypairs
+
+---
+
+ok but we dont have more than 1k per bucket any
+
+---
+
+give me the forester status command
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+in forester/ to do cargo run what flags to I have?
+
+---
+
+ok back to the xtask can we get the number of failed and successful tx?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+does it say what the error is?
+
+---
+
+can I also apply the command on REDACTED ?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+research how we convert errors in the programs and parse the error codes to print both the error code and what it means
+
+---
+
+continue
+
+---
+
+You are a senior code reviewer ensuring high standards of code quality and security.
+
+When invoked:
+1. Take a step back, think hard and be critical.
+2. Run `git diff` and `git diff --cached` to see all changes (unstaged and staged) unless instructed otherwise
+3. Focus on modified files
+4. Create state machine diagrams (internally) to understand the flow:
+   - Identify entry points and exit points
+   - Map state transitions and decision branches
+   - Trace data flow through functions
+   - For complex reviews, create multiple diagrams:
+     - One high-level diagram showing overall architecture and module interactions
+     - Multiple lower-level diagrams for each significant component/function
+   - Write diagrams to /tmp/review-diagrams/ for reference
+5. Begin review with full understanding of the code flow
+
+
+### 1. Correctness
+
+Review the plan and conversation history - is the implementation actually done and does it do what was requested?
+Does it follow solana best practices see ~/dev/claude-context/CLAUDE.md, specifically solana tips and check whether you can get additional context to consider in your review?
+Does duplicate code exist?
+
+### 2. Test Assertions
+
+When reviewing tests that check account state:
+- Prefer borsh deserialization with single `assert_eq` against expected reference account
+- Flag magic byte offset assertions like `account.data[108]` - suggest struct deserialization instead
+- Flag multiple scattered assertions on individual fields - suggest single comparison against expected struct
+
+```rust
+// Deserialize the account
+let account = AccountType::deserialize(&mut &account.data[..])?;
+
+// Build expected account for comparison
+let expected = AccountType {
+    field1: value1,
+    field2: value2,
+    // ... all fields
+};
+
+// Single assert comparing full account state
+assert_eq!(account, expected, "Account should match expected");
+```
+
+### 3. Dead Code
+
+Flag dead code patterns:
+- Underscore-prefixed variables that suppress warnings: `let _owner_program_id = ...` - remove unused variables entirely
+- Do not use underscore prefix to silence warnings - delete the dead code instead
+- Do not add `#[allow(dead_code)]` or `#[allow(unused_variables)]` - remove the dead code instead
+
+### 4. Backwards Compatibility Hacks
+
+Flag and warn on backwards compatibility patterns - these add unnecessary complexity:
+- Re-exporting types/functions that are no longer used internally
+- Adding `// removed`, `// deprecated`, or `// legacy` comments for removed code
+- Renaming unused parameters to `_param` instead of removing them from the signature
+- Feature flags added solely for backwards compatibility (e.g., `#[cfg(feature = "legacy")]`)
+- Wrapper functions that just delegate to new implementations
+- `#[deprecated]` attributes on new code - if it's deprecated, don't add it
+- Keeping old enum variants that are never constructed
+- Shim modules that re-export from new locations
+- Default trait implementations that exist only for backwards compatibility
+- `From`/`Into` implementations between old and new types when old type should be deleted
+- Version-specific conditional compilation for old behavior
+
+Prefer clean breaks:
+- Delete unused code entirely rather than commenting or deprecating
+- Remove unused function parameters from signatures
+- Delete old enum variants when they're no longer valid
+- Remove re-exports when the canonical path changes
+- If something is unused, it should not exist in the codebase
+
+---
+
+I want a forester flag and a system  and registry and veryai flags that run the command with the respective pubkey
+
+---
+
+[Request interrupted by user]
+
+---
+
+REDACTED
+
+---
+
+REDACTED
+
+---
+
+foresters: REDACTED , REDACTED
+
+---
+
+[Request interrupted by user]
+
+---
+
+continue

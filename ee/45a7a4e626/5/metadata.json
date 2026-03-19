@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ee45a7a4e626",
+  "session_id": "e6a1c938-da40-4d2b-ab10-c37d8f091af5",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T02:14:17.580519Z",
+  "branch": "jorrit/chore-add-poseidon-hash-input-error",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "program-libs/compressed-account/src/compressed_account.rs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "323403964100",
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 34391,
+    "cache_read_tokens": 537000,
+    "output_tokens": 6824,
+    "api_call_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T02:14:17.427767Z",
+    "agent_lines": 0,
+    "human_added": 3,
+    "human_modified": 21,
+    "human_removed": 0,
+    "total_committed": 3,
+    "agent_percentage": 0
+  }
+}

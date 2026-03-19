@@ -1,0 +1,26 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+I added this   // TODO: reenable once LightHasher refactor is merged
+            // solana_program::msg!("remove len check onchain.");
+            for val in _vals {
+                if val.len() != 32 {
+                    return Err(HasherError::InvalidInputLength(val.len(), 32));
+                }
+            } in /Users/ananas/dev/light-protocol3/program-libs/hasher/src/poseidon.rs use subagents to see whether there might be any concern that things will fail because of that dont run tests I a...
+
+### Prompt 2
+
+some tests failed https://github.com/Lightprotocol/light-protocol/actions/runs/22981490282/job/66722110040?pr=2337
+
+### Prompt 3
+
+[Request interrupted by user for tool use]
+
+### Prompt 4
+
+you should probably copy it into 1.. not ..31
+

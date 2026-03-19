@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "6941c31c12ec",
+  "strategy": "manual-commit",
+  "branch": "jorrit/chore-add-v1-tree-deprecation-msg",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "program-tests/utils/src/test_forester.rs",
+    "programs/account-compression/src/instructions/nullify_leaves.rs",
+    "programs/account-compression/src/instructions/update_address_merkle_tree.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/69/41c31c12ec/0/metadata.json",
+      "transcript": "/69/41c31c12ec/0/full.jsonl",
+      "context": "/69/41c31c12ec/0/context.md",
+      "content_hash": "/69/41c31c12ec/0/content_hash.txt",
+      "prompt": "/69/41c31c12ec/0/prompt.txt"
+    },
+    {
+      "metadata": "/69/41c31c12ec/1/metadata.json",
+      "transcript": "/69/41c31c12ec/1/full.jsonl",
+      "context": "/69/41c31c12ec/1/context.md",
+      "content_hash": "/69/41c31c12ec/1/content_hash.txt",
+      "prompt": "/69/41c31c12ec/1/prompt.txt"
+    },
+    {
+      "metadata": "/69/41c31c12ec/2/metadata.json",
+      "transcript": "/69/41c31c12ec/2/full.jsonl",
+      "context": "/69/41c31c12ec/2/context.md",
+      "content_hash": "/69/41c31c12ec/2/content_hash.txt",
+      "prompt": "/69/41c31c12ec/2/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9061,
+    "cache_creation_tokens": 1798929,
+    "cache_read_tokens": 95958417,
+    "output_tokens": 204603,
+    "api_call_count": 900
+  }
+}

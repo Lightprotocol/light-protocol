@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7071fd5951fd",
+  "session_id": "1a63e194-e442-41d0-ac68-5c20fd657546",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T16:23:31.436863Z",
+  "branch": "jorrit/chore-add-v1-tree-deprecation-msg",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "programs/account-compression/src/instructions/update_address_merkle_tree.rs",
+    "programs/registry/src/account_compression_cpi/nullify.rs",
+    "programs/registry/src/account_compression_cpi/update_address_tree.rs",
+    "sdk-libs/instruction-decoder/src/programs/account_compression.rs",
+    "program-tests/account-compression-test/tests/merkle_tree_tests.rs",
+    "program-tests/utils/src/test_forester.rs",
+    "programs/account-compression/src/instructions/nullify_leaves.rs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "3f8d34808e1c",
+  "token_usage": {
+    "input_tokens": 6183,
+    "cache_creation_tokens": 131486,
+    "cache_read_tokens": 6638020,
+    "output_tokens": 33221,
+    "api_call_count": 78
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T16:23:29.856041Z",
+    "agent_lines": 122,
+    "human_added": 3,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 126,
+    "agent_percentage": 96.82539682539682
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/1a63e194-e442-41d0-ac68-5c20fd657546.jsonl"
+}

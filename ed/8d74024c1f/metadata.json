@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ed8d74024c1f",
+  "strategy": "manual-commit",
+  "branch": "jorrit/chore-limit-tree-creations-to-protocol-auth",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "program-tests/justfile"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ed/8d74024c1f/0/metadata.json",
+      "transcript": "/ed/8d74024c1f/0/full.jsonl",
+      "context": "/ed/8d74024c1f/0/context.md",
+      "content_hash": "/ed/8d74024c1f/0/content_hash.txt",
+      "prompt": "/ed/8d74024c1f/0/prompt.txt"
+    },
+    {
+      "metadata": "/ed/8d74024c1f/1/metadata.json",
+      "transcript": "/ed/8d74024c1f/1/full.jsonl",
+      "context": "/ed/8d74024c1f/1/context.md",
+      "content_hash": "/ed/8d74024c1f/1/content_hash.txt",
+      "prompt": "/ed/8d74024c1f/1/prompt.txt"
+    },
+    {
+      "metadata": "/ed/8d74024c1f/2/metadata.json",
+      "transcript": "/ed/8d74024c1f/2/full.jsonl",
+      "context": "/ed/8d74024c1f/2/context.md",
+      "content_hash": "/ed/8d74024c1f/2/content_hash.txt",
+      "prompt": "/ed/8d74024c1f/2/prompt.txt"
+    },
+    {
+      "metadata": "/ed/8d74024c1f/3/metadata.json",
+      "transcript": "/ed/8d74024c1f/3/full.jsonl",
+      "context": "/ed/8d74024c1f/3/context.md",
+      "content_hash": "/ed/8d74024c1f/3/content_hash.txt",
+      "prompt": "/ed/8d74024c1f/3/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3211,
+    "cache_creation_tokens": 2240710,
+    "cache_read_tokens": 115025812,
+    "output_tokens": 248317,
+    "api_call_count": 1090
+  }
+}

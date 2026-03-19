@@ -1,0 +1,133 @@
+Implement the following plan:
+
+# Plan: Bump light-poseidon 0.3 -> 0.4
+
+## IMPORTANT
+- Split into individual todos, work through one by one
+- Use subagents where it makes sense
+- If stuck, use a subagent to research
+
+## Context
+
+light-poseidon 0.4 changes the off-chain input validation from `input.len() > 32` to `input.len() != 32`, requiring all Poseidon hash inputs to be exactly 32 bytes. This aligns with the on-chain enforcement already added in `program-libs/hasher/src/poseidon.rs`. All sites passing shorter-than-32-byte slices to Poseidon off-chain must be fixed.
+
+## Tasks
+
+### Task 1: Bump workspace dependency
+- **File**: `Cargo.toml` (root, line 255)
+- **Change**: `light-poseidon = { version = "0.3.0" }` -> `light-poseidon = { version = "0.4.0" }`
+
+### Task 2: Fix xtask/src/zero_indexed_leaf.rs (line 30)
+- **Current**: `H::hashv(&[&[0u8; 32], &[0u8; mem::size_of::<usize>()], &[0u8; 32]])`
+- `mem::size_of::<usize>()` = 8 bytes on 64-bit
+- **Fix**: Pad to 32 bytes right-aligned:
+  ```rust
+  let mut index_bytes = [0u8; 32];
+  // index_bytes stays all zeros, same as [0u8; 8] padded to 32
+  H::hashv(&[&[0u8; 32], &index_bytes, &[0u8; 32]])
+  ```
+  Since input is all zeros anyway, just use `[0u8; 32]`.
+- **WARNING**: This changes the generated ZERO_INDEXED_LEAF constant! The hash of `[0;32], [0;8], [0;32]` != hash of `[0;32], [0;32], [0;32]`. Need to regenerate the constant and verify tests pass.
+
+### Task 3: Fix prover/client/src/proof_types/batch_update/proof_inputs.rs (line 174-175)
+- **Current**: `let index_bytes = (*index).to_be_bytes();` where `index: u32` (4 bytes)
+- **Fix**: Pad to 32 bytes:
+  ```rust
+  let mut index_bytes = [0u8; 32];
+  index_bytes[28..].copy_from_slice(&(*index).to_be_bytes());
+  ```
+
+### Task 4: Fix prover/client/tests/batch_update.rs (line 36)
+- **Current**: `Poseidon::hashv(&[&leaf, &(i as usize).to_be_bytes(), &tx_hash])`
+- **Fix**: Pad to 32 bytes:
+  ```rust
+  let mut index_bytes = [0u8; 32];
+  index_bytes[28..].copy_from_slice(&(i as u32).to_be_bytes());
+  Poseidon::hashv(&[&leaf, &index_bytes, &tx_hash])
+  ```
+
+### Task 5: Fix program-tests/batched-merkle-tree-test/tests/merkle_tree.rs (line 65)
+- **Current**: `&leaf_index.to_be_bytes()` where `leaf_index: u64` (8 bytes)
+- **Fix**: Pad to 32 bytes:
+  ```rust
+  let mut leaf_index_bytes = [0u8; 32];
+  leaf_index_bytes[24..].copy_from_slice(&leaf_index.to_be_bytes());
+  ```
+
+### Task 6: Fix program-tests/utils/src/test_batch_forester.rs (line 272-274)
+- **Current**: `let index_bytes = index.to_be_bytes();` where `index: usize` (8 bytes)
+- **Fix**: Pad to 32 bytes:
+  ```rust
+  let mut index_bytes = [0u8; 32];
+  index_bytes[24..].copy_from_slice(&(index as u64).to_be_bytes());
+  ```
+
+### Task 7: Fix program-tests/utils/src/mock_batched_forester.rs (line 189-190)
+- **Current**: `let index_bytes = index.to_be_bytes();` where `index: usize` (8 bytes)
+- **Fix**: Same pattern as Task 6.
+
+### Task 8: Fix program-libs/compressed-account/src/compressed_account.rs (line 755)
+- **Current**: `Poseidon::hash(rng.gen::<u64>().to_be_bytes().as_slice())` (8 bytes, test-only code)
+- **Fix**: Pad to 32 bytes:
+  ```rust
+  let mut random_bytes = [0u8; 32];
+  random_bytes[24..].copy_from_slice(&rng.gen::<u64>().to_be_bytes());
+  Poseidon::hash(&random_bytes)
+  ```
+
+### Task 9: Tighten token-interface hash signature (optional)
+- **File**: `program-libs/token-interface/src/state/compressed_token/hash.rs` (line 65)
+- **Current**: `amount_bytes: &[u8]` (variable length accepted)
+- All callers already pass `&[u8; 32]`. Could tighten to `amount_bytes: &[u8; 32]` for compile-time safety.
+- **Decision**: Do this only if user wants it -- it's a type-safety improvement, not a bug fix.
+
+### Hash compatibility (verified)
+
+light-poseidon 0.3 internally calls `BigUint::from_bytes_be(input)` to convert inputs to field elements. For big-endian, `[0,0,0,5]` (4 bytes) and `[0,...,0,0,0,5]` (32 bytes) produce the same BigUint, hence the same field element and same hash. Explicit zero-padding to 32 bytes is hash-compatible with the old implicit behavior. No hash values will change.
+
+## Verification
+
+1. `cargo check -p light-hasher --all-features`
+2. `cargo test -p light-hasher --all-features`
+3. `cargo test -p light-compressed-account --all-features`
+4. `cargo test-sbf -p system-cpi-test`
+5. `cargo test -p batched-merkle-tree-test -- --skip test_simulate --skip test_e2e`
+6. `cargo test -p light-prover-client` (if it has unit tests)
+7. Check if ZERO_INDEXED_LEAF needs regeneration after Task 2 fix
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+<task-notification>
+<task-id>bmiqyujmu</task-id>
+<tool-use-id>toolu_018EoVPe5HaEQWcLR3cHvKuR</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Run lint script" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>bn554eizv</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Commit the test fix" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+Check the CI status of the current PR on branch jorrit/chore-add-poseidon-hash-input-error in Lightprotocol/light-protocol. Run: gh -R Lightprotocol/light-protocol run list --branch jorrit/chore-add-poseidon-hash-input-error --limit 1 --json databaseId,status,conclusion. If the latest run has conclusion "success", report that all CI tests are green and delete this cron job. If any jobs failed, fetch the failed job logs, identify the issue, fix it in the local repo, run the failed tests and adjacent tests locally with cargo test-sbf, commit, push, and then wait for the next check. If CI is still in_progress, just report that and wait.
+
+---
+
+Check the CI status of the current PR on branch jorrit/chore-add-poseidon-hash-input-error in Lightprotocol/light-protocol. Run: gh -R Lightprotocol/light-protocol run list --branch jorrit/chore-add-poseidon-hash-input-error --limit 1 --json databaseId,status,conclusion. If the latest run has conclusion "success", report that all CI tests are green and delete this cron job. If any jobs failed, fetch the failed job logs, identify the issue, fix it in the local repo, run the failed tests and adjacent tests locally with cargo test-sbf, commit, push, and then wait for the next check. If CI is still in_progress, just report that and wait.
+
+---
+
+Check the CI status of the current PR on branch jorrit/chore-add-poseidon-hash-input-error in Lightprotocol/light-protocol. Run: gh -R Lightprotocol/light-protocol run list --branch jorrit/chore-add-poseidon-hash-input-error --limit 1 --json databaseId,status,conclusion. If the latest run has conclusion "success", report that all CI tests are green and delete this cron job. If any jobs failed, fetch the failed job logs, identify the issue, fix it in the local repo, run the failed tests and adjacent tests locally with cargo test-sbf, commit, push, and then wait for the next check. If CI is still in_progress, just report that and wait.

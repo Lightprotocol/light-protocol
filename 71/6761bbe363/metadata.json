@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "716761bbe363",
+  "strategy": "manual-commit",
+  "branch": "jorrit/chore-add-poseidon-hash-input-error",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-libs/indexed-merkle-tree/src/array.rs",
+    "program-libs/indexed-merkle-tree/tests/tests.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/71/6761bbe363/0/metadata.json",
+      "transcript": "/71/6761bbe363/0/full.jsonl",
+      "context": "/71/6761bbe363/0/context.md",
+      "content_hash": "/71/6761bbe363/0/content_hash.txt",
+      "prompt": "/71/6761bbe363/0/prompt.txt"
+    },
+    {
+      "metadata": "/71/6761bbe363/1/metadata.json",
+      "transcript": "/71/6761bbe363/1/full.jsonl",
+      "context": "/71/6761bbe363/1/context.md",
+      "content_hash": "/71/6761bbe363/1/content_hash.txt",
+      "prompt": "/71/6761bbe363/1/prompt.txt"
+    },
+    {
+      "metadata": "/71/6761bbe363/2/metadata.json",
+      "transcript": "/71/6761bbe363/2/full.jsonl",
+      "context": "/71/6761bbe363/2/context.md",
+      "content_hash": "/71/6761bbe363/2/content_hash.txt",
+      "prompt": "/71/6761bbe363/2/prompt.txt"
+    },
+    {
+      "metadata": "/71/6761bbe363/3/metadata.json",
+      "transcript": "/71/6761bbe363/3/full.jsonl",
+      "context": "/71/6761bbe363/3/context.md",
+      "content_hash": "/71/6761bbe363/3/content_hash.txt",
+      "prompt": "/71/6761bbe363/3/prompt.txt"
+    },
+    {
+      "metadata": "/71/6761bbe363/4/metadata.json",
+      "transcript": "/71/6761bbe363/4/full.jsonl",
+      "context": "/71/6761bbe363/4/context.md",
+      "content_hash": "/71/6761bbe363/4/content_hash.txt",
+      "prompt": "/71/6761bbe363/4/prompt.txt"
+    },
+    {
+      "metadata": "/71/6761bbe363/5/metadata.json",
+      "transcript": "/71/6761bbe363/5/full.jsonl",
+      "context": "/71/6761bbe363/5/context.md",
+      "content_hash": "/71/6761bbe363/5/content_hash.txt",
+      "prompt": "/71/6761bbe363/5/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9107,
+    "cache_creation_tokens": 1895805,
+    "cache_read_tokens": 90231967,
+    "output_tokens": 195867,
+    "api_call_count": 904
+  }
+}

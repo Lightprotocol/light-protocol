@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "1560c14e6263",
+  "strategy": "manual-commit",
+  "branch": "jorrit/chore-add-poseidon-hash-input-error",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/system-cpi-test/tests/test.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/15/60c14e6263/0/metadata.json",
+      "transcript": "/15/60c14e6263/0/full.jsonl",
+      "context": "/15/60c14e6263/0/context.md",
+      "content_hash": "/15/60c14e6263/0/content_hash.txt",
+      "prompt": "/15/60c14e6263/0/prompt.txt"
+    },
+    {
+      "metadata": "/15/60c14e6263/1/metadata.json",
+      "transcript": "/15/60c14e6263/1/full.jsonl",
+      "context": "/15/60c14e6263/1/context.md",
+      "content_hash": "/15/60c14e6263/1/content_hash.txt",
+      "prompt": "/15/60c14e6263/1/prompt.txt"
+    },
+    {
+      "metadata": "/15/60c14e6263/2/metadata.json",
+      "transcript": "/15/60c14e6263/2/full.jsonl",
+      "context": "/15/60c14e6263/2/context.md",
+      "content_hash": "/15/60c14e6263/2/content_hash.txt",
+      "prompt": "/15/60c14e6263/2/prompt.txt"
+    },
+    {
+      "metadata": "/15/60c14e6263/3/metadata.json",
+      "transcript": "/15/60c14e6263/3/full.jsonl",
+      "context": "/15/60c14e6263/3/context.md",
+      "content_hash": "/15/60c14e6263/3/content_hash.txt",
+      "prompt": "/15/60c14e6263/3/prompt.txt"
+    },
+    {
+      "metadata": "/15/60c14e6263/4/metadata.json",
+      "transcript": "/15/60c14e6263/4/full.jsonl",
+      "context": "/15/60c14e6263/4/context.md",
+      "content_hash": "/15/60c14e6263/4/content_hash.txt",
+      "prompt": "/15/60c14e6263/4/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9039,
+    "cache_creation_tokens": 1857357,
+    "cache_read_tokens": 86255229,
+    "output_tokens": 177301,
+    "api_call_count": 850
+  }
+}
