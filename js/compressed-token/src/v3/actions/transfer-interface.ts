@@ -21,6 +21,7 @@ import { getMintInterface } from '../get-mint-interface';
 import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 import { sliceLast } from './slice-last';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
+import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
 
 export interface InterfaceOptions {
     splInterfaceInfos?: SplInterfaceInfo[];
@@ -153,11 +154,11 @@ export async function transferInterface(
     return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
-export interface TransferToAccountOptions extends InterfaceOptions {
+export interface TransferOptions extends InterfaceOptions {
     wrap?: boolean;
     programId?: PublicKey;
 }
-export type TransferOptions = TransferToAccountOptions;
+export type TransferToAccountOptions = TransferOptions;
 
 export { sliceLast } from './slice-last';
 
@@ -169,7 +170,7 @@ export async function createTransferInterfaceInstructions(
     sender: PublicKey,
     recipient: PublicKey,
     decimals: number,
-    options?: TransferToAccountOptions,
+    options?: TransferOptions,
 ): Promise<TransactionInstruction[][]> {
     // Convenience path intentionally derives ATA from a wallet recipient.
     // PDA/off-curve recipients should use transferToAccountInterface with an
@@ -219,6 +220,12 @@ export async function createTransferInterfaceInstructions(
         ensureRecipientAtaIx,
         ...finalBatch.slice(insertionIdx),
     ];
+    const numSigners = payer.equals(sender) ? 1 : 2;
+    assertTransactionSizeWithinLimit(
+        patchedFinalBatch,
+        numSigners,
+        'Final transfer batch',
+    );
     return [...batches.slice(0, -1), patchedFinalBatch];
 }
 

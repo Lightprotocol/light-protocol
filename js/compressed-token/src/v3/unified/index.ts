@@ -38,7 +38,6 @@ import {
 } from '../actions/transfer-interface';
 import type {
     TransferOptions as _TransferOptions,
-    TransferToAccountOptions as _TransferToAccountOptions,
 } from '../actions/transfer-interface';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import {
@@ -385,7 +384,7 @@ export async function createTransferToAccountInterfaceInstructions(
     amount: number | bigint | BN,
     sender: PublicKey,
     destination: PublicKey,
-    options?: Omit<_TransferToAccountOptions, 'wrap'>,
+    options?: Omit<_TransferOptions, 'wrap'>,
 ): Promise<TransactionInstruction[][]> {
     const mintInterface = await getMintInterface(rpc, mint);
     return _createTransferToAccountInterfaceInstructions(
@@ -493,7 +492,7 @@ export async function unwrap(
 
 export type {
     _TransferOptions as TransferOptions,
-    _TransferToAccountOptions as TransferToAccountOptions,
+    _TransferOptions as TransferToAccountOptions,
 };
 
 export {
