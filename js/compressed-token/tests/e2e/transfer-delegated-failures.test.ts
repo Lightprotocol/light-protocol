@@ -39,7 +39,6 @@ describe('transferDelegatedInterface - failure cases', () => {
     let recipient: Keypair;
     let mint: PublicKey;
     let ownerAta: PublicKey;
-    let recipientAta: PublicKey;
 
     beforeAll(async () => {
         rpc = createRpc(RPC_URL, PHOTON_URL, PROVER_URL);
@@ -67,12 +66,6 @@ describe('transferDelegatedInterface - failure cases', () => {
 
         await createAtaInterface(rpc, payer, mint, owner.publicKey);
         ownerAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
-
-        await createAtaInterface(rpc, payer, mint, recipient.publicKey);
-        recipientAta = getAssociatedTokenAddressInterface(
-            mint,
-            recipient.publicKey,
-        );
 
         await mintToInterface(
             rpc,
@@ -102,7 +95,7 @@ describe('transferDelegatedInterface - failure cases', () => {
                 payer,
                 ownerAta,
                 mint,
-                recipientAta,
+                recipient.publicKey,
                 delegate,
                 owner.publicKey,
                 600_000_000, // > 500M allowance
@@ -117,7 +110,7 @@ describe('transferDelegatedInterface - failure cases', () => {
                 payer,
                 ownerAta,
                 mint,
-                recipientAta,
+                recipient.publicKey,
                 stranger, // not approved
                 owner.publicKey,
                 100_000_000,
@@ -135,7 +128,7 @@ describe('transferDelegatedInterface - failure cases', () => {
                 payer,
                 ownerAta,
                 mint,
-                recipientAta,
+                recipient.publicKey,
                 delegate,
                 owner.publicKey,
                 100_000_000,

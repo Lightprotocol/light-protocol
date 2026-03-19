@@ -13,6 +13,7 @@ import {
 import {
     createMint as createSplMint,
     getOrCreateAssociatedTokenAccount,
+    getAssociatedTokenAddressSync,
     mintTo,
     getAccount,
     TOKEN_PROGRAM_ID,
@@ -84,17 +85,13 @@ describe('delegated transfer - SPL mint', () => {
         );
         ownerAta = ownerAtaInfo.address;
 
-        const recipientAtaInfo = await getOrCreateAssociatedTokenAccount(
-            rpc,
-            payer as Keypair,
+        // Derive recipient ATA for balance assertions (created by transferDelegated)
+        recipientAta = getAssociatedTokenAddressSync(
             splMint,
             recipient.publicKey,
             false,
-            undefined,
-            undefined,
             TOKEN_PROGRAM_ID,
         );
-        recipientAta = recipientAtaInfo.address;
 
         await mintTo(
             rpc,
@@ -123,13 +120,13 @@ describe('delegated transfer - SPL mint', () => {
             TOKEN_PROGRAM_ID,
         );
 
-        // Delegated transfer
+        // Delegated transfer (recipient wallet — ATA created internally)
         const sig = await transferDelegatedInterface(
             rpc,
             payer,
             ownerAta,
             splMint,
-            recipientAta,
+            recipient.publicKey,
             delegate,
             owner.publicKey,
             200_000_000n,
@@ -182,7 +179,7 @@ describe('delegated transfer - SPL mint', () => {
                 payer,
                 ownerAta,
                 splMint,
-                recipientAta,
+                recipient.publicKey,
                 delegate,
                 owner.publicKey,
                 200_000_000n, // > 100M allowance
@@ -199,7 +196,7 @@ describe('delegated transfer - SPL mint', () => {
                 payer,
                 ownerAta,
                 splMint,
-                recipientAta,
+                recipient.publicKey,
                 stranger,
                 owner.publicKey,
                 50_000_000n,
@@ -226,7 +223,7 @@ describe('delegated transfer - SPL mint', () => {
                 payer,
                 ownerAta,
                 splMint,
-                recipientAta,
+                recipient.publicKey,
                 delegate,
                 owner.publicKey,
                 50_000_000n,
@@ -281,17 +278,13 @@ describe('delegated transfer - Token-2022 mint', () => {
         );
         ownerAta = ownerAtaInfo.address;
 
-        const recipientAtaInfo = await getOrCreateAssociatedTokenAccount(
-            rpc,
-            payer as Keypair,
+        // Derive recipient ATA for balance assertions (created by transferDelegated)
+        recipientAta = getAssociatedTokenAddressSync(
             t22Mint,
             recipient.publicKey,
             false,
-            undefined,
-            undefined,
             TOKEN_2022_PROGRAM_ID,
         );
-        recipientAta = recipientAtaInfo.address;
 
         await mintTo(
             rpc,
@@ -320,13 +313,13 @@ describe('delegated transfer - Token-2022 mint', () => {
             TOKEN_2022_PROGRAM_ID,
         );
 
-        // Delegated transfer
+        // Delegated transfer (recipient wallet — ATA created internally)
         const sig = await transferDelegatedInterface(
             rpc,
             payer,
             ownerAta,
             t22Mint,
-            recipientAta,
+            recipient.publicKey,
             delegate,
             owner.publicKey,
             200_000_000n,

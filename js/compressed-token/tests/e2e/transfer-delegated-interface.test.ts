@@ -64,11 +64,9 @@ describe('transferDelegatedInterface - e2e', () => {
         );
         mint = mintPubkey;
 
-        // Create ATAs
+        // Create owner ATA + derive recipient ATA (created by transferDelegated)
         await createAtaInterface(rpc, payer, mint, owner.publicKey);
         ownerAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
-
-        await createAtaInterface(rpc, payer, mint, recipient.publicKey);
         recipientAta = getAssociatedTokenAddressInterface(
             mint,
             recipient.publicKey,
@@ -103,13 +101,13 @@ describe('transferDelegatedInterface - e2e', () => {
             BigInt(500_000_000),
         );
 
-        // 2. Delegate transfer 200M
+        // 2. Delegate transfer 200M (recipient wallet — ATA created internally)
         const sig = await transferDelegatedInterface(
             rpc,
             payer,
             ownerAta,
             mint,
-            recipientAta,
+            recipient.publicKey,
             delegate,
             owner.publicKey,
             200_000_000,

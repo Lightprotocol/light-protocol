@@ -11,8 +11,10 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
-import { transferInterface } from './transfer-interface';
-import { createTransferInterfaceInstructions } from '../instructions/transfer-interface';
+import {
+    transferInterface,
+    createTransferInterfaceInstructions,
+} from './transfer-interface';
 
 /**
  * Transfer tokens from an ATA as an approved delegate.
@@ -26,7 +28,7 @@ import { createTransferInterfaceInstructions } from '../instructions/transfer-in
  * @param payer          Fee payer (signer)
  * @param source         Source ATA (owner's account)
  * @param mint           Mint address
- * @param destination    Destination ATA
+ * @param recipient      Recipient wallet address (ATA derived + created internally)
  * @param delegate       Delegate authority (signer)
  * @param owner          Owner of the source ATA (does not sign)
  * @param amount         Amount to transfer (must be within approved allowance)
@@ -39,7 +41,7 @@ export async function transferDelegatedInterface(
     payer: Signer,
     source: PublicKey,
     mint: PublicKey,
-    destination: PublicKey,
+    recipient: PublicKey,
     delegate: Signer,
     owner: PublicKey,
     amount: number | bigint | BN,
@@ -53,7 +55,7 @@ export async function transferDelegatedInterface(
         payer,
         source,
         mint,
-        destination,
+        recipient,
         delegate,
         amount,
         programId,
@@ -74,7 +76,7 @@ export async function transferDelegatedInterface(
  * @param amount      Amount to transfer
  * @param delegate    Delegate public key (authority)
  * @param owner       Owner of the source ATA (for derivation)
- * @param destination Destination ATA address
+ * @param recipient   Recipient wallet address (ATA derived + created internally)
  * @param decimals    Token decimals
  * @param programId   Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
  * @returns Instruction batches
@@ -86,7 +88,7 @@ export async function createTransferDelegatedInterfaceInstructions(
     amount: number | bigint | BN,
     delegate: PublicKey,
     owner: PublicKey,
-    destination: PublicKey,
+    recipient: PublicKey,
     decimals: number,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionInstruction[][]> {
@@ -98,7 +100,7 @@ export async function createTransferDelegatedInterfaceInstructions(
         mint,
         amount,
         delegate,
-        destination,
+        recipient,
         decimals,
         { owner, programId },
     );
