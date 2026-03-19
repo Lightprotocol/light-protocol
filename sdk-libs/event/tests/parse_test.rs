@@ -1285,3 +1285,218 @@ fn test_wrap_program_ids_account_compression_insufficient_accounts() {
         "AccountCompression with insufficient accounts should be Unknown"
     );
 }
+
+// ==========================================================================
+// Regression test: mixed batch / legacy input accounts in one transaction
+// ==========================================================================
+
+/// Regression test for OOB panic in create_nullifier_queue_indices.
+///
+/// Transaction 3ybts1eFSC7QN6aU4ao6NJCgn7xTbtBVyzeLDZJf9eVN93vHZWupX4TXqHHgV18xf17eit7Uw5T135uabnpToKK4
+/// at slot 407265372 triggered "index out of bounds: len is 3 but index is 3"
+/// because the system instruction had 4 input accounts mixing batch and
+/// legacy/concurrent trees: [batchA, legacy, batchB, batchA].
+///
+/// The InsertIntoQueues instruction also had 4 nullifiers. After filtering out
+/// the legacy nullifier, batch_input_accounts.len() == 3. The old code used the
+/// raw loop index i from input_compressed_accounts (4 elements) to write into
+/// nullifier_queue_indices (len 3), causing the OOB on i==3.
+///
+/// The fix walks input_compressed_accounts in order and uses a compact
+/// batch_idx counter that only advances when a batch tree is found.
+#[test]
+fn test_mixed_batch_legacy_nullifier_queue_indices_no_oob() {
+    use light_compressed_account::{
+        compressed_account::{
+            CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
+        },
+        constants::LIGHT_SYSTEM_PROGRAM_ID,
+        discriminators::DISCRIMINATOR_INVOKE,
+        instruction_data::{
+            data::InstructionDataInvoke,
+            insert_into_queues::{
+                InsertIntoQueuesInstructionDataMut, InsertNullifierInput,
+                MerkleTreeSequenceNumber as IxSeqNum,
+            },
+        },
+    };
+    use light_event::parse::event_from_light_transaction;
+
+    let tree_a = Pubkey::new_from_array([1u8; 32]);
+    let legacy_tree = Pubkey::new_from_array([2u8; 32]);
+    let tree_b = Pubkey::new_from_array([3u8; 32]);
+
+    // --- Build the LightSystem instruction ---
+    // 4 input accounts: batchA (index 0), legacy (index 1), batchB (index 2), batchA (index 0)
+    let system_invoke_data = InstructionDataInvoke {
+        input_compressed_accounts_with_merkle_context: vec![
+            PackedCompressedAccountWithMerkleContext {
+                compressed_account: CompressedAccount::default(),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0, // treeA
+                    queue_pubkey_index: 0,
+                    leaf_index: 100,
+                    prove_by_index: false,
+                },
+                root_index: 0,
+                read_only: false,
+            },
+            PackedCompressedAccountWithMerkleContext {
+                compressed_account: CompressedAccount::default(),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 1, // legacyTree
+                    queue_pubkey_index: 1,
+                    leaf_index: 200,
+                    prove_by_index: false,
+                },
+                root_index: 0,
+                read_only: false,
+            },
+            PackedCompressedAccountWithMerkleContext {
+                compressed_account: CompressedAccount::default(),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 2, // treeB
+                    queue_pubkey_index: 2,
+                    leaf_index: 300,
+                    prove_by_index: false,
+                },
+                root_index: 0,
+                read_only: false,
+            },
+            PackedCompressedAccountWithMerkleContext {
+                compressed_account: CompressedAccount::default(),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0, // treeA again
+                    queue_pubkey_index: 0,
+                    leaf_index: 400,
+                    prove_by_index: false,
+                },
+                root_index: 0,
+                read_only: false,
+            },
+        ],
+        ..InstructionDataInvoke::default()
+    };
+    // Format: [discriminator: 8][Anchor prefix: 4][borsh InstructionDataInvoke]
+    let mut system_ix_data = Vec::new();
+    system_ix_data.extend_from_slice(&DISCRIMINATOR_INVOKE);
+    system_ix_data.extend_from_slice(&[0u8; 4]);
+    system_ix_data.extend(system_invoke_data.try_to_vec().unwrap());
+
+    // First 9 are system accounts; accounts[9..] are the tree accounts referenced
+    // by merkle_tree_pubkey_index in each input compressed account.
+    let mut system_accounts = vec![Pubkey::default(); 9];
+    system_accounts.push(tree_a); // index 0
+    system_accounts.push(legacy_tree); // index 1
+    system_accounts.push(tree_b); // index 2
+
+    // --- Solana system instruction (required for the CPI pattern match) ---
+    let solana_system_ix_data = vec![0u8; 12];
+    let solana_system_accounts: Vec<Pubkey> = vec![];
+
+    // --- Build the AccountCompression (InsertIntoQueues) instruction ---
+    // 4 nullifiers matching the 4 system inputs: batchA, legacy, batchB, batchA.
+    // 2 input sequence numbers: treeA seq=6, treeB seq=3.
+    let size = InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
+        0, // leaves
+        4, // nullifiers
+        0, // addresses
+        0, // output trees
+        2, // input trees (treeA, treeB)
+        0, // address trees
+    );
+    let mut insert_queue_buf = vec![0u8; size];
+    {
+        let (mut data_mut, _) =
+            InsertIntoQueuesInstructionDataMut::new_at(&mut insert_queue_buf, 0, 4, 0, 0, 2, 0)
+                .unwrap();
+
+        data_mut.tx_hash = [42u8; 32];
+
+        // nullifiers: tree_index is an index into ac_accounts[2..] = [treeA, legacyTree, treeB]
+        data_mut.nullifiers[0] = InsertNullifierInput {
+            account_hash: [11u8; 32],
+            leaf_index: 100u32.into(),
+            prove_by_index: 1,
+            tree_index: 0, // treeA
+            queue_index: 0,
+        };
+        data_mut.nullifiers[1] = InsertNullifierInput {
+            account_hash: [22u8; 32],
+            leaf_index: 200u32.into(),
+            prove_by_index: 0,
+            tree_index: 1, // legacyTree — no sequence number entry
+            queue_index: 1,
+        };
+        data_mut.nullifiers[2] = InsertNullifierInput {
+            account_hash: [33u8; 32],
+            leaf_index: 300u32.into(),
+            prove_by_index: 1,
+            tree_index: 2, // treeB
+            queue_index: 2,
+        };
+        data_mut.nullifiers[3] = InsertNullifierInput {
+            account_hash: [44u8; 32],
+            leaf_index: 400u32.into(),
+            prove_by_index: 1,
+            tree_index: 0, // treeA again
+            queue_index: 0,
+        };
+
+        data_mut.input_sequence_numbers[0] = IxSeqNum {
+            tree_pubkey: tree_a,
+            queue_pubkey: Pubkey::default(),
+            tree_type: 3u64.into(), // StateV2
+            seq: 6u64.into(),
+        };
+        data_mut.input_sequence_numbers[1] = IxSeqNum {
+            tree_pubkey: tree_b,
+            queue_pubkey: Pubkey::default(),
+            tree_type: 3u64.into(), // StateV2
+            seq: 3u64.into(),
+        };
+    }
+
+    // Format: [discriminator: 8][prefix: 4][zero-copy data][empty cpi_context_outputs: 4]
+    let mut ac_ix_data = Vec::new();
+    ac_ix_data.extend_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
+    ac_ix_data.extend_from_slice(&[0u8; 4]);
+    ac_ix_data.extend_from_slice(&insert_queue_buf);
+    ac_ix_data.extend_from_slice(&[0u8; 4]); // borsh-encoded empty Vec (u32 len = 0)
+
+    // accounts[0] = signer, accounts[1] = REGISTERED_PROGRAM_PDA, accounts[2..] = trees
+    let ac_accounts = vec![
+        Pubkey::default(),
+        Pubkey::from(REGISTERED_PROGRAM_PDA),
+        tree_a,
+        legacy_tree,
+        tree_b,
+    ];
+
+    // --- Assemble and invoke ---
+    let program_ids = vec![
+        Pubkey::new_from_array(LIGHT_SYSTEM_PROGRAM_ID),
+        Pubkey::default(), // SolanaSystem
+        Pubkey::new_from_array(ACCOUNT_COMPRESSION_PROGRAM_ID),
+    ];
+    let instructions = vec![system_ix_data, solana_system_ix_data, ac_ix_data];
+    let accounts = vec![system_accounts, solana_system_accounts, ac_accounts];
+
+    // Before the fix this panicked: "index out of bounds: len is 3 but index is 3"
+    let result = event_from_light_transaction(&program_ids, &instructions, accounts);
+    let events = result
+        .expect("should parse without error")
+        .expect("should find events");
+    assert_eq!(events.len(), 1);
+
+    let event = &events[0];
+    // 3 batch inputs: batchA, batchB, batchA (legacy is filtered out)
+    assert_eq!(event.batch_input_accounts.len(), 3);
+    // nullifier_queue_indices: batchA->seq=6, batchB->seq=3, batchA->seq=7 (incremented)
+    let queue_indices: Vec<u64> = event
+        .batch_input_accounts
+        .iter()
+        .map(|c| c.nullifier_queue_index)
+        .collect();
+    assert_eq!(queue_indices, vec![6, 3, 7]);
+}

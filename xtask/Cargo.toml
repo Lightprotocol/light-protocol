@@ -17,6 +17,8 @@ light-hash-set = { workspace = true }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-indexed-merkle-tree = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
+light-event = { workspace = true }
+bs58 = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 num-bigint = { workspace = true }
 rand = { workspace = true }

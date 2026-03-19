@@ -3975,9 +3975,10 @@ dependencies = [
 
 [[package]]
 name = "light-event"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "borsh 0.10.4",
+ "bs58",
  "light-compressed-account",
  "light-hasher",
  "light-token-interface",
@@ -12547,6 +12548,7 @@ dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "base64 0.13.1",
+ "bs58",
  "chrono",
  "clap 4.5.60",
  "dirs",
@@ -12556,6 +12558,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressible",
  "light-concurrent-merkle-tree",
+ "light-event",
  "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",

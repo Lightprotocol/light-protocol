@@ -738,18 +738,20 @@ fn create_nullifier_queue_indices(
         .insert_into_queues_instruction
         .input_sequence_numbers
         .to_vec();
-    // For every sequence number:
-    // 1. Find every input compressed account
-    // 2. assign sequence number as nullifier queue index
-    // 3. increment the sequence number
-    internal_input_sequence_numbers.iter_mut().for_each(|seq| {
-        for (i, merkle_tree_pubkey) in input_merkle_tree_pubkeys.iter().enumerate() {
-            if *merkle_tree_pubkey == seq.tree_pubkey {
-                nullifier_queue_indices[i] = seq.seq.into();
-                seq.seq += 1;
-            }
+    // Walk input_compressed_accounts in order, assigning sequence numbers to batch
+    // accounts using a compact write index. Non-batch (legacy/concurrent) accounts
+    // have no matching sequence number entry and are skipped.
+    let mut batch_idx = 0usize;
+    for merkle_tree_pubkey in input_merkle_tree_pubkeys.iter() {
+        if let Some(seq) = internal_input_sequence_numbers
+            .iter_mut()
+            .find(|s| s.tree_pubkey == *merkle_tree_pubkey)
+        {
+            nullifier_queue_indices[batch_idx] = seq.seq.into();
+            seq.seq += 1;
+            batch_idx += 1;
         }
-    });
+    }
     nullifier_queue_indices
 }
 
