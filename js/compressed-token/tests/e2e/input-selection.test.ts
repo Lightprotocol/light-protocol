@@ -45,7 +45,7 @@ import {
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { getOrCreateAtaInterface } from '../../src/v3/actions/get-or-create-ata-interface';
 import {
-    createTransferInterfaceInstructions,
+    createTransferToAccountInterfaceInstructions as createTransferInterfaceInstructions,
     sliceLast,
 } from '../../src/v3/actions/transfer-interface';
 import { loadAta } from '../../src/v3/actions/load-ata';

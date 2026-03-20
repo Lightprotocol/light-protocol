@@ -38,11 +38,15 @@ const LIGHT_TOKEN_TRANSFER_DISCRIMINATOR = 3;
 const LIGHT_TOKEN_TRANSFER_CHECKED_DISCRIMINATOR = 12;
 
 const TRANSFER_BASE_CU = 10_000;
+const TRANSFER_EXTRA_BUFFER_CU = 10_000;
 
 export function calculateTransferCU(
     loadBatch: InternalLoadBatch | null,
 ): number {
-    return calculateCombinedCU(TRANSFER_BASE_CU, loadBatch);
+    return calculateCombinedCU(
+        TRANSFER_BASE_CU + TRANSFER_EXTRA_BUFFER_CU,
+        loadBatch,
+    );
 }
 
 /**
@@ -141,7 +145,7 @@ export function createLightTokenTransferCheckedInstruction(
     });
 }
 
-export async function createTransferInterfaceInstructions(
+export async function createTransferToAccountInterfaceInstructions(
     rpc: Rpc,
     payer: PublicKey,
     mint: PublicKey,

@@ -43,8 +43,8 @@ import {
 } from '../../src/v3/actions/load-ata';
 import { getOrCreateAtaInterface } from '../../src/v3/actions/get-or-create-ata-interface';
 import {
-    transferInterface,
-    createTransferInterfaceInstructions,
+    transferToAccountInterface as transferInterface,
+    createTransferToAccountInterfaceInstructions as createTransferInterfaceInstructions,
     sliceLast,
 } from '../../src/v3/actions/transfer-interface';
 

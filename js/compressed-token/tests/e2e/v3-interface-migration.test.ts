@@ -27,7 +27,7 @@ import {
 import {
     getAtaInterface,
     getAssociatedTokenAddressInterface,
-    transferInterface,
+    transferToAccountInterface as transferInterface,
 } from '../../src/v3';
 import { createLoadAtaInstructions, loadAta } from '../../src/index';
 

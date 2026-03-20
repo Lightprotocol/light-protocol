@@ -32,7 +32,9 @@ import {
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import {
     transferInterface as _transferInterface,
+    transferToAccountInterface as _transferToAccountInterface,
     createTransferInterfaceInstructions as _createTransferInterfaceInstructions,
+    createTransferToAccountInterfaceInstructions as _createTransferToAccountInterfaceInstructions,
 } from '../actions/transfer-interface';
 import type { TransferOptions as _TransferOptions } from '../actions/transfer-interface';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
@@ -206,13 +208,14 @@ export async function loadAta(
 /**
  * Transfer tokens using the unified ata interface.
  *
- * Destination associated token account must exist. Automatically wraps SPL/T22 to light-token associated token account.
+ * Destination ATA is derived from `recipient` and created idempotently.
+ * Automatically wraps SPL/T22 to light-token associated token account.
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
  * @param source          Source light-token associated token account address
  * @param mint            Mint address
- * @param destination     Destination token account address (must exist; derive via getAssociatedTokenAddressInterface)
+ * @param recipient       Destination owner wallet address
  * @param owner           Source owner (signer)
  * @param amount          Amount to transfer
  * @param confirmOptions  Optional confirm options
@@ -224,7 +227,7 @@ export async function transferInterface(
     payer: Signer,
     source: PublicKey,
     mint: PublicKey,
-    destination: PublicKey,
+    recipient: PublicKey,
     owner: Signer,
     amount: number | bigint | BN,
     confirmOptions?: ConfirmOptions,
@@ -232,6 +235,39 @@ export async function transferInterface(
     decimals?: number,
 ) {
     return _transferInterface(
+        rpc,
+        payer,
+        source,
+        mint,
+        recipient,
+        owner,
+        amount,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
+        confirmOptions,
+        options,
+        true, // wrap=true for unified
+        decimals,
+    );
+}
+
+/**
+ * Transfer tokens to an explicit destination token account.
+ *
+ * Use this for advanced routing to non-ATA destinations.
+ */
+export async function transferToAccountInterface(
+    rpc: Rpc,
+    payer: Signer,
+    source: PublicKey,
+    mint: PublicKey,
+    destination: PublicKey,
+    owner: Signer,
+    amount: number | bigint | BN,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+    decimals?: number,
+) {
+    return _transferToAccountInterface(
         rpc,
         payer,
         source,
@@ -302,6 +338,8 @@ export async function getOrCreateAtaInterface(
  * Create transfer instructions for a unified token transfer.
  *
  * Unified variant: always wraps SPL/T22 to light-token associated token account.
+ * Recipient must be an on-curve wallet address. For PDA/off-curve owners,
+ * use createTransferToAccountInterfaceInstructions with an explicit destination ATA.
  *
  * Returns `TransactionInstruction[][]`. Send [0..n-2] in parallel, then [n-1].
  * Use `sliceLast` to separate the parallel prefix from the final transfer.
@@ -314,11 +352,40 @@ export async function createTransferInterfaceInstructions(
     mint: PublicKey,
     amount: number | bigint | BN,
     sender: PublicKey,
-    destination: PublicKey,
+    recipient: PublicKey,
     options?: Omit<_TransferOptions, 'wrap'>,
 ): Promise<TransactionInstruction[][]> {
     const mintInterface = await getMintInterface(rpc, mint);
     return _createTransferInterfaceInstructions(
+        rpc,
+        payer,
+        mint,
+        amount,
+        sender,
+        recipient,
+        mintInterface.mint.decimals,
+        {
+            ...options,
+            wrap: true,
+        },
+    );
+}
+
+/**
+ * Create transfer instructions that route to an explicit destination token
+ * account.
+ */
+export async function createTransferToAccountInterfaceInstructions(
+    rpc: Rpc,
+    payer: PublicKey,
+    mint: PublicKey,
+    amount: number | bigint | BN,
+    sender: PublicKey,
+    destination: PublicKey,
+    options?: Omit<_TransferOptions, 'wrap'>,
+): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
+    return _createTransferToAccountInterfaceInstructions(
         rpc,
         payer,
         mint,
@@ -421,7 +488,10 @@ export async function unwrap(
     );
 }
 
-export type { _TransferOptions as TransferOptions };
+export type {
+    _TransferOptions as TransferOptions,
+    _TransferOptions as TransferToAccountOptions,
+};
 
 export {
     getAccountInterface,

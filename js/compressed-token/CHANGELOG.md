@@ -2,10 +2,11 @@
 
 ### Breaking Changes
 
-- **`transferInterface` and `createTransferInterfaceInstructions`**: `destination` is now the token account address (SPL-style), not the recipient wallet. `ensureRecipientAta` removed; caller must create the destination ATA before transfer via `getOrCreateAtaInterface` or `createAssociatedTokenAccountInterfaceIdempotentInstruction`.
-    - **Action:** `transferInterface(rpc, payer, source, mint, destination, owner, amount, ...)` — `destination` is the token account (e.g. `getAssociatedTokenAddressInterface(mint, recipient.publicKey)`).
-    - **Instruction builder:** `createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, destination, decimals, options?)` — same `destination` semantics.
-    - **`decimals` is now required** on `createTransferInterfaceInstructions` (instruction-level API). Fetch with `getMintInterface(rpc, mint).mint.decimals` if you were not already threading mint decimals.
+- **`transferInterface` and `createTransferInterfaceInstructions`** now take a recipient wallet address and ensure recipient ATA internally.
+    - **Action:** `transferInterface(rpc, payer, source, mint, recipient, owner, amount, ...)` — `recipient` is the wallet public key.
+    - **Instruction builder:** `createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, recipient, decimals, options?)` — derives destination ATA and inserts idempotent ATA-create internally.
+    - **Advanced explicit-account path:** use `transferToAccountInterface(...)` and `createTransferToAccountInterfaceInstructions(...)` for destination token-account routing (program-owned/custom accounts), preserving the previous destination-account behavior.
+    - **`decimals` is required** on v3 action-level instruction builders. Fetch with `getMintInterface(rpc, mint).mint.decimals` if not already threaded.
 
 - **Root export removed:** `createLoadAtaInstructionsFromInterface` is no longer exported from the package root. Use `createLoadAtaInstructions` (public API) and pass ATA/owner/mint directly.
 
@@ -80,7 +81,12 @@ const batches = await createTransferInterfaceInstructions(
 const { rest: loads, last: transferTx } = sliceLast(batches);
 ```
 
-Options include `ensureRecipientAta` (default: `true`) which prepends an idempotent ATA creation instruction to the transfer transaction, and `programId` which dispatches to SPL `transferChecked` for `TOKEN_PROGRAM_ID`/`TOKEN_2022_PROGRAM_ID`.
+Options at this point included `ensureRecipientAta` (default: `true`) and
+`programId`. `ensureRecipientAta` was removed again in `0.23.0-beta.10` when
+the split was introduced:
+`transferInterface/createTransferInterfaceInstructions` (wallet-recipient) and
+`transferToAccountInterface/createTransferToAccountInterfaceInstructions`
+(explicit destination-account).
 
 #### `createLoadAtaInstructions`
 
@@ -127,7 +133,8 @@ Options include `ensureRecipientAta` (default: `true`) which prepends an idempot
 
 - **`createTransferInterfaceInstructions`**: Instruction builder for transfers with multi-transaction batching, frozen account pre-checks, zero-amount rejection, and `programId`-based dispatch (Light token vs SPL `transferChecked`).
 - **`sliceLast`** helper: Splits instruction batches into `{ rest, last }` for parallel-then-sequential sending.
-- **`TransferOptions`** interface: `wrap`, `programId`, `ensureRecipientAta`, extends `InterfaceOptions`.
+- **`TransferOptions`** at this point included:
+  `wrap`, `programId`, `ensureRecipientAta`, extends `InterfaceOptions`.
 - **Version-aware proof chunking**: V1 inputs chunked with sizes {8,4,2,1}, V2 with {8,7,6,5,4,3,2,1}. V1 and V2 never mixed in a single proof request.
 - **`assertUniqueInputHashes`**: Runtime enforcement that no compressed account hash appears in more than one parallel batch.
 - **`chunkAccountsByTreeVersion`**: Exported utility for splitting compressed accounts by tree version into prover-compatible groups.
