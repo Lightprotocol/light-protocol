@@ -22,7 +22,7 @@ import {
 import {
     approveInterface,
     revokeInterface,
-    transferDelegatedInterface,
+    transferInterface,
 } from '../../src';
 
 featureFlags.version = VERSION.V2;
@@ -121,17 +121,17 @@ describe('delegated transfer - SPL mint', () => {
         );
 
         // Delegated transfer (recipient wallet — ATA created internally)
-        const sig = await transferDelegatedInterface(
+        const sig = await transferInterface(
             rpc,
             payer,
             ownerAta,
             splMint,
             recipient.publicKey,
             delegate,
-            owner.publicKey,
             200_000_000n,
-            undefined,
             TOKEN_PROGRAM_ID,
+            undefined,
+            { owner: owner.publicKey },
         );
         expect(sig).toBeTruthy();
 
@@ -174,34 +174,34 @@ describe('delegated transfer - SPL mint', () => {
         );
 
         await expect(
-            transferDelegatedInterface(
+            transferInterface(
                 rpc,
                 payer,
                 ownerAta,
                 splMint,
                 recipient.publicKey,
                 delegate,
-                owner.publicKey,
                 200_000_000n, // > 100M allowance
-                undefined,
                 TOKEN_PROGRAM_ID,
+                undefined,
+                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 60_000);
 
     it('rejects transfer from unauthorized delegate', async () => {
         await expect(
-            transferDelegatedInterface(
+            transferInterface(
                 rpc,
                 payer,
                 ownerAta,
                 splMint,
                 recipient.publicKey,
                 stranger,
-                owner.publicKey,
                 50_000_000n,
-                undefined,
                 TOKEN_PROGRAM_ID,
+                undefined,
+                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 60_000);
@@ -218,17 +218,17 @@ describe('delegated transfer - SPL mint', () => {
         );
 
         await expect(
-            transferDelegatedInterface(
+            transferInterface(
                 rpc,
                 payer,
                 ownerAta,
                 splMint,
                 recipient.publicKey,
                 delegate,
-                owner.publicKey,
                 50_000_000n,
-                undefined,
                 TOKEN_PROGRAM_ID,
+                undefined,
+                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 60_000);
@@ -314,17 +314,17 @@ describe('delegated transfer - Token-2022 mint', () => {
         );
 
         // Delegated transfer (recipient wallet — ATA created internally)
-        const sig = await transferDelegatedInterface(
+        const sig = await transferInterface(
             rpc,
             payer,
             ownerAta,
             t22Mint,
             recipient.publicKey,
             delegate,
-            owner.publicKey,
             200_000_000n,
-            undefined,
             TOKEN_2022_PROGRAM_ID,
+            undefined,
+            { owner: owner.publicKey },
         );
         expect(sig).toBeTruthy();
 

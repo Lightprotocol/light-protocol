@@ -15,7 +15,7 @@ import {
     getAssociatedTokenAddressInterface,
     approveInterface,
     revokeInterface,
-    transferDelegatedInterface,
+    transferInterface,
     mintToInterface,
 } from '../../src';
 
@@ -90,30 +90,34 @@ describe('transferDelegatedInterface - failure cases', () => {
 
     it('rejects transfer exceeding delegated allowance', async () => {
         await expect(
-            transferDelegatedInterface(
+            transferInterface(
                 rpc,
                 payer,
                 ownerAta,
                 mint,
                 recipient.publicKey,
                 delegate,
-                owner.publicKey,
                 600_000_000, // > 500M allowance
+                undefined,
+                undefined,
+                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 30_000);
 
     it('rejects transfer from unapproved signer', async () => {
         await expect(
-            transferDelegatedInterface(
+            transferInterface(
                 rpc,
                 payer,
                 ownerAta,
                 mint,
                 recipient.publicKey,
                 stranger, // not approved
-                owner.publicKey,
                 100_000_000,
+                undefined,
+                undefined,
+                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 30_000);
@@ -123,15 +127,17 @@ describe('transferDelegatedInterface - failure cases', () => {
         await revokeInterface(rpc, payer, ownerAta, mint, owner);
 
         await expect(
-            transferDelegatedInterface(
+            transferInterface(
                 rpc,
                 payer,
                 ownerAta,
                 mint,
                 recipient.publicKey,
                 delegate,
-                owner.publicKey,
                 100_000_000,
+                undefined,
+                undefined,
+                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 60_000);

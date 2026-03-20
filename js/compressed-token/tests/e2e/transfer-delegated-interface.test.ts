@@ -16,7 +16,7 @@ import {
     getAtaInterface,
     approveInterface,
     revokeInterface,
-    transferDelegatedInterface,
+    transferInterface,
     mintToInterface,
 } from '../../src';
 
@@ -102,15 +102,17 @@ describe('transferDelegatedInterface - e2e', () => {
         );
 
         // 2. Delegate transfer 200M (recipient wallet — ATA created internally)
-        const sig = await transferDelegatedInterface(
+        const sig = await transferInterface(
             rpc,
             payer,
             ownerAta,
             mint,
             recipient.publicKey,
             delegate,
-            owner.publicKey,
             200_000_000,
+            undefined,
+            undefined,
+            { owner: owner.publicKey },
         );
         expect(sig).toBeTruthy();
 

@@ -13,4 +13,3 @@ export * from './wrap';
 export * from './unwrap';
 export * from './load-ata';
 export * from './approve-interface';
-export * from './transfer-delegated-interface';
