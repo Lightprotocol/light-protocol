@@ -13,23 +13,18 @@ use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
 use light_registry::utils::get_forester_epoch_pda_from_authority;
 use solana_sdk::{
-    hash::Hash,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
 };
 use tokio::time::Instant;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{error, info, trace, warn};
 
-const WORK_ITEM_BATCH_SIZE: usize = 100;
 use crate::{
     epoch_manager::WorkItem,
     errors::ForesterError,
     metrics::increment_transactions_failed,
     priority_fee::PriorityFeeConfig,
-    processor::v1::{
-        config::{SendBatchedTransactionsConfig, MULTI_NULLIFY_MAX_QUEUE_SIZE},
-        tx_builder::TransactionBuilder,
-    },
+    processor::v1::{config::SendBatchedTransactionsConfig, tx_builder::TransactionBuilder},
     queue_helpers::fetch_queue_item_data,
     smart_transaction::{ConfirmationConfig, PreparedTransaction, SmartTransactionError},
     Result,
@@ -37,8 +32,6 @@ use crate::{
 
 struct PreparedBatchData {
     work_items: Vec<WorkItem>,
-    recent_blockhash: Hash,
-    last_valid_block_height: u64,
     priority_fee: Option<u64>,
     timeout_deadline: Instant,
 }
@@ -146,17 +139,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         }
     }
 
-    let mut build_config = config.build_transaction_batch_config;
-    build_config.queue_item_count = data.work_items.len();
-
-    if data.work_items.len() > MULTI_NULLIFY_MAX_QUEUE_SIZE {
-        warn!(
-            tree = %tree_accounts.merkle_tree,
-            "v1 state multi-nullify disabled: queue_item_count {} exceeds threshold {}",
-            data.work_items.len(), MULTI_NULLIFY_MAX_QUEUE_SIZE
-        );
-    }
-
+    let build_config = config.build_transaction_batch_config;
     let max_concurrent_sends = build_config.max_concurrent_sends.unwrap_or(1).max(1);
     let effective_max_concurrent_sends =
         compute_effective_max_concurrent_sends(config, max_concurrent_sends, data.work_items.len());
@@ -165,107 +148,119 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         tree = %tree_accounts.merkle_tree,
         "Starting transaction sending loop. work_items={}, work_batch_size={}, timeout={:?}, max_concurrent_sends={} (requested={})",
         data.work_items.len(),
-        WORK_ITEM_BATCH_SIZE,
+        config.work_item_batch_size,
         config.retry_config.timeout,
         effective_max_concurrent_sends,
         max_concurrent_sends
     );
 
-    // Blockhash expires after ~150 blocks (~60s). Refresh every 30s to stay safe.
-    const BLOCKHASH_REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
-    let mut recent_blockhash = data.recent_blockhash;
-    let mut last_valid_block_height = data.last_valid_block_height;
-    let mut last_blockhash_refresh = Instant::now();
+    let work_item_batch_size = config.work_item_batch_size;
 
-    for work_chunk in data.work_items.chunks(WORK_ITEM_BATCH_SIZE) {
-        if operation_cancel_signal.load(Ordering::SeqCst) {
-            trace!(tree = %tree_accounts.merkle_tree, "Global cancellation signal received, stopping batch processing.");
-            break;
-        }
-        if Instant::now() >= data.timeout_deadline {
-            trace!(tree = %tree_accounts.merkle_tree, "Reached global timeout deadline before processing next chunk, stopping.");
-            break;
-        }
+    // Cap total items to stay within the merkle tree changelog capacity.
+    const MAX_ITEMS_PER_CYCLE: usize = 1400;
+    let items_to_process = if data.work_items.len() > MAX_ITEMS_PER_CYCLE {
+        &data.work_items[..MAX_ITEMS_PER_CYCLE]
+    } else {
+        &data.work_items
+    };
 
-        // Refresh blockhash if it's getting stale
-        if last_blockhash_refresh.elapsed() > BLOCKHASH_REFRESH_INTERVAL {
-            match pool.get_connection().await {
-                Ok(mut rpc) => match rpc.get_latest_blockhash().await {
-                    Ok((new_hash, new_height)) => {
-                        recent_blockhash = new_hash;
-                        last_valid_block_height = new_height;
-                        last_blockhash_refresh = Instant::now();
-                        debug!(tree = %tree_accounts.merkle_tree, "Refreshed blockhash");
-                    }
-                    Err(e) => {
-                        warn!(tree = %tree_accounts.merkle_tree, "Failed to refresh blockhash: {:?}", e);
-                    }
-                },
-                Err(e) => {
-                    warn!(tree = %tree_accounts.merkle_tree, "Failed to get RPC for blockhash refresh: {:?}", e);
+    // Process all chunks concurrently: each chunk fetches proofs, builds, and sends in parallel.
+    let chunks: Vec<Vec<WorkItem>> = items_to_process
+        .chunks(work_item_batch_size)
+        .map(|c| c.to_vec())
+        .collect();
+
+    let num_chunks = chunks.len();
+    info!(
+        tree = %tree_accounts.merkle_tree,
+        "Processing {} concurrent chunks of up to {} items each",
+        num_chunks, work_item_batch_size
+    );
+
+    let chunk_futures: Vec<_> = chunks
+        .into_iter()
+        .map(|work_chunk| {
+            let pool = Arc::clone(&pool);
+            let transaction_builder = Arc::clone(&transaction_builder);
+            let cancel_signal = Arc::clone(&operation_cancel_signal);
+            let num_sent = Arc::clone(&num_sent_transactions);
+            let payer = payer.insecure_clone();
+            let derivation = *derivation;
+            let tree_id = tree_accounts.merkle_tree;
+            let timeout_deadline = data.timeout_deadline;
+            let confirmation_max_attempts = config.confirmation_max_attempts;
+            let confirmation_poll_interval = config.confirmation_poll_interval;
+
+            async move {
+                // Safety margin: stop 3s before deadline to avoid sending txs
+                // that land after our light slot ends (ForesterNotEligible).
+                let safe_deadline = timeout_deadline - std::time::Duration::from_secs(3);
+                if cancel_signal.load(Ordering::SeqCst) || Instant::now() >= safe_deadline {
+                    return Ok(());
                 }
+
+                // Each chunk gets a fresh blockhash
+                let (recent_blockhash, last_valid_block_height) = {
+                    let mut rpc = pool.get_connection().await.map_err(ForesterError::from)?;
+                    rpc.get_latest_blockhash().await.map_err(|e| {
+                        ForesterError::General { error: format!("Failed to get blockhash: {:?}", e) }
+                    })?
+                };
+
+                let build_start_time = Instant::now();
+                let (transactions_to_send, _) = match transaction_builder
+                    .build_signed_transaction_batch(
+                        &payer,
+                        &derivation,
+                        &recent_blockhash,
+                        last_valid_block_height,
+                        data.priority_fee,
+                        &work_chunk,
+                        build_config,
+                    )
+                    .await
+                {
+                    Ok(res) => res,
+                    Err(e) => {
+                        error!(tree = %tree_id, "Failed to build transaction batch: {:?}", e);
+                        return Ok(());
+                    }
+                };
+                trace!(tree = %tree_id, "Built {} transactions in {:?}", transactions_to_send.len(), build_start_time.elapsed());
+
+                if transactions_to_send.is_empty() || Instant::now() >= safe_deadline {
+                    return Ok(());
+                }
+
+                let send_context = ChunkSendContext {
+                    pool: Arc::clone(&pool),
+                    max_concurrent_sends: effective_max_concurrent_sends,
+                    timeout_deadline,
+                    cancel_signal: Arc::clone(&cancel_signal),
+                    num_sent_transactions: Arc::clone(&num_sent),
+                    confirmation: ConfirmationConfig {
+                        max_attempts: confirmation_max_attempts as u32,
+                        poll_interval: confirmation_poll_interval,
+                    },
+                };
+
+                if let Err(e) = execute_transaction_chunk_sending(transactions_to_send, &send_context).await {
+                    if e.is_forester_not_eligible() {
+                        cancel_signal.store(true, Ordering::SeqCst);
+                        return Err(ForesterError::NotEligible);
+                    }
+                    warn!(tree = %tree_id, error = ?e, "Chunk send finished with recoverable errors");
+                }
+
+                Ok::<(), ForesterError>(())
             }
-        }
+        })
+        .collect();
 
-        trace!(tree = %tree_accounts.merkle_tree, "Processing chunk of size {}", work_chunk.len());
-        let build_start_time = Instant::now();
-
-        let (transactions_to_send, _) = match transaction_builder
-            .build_signed_transaction_batch(
-                payer,
-                derivation,
-                &recent_blockhash,
-                last_valid_block_height,
-                data.priority_fee,
-                work_chunk,
-                build_config,
-            )
-            .await
-        {
-            Ok(res) => res,
-            Err(e) => {
-                error!(tree = %tree_accounts.merkle_tree, "Failed to build transaction batch: {:?}", e);
-                continue;
-            }
-        };
-        trace!(tree = %tree_accounts.merkle_tree, "Built {} transactions in {:?}", transactions_to_send.len(), build_start_time.elapsed());
-
-        if Instant::now() >= data.timeout_deadline {
-            trace!(tree = %tree_accounts.merkle_tree, "Reached global timeout deadline after building transactions, stopping.");
-            break;
-        }
-
-        if transactions_to_send.is_empty() {
-            trace!(tree = %tree_accounts.merkle_tree, "Built batch resulted in 0 transactions, skipping send for this chunk.");
-            continue;
-        }
-
-        let send_context = ChunkSendContext {
-            pool: Arc::clone(&pool),
-            max_concurrent_sends: effective_max_concurrent_sends,
-            timeout_deadline: data.timeout_deadline,
-            cancel_signal: Arc::clone(&operation_cancel_signal),
-            num_sent_transactions: Arc::clone(&num_sent_transactions),
-            confirmation: ConfirmationConfig {
-                max_attempts: config.confirmation_max_attempts as u32,
-                poll_interval: config.confirmation_poll_interval,
-            },
-        };
-
-        if let Err(e) = execute_transaction_chunk_sending(transactions_to_send, &send_context).await
-        {
-            if e.is_forester_not_eligible() {
-                warn!(
-                    tree = %tree_accounts.merkle_tree,
-                    "Detected ForesterNotEligible while sending V1 transactions; stopping batch loop for re-schedule"
-                );
-                return Err(ForesterError::NotEligible);
-            }
-            warn!(
-                tree = %tree_accounts.merkle_tree,
-                error = ?e,
-                "Chunk send finished with recoverable errors"
-            );
+    let results = futures::future::join_all(chunk_futures).await;
+    for result in results {
+        if let Err(ForesterError::NotEligible) = result {
+            return Err(ForesterError::NotEligible);
         }
     }
 
@@ -334,18 +329,14 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
         }
     }
 
-    let (recent_blockhash, last_valid_block_height, priority_fee) = {
-        let mut rpc = pool.get_connection().await.map_err(|e| {
+    let priority_fee = {
+        let rpc = pool.get_connection().await.map_err(|e| {
             error!(
                 tree = %tree_id_str,
-                "Failed to get RPC for blockhash/priority fee: {:?}",
+                "Failed to get RPC for priority fee: {:?}",
                 e
             );
             ForesterError::RpcPool(e)
-        })?;
-        let r_blockhash = rpc.get_latest_blockhash().await.map_err(|e| {
-            error!(tree = %tree_id_str, "Failed to get latest blockhash: {:?}", e);
-            ForesterError::Rpc(e)
         })?;
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(derivation, transaction_builder.epoch()).0;
@@ -355,13 +346,12 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
             tree_accounts.queue,
             tree_accounts.merkle_tree,
         ];
-        let priority_fee = PriorityFeeConfig {
+        PriorityFeeConfig {
             compute_unit_price: config.build_transaction_batch_config.compute_unit_price,
             enable_priority_fees: config.build_transaction_batch_config.enable_priority_fees,
         }
         .resolve(&*rpc, account_keys)
-        .await?;
-        (r_blockhash.0, r_blockhash.1, priority_fee)
+        .await?
     };
 
     let work_items: Vec<WorkItem> = queue_item_data
@@ -376,8 +366,6 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
 
     Ok(Some(PreparedBatchData {
         work_items,
-        recent_blockhash,
-        last_valid_block_height,
         priority_fee,
         timeout_deadline,
     }))

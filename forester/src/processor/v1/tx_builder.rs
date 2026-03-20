@@ -17,10 +17,7 @@ use crate::{
     epoch_manager::WorkItem,
     processor::{
         tx_cache::ProcessedHashCache,
-        v1::{
-            config::{BuildTransactionBatchConfig, MULTI_NULLIFY_MAX_QUEUE_SIZE},
-            helpers::fetch_proofs_and_create_instructions,
-        },
+        v1::{config::BuildTransactionBatchConfig, helpers::fetch_proofs_and_create_instructions},
     },
     smart_transaction::{
         create_smart_transaction, CreateSmartTransactionConfig, PreparedTransaction,
@@ -127,9 +124,8 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             .map(|&item| item.clone())
             .collect::<Vec<_>>();
 
-        let use_multi_nullify = self.enable_v1_multi_nullify
-            && !self.address_lookup_tables.is_empty()
-            && config.queue_item_count <= MULTI_NULLIFY_MAX_QUEUE_SIZE;
+        let use_multi_nullify =
+            self.enable_v1_multi_nullify && !self.address_lookup_tables.is_empty();
         let mut transactions = vec![];
         let all_instructions = match fetch_proofs_and_create_instructions(
             payer.pubkey(),
@@ -174,12 +170,22 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
                 .iter()
                 .map(|li| li.instruction.clone())
                 .collect();
+
+            // Dynamic CU based on number of nullifications in the instruction.
+            let nullify_count: u32 = labeled_chunk.iter().map(|li| li.nullify_count).sum();
+            let dynamic_cu_limit = Some(match nullify_count {
+                1 => 300_000,
+                2 => 600_000,
+                3 => 900_000,
+                _ => 1_000_000,
+            });
+
             let prepared = create_smart_transaction(CreateSmartTransactionConfig {
                 payer: payer.insecure_clone(),
                 instructions,
                 recent_blockhash: *recent_blockhash,
                 compute_unit_price: priority_fee,
-                compute_unit_limit: config.compute_unit_limit,
+                compute_unit_limit: dynamic_cu_limit,
                 last_valid_block_height,
                 address_lookup_tables: self.address_lookup_tables.clone(),
             })

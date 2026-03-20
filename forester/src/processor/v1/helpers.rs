@@ -43,6 +43,8 @@ pub struct LabeledInstruction {
     pub instruction: Instruction,
     /// Label for logging, e.g. "StateV1Nullify" or "StateV1MultiNullify(3)"
     pub label: String,
+    /// Number of nullifications in this instruction (1 for single, 2-4 for multi).
+    pub nullify_count: u32,
 }
 
 /// Work items should be of only one type and tree
@@ -377,6 +379,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         instructions.push(LabeledInstruction {
             instruction,
             label: "AddressV1Update".to_string(),
+            nullify_count: 1,
         });
     }
 
@@ -443,6 +446,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                         item, proof, authority, derivation, epoch,
                     ),
                     label: "StateV1Nullify".to_string(),
+                    nullify_count: 1,
                 });
             } else {
                 let group_proofs: Vec<[[u8; 32]; 16]> = group_indices
@@ -503,6 +507,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                 instructions.push(LabeledInstruction {
                     instruction,
                     label: format!("StateV1MultiNullify({})", group_size),
+                    nullify_count: group_size as u32,
                 });
             }
         }
@@ -514,6 +519,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
             instructions.push(LabeledInstruction {
                 instruction: build_nullify_instruction(item, proof, authority, derivation, epoch),
                 label: "StateV1Nullify".to_string(),
+                nullify_count: 1,
             });
         }
     }

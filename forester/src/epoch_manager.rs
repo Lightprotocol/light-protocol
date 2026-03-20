@@ -393,13 +393,19 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             async move { self_clone.check_sol_balance_periodically().await }
         });
 
+        let queue_metrics_handle = tokio::spawn({
+            let self_clone = Arc::clone(&self);
+            async move { self_clone.update_queue_metrics_periodically().await }
+        });
+
         let _guard = scopeguard::guard(
             (
                 current_previous_handle,
                 tree_discovery_handle,
                 balance_check_handle,
+                queue_metrics_handle,
             ),
-            |(h2, h3, h4)| {
+            |(h2, h3, h4, h5)| {
                 info!(
                     event = "background_tasks_aborting",
                     run_id = %self.run_id,
@@ -408,6 +414,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 h2.abort();
                 h3.abort();
                 h4.abort();
+                h5.abort();
             },
         );
 
@@ -489,6 +496,50 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         // Abort monitor_handle on exit
         monitor_handle.abort();
         result
+    }
+
+    /// Periodically updates queue_length and queue_capacity Prometheus gauges
+    /// so Grafana dashboards can show queue trends over time.
+    async fn update_queue_metrics_periodically(self: Arc<Self>) -> Result<()> {
+        let interval_secs = self.config.general_config.tree_discovery_interval_seconds;
+        if interval_secs == 0 {
+            return Ok(());
+        }
+        // Use same interval as tree discovery (default 30s)
+        let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+        // Skip first tick — let tree discovery populate the tree list first
+        interval.tick().await;
+
+        loop {
+            interval.tick().await;
+
+            let trees = self.trees.lock().await;
+            let trees_snapshot: Vec<_> = trees.clone();
+            drop(trees);
+
+            if trees_snapshot.is_empty() {
+                continue;
+            }
+
+            for tree_type in [
+                TreeType::StateV1,
+                TreeType::AddressV1,
+                TreeType::StateV2,
+                TreeType::AddressV2,
+            ] {
+                if let Err(e) =
+                    crate::run_queue_info(self.config.clone(), &trees_snapshot, tree_type).await
+                {
+                    debug!(
+                        event = "queue_metrics_update_failed",
+                        run_id = %self.run_id,
+                        tree_type = ?tree_type,
+                        error = ?e,
+                        "Failed to update queue metrics"
+                    );
+                }
+            }
+        }
     }
 
     async fn check_sol_balance_periodically(self: Arc<Self>) -> Result<()> {
@@ -2147,13 +2198,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
-            let sleep_duration_ms = if items_processed_this_iteration > 0 {
-                self.config.general_config.sleep_after_processing_ms
-            } else {
-                self.config.general_config.sleep_when_idle_ms
-            };
-
-            tokio::time::sleep(Duration::from_millis(sleep_duration_ms)).await;
+            if items_processed_this_iteration == 0 {
+                // No items processed. Short sleep before re-checking — the queue
+                // may grow above min_queue_items within this light slot.
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
+            // When items were processed, loop immediately to fetch the next batch.
         }
         Ok(())
     }
@@ -2993,7 +3043,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 compute_unit_limit: Some(self.config.transaction_config.cu_limit),
                 enable_priority_fees: self.config.transaction_config.enable_priority_fees,
                 max_concurrent_sends: Some(self.config.transaction_config.max_concurrent_sends),
-                queue_item_count: 0,
             },
             queue_config: self.config.queue_config,
             retry_config: RetryConfig {
@@ -3015,6 +3064,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             },
             enable_presort: self.config.enable_v1_multi_nullify
                 && !self.address_lookup_tables.is_empty(),
+            work_item_batch_size: self.config.work_item_batch_size,
         };
 
         let alt_snapshot = (*self.address_lookup_tables).clone();
