@@ -13,6 +13,35 @@ use crate::{
     Result,
 };
 
+/// Re-validate compressibility using fresh on-chain account data.
+/// Returns true if the account is still compressible at the given slot.
+pub fn revalidate_compressibility(
+    account_data: &[u8],
+    lamports: u64,
+    current_slot: u64,
+) -> Result<bool> {
+    use light_token_interface::state::extensions::ExtensionStruct;
+
+    let account = Token::try_from_slice(account_data)
+        .map_err(|e| anyhow::anyhow!("Failed to deserialize Token: {:?}", e))?;
+
+    let compression_info = account
+        .extensions
+        .as_ref()
+        .and_then(|exts| {
+            exts.iter().find_map(|ext| match ext {
+                ExtensionStruct::Compressible(comp) => Some(&comp.info),
+                _ => None,
+            })
+        })
+        .ok_or_else(|| anyhow::anyhow!("Missing Compressible extension"))?;
+
+    Ok(compression_info
+        .is_compressible(account_data.len() as u64, current_slot, lamports)
+        .map_err(|e| anyhow::anyhow!("is_compressible error: {:?}", e))?
+        .is_some())
+}
+
 fn calculate_compressible_slot(account: &Token, lamports: u64, account_size: usize) -> Result<u64> {
     use light_token_interface::state::extensions::ExtensionStruct;
 

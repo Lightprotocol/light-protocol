@@ -177,6 +177,11 @@ go test -run TestLightweight -timeout 15m
 End-to-end tests for the off-chain tree maintenance service.
 
 ```bash
+# Using just (preferred, from forester/ directory):
+just -f forester/justfile local          # Run e2e test without rebuilding SBF programs
+just -f forester/justfile test           # Build SBF test deps first, then run e2e test
+
+# Or directly:
 TEST_MODE=local cargo test --package forester e2e_test -- --nocapture
 ```
 

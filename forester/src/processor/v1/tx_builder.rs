@@ -6,8 +6,9 @@ use forester_utils::rpc_pool::SolanaRpcPool;
 use light_client::rpc::Rpc;
 use solana_program::hash::Hash;
 use solana_sdk::{
+    address_lookup_table::AddressLookupTableAccount,
+    instruction::Instruction,
     signature::{Keypair, Signer},
-    transaction::Transaction,
 };
 use tokio::sync::Mutex;
 use tracing::{trace, warn};
@@ -18,7 +19,9 @@ use crate::{
         tx_cache::ProcessedHashCache,
         v1::{config::BuildTransactionBatchConfig, helpers::fetch_proofs_and_create_instructions},
     },
-    smart_transaction::{create_smart_transaction, CreateSmartTransactionConfig},
+    smart_transaction::{
+        create_smart_transaction, CreateSmartTransactionConfig, PreparedTransaction,
+    },
     Result,
 };
 
@@ -35,7 +38,7 @@ pub trait TransactionBuilder: Send + Sync {
         priority_fee: Option<u64>,
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
-    ) -> Result<(Vec<Transaction>, u64)>;
+    ) -> Result<(Vec<PreparedTransaction>, u64)>;
 }
 
 pub struct EpochManagerTransactions<R: Rpc> {
@@ -43,6 +46,8 @@ pub struct EpochManagerTransactions<R: Rpc> {
     pub epoch: u64,
     pub phantom: std::marker::PhantomData<R>,
     pub processed_hash_cache: Arc<Mutex<ProcessedHashCache>>,
+    pub address_lookup_tables: Vec<AddressLookupTableAccount>,
+    pub enable_v1_multi_nullify: bool,
 }
 
 impl<R: Rpc> EpochManagerTransactions<R> {
@@ -50,12 +55,16 @@ impl<R: Rpc> EpochManagerTransactions<R> {
         pool: Arc<SolanaRpcPool<R>>,
         epoch: u64,
         cache: Arc<Mutex<ProcessedHashCache>>,
+        address_lookup_tables: Vec<AddressLookupTableAccount>,
+        enable_v1_multi_nullify: bool,
     ) -> Self {
         Self {
             pool,
             epoch,
             phantom: std::marker::PhantomData,
             processed_hash_cache: cache,
+            address_lookup_tables,
+            enable_v1_multi_nullify,
         }
     }
 }
@@ -75,7 +84,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
         priority_fee: Option<u64>,
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
-    ) -> Result<(Vec<Transaction>, u64)> {
+    ) -> Result<(Vec<PreparedTransaction>, u64)> {
         let mut cache = self.processed_hash_cache.lock().await;
 
         let work_items: Vec<&WorkItem> = work_items
@@ -115,6 +124,8 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             .map(|&item| item.clone())
             .collect::<Vec<_>>();
 
+        let use_multi_nullify =
+            self.enable_v1_multi_nullify && !self.address_lookup_tables.is_empty();
         let mut transactions = vec![];
         let all_instructions = match fetch_proofs_and_create_instructions(
             payer.pubkey(),
@@ -122,6 +133,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             self.pool.clone(),
             self.epoch,
             work_items.as_slice(),
+            use_multi_nullify,
         )
         .await
         {
@@ -142,19 +154,44 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             }
         };
 
-        let batch_size = config.batch_size.max(1) as usize;
+        let batch_size = if !self.address_lookup_tables.is_empty() {
+            1
+        } else {
+            config.batch_size.max(1) as usize
+        };
 
-        for instruction_chunk in all_instructions.chunks(batch_size) {
-            let (transaction, _) = create_smart_transaction(CreateSmartTransactionConfig {
+        for labeled_chunk in all_instructions.chunks(batch_size) {
+            let label = labeled_chunk
+                .iter()
+                .map(|li| li.label.as_str())
+                .collect::<Vec<_>>()
+                .join("+");
+            let instructions: Vec<Instruction> = labeled_chunk
+                .iter()
+                .map(|li| li.instruction.clone())
+                .collect();
+
+            // Dynamic CU based on number of nullifications in the instruction.
+            let nullify_count: u32 = labeled_chunk.iter().map(|li| li.nullify_count).sum();
+            let dynamic_cu_limit = Some(match nullify_count {
+                1 => 300_000,
+                2 => 600_000,
+                3 => 900_000,
+                _ => 1_000_000,
+            });
+
+            let prepared = create_smart_transaction(CreateSmartTransactionConfig {
                 payer: payer.insecure_clone(),
-                instructions: instruction_chunk.to_vec(),
+                instructions,
                 recent_blockhash: *recent_blockhash,
                 compute_unit_price: priority_fee,
-                compute_unit_limit: config.compute_unit_limit,
+                compute_unit_limit: dynamic_cu_limit,
                 last_valid_block_height,
+                address_lookup_tables: self.address_lookup_tables.clone(),
             })
-            .await?;
-            transactions.push(transaction);
+            .await?
+            .with_label(label);
+            transactions.push(prepared);
         }
 
         if !transactions.is_empty() {

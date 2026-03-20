@@ -62,6 +62,189 @@ pub fn create_nullify_instruction(
     }
 }
 
+/// Returns the common accounts shared by all forester lookup tables.
+fn common_lookup_table_accounts() -> Vec<Pubkey> {
+    let (cpi_authority, _) = get_cpi_authority_pda();
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+    vec![
+        cpi_authority,
+        registered_program_pda,
+        account_compression::ID,
+        Pubkey::new_from_array(NOOP_PUBKEY),
+        crate::ID,
+        solana_sdk::compute_budget::ID,
+    ]
+}
+
+/// Max number of 32-byte nodes in the dedup encoding vec.
+/// Verified by tx size test (forester/tests/test_nullify_state_v1_multi_tx_size.rs).
+/// With ALT, SetComputeUnitLimit + SetComputeUnitPrice ixs, and worst-case nodes,
+/// the tx fits within the 1232 byte limit.
+pub const NULLIFY_STATE_V1_MULTI_MAX_NODES: usize = 27;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreateNullifyStateV1MultiInstructionInputs {
+    pub authority: Pubkey,
+    pub nullifier_queue: Pubkey,
+    pub merkle_tree: Pubkey,
+    pub change_log_index: u16,
+    pub queue_indices: [u16; 4],
+    pub leaf_indices: [u32; 4],
+    pub proof_bitvecs: [u32; 4],
+    pub nodes: Vec<[u8; 32]>,
+    pub derivation: Pubkey,
+    pub is_metadata_forester: bool,
+}
+
+pub fn create_nullify_state_v1_multi_instruction(
+    inputs: CreateNullifyStateV1MultiInstructionInputs,
+    epoch: u64,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let registered_forester_pda = if inputs.is_metadata_forester {
+        None
+    } else {
+        Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
+    };
+    let (cpi_authority, _bump) = get_cpi_authority_pda();
+    let instruction_data = crate::instruction::NullifyStateV1Multi {
+        change_log_index: inputs.change_log_index,
+        queue_indices: inputs.queue_indices,
+        leaf_indices: inputs.leaf_indices,
+        proof_bitvecs: inputs.proof_bitvecs,
+        nodes: inputs.nodes,
+    };
+
+    let accounts = crate::accounts::NullifyLeaves {
+        authority: inputs.authority,
+        registered_forester_pda,
+        registered_program_pda: register_program_pda,
+        nullifier_queue: inputs.nullifier_queue,
+        merkle_tree: inputs.merkle_tree,
+        log_wrapper: NOOP_PUBKEY.into(),
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+/// Result of compressing 2-4 Merkle proofs into a deduplicated node pool.
+pub struct CompressedProofs {
+    /// Bitvecs for proofs 2-4, each selecting 16 nodes from the pool.
+    /// proof_1 is always nodes[0..16].
+    pub proof_bitvecs: [u32; 4],
+    pub nodes: Vec<[u8; 32]>,
+}
+
+/// Compresses 2-4 full 16-node Merkle proofs into a deduplicated node pool.
+/// The pool is built level-by-level so that iterating set bits in ascending
+/// order produces nodes in proof-level order.
+/// Proof 1 is always nodes[0..16]. Proofs 2-4 each have a bitvec selecting
+/// which pool nodes form that proof.
+/// Returns `None` if fewer than 2, more than 4 proofs, or too many unique nodes.
+pub fn compress_proofs(proofs: &[&[[u8; 32]; 16]]) -> Option<CompressedProofs> {
+    use bitvec::prelude::*;
+
+    if proofs.len() < 2 || proofs.len() > 4 {
+        return None;
+    }
+
+    // Build level-ordered deduplicated pool. For each level, add unique
+    // nodes across all proofs. Ascending pool index == ascending level.
+    let mut nodes: Vec<[u8; 32]> = Vec::new();
+    let mut pool_indices = [[0usize; 16]; 4];
+
+    for level in 0..16 {
+        for (proof_idx, proof) in proofs.iter().enumerate() {
+            if let Some(idx) = nodes.iter().position(|n| *n == proof[level]) {
+                pool_indices[proof_idx][level] = idx;
+            } else {
+                pool_indices[proof_idx][level] = nodes.len();
+                nodes.push(proof[level]);
+            }
+        }
+    }
+
+    if nodes.len() > NULLIFY_STATE_V1_MULTI_MAX_NODES || nodes.len() > 32 {
+        return None;
+    }
+
+    let mut proof_bitvecs = [0u32; 4];
+    for (proof_idx, _) in proofs.iter().enumerate() {
+        let bv = proof_bitvecs[proof_idx].view_bits_mut::<Lsb0>();
+        for level in 0..16 {
+            bv.set(pool_indices[proof_idx][level], true);
+        }
+    }
+
+    Some(CompressedProofs {
+        proof_bitvecs,
+        nodes,
+    })
+}
+
+/// Returns the known accounts for populating an address lookup table
+/// for nullify_state_v1_multi v0 transactions. Includes ComputeBudget program ID
+/// since nullify_state_v1_multi transactions also include a SetComputeUnitLimit instruction.
+pub fn nullify_state_v1_multi_lookup_table_accounts(
+    merkle_tree: Pubkey,
+    nullifier_queue: Pubkey,
+) -> Vec<Pubkey> {
+    let mut accounts = common_lookup_table_accounts();
+    accounts.push(merkle_tree);
+    accounts.push(nullifier_queue);
+    accounts
+}
+
+/// Parameters for creating a unified forester address lookup table
+/// that covers all tree types.
+pub struct ForesterLookupTableParams {
+    /// (merkle_tree, nullifier_queue)
+    pub v1_state_trees: Vec<(Pubkey, Pubkey)>,
+    /// (merkle_tree, queue)
+    pub v1_address_trees: Vec<(Pubkey, Pubkey)>,
+    /// (merkle_tree, output_queue)
+    pub v2_state_trees: Vec<(Pubkey, Pubkey)>,
+    /// merkle_tree (== queue for v2 address trees)
+    pub v2_address_trees: Vec<Pubkey>,
+}
+
+/// Returns a deduplicated list of accounts for a unified forester ALT
+/// that covers all tree types. `v0::Message::try_compile` automatically
+/// selects which ALT entries to reference per instruction, so unused
+/// entries cost nothing.
+pub fn forester_lookup_table_accounts(params: &ForesterLookupTableParams) -> Vec<Pubkey> {
+    let mut accounts = common_lookup_table_accounts();
+
+    for (merkle_tree, nullifier_queue) in &params.v1_state_trees {
+        push_if_absent(&mut accounts, *merkle_tree);
+        push_if_absent(&mut accounts, *nullifier_queue);
+    }
+    for (merkle_tree, queue) in &params.v1_address_trees {
+        push_if_absent(&mut accounts, *merkle_tree);
+        push_if_absent(&mut accounts, *queue);
+    }
+    for (merkle_tree, output_queue) in &params.v2_state_trees {
+        push_if_absent(&mut accounts, *merkle_tree);
+        push_if_absent(&mut accounts, *output_queue);
+    }
+    for merkle_tree in &params.v2_address_trees {
+        push_if_absent(&mut accounts, *merkle_tree);
+    }
+
+    accounts
+}
+
+fn push_if_absent(accounts: &mut Vec<Pubkey>, key: Pubkey) {
+    if !accounts.contains(&key) {
+        accounts.push(key);
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct CreateMigrateStateInstructionInputs {
     pub authority: Pubkey,
@@ -543,5 +726,217 @@ pub fn create_rollover_batch_address_tree_instruction(
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),
         data: instruction_data.data(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bitvec::prelude::*;
+
+    use super::*;
+
+    /// Simulates on-chain reconstruction for testing round-trips.
+    fn reconstruct_proof(nodes: &[[u8; 32]], bits: u32) -> [[u8; 32]; 16] {
+        let bv = bits.view_bits::<Lsb0>();
+        let mut proof = [[0u8; 32]; 16];
+        let mut proof_idx = 0;
+        for (i, node) in nodes.iter().enumerate() {
+            if bv[i] {
+                proof[proof_idx] = *node;
+                proof_idx += 1;
+            }
+        }
+        assert_eq!(proof_idx, 16, "bitvec must select exactly 16 nodes");
+        proof
+    }
+
+    #[test]
+    fn test_nullify_state_v1_multi_instruction_data_size() {
+        let instruction_data = crate::instruction::NullifyStateV1Multi {
+            change_log_index: 0,
+            queue_indices: [0; 4],
+            leaf_indices: [0; 4],
+            proof_bitvecs: [0; 4],
+            nodes: vec![[0u8; 32]; NULLIFY_STATE_V1_MULTI_MAX_NODES],
+        };
+        let data = instruction_data.data();
+        // 8 disc + 2 changelog + 8 queue_indices + 16 leaf_indices + 16 proof_bitvecs
+        // + 4 vec_prefix + N*32 nodes
+        let expected = 8 + 2 + 8 + 16 + 16 + 4 + NULLIFY_STATE_V1_MULTI_MAX_NODES * 32;
+        assert_eq!(
+            data.len(),
+            expected,
+            "nullify_state_v1_multi instruction data must be exactly {} bytes, got {}",
+            expected,
+            data.len()
+        );
+    }
+
+    #[test]
+    fn test_nullify_state_v1_multi_instruction_accounts() {
+        let authority = Pubkey::new_unique();
+        let inputs = CreateNullifyStateV1MultiInstructionInputs {
+            authority,
+            nullifier_queue: Pubkey::new_unique(),
+            merkle_tree: Pubkey::new_unique(),
+            change_log_index: 0,
+            queue_indices: [0, 1, 2, 3],
+            leaf_indices: [0, 1, 2, 3],
+            proof_bitvecs: [0; 4],
+            nodes: vec![[0u8; 32]; 16],
+            derivation: authority,
+            is_metadata_forester: false,
+        };
+        let ix = create_nullify_state_v1_multi_instruction(inputs, 0);
+        assert_eq!(ix.accounts.len(), 8, "expected 8 accounts");
+    }
+
+    #[test]
+    fn test_compress_proofs_round_trip() {
+        let mut proof_1 = [[0u8; 32]; 16];
+        let mut proof_2 = [[0u8; 32]; 16];
+        let mut proof_3 = [[0u8; 32]; 16];
+        let mut proof_4 = [[0u8; 32]; 16];
+
+        for (i, elem) in proof_1.iter_mut().enumerate() {
+            *elem = [i as u8 + 1; 32];
+        }
+
+        // proof_2: differs at levels 0-3, shares 4-15 (total: 16 + 4 = 20)
+        for i in 0..16 {
+            if i < 4 {
+                proof_2[i] = [i as u8 + 100; 32];
+            } else {
+                proof_2[i] = proof_1[i];
+            }
+        }
+
+        // proof_3: differs at levels 0-2, shares 3-15 (total: 20 + 3 = 23)
+        for i in 0..16 {
+            if i < 3 {
+                proof_3[i] = [i as u8 + 200; 32];
+            } else {
+                proof_3[i] = proof_1[i];
+            }
+        }
+
+        // proof_4: differs at levels 0-1, shares 2-15 (total: 23 + 2 = 25)
+        for i in 0..16 {
+            if i < 2 {
+                proof_4[i] = [(i as u8).wrapping_add(250); 32];
+            } else {
+                proof_4[i] = proof_1[i];
+            }
+        }
+
+        let proofs: Vec<&[[u8; 32]; 16]> = vec![&proof_1, &proof_2, &proof_3, &proof_4];
+        let result = compress_proofs(&proofs);
+        assert!(result.is_some(), "compress_proofs should succeed");
+        let compressed = result.unwrap();
+
+        let r_proof_1 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[0]);
+        assert_eq!(r_proof_1, proof_1);
+
+        let r_proof_2 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[1]);
+        assert_eq!(r_proof_2, proof_2);
+
+        let r_proof_3 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[2]);
+        assert_eq!(r_proof_3, proof_3);
+
+        let r_proof_4 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[3]);
+        assert_eq!(r_proof_4, proof_4);
+    }
+
+    #[test]
+    fn test_compress_proofs_returns_none_when_too_many_nodes() {
+        let make_proof = |base: u8| -> [[u8; 32]; 16] {
+            let mut p = [[0u8; 32]; 16];
+            for (i, slot) in p.iter_mut().enumerate() {
+                *slot = [base.wrapping_add(i as u8); 32];
+            }
+            p
+        };
+        let p1 = make_proof(1);
+        let p2 = make_proof(50);
+        let p3 = make_proof(100);
+        let p4 = make_proof(150);
+
+        let proofs: Vec<&[[u8; 32]; 16]> = vec![&p1, &p2, &p3, &p4];
+        let result = compress_proofs(&proofs);
+        assert!(
+            result.is_none(),
+            "should return None when no sharing leads to > MAX_NODES"
+        );
+    }
+
+    #[test]
+    fn test_compress_proofs_2_proofs() {
+        let mut proof_1 = [[0u8; 32]; 16];
+        let mut proof_2 = [[0u8; 32]; 16];
+        for i in 0..16 {
+            proof_1[i] = [i as u8 + 1; 32];
+            if i % 2 == 0 {
+                proof_2[i] = proof_1[i];
+            } else {
+                proof_2[i] = [i as u8 + 100; 32];
+            }
+        }
+
+        let proofs: Vec<&[[u8; 32]; 16]> = vec![&proof_1, &proof_2];
+        let result = compress_proofs(&proofs);
+        assert!(result.is_some(), "2 proofs should compress");
+        let compressed = result.unwrap();
+
+        // Unused bitvecs should be 0
+        assert_eq!(compressed.proof_bitvecs[2], 0);
+        assert_eq!(compressed.proof_bitvecs[3], 0);
+
+        // 16 for proof_1 + 8 unique for proof_2 (odd indices)
+        assert_eq!(compressed.nodes.len(), 16 + 8);
+
+        // Round-trip
+        let r_proof_1 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[0]);
+        assert_eq!(r_proof_1, proof_1);
+
+        let r_proof_2 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[1]);
+        assert_eq!(r_proof_2, proof_2);
+    }
+
+    #[test]
+    fn test_compress_proofs_3_proofs() {
+        let mut proof_1 = [[0u8; 32]; 16];
+        let mut proof_2 = [[0u8; 32]; 16];
+        let mut proof_3 = [[0u8; 32]; 16];
+        for i in 0..16 {
+            proof_1[i] = [i as u8 + 1; 32];
+            if i % 2 == 0 {
+                proof_2[i] = proof_1[i];
+            } else {
+                proof_2[i] = [i as u8 + 50; 32];
+            }
+            if i % 3 == 0 {
+                proof_3[i] = proof_1[i];
+            } else {
+                proof_3[i] = proof_2[i];
+            }
+        }
+
+        let proofs: Vec<&[[u8; 32]; 16]> = vec![&proof_1, &proof_2, &proof_3];
+        let result = compress_proofs(&proofs);
+        assert!(result.is_some(), "3 proofs should compress");
+        let compressed = result.unwrap();
+        assert_eq!(
+            compressed.proof_bitvecs[3], 0,
+            "proof_4 bitvec should be 0 for 3 proofs"
+        );
+
+        let r_proof_1 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[0]);
+        assert_eq!(r_proof_1, proof_1);
+
+        let r_proof_2 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[1]);
+        assert_eq!(r_proof_2, proof_2);
+
+        let r_proof_3 = reconstruct_proof(&compressed.nodes, compressed.proof_bitvecs[2]);
+        assert_eq!(r_proof_3, proof_3);
     }
 }

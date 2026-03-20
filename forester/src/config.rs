@@ -30,6 +30,14 @@ pub struct ForesterConfig {
     pub compressible_config: Option<crate::compressible::config::CompressibleConfig>,
     /// Address lookup table for versioned transactions. If None, legacy transactions are used.
     pub lookup_table_address: Option<Pubkey>,
+    /// Minimum queue items before processing V1 state nullifications.
+    /// Delays processing to allow dedup grouping. Only applies when lookup_table_address is set.
+    pub min_queue_items: Option<usize>,
+    /// Enable nullify_state_v1_multi instruction for batching 2-4 V1 state nullifications.
+    /// Requires lookup_table_address to be set.
+    pub enable_v1_multi_nullify: bool,
+    /// Number of queue items to process per batch cycle. Default: 50.
+    pub work_item_batch_size: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -116,7 +124,7 @@ impl Default for GeneralConfig {
             skip_v2_address_trees: false,
             tree_ids: vec![],
             sleep_after_processing_ms: 10_000,
-            sleep_when_idle_ms: 45_000,
+            sleep_when_idle_ms: 5_000,
             queue_polling_mode: QueuePollingMode::Indexer,
             group_authority: None,
             helius_rpc: false,
@@ -341,7 +349,7 @@ impl ForesterConfig {
                     valid.into_iter().map(|r| r.unwrap()).collect()
                 },
                 sleep_after_processing_ms: 10_000,
-                sleep_when_idle_ms: 45_000,
+                sleep_when_idle_ms: 5_000,
                 queue_polling_mode: args.queue_polling_mode,
                 group_authority: args
                     .group_authority
@@ -421,6 +429,9 @@ impl ForesterConfig {
                     })
                 })
                 .transpose()?,
+            min_queue_items: args.min_queue_items,
+            enable_v1_multi_nullify: args.enable_v1_multi_nullify,
+            work_item_batch_size: args.work_item_batch_size.unwrap_or(50),
         })
     }
 
@@ -475,6 +486,9 @@ impl ForesterConfig {
             state_tree_data: vec![],
             compressible_config: None,
             lookup_table_address: None,
+            min_queue_items: None,
+            enable_v1_multi_nullify: false,
+            work_item_batch_size: 50,
         })
     }
 }
@@ -495,6 +509,9 @@ impl Clone for ForesterConfig {
             state_tree_data: self.state_tree_data.clone(),
             compressible_config: self.compressible_config.clone(),
             lookup_table_address: self.lookup_table_address,
+            min_queue_items: self.min_queue_items,
+            enable_v1_multi_nullify: self.enable_v1_multi_nullify,
+            work_item_batch_size: self.work_item_batch_size,
         }
     }
 }

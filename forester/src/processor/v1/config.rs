@@ -19,6 +19,16 @@ pub struct SendBatchedTransactionsConfig {
     pub light_slot_length: u64,
     pub confirmation_poll_interval: std::time::Duration,
     pub confirmation_max_attempts: usize,
+    /// Minimum number of queue items required before processing begins.
+    /// Only applies to StateV1 trees. When `None`, processing starts immediately.
+    /// When the timeout deadline is reached, returns 0 (re-scheduled next light slot).
+    pub min_queue_items: Option<usize>,
+    /// When true, fetch leaf indices from the indexer and sort work items by
+    /// leaf_index before chunking, so adjacent leaves land in the same batch
+    /// for better dedup grouping.
+    pub enable_presort: bool,
+    /// Number of queue items to process per batch cycle.
+    pub work_item_batch_size: usize,
 }
 
 #[derive(Debug, Clone, Copy)]
