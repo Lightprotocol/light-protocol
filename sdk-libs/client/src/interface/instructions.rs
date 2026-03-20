@@ -8,7 +8,7 @@ use light_account::{
     CompressedAccountData, InitializeLightConfigParams, Pack, UpdateLightConfigParams,
 };
 use light_sdk::instruction::{
-    account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
+    account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts, PackedStateTreeInfo,
     SystemAccountMetaConfig, ValidityProof,
 };
 use light_token::constants::{
@@ -234,12 +234,7 @@ where
     let output_queue = get_output_queue(&cold_accounts[0].0.tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
-    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts);
-    let tree_infos = &packed_tree_infos
-        .state_trees
-        .as_ref()
-        .ok_or("missing state_trees in packed_tree_infos")?
-        .packed_tree_infos;
+    let tree_infos = proof.pack_state_tree_infos(&mut remaining_accounts);
 
     let mut accounts = program_account_metas.to_vec();
     let mut typed_accounts = Vec::with_capacity(cold_accounts.len());
@@ -247,11 +242,15 @@ where
     // Process PDAs first, then tokens, to match on-chain split_at(token_accounts_offset).
     for &i in pda_indices.iter().chain(token_indices.iter()) {
         let (acc, data) = &cold_accounts[i];
-        let _queue_index = remaining_accounts.insert_or_get(acc.tree_info.queue);
-        let tree_info = tree_infos
+        let proof_tree_info = tree_infos
             .get(i)
             .copied()
             .ok_or("tree info index out of bounds")?;
+        let queue_index = remaining_accounts.insert_or_get(acc.tree_info.queue);
+        let tree_info = PackedStateTreeInfo {
+            queue_pubkey_index: queue_index,
+            ..proof_tree_info
+        };
 
         let packed_data = data.pack(&mut remaining_accounts)?;
         typed_accounts.push(CompressedAccountData {
@@ -309,14 +308,9 @@ pub fn build_compress_accounts_idempotent(
     let output_queue = get_output_queue(&proof.accounts[0].tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
-    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts);
-    let tree_infos = packed_tree_infos
-        .state_trees
-        .as_ref()
-        .ok_or("missing state_trees in packed_tree_infos")?;
+    let tree_infos = proof.pack_state_tree_infos(&mut remaining_accounts);
 
     let cold_metas: Vec<_> = tree_infos
-        .packed_tree_infos
         .iter()
         .map(|tree_info| CompressedAccountMetaNoLamportsNoAddress {
             tree_info: *tree_info,

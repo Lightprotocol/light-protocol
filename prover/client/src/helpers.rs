@@ -2,9 +2,11 @@ use std::process::Command;
 
 use light_hasher::{Hasher, Poseidon};
 use light_sparse_merkle_tree::changelog::ChangelogEntry;
-use num_bigint::{BigInt, BigUint};
+use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::{Num, ToPrimitive};
 use serde::Serialize;
+
+use crate::errors::ProverClientError;
 
 pub fn get_project_root() -> Option<String> {
     let output = Command::new("git")
@@ -33,10 +35,17 @@ pub fn convert_endianness_128(bytes: &[u8]) -> Vec<u8> {
         .collect::<Vec<u8>>()
 }
 
-pub fn bigint_to_u8_32(n: &BigInt) -> Result<[u8; 32], Box<dyn std::error::Error>> {
-    let (_, bytes_be) = n.to_bytes_be();
+pub fn bigint_to_u8_32(n: &BigInt) -> Result<[u8; 32], ProverClientError> {
+    let (sign, bytes_be) = n.to_bytes_be();
+    if sign == Sign::Minus {
+        return Err(ProverClientError::InvalidProofData(
+            "negative integers are not valid field elements".to_string(),
+        ));
+    }
     if bytes_be.len() > 32 {
-        Err("Number too large to fit in [u8; 32]")?;
+        return Err(ProverClientError::InvalidProofData(
+            "number too large to fit in [u8; 32]".to_string(),
+        ));
     }
     let mut array = [0; 32];
     let bytes = &bytes_be[..bytes_be.len()];
@@ -47,23 +56,23 @@ pub fn bigint_to_u8_32(n: &BigInt) -> Result<[u8; 32], Box<dyn std::error::Error
 pub fn compute_root_from_merkle_proof<const HEIGHT: usize>(
     leaf: [u8; 32],
     path_elements: &[[u8; 32]; HEIGHT],
-    path_index: u32,
-) -> ([u8; 32], ChangelogEntry<HEIGHT>) {
-    let mut changelog_entry = ChangelogEntry::default_with_index(path_index as usize);
+    path_index: usize,
+) -> Result<([u8; 32], ChangelogEntry<HEIGHT>), ProverClientError> {
+    let mut changelog_entry = ChangelogEntry::default_with_index(path_index);
 
     let mut current_hash = leaf;
     let mut current_index = path_index;
     for (level, path_element) in path_elements.iter().enumerate() {
         changelog_entry.path[level] = Some(current_hash);
         if current_index.is_multiple_of(2) {
-            current_hash = Poseidon::hashv(&[&current_hash, path_element]).unwrap();
+            current_hash = Poseidon::hashv(&[&current_hash, path_element])?;
         } else {
-            current_hash = Poseidon::hashv(&[path_element, &current_hash]).unwrap();
+            current_hash = Poseidon::hashv(&[path_element, &current_hash])?;
         }
         current_index /= 2;
     }
 
-    (current_hash, changelog_entry)
+    Ok((current_hash, changelog_entry))
 }
 
 pub fn big_uint_to_string(big_uint: &BigUint) -> String {

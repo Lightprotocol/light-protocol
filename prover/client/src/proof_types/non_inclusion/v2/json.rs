@@ -2,6 +2,7 @@ use num_traits::ToPrimitive;
 use serde::Serialize;
 
 use crate::{
+    errors::ProverClientError,
     helpers::{big_int_to_string, create_json_from_struct},
     proof_types::{circuit_type::CircuitType, non_inclusion::v2::NonInclusionProofInputs},
 };
@@ -24,7 +25,7 @@ pub struct NonInclusionJsonStruct {
     pub value: String,
 
     #[serde(rename(serialize = "pathIndex"))]
-    pub path_index: u32,
+    pub path_index: u64,
 
     #[serde(rename(serialize = "pathElements"))]
     pub path_elements: Vec<String>,
@@ -42,13 +43,23 @@ impl BatchNonInclusionJsonStruct {
         create_json_from_struct(&self)
     }
 
-    pub fn from_non_inclusion_proof_inputs(inputs: &NonInclusionProofInputs) -> Self {
+    pub fn from_non_inclusion_proof_inputs(
+        inputs: &NonInclusionProofInputs,
+    ) -> Result<Self, ProverClientError> {
         let mut proof_inputs: Vec<NonInclusionJsonStruct> = Vec::new();
         for input in inputs.inputs.iter() {
             let prof_input = NonInclusionJsonStruct {
                 root: big_int_to_string(&input.root),
                 value: big_int_to_string(&input.value),
-                path_index: input.index_hashed_indexed_element_leaf.to_u32().unwrap(),
+                path_index: input
+                    .index_hashed_indexed_element_leaf
+                    .to_u64()
+                    .ok_or_else(|| {
+                        ProverClientError::IntegerConversion(format!(
+                            "failed to convert path index {} to u64",
+                            input.index_hashed_indexed_element_leaf
+                        ))
+                    })?,
                 path_elements: input
                     .merkle_proof_hashed_indexed_element_leaf
                     .iter()
@@ -60,11 +71,11 @@ impl BatchNonInclusionJsonStruct {
             proof_inputs.push(prof_input);
         }
 
-        Self {
+        Ok(Self {
             circuit_type: CircuitType::NonInclusion.to_string(),
             address_tree_height: 40,
             public_input_hash: big_int_to_string(&inputs.public_input_hash),
             inputs: proof_inputs,
-        }
+        })
     }
 }
