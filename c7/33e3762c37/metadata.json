@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "c733e3762c37",
+  "strategy": "manual-commit",
+  "branch": "jorrit/feat-specify-and-tree-fee-distribution",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".specify/init-options.json",
+    ".specify/memory/constitution.md",
+    ".specify/scripts/bash/check-prerequisites.sh",
+    ".specify/scripts/bash/common.sh",
+    ".specify/scripts/bash/create-new-feature.sh",
+    ".specify/scripts/bash/setup-plan.sh",
+    ".specify/scripts/bash/update-agent-context.sh",
+    ".specify/templates/agent-file-template.md",
+    ".specify/templates/checklist-template.md",
+    ".specify/templates/constitution-template.md",
+    ".specify/templates/plan-template.md",
+    ".specify/templates/spec-template.md",
+    ".specify/templates/tasks-template.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c7/33e3762c37/0/metadata.json",
+      "transcript": "/c7/33e3762c37/0/full.jsonl",
+      "context": "/c7/33e3762c37/0/context.md",
+      "content_hash": "/c7/33e3762c37/0/content_hash.txt",
+      "prompt": "/c7/33e3762c37/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6183,
+    "cache_creation_tokens": 131486,
+    "cache_read_tokens": 6638020,
+    "output_tokens": 33221,
+    "api_call_count": 78
+  }
+}
