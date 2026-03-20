@@ -566,8 +566,8 @@ export async function createApproveInterfaceInstructions(
     owner: PublicKey,
     decimals?: number,
 ): Promise<TransactionInstruction[][]> {
-    const mintInfo = await getMintInterface(rpc, mint);
-    const resolvedDecimals = decimals ?? mintInfo.mint.decimals;
+    const resolvedDecimals =
+        decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
     return _createApproveInterfaceInstructions(
         rpc,
         payer,
@@ -635,8 +635,8 @@ export async function createRevokeInterfaceInstructions(
     owner: PublicKey,
     decimals?: number,
 ): Promise<TransactionInstruction[][]> {
-    const mintInfo = await getMintInterface(rpc, mint);
-    const resolvedDecimals = decimals ?? mintInfo.mint.decimals;
+    const resolvedDecimals =
+        decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
     return _createRevokeInterfaceInstructions(
         rpc,
         payer,
