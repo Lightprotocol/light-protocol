@@ -303,6 +303,7 @@ async fn e2e_test() {
         }),
         min_queue_items: None,
         enable_v1_multi_nullify: false,
+        work_item_batch_size: 50,
     };
     let test_mode = TestMode::from_env();
 
