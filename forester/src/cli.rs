@@ -102,8 +102,8 @@ pub struct StartArgs {
     #[arg(
         long,
         env = "MAX_CONCURRENT_SENDS",
-        default_value = "12",
-        help = "Maximum number of concurrent transaction sends per batch"
+        default_value = "50",
+        help = "Maximum number of concurrent transaction sends per batch. Defaults to 50 to match work-item-batch-size."
     )]
     pub max_concurrent_sends: usize,
 
@@ -298,10 +298,17 @@ pub struct StartArgs {
     #[arg(
         long,
         env = "ENABLE_V1_MULTI_NULLIFY",
-        help = "Enable nullify_state_v1_multi instruction for batching 2-4 V1 state nullifications per instruction. Requires --lookup-table-address.",
-        default_value = "false"
+        help = "Enable nullify_state_v1_multi instruction for batching 2-4 V1 state nullifications per instruction. Requires --lookup-table-address. Enabled by default.",
+        default_value = "true"
     )]
     pub enable_v1_multi_nullify: bool,
+
+    #[arg(
+        long,
+        env = "WORK_ITEM_BATCH_SIZE",
+        help = "Number of queue items to process per batch cycle. Smaller values reduce blockhash expiry risk, larger values reduce per-batch overhead."
+    )]
+    pub work_item_batch_size: Option<usize>,
 
     #[arg(
         long,
