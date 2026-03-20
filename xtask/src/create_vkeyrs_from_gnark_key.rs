@@ -25,7 +25,7 @@ pub fn create_vkeyrs_from_gnark_key(opts: Options) -> anyhow::Result<()> {
     let nr_pubinputs = vk.nr_pubinputs;
     let vk_alpha_g1 = vk.vk_alpha_g1.iter().map(|b| quote! {#b});
     let vk_beta_g2 = vk.vk_beta_g2.iter().map(|b| quote! {#b});
-    let vk_gamme_g2 = vk.vk_gamme_g2.iter().map(|b| quote! {#b});
+    let vk_gamma_g2 = vk.vk_gamma_g2.iter().map(|b| quote! {#b});
     let vk_delta_g2 = vk.vk_delta_g2.iter().map(|b| quote! {#b});
     let vk_ic_slices = vk.vk_ic.iter().map(|slice| {
         let bytes = slice.iter().map(|b| quote! {#b});
@@ -40,7 +40,7 @@ pub fn create_vkeyrs_from_gnark_key(opts: Options) -> anyhow::Result<()> {
             nr_pubinputs: #nr_pubinputs,
             vk_alpha_g1: [#(#vk_alpha_g1),*],
             vk_beta_g2: [#(#vk_beta_g2),*],
-            vk_gamme_g2: [#(#vk_gamme_g2),*],
+            vk_gamma_g2: [#(#vk_gamma_g2),*],
             vk_delta_g2: [#(#vk_delta_g2),*],
             vk_ic: &[#(#vk_ic_slices),*],
         };
@@ -117,7 +117,7 @@ pub fn read_gnark_vk_bytes<'a>(gnark_vk_bytes: &[u8]) -> Groth16Verifyingkey<'a>
         vk_beta_g2: gnark_vk_bytes[beta_g2_offset_start..beta_g2_offset_end]
             .try_into()
             .unwrap(),
-        vk_gamme_g2: gamma_g2_be,
+        vk_gamma_g2: gamma_g2_be,
         vk_delta_g2: delta_g2_be,
         vk_ic: vk_ic_slice,
     }
