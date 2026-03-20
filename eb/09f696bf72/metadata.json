@@ -3,7 +3,7 @@
   "checkpoint_id": "eb09f696bf72",
   "strategy": "manual-commit",
   "branch": "jorrit/chore-add-forester-tps-xtask",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "xtask/src/fetch_keypair_txs.rs"
   ],
@@ -14,13 +14,20 @@
       "context": "/eb/09f696bf72/0/context.md",
       "content_hash": "/eb/09f696bf72/0/content_hash.txt",
       "prompt": "/eb/09f696bf72/0/prompt.txt"
+    },
+    {
+      "metadata": "/eb/09f696bf72/1/metadata.json",
+      "transcript": "/eb/09f696bf72/1/full.jsonl",
+      "context": "/eb/09f696bf72/1/context.md",
+      "content_hash": "/eb/09f696bf72/1/content_hash.txt",
+      "prompt": "/eb/09f696bf72/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 6183,
-    "cache_creation_tokens": 131486,
-    "cache_read_tokens": 6638020,
-    "output_tokens": 33221,
-    "api_call_count": 78
+    "input_tokens": 9079,
+    "cache_creation_tokens": 215730,
+    "cache_read_tokens": 7588429,
+    "output_tokens": 36824,
+    "api_call_count": 104
   }
 }
