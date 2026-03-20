@@ -1,0 +1,21 @@
+can you edit my global zhrc to export the env variable SOLANA_RPC_URL="https://mainnet.helius-rpc.com/?api-key=REDACTED"
+
+---
+
+ok now add the option to use SOLANA_RPC_URL as default in the xtask we added in this pr
+
+---
+
+disable entire cli committing this session
+
+---
+
+ok it works, dont print the api key of SOLANA_RPC_URL
+
+---
+
+also add default values for buckets = 3, and minutes 10
+
+---
+
+ok and add a short flag that uses buckets 10 and minutes 1
