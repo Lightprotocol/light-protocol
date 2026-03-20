@@ -37,11 +37,22 @@ function calculateApproveCU(loadBatch: InternalLoadBatch | null): number {
     return calculateCombinedCU(APPROVE_BASE_CU, loadBatch);
 }
 
+const REVOKE_BASE_CU = 10_000;
+
+function calculateRevokeCU(loadBatch: InternalLoadBatch | null): number {
+    return calculateCombinedCU(REVOKE_BASE_CU, loadBatch);
+}
+
 /**
  * Build instruction batches for approving a delegate on an ATA.
  *
  * Supports light-token, SPL, and Token-2022 mints.
  * Returns `TransactionInstruction[][]`. Send [0..n-2] in parallel, then [n-1].
+ *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA before the approve instruction. The `amount` parameter
+ * only controls the delegate's spending limit, not the number of accounts
+ * loaded. Users with many cold accounts may see additional load transactions.
  *
  * @param rpc          RPC connection
  * @param payer        Fee payer public key
@@ -185,6 +196,10 @@ export async function createApproveInterfaceInstructions(
  * Supports light-token, SPL, and Token-2022 mints.
  * Returns `TransactionInstruction[][]`. Send [0..n-2] in parallel, then [n-1].
  *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA before the revoke instruction. Users with many cold
+ * accounts may see additional load transactions.
+ *
  * @param rpc          RPC connection
  * @param payer        Fee payer public key
  * @param mint         Mint address
@@ -234,7 +249,7 @@ export async function createRevokeInterfaceInstructions(
         const numSigners = payer.equals(owner) ? 1 : 2;
         const txIxs = [
             ComputeBudgetProgram.setComputeUnitLimit({
-                units: APPROVE_BASE_CU,
+                units: REVOKE_BASE_CU,
             }),
             revokeIx,
         ];
@@ -264,7 +279,7 @@ export async function createRevokeInterfaceInstructions(
     const numSigners = payer.equals(owner) ? 1 : 2;
 
     if (internalBatches.length === 0) {
-        const cu = calculateApproveCU(null);
+        const cu = calculateRevokeCU(null);
         const txIxs = [
             ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
             revokeIx,
@@ -275,7 +290,7 @@ export async function createRevokeInterfaceInstructions(
 
     if (internalBatches.length === 1) {
         const batch = internalBatches[0];
-        const cu = calculateApproveCU(batch);
+        const cu = calculateRevokeCU(batch);
         const txIxs = [
             ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
             ...batch.instructions,
@@ -299,7 +314,7 @@ export async function createRevokeInterfaceInstructions(
     }
 
     const lastBatch = internalBatches[internalBatches.length - 1];
-    const lastCu = calculateApproveCU(lastBatch);
+    const lastCu = calculateRevokeCU(lastBatch);
     const lastTxIxs = [
         ComputeBudgetProgram.setComputeUnitLimit({ units: lastCu }),
         ...lastBatch.instructions,

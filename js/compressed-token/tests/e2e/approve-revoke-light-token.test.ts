@@ -396,6 +396,62 @@ describe('LightToken approve/revoke - E2E', () => {
         expect(info.delegatedAmount).toBe(BigInt(700));
     }, 60_000);
 
+    it('should approve and revoke when owner is also fee payer', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+        const delegate = Keypair.generate();
+        const lightTokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+
+        // Create hot ATA and mint tokens (use global payer for setup)
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(1000),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
+
+        // Approve with owner as fee payer (omit feePayer param)
+        const approveIx = createLightTokenApproveInstruction(
+            lightTokenAta,
+            delegate.publicKey,
+            owner.publicKey,
+            BigInt(500),
+        );
+        let { blockhash } = await rpc.getLatestBlockhash();
+        // owner is sole signer — acts as both tx fee payer and instruction owner
+        let tx = buildAndSignTx([approveIx], owner, blockhash);
+        await sendAndConfirmTx(rpc, tx);
+
+        // Verify delegate is set
+        const { delegate: actualDelegate, delegatedAmount } =
+            await getLightTokenDelegate(rpc, lightTokenAta);
+        expect(actualDelegate).not.toBeNull();
+        expect(actualDelegate!.equals(delegate.publicKey)).toBe(true);
+        expect(delegatedAmount).toBe(BigInt(500));
+
+        // Revoke with owner as fee payer
+        const revokeIx = createLightTokenRevokeInstruction(
+            lightTokenAta,
+            owner.publicKey,
+        );
+        ({ blockhash } = await rpc.getLatestBlockhash());
+        tx = buildAndSignTx([revokeIx], owner, blockhash);
+        await sendAndConfirmTx(rpc, tx);
+
+        // Verify delegate is cleared
+        const afterRevoke = await getLightTokenDelegate(rpc, lightTokenAta);
+        expect(afterRevoke.delegate).toBeNull();
+        expect(afterRevoke.delegatedAmount).toBe(BigInt(0));
+    }, 60_000);
+
     it('should fail when non-owner tries to approve', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const wrongSigner = Keypair.generate();

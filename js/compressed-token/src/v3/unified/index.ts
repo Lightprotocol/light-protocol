@@ -39,10 +39,12 @@ import {
 import type { TransferOptions as _TransferOptions } from '../actions/transfer-interface';
 import {
     approveInterface as _approveInterface,
-    createApproveInterfaceInstructions as _createApproveInterfaceInstructions,
     revokeInterface as _revokeInterface,
-    createRevokeInterfaceInstructions as _createRevokeInterfaceInstructions,
 } from '../actions/approve-interface';
+import {
+    createApproveInterfaceInstructions as _createApproveInterfaceInstructions,
+    createRevokeInterfaceInstructions as _createRevokeInterfaceInstructions,
+} from '../instructions/approve-interface';
 
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import {
@@ -506,6 +508,10 @@ export type {
  * Auto-detects mint type (light-token, SPL, or Token-2022) and dispatches
  * to the appropriate instruction.
  *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA, not just the delegation amount. The `amount` parameter
+ * only controls the delegate's spending limit.
+ *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
  * @param tokenAccount   ATA address
@@ -526,7 +532,6 @@ export async function approveInterface(
     owner: Signer,
     confirmOptions?: ConfirmOptions,
 ) {
-    const mintInfo = await getMintInterface(rpc, mint);
     return _approveInterface(
         rpc,
         payer,
@@ -536,7 +541,7 @@ export async function approveInterface(
         amount,
         owner,
         confirmOptions,
-        mintInfo.programId,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         true, // wrap=true for unified
     );
 }
@@ -545,6 +550,11 @@ export async function approveInterface(
  * Build instruction batches for approving a delegate on an ATA.
  *
  * Auto-detects mint type (light-token, SPL, or Token-2022).
+ *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA before the approve instruction. The `amount` parameter
+ * only controls the delegate's spending limit, not the number of accounts
+ * loaded.
  */
 export async function createApproveInterfaceInstructions(
     rpc: Rpc,
@@ -567,7 +577,7 @@ export async function createApproveInterfaceInstructions(
         amount,
         owner,
         resolvedDecimals,
-        mintInfo.programId,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         true, // wrap=true for unified
     );
 }
@@ -577,6 +587,9 @@ export async function createApproveInterfaceInstructions(
  *
  * Auto-detects mint type (light-token, SPL, or Token-2022) and dispatches
  * to the appropriate instruction.
+ *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA before the revoke instruction.
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
@@ -594,7 +607,6 @@ export async function revokeInterface(
     owner: Signer,
     confirmOptions?: ConfirmOptions,
 ) {
-    const mintInfo = await getMintInterface(rpc, mint);
     return _revokeInterface(
         rpc,
         payer,
@@ -602,7 +614,7 @@ export async function revokeInterface(
         mint,
         owner,
         confirmOptions,
-        mintInfo.programId,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         true, // wrap=true for unified
     );
 }
@@ -611,6 +623,9 @@ export async function revokeInterface(
  * Build instruction batches for revoking delegation on an ATA.
  *
  * Auto-detects mint type (light-token, SPL, or Token-2022).
+ *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA before the revoke instruction.
  */
 export async function createRevokeInterfaceInstructions(
     rpc: Rpc,
@@ -629,7 +644,7 @@ export async function createRevokeInterfaceInstructions(
         tokenAccount,
         owner,
         resolvedDecimals,
-        mintInfo.programId,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         true, // wrap=true for unified
     );
 }

@@ -27,6 +27,10 @@ import { sliceLast } from './slice-last';
  * Supports light-token, SPL, and Token-2022 mints. For light-token mints,
  * loads cold accounts if needed before sending the approve instruction.
  *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA, not just the delegation amount. The `amount` parameter
+ * only controls the delegate's spending limit.
+ *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
  * @param tokenAccount   ATA address
@@ -111,6 +115,9 @@ export async function approveInterface(
  * Supports light-token, SPL, and Token-2022 mints. For light-token mints,
  * loads cold accounts if needed before sending the revoke instruction.
  *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA before the revoke instruction.
+ *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
  * @param tokenAccount   ATA address
@@ -177,13 +184,3 @@ export async function revokeInterface(
     const tx = buildAndSignTx(revokeIxs, payer, blockhash, additionalSigners);
     return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
-
-export {
-    createApproveInterfaceInstructions,
-    createRevokeInterfaceInstructions,
-} from '../instructions/approve-interface';
-export { sliceLast } from './slice-last';
-export {
-    createLightTokenApproveInstruction,
-    createLightTokenRevokeInstruction,
-} from '../instructions/approve-revoke';
