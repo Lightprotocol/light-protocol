@@ -4730,6 +4730,7 @@ mod tests {
             lookup_table_address: None,
             min_queue_items: None,
             enable_v1_multi_nullify: false,
+            work_item_batch_size: 50,
         }
     }
 
