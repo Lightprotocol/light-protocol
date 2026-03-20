@@ -30,6 +30,7 @@ import {
 } from './load-ata';
 import { calculateCombinedCU } from './calculate-combined-cu';
 import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
+import type { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 
 const APPROVE_BASE_CU = 10_000;
 
@@ -41,6 +42,10 @@ const REVOKE_BASE_CU = 10_000;
 
 function calculateRevokeCU(loadBatch: InternalLoadBatch | null): number {
     return calculateCombinedCU(REVOKE_BASE_CU, loadBatch);
+}
+
+export interface ApproveRevokeOptions {
+    splInterfaceInfos?: SplInterfaceInfo[];
 }
 
 /**
@@ -77,6 +82,7 @@ export async function createApproveInterfaceInstructions(
     decimals: number,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     wrap = false,
+    options?: ApproveRevokeOptions,
 ): Promise<TransactionInstruction[][]> {
     assertBetaEnabled();
 
@@ -124,7 +130,7 @@ export async function createApproveInterfaceInstructions(
         rpc,
         payer,
         accountInterface,
-        undefined,
+        options,
         wrap,
         tokenAccount,
         undefined,
@@ -219,6 +225,7 @@ export async function createRevokeInterfaceInstructions(
     decimals: number,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     wrap = false,
+    options?: ApproveRevokeOptions,
 ): Promise<TransactionInstruction[][]> {
     assertBetaEnabled();
 
@@ -262,7 +269,7 @@ export async function createRevokeInterfaceInstructions(
         rpc,
         payer,
         accountInterface,
-        undefined,
+        options,
         wrap,
         tokenAccount,
         undefined,

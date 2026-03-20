@@ -44,6 +44,7 @@ import {
 import {
     createApproveInterfaceInstructions as _createApproveInterfaceInstructions,
     createRevokeInterfaceInstructions as _createRevokeInterfaceInstructions,
+    type ApproveRevokeOptions,
 } from '../instructions/approve-interface';
 
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
@@ -531,6 +532,8 @@ export async function approveInterface(
     amount: number | bigint | BN,
     owner: Signer,
     confirmOptions?: ConfirmOptions,
+    options?: ApproveRevokeOptions,
+    decimals?: number,
 ) {
     return _approveInterface(
         rpc,
@@ -543,6 +546,8 @@ export async function approveInterface(
         confirmOptions,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         true, // wrap=true for unified
+        options,
+        decimals,
     );
 }
 
@@ -565,6 +570,7 @@ export async function createApproveInterfaceInstructions(
     amount: number | bigint | BN,
     owner: PublicKey,
     decimals?: number,
+    options?: ApproveRevokeOptions,
 ): Promise<TransactionInstruction[][]> {
     const resolvedDecimals =
         decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
@@ -579,6 +585,7 @@ export async function createApproveInterfaceInstructions(
         resolvedDecimals,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         true, // wrap=true for unified
+        options,
     );
 }
 
@@ -606,6 +613,8 @@ export async function revokeInterface(
     mint: PublicKey,
     owner: Signer,
     confirmOptions?: ConfirmOptions,
+    options?: ApproveRevokeOptions,
+    decimals?: number,
 ) {
     return _revokeInterface(
         rpc,
@@ -616,6 +625,8 @@ export async function revokeInterface(
         confirmOptions,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         true, // wrap=true for unified
+        options,
+        decimals,
     );
 }
 
@@ -634,6 +645,7 @@ export async function createRevokeInterfaceInstructions(
     tokenAccount: PublicKey,
     owner: PublicKey,
     decimals?: number,
+    options?: ApproveRevokeOptions,
 ): Promise<TransactionInstruction[][]> {
     const resolvedDecimals =
         decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
@@ -646,6 +658,7 @@ export async function createRevokeInterfaceInstructions(
         resolvedDecimals,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         true, // wrap=true for unified
+        options,
     );
 }
 

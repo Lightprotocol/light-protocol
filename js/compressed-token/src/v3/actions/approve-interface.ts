@@ -16,10 +16,12 @@ import BN from 'bn.js';
 import {
     createApproveInterfaceInstructions,
     createRevokeInterfaceInstructions,
+    type ApproveRevokeOptions,
 } from '../instructions/approve-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { getMintInterface } from '../get-mint-interface';
 import { sliceLast } from './slice-last';
+import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 
 /**
  * Approve a delegate for an associated token account.
@@ -54,6 +56,8 @@ export async function approveInterface(
     confirmOptions?: ConfirmOptions,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     wrap = false,
+    options?: ApproveRevokeOptions,
+    decimals?: number,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
 
@@ -69,7 +73,12 @@ export async function approveInterface(
         );
     }
 
-    const mintInterface = await getMintInterface(rpc, mint);
+    const isSplOrT22 =
+        programId.equals(TOKEN_PROGRAM_ID) ||
+        programId.equals(TOKEN_2022_PROGRAM_ID);
+    const resolvedDecimals =
+        decimals ??
+        (isSplOrT22 && !wrap ? 0 : (await getMintInterface(rpc, mint)).mint.decimals);
     const batches = await createApproveInterfaceInstructions(
         rpc,
         payer.publicKey,
@@ -78,9 +87,10 @@ export async function approveInterface(
         delegate,
         amount,
         owner.publicKey,
-        mintInterface.mint.decimals,
+        resolvedDecimals,
         programId,
         wrap,
+        options,
     );
 
     const additionalSigners = dedupeSigner(payer, [owner]);
@@ -137,6 +147,8 @@ export async function revokeInterface(
     confirmOptions?: ConfirmOptions,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     wrap = false,
+    options?: ApproveRevokeOptions,
+    decimals?: number,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
 
@@ -152,16 +164,22 @@ export async function revokeInterface(
         );
     }
 
-    const mintInterface = await getMintInterface(rpc, mint);
+    const isSplOrT22 =
+        programId.equals(TOKEN_PROGRAM_ID) ||
+        programId.equals(TOKEN_2022_PROGRAM_ID);
+    const resolvedDecimals =
+        decimals ??
+        (isSplOrT22 && !wrap ? 0 : (await getMintInterface(rpc, mint)).mint.decimals);
     const batches = await createRevokeInterfaceInstructions(
         rpc,
         payer.publicKey,
         mint,
         tokenAccount,
         owner.publicKey,
-        mintInterface.mint.decimals,
+        resolvedDecimals,
         programId,
         wrap,
+        options,
     );
 
     const additionalSigners = dedupeSigner(payer, [owner]);

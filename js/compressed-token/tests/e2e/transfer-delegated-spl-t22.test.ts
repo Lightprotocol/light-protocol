@@ -131,7 +131,7 @@ describe('delegated transfer - SPL mint', () => {
             200_000_000n,
             TOKEN_PROGRAM_ID,
             undefined,
-            { owner: owner.publicKey },
+            { owner: owner.publicKey, splInterfaceInfos: [] },
         );
         expect(sig).toBeTruthy();
 
@@ -324,7 +324,7 @@ describe('delegated transfer - Token-2022 mint', () => {
             200_000_000n,
             TOKEN_2022_PROGRAM_ID,
             undefined,
-            { owner: owner.publicKey },
+            { owner: owner.publicKey, splInterfaceInfos: [] },
         );
         expect(sig).toBeTruthy();
 

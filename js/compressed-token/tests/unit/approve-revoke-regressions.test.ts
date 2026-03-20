@@ -76,6 +76,7 @@ describe('approve/revoke regressions', () => {
             6,
             undefined,
             true,
+            undefined,
         );
         expect(createRevokeInterfaceInstructionsMock).toHaveBeenCalledWith(
             rpc,
@@ -86,6 +87,7 @@ describe('approve/revoke regressions', () => {
             6,
             undefined,
             true,
+            undefined,
         );
     });
 
@@ -126,6 +128,7 @@ describe('approve/revoke regressions', () => {
             9,
             undefined,
             true,
+            undefined,
         );
         expect(createRevokeInterfaceInstructionsMock).toHaveBeenCalledWith(
             rpc,
@@ -136,6 +139,7 @@ describe('approve/revoke regressions', () => {
             9,
             undefined,
             true,
+            undefined,
         );
     });
 });
