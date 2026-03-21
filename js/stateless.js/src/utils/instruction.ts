@@ -2,6 +2,9 @@ import { AccountMeta, PublicKey, SystemProgram } from '@solana/web3.js';
 import { defaultStaticAccountsStruct, featureFlags } from '../constants';
 import { LightSystemProgram } from '../programs';
 
+const toStrictBool = (value: unknown): boolean =>
+    value === true || value === 1;
+
 export class PackedAccounts {
     private preAccounts: AccountMeta[] = [];
     private systemAccounts: AccountMeta[] = [];
@@ -40,7 +43,11 @@ export class PackedAccounts {
     }
 
     addPreAccountsMeta(accountMeta: AccountMeta): void {
-        this.preAccounts.push(accountMeta);
+        this.preAccounts.push({
+            pubkey: accountMeta.pubkey,
+            isSigner: toStrictBool(accountMeta.isSigner),
+            isWritable: toStrictBool(accountMeta.isWritable),
+        });
     }
 
     /**
@@ -81,7 +88,11 @@ export class PackedAccounts {
             return entry[0];
         }
         const index = this.nextIndex++;
-        const meta: AccountMeta = { pubkey, isSigner, isWritable };
+        const meta: AccountMeta = {
+            pubkey,
+            isSigner: toStrictBool(isSigner),
+            isWritable: toStrictBool(isWritable),
+        };
         this.map.set(pubkey, [index, meta]);
         return index;
     }
@@ -105,11 +116,16 @@ export class PackedAccounts {
     } {
         const packed = this.hashSetAccountsToMetas();
         const [systemStart, packedStart] = this.getOffsets();
+        const normalize = (meta: AccountMeta): AccountMeta => ({
+            pubkey: meta.pubkey,
+            isSigner: toStrictBool(meta.isSigner),
+            isWritable: toStrictBool(meta.isWritable),
+        });
         return {
             remainingAccounts: [
-                ...this.preAccounts,
-                ...this.systemAccounts,
-                ...packed,
+                ...this.preAccounts.map(normalize),
+                ...this.systemAccounts.map(normalize),
+                ...packed.map(normalize),
             ],
             systemStart,
             packedStart,
