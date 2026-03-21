@@ -136,10 +136,7 @@ fn test_hardcoded_rent_exemption() {
     assert_eq!(hardcoded_rent_exemption(0), Some(890_880));
     // Large account
     let large = 10_000_000u64;
-    assert_eq!(
-        hardcoded_rent_exemption(large),
-        Some((large + 128) * 6960)
-    );
+    assert_eq!(hardcoded_rent_exemption(large), Some((large + 128) * 6960));
     // Overflow: u64::MAX
     assert_eq!(hardcoded_rent_exemption(u64::MAX), None);
 }

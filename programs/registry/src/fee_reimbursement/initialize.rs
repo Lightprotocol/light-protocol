@@ -3,8 +3,7 @@ use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_merkle_tree_metadata::STATE_MERKLE_TREE_TYPE_V2;
 
-use crate::errors::RegistryError;
-use crate::fee_reimbursement::state::ReimbursementPda;
+use crate::{errors::RegistryError, fee_reimbursement::state::ReimbursementPda};
 
 pub const REIMBURSEMENT_PDA_SEED: &[u8] = b"reimbursement";
 

@@ -2,9 +2,10 @@ use account_compression::{program::AccountCompression, utils::constants::CPI_AUT
 use anchor_lang::prelude::*;
 use light_merkle_tree_metadata::fee::FORESTER_REIMBURSEMENT_CAP;
 
-use crate::fee_reimbursement::initialize::REIMBURSEMENT_PDA_SEED;
-use crate::fee_reimbursement::state::ReimbursementPda;
-use crate::ForesterEpochPda;
+use crate::{
+    fee_reimbursement::{initialize::REIMBURSEMENT_PDA_SEED, state::ReimbursementPda},
+    ForesterEpochPda,
+};
 
 #[derive(Accounts)]
 pub struct BatchNullify<'info> {

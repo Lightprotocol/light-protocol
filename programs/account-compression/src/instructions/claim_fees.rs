@@ -55,8 +55,7 @@ fn check_auth(
 ) -> Result<()> {
     match derived_address {
         Some((derived_addr, group_authority_pda)) => {
-            if authority_key == *derived_addr
-                && checked_account.get_owner() == *group_authority_pda
+            if authority_key == *derived_addr && checked_account.get_owner() == *group_authority_pda
             {
                 Ok(())
             } else {

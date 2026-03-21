@@ -1,9 +1,10 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 
-use crate::epoch::register_epoch::ForesterEpochPda;
-use crate::errors::RegistryError;
-use crate::protocol_config::state::ProtocolConfigPda;
+use crate::{
+    epoch::register_epoch::ForesterEpochPda, errors::RegistryError,
+    protocol_config::state::ProtocolConfigPda,
+};
 
 #[derive(Accounts)]
 pub struct ClaimFeesWrapper<'info> {
@@ -28,7 +29,11 @@ pub struct ClaimFeesWrapper<'info> {
 
 pub fn process_claim_fees_wrapper(ctx: &Context<ClaimFeesWrapper>, bump: u8) -> Result<()> {
     // Verify fee_recipient matches protocol config.
-    let expected_recipient = ctx.accounts.protocol_config_pda.config.protocol_fee_recipient;
+    let expected_recipient = ctx
+        .accounts
+        .protocol_config_pda
+        .config
+        .protocol_fee_recipient;
     if expected_recipient == Pubkey::default() {
         return err!(RegistryError::InvalidFeeRecipient);
     }

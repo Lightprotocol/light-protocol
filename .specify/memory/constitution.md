@@ -28,6 +28,14 @@
 - Assert pattern: single `assert_eq` against a fully constructed expected struct (borsh-deserialized actual vs hand-built expected).
 - Tests that depend on `light-test-utils` MUST live in `program-tests/` or `sdk-tests/`, never in `program-libs/` or `programs/`.
 - When writing tests, MUST use the `/rust-test` skill for conventions: assertion patterns, assert functions per instruction, property tests with proptest, failing tests for every error variant, and Solana program testing with light-program-test.
+- **Test coverage requirements**:
+  - Every new instruction MUST have an integration test for the success path.
+  - Every error variant MUST have a failing test that triggers it.
+  - Fee/arithmetic logic MUST have unit tests covering: normal case, zero case, boundary values (off-by-one), and overflow/underflow.
+  - Modified instructions MUST have tests verifying both old behavior (backward compatibility) and new behavior.
+  - State transitions (PDA balance changes, account lamport changes) MUST be asserted with exact expected values, not just direction (e.g., assert `balance == 5000`, not `balance > 0`).
+  - Account state MUST be asserted by deserializing the full account and comparing with a single `assert_eq` against a fully constructed expected struct -- not by checking individual fields or magic byte offsets.
+  - Every new instruction MUST have a reusable assert function in `light-test-utils` (`program-tests/utils/`) that validates the instruction's effects. Tests call these assert functions rather than inlining assertions. This keeps test logic DRY and ensures consistent validation across test files.
 
 ### IV. Spec-First
 

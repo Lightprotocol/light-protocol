@@ -1740,13 +1740,9 @@ impl TestIndexer {
                 self.payer.pubkey(),
                 merkle_tree_keypair.pubkey(),
             );
-            rpc.create_and_send_transaction(
-                &[ix],
-                &self.payer.pubkey(),
-                &[&self.payer],
-            )
-            .await
-            .unwrap();
+            rpc.create_and_send_transaction(&[ix], &self.payer.pubkey(), &[&self.payer])
+                .await
+                .unwrap();
         }
 
         self.state_merkle_trees.push(StateMerkleTreeBundle {

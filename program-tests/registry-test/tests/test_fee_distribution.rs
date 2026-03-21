@@ -124,10 +124,7 @@ async fn test_batch_append_funds_pda() {
                 .await;
         }
 
-        (
-            e2e_env.indexer.state_merkle_trees[0].clone(),
-            e2e_env.rpc,
-        )
+        (e2e_env.indexer.state_merkle_trees[0].clone(), e2e_env.rpc)
     };
 
     let tree_pubkey = state_bundle.accounts.merkle_tree;
@@ -224,10 +221,7 @@ async fn test_batch_nullify_reimburses_forester() {
                 .unwrap();
         }
 
-        (
-            e2e_env.indexer.state_merkle_trees[0].clone(),
-            e2e_env.rpc,
-        )
+        (e2e_env.indexer.state_merkle_trees[0].clone(), e2e_env.rpc)
     };
 
     let tree_pubkey = state_bundle.accounts.merkle_tree;
