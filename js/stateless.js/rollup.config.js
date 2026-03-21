@@ -44,7 +44,7 @@ const rolls = (fmt, env) => ({
                 drop_console: false,
                 drop_debugger: true,
                 passes: 3,
-                booleans_as_integers: true,
+                booleans_as_integers: false,
                 keep_fargs: false,
                 keep_fnames: false,
                 keep_infinity: true,

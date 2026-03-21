@@ -37,6 +37,15 @@ import {
     createTransferToAccountInterfaceInstructions as _createTransferToAccountInterfaceInstructions,
 } from '../actions/transfer-interface';
 import type { TransferOptions as _TransferOptions } from '../actions/transfer-interface';
+import {
+    approveInterface as _approveInterface,
+    revokeInterface as _revokeInterface,
+} from '../actions/approve-interface';
+import {
+    createApproveInterfaceInstructions as _createApproveInterfaceInstructions,
+    createRevokeInterfaceInstructions as _createRevokeInterfaceInstructions,
+} from '../instructions/approve-interface';
+
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import {
     createUnwrapInstructions as _createUnwrapInstructions,
@@ -493,6 +502,165 @@ export type {
     _TransferOptions as TransferToAccountOptions,
 };
 
+/**
+ * Approve a delegate for an associated token account.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022) and dispatches
+ * to the appropriate instruction.
+ *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA, not just the delegation amount. The `amount` parameter
+ * only controls the delegate's spending limit.
+ *
+ * @param rpc            RPC connection
+ * @param payer          Fee payer (signer)
+ * @param tokenAccount   ATA address
+ * @param mint           Mint address
+ * @param delegate       Delegate to approve
+ * @param amount         Amount to delegate
+ * @param owner          Owner of the token account (signer)
+ * @param confirmOptions Optional confirm options
+ * @returns Transaction signature
+ */
+export async function approveInterface(
+    rpc: Rpc,
+    payer: Signer,
+    tokenAccount: PublicKey,
+    mint: PublicKey,
+    delegate: PublicKey,
+    amount: number | bigint | BN,
+    owner: Signer,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+    decimals?: number,
+) {
+    return _approveInterface(
+        rpc,
+        payer,
+        tokenAccount,
+        mint,
+        delegate,
+        amount,
+        owner,
+        confirmOptions,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
+        true, // wrap=true for unified
+        options,
+        decimals,
+    );
+}
+
+/**
+ * Build instruction batches for approving a delegate on an ATA.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022).
+ *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA before the approve instruction. The `amount` parameter
+ * only controls the delegate's spending limit, not the number of accounts
+ * loaded.
+ */
+export async function createApproveInterfaceInstructions(
+    rpc: Rpc,
+    payer: PublicKey,
+    mint: PublicKey,
+    tokenAccount: PublicKey,
+    delegate: PublicKey,
+    amount: number | bigint | BN,
+    owner: PublicKey,
+    decimals?: number,
+    options?: InterfaceOptions,
+): Promise<TransactionInstruction[][]> {
+    const resolvedDecimals =
+        decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
+    return _createApproveInterfaceInstructions(
+        rpc,
+        payer,
+        mint,
+        tokenAccount,
+        delegate,
+        amount,
+        owner,
+        resolvedDecimals,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
+        true, // wrap=true for unified
+        options,
+    );
+}
+
+/**
+ * Revoke delegation for an associated token account.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022) and dispatches
+ * to the appropriate instruction.
+ *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA before the revoke instruction.
+ *
+ * @param rpc            RPC connection
+ * @param payer          Fee payer (signer)
+ * @param tokenAccount   ATA address
+ * @param mint           Mint address
+ * @param owner          Owner of the token account (signer)
+ * @param confirmOptions Optional confirm options
+ * @returns Transaction signature
+ */
+export async function revokeInterface(
+    rpc: Rpc,
+    payer: Signer,
+    tokenAccount: PublicKey,
+    mint: PublicKey,
+    owner: Signer,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+    decimals?: number,
+) {
+    return _revokeInterface(
+        rpc,
+        payer,
+        tokenAccount,
+        mint,
+        owner,
+        confirmOptions,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
+        true, // wrap=true for unified
+        options,
+        decimals,
+    );
+}
+
+/**
+ * Build instruction batches for revoking delegation on an ATA.
+ *
+ * Auto-detects mint type (light-token, SPL, or Token-2022).
+ *
+ * @remarks For light-token mints, all cold (compressed) balances are loaded
+ * into the hot ATA before the revoke instruction.
+ */
+export async function createRevokeInterfaceInstructions(
+    rpc: Rpc,
+    payer: PublicKey,
+    mint: PublicKey,
+    tokenAccount: PublicKey,
+    owner: PublicKey,
+    decimals?: number,
+    options?: InterfaceOptions,
+): Promise<TransactionInstruction[][]> {
+    const resolvedDecimals =
+        decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
+    return _createRevokeInterfaceInstructions(
+        rpc,
+        payer,
+        mint,
+        tokenAccount,
+        owner,
+        resolvedDecimals,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
+        true, // wrap=true for unified
+        options,
+    );
+}
+
 export {
     getAccountInterface,
     AccountInterface,
@@ -540,6 +708,8 @@ export {
     createLightTokenTransferCheckedInstruction,
     createLightTokenFreezeAccountInstruction,
     createLightTokenThawAccountInstruction,
+    createLightTokenApproveInstruction,
+    createLightTokenRevokeInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,

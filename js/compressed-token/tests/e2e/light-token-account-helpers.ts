@@ -17,6 +17,19 @@ export async function getLightTokenBalance(
     return parsed.amount;
 }
 
+export async function getLightTokenDelegate(
+    rpc: Rpc,
+    address: PublicKey,
+): Promise<{ delegate: PublicKey | null; delegatedAmount: bigint }> {
+    const info = await rpc.getAccountInfo(address);
+    if (!info) return { delegate: null, delegatedAmount: BigInt(0) };
+    const { parsed } = parseLightTokenHot(address, info);
+    return {
+        delegate: parsed.delegate,
+        delegatedAmount: parsed.delegatedAmount ?? BigInt(0),
+    };
+}
+
 export async function getLightTokenState(
     rpc: Rpc,
     address: PublicKey,

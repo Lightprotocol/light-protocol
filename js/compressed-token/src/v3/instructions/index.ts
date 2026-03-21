@@ -12,3 +12,5 @@ export * from './transfer-interface';
 export * from './wrap';
 export * from './unwrap';
 export * from './freeze-thaw';
+export * from './approve-revoke';
+export * from './approve-interface';
