@@ -70,4 +70,6 @@ pub enum AccountCompressionErrorCode {
     TooManyAddresses,
     #[msg("Too many nullifiers. The maximum is 10 per instruction.")]
     TooManyNullifiers,
+    #[msg("Account is not a supported tree or queue type for claim_fees")]
+    InvalidAccountType,
 }

@@ -1732,6 +1732,23 @@ impl TestIndexer {
         } else {
             FeeConfig::default().network_fee
         };
+        // Initialize reimbursement PDA for the state tree.
+        // Required because BatchAppend, BatchNullify, and NullifyLeaves
+        // require the reimbursement_pda account.
+        {
+            let ix = light_registry::account_compression_cpi::sdk::create_init_reimbursement_pda_instruction(
+                self.payer.pubkey(),
+                merkle_tree_keypair.pubkey(),
+            );
+            rpc.create_and_send_transaction(
+                &[ix],
+                &self.payer.pubkey(),
+                &[&self.payer],
+            )
+            .await
+            .unwrap();
+        }
+
         self.state_merkle_trees.push(StateMerkleTreeBundle {
             merkle_tree,
             accounts: state_merkle_tree_account,

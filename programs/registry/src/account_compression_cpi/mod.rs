@@ -1,5 +1,6 @@
 pub mod batch_append;
 pub mod batch_nullify;
+pub mod claim_fees;
 pub mod batch_update_address_tree;
 pub mod initialize_batched_address_tree;
 pub mod initialize_batched_state_tree;

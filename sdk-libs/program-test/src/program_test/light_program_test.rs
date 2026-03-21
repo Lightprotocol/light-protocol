@@ -4,7 +4,7 @@ use std::fmt::{self, Debug, Formatter};
 use account_compression::QueueAccount;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{merkle_tree::MerkleTreeExt, RpcError},
+    rpc::{merkle_tree::MerkleTreeExt, Rpc, RpcError},
 };
 #[cfg(feature = "devenv")]
 use light_compressed_account::hash_to_bn254_field_size_be;
@@ -390,6 +390,35 @@ impl LightProgramTest {
 
         // reset tx counter after program setup.
         context.transaction_counter = 0;
+
+        // Initialize reimbursement PDAs for all genesis state trees.
+        // Required because BatchAppend, BatchNullify, NullifyLeaves require the PDA.
+        #[cfg(feature = "devenv")]
+        {
+            let payer = context.get_payer().insecure_clone();
+            let all_state_trees: Vec<_> = context
+                .test_accounts
+                .v1_state_trees
+                .iter()
+                .map(|t| t.merkle_tree)
+                .chain(
+                    context
+                        .test_accounts
+                        .v2_state_trees
+                        .iter()
+                        .map(|t| t.merkle_tree),
+                )
+                .collect();
+            for tree_pubkey in all_state_trees {
+                let ix = light_registry::account_compression_cpi::sdk::create_init_reimbursement_pda_instruction(
+                    payer.pubkey(),
+                    tree_pubkey,
+                );
+                let _ = context
+                    .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
+                    .await;
+            }
+        }
 
         #[cfg(feature = "devenv")]
         {

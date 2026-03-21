@@ -11,7 +11,8 @@
 
 ### II. Security-First
 
-- All account validation MUST use `light-account-checks` (`check_owner`, `check_signer`, `check_mut`, `check_discriminator`, `check_pda_seeds`).
+- All account validation MUST use `light-account-checks` (`check_owner`, `check_signer`, `check_mut`, `check_discriminator`, `check_pda_seeds`) or Anchor's `AccountLoader` (which checks owner + discriminator).
+- When an instruction dispatches on runtime-determined account types: use `*_from_account_info` (light-account-checks) for V2 batched accounts and `AccountLoader::try_from` (Anchor) for V1 accounts. If Anchor lifetime constraints prevent `AccountLoader`, an explicit owner check + discriminator match is acceptable but MUST be documented with the reason.
 - All arithmetic in on-chain programs MUST use checked math (`checked_add`, `checked_sub`, `checked_mul`) or equivalent safe operations.
 - Merkle tree integrity: all state transitions MUST be verified by ZK proofs before any compressed account mutation.
 - No upgradeable program authority without explicit constitution amendment.
@@ -26,6 +27,7 @@
 - MUST NOT run `cargo test` at the monorepo root.
 - Assert pattern: single `assert_eq` against a fully constructed expected struct (borsh-deserialized actual vs hand-built expected).
 - Tests that depend on `light-test-utils` MUST live in `program-tests/` or `sdk-tests/`, never in `program-libs/` or `programs/`.
+- When writing tests, MUST use the `/rust-test` skill for conventions: assertion patterns, assert functions per instruction, property tests with proptest, failing tests for every error variant, and Solana program testing with light-program-test.
 
 ### IV. Spec-First
 
@@ -45,6 +47,7 @@
 - **Instruction Dispatch**: Anchor `#[program]` for `account-compression` / `registry`; manual 8-byte discriminator dispatch for pinocchio programs (`system`).
 - **Fluent CPI Builder**: `LightCpiInstruction` trait with `.new_cpi()` -> `.with_light_account()` -> `.invoke()` chaining.
 - **Account Validation**: `check_owner`, `check_signer`, `check_mut`, `check_discriminator`, `check_pda_seeds` from `light-account-checks`.
+- **Authority Checks**: MUST use `check_signer_is_registered_or_authority` or its `manual_*` variant via `GroupAccess` trait. Custom auth functions that mirror this logic MUST document the equivalence and the reason for not using the canonical function (e.g., Anchor lifetime constraints in dynamic dispatch).
 
 ### VII. Zero-Copy
 
@@ -101,4 +104,4 @@ Examples: `jorrit/feat-compressible-mint`, `jorrit/fix-macro-deps`, `jorrit/chor
 - Amendments require: (1) written proposal, (2) explicit approval, (3) updated version below.
 - All code reviews MUST verify compliance with these principles.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-20 | **Last Amended**: 2026-03-20
+**Version**: 1.1.0 | **Ratified**: 2026-03-20 | **Last Amended**: 2026-03-21

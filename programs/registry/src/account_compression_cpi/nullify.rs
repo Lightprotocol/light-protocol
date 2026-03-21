@@ -2,8 +2,11 @@ use account_compression::{
     program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED, StateMerkleTreeAccount,
 };
 use anchor_lang::prelude::*;
+use light_merkle_tree_metadata::fee::FORESTER_REIMBURSEMENT_CAP;
 
 use crate::epoch::register_epoch::ForesterEpochPda;
+use crate::fee_reimbursement::initialize::REIMBURSEMENT_PDA_SEED;
+use crate::fee_reimbursement::state::ReimbursementPda;
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
@@ -26,6 +29,14 @@ pub struct NullifyLeaves<'info> {
     /// CHECK: (account compression program).
     #[account(mut)]
     pub nullifier_queue: AccountInfo<'info>,
+    /// Per-tree reimbursement escrow. Receives excess clawback after CPI.
+    #[account(
+        mut,
+        seeds = [REIMBURSEMENT_PDA_SEED, merkle_tree.key().as_ref()],
+        bump,
+    )]
+    pub reimbursement_pda: Account<'info, ReimbursementPda>,
+    pub system_program: Program<'info, System>,
 }
 
 pub fn process_nullify(
@@ -35,6 +46,7 @@ pub fn process_nullify(
     leaves_queue_indices: Vec<u16>,
     indices: Vec<u64>,
     proofs: Vec<Vec<[u8; 32]>>,
+    network_fee: u64,
 ) -> Result<()> {
     let bump = &[bump];
     let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
@@ -59,5 +71,22 @@ pub fn process_nullify(
         leaves_queue_indices,
         indices,
         proofs,
-    )
+    )?;
+
+    // After CPI: claw back excess above FORESTER_REIMBURSEMENT_CAP to PDA.
+    if network_fee > FORESTER_REIMBURSEMENT_CAP {
+        let excess = network_fee - FORESTER_REIMBURSEMENT_CAP;
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.authority.to_account_info(),
+                    to: ctx.accounts.reimbursement_pda.to_account_info(),
+                },
+            ),
+            excess,
+        )?;
+    }
+
+    Ok(())
 }

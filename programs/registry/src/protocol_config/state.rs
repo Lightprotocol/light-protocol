@@ -38,8 +38,8 @@ pub struct ProtocolConfig {
     pub network_fee: u64,
     pub cpi_context_size: u64,
     pub finalize_counter_limit: u64,
-    /// Placeholder for future protocol updates.
-    pub place_holder: Pubkey,
+    /// Address that receives fees claimed from tree/queue accounts.
+    pub protocol_fee_recipient: Pubkey,
     pub address_network_fee: u64,
     pub place_holder_b: u64,
     pub place_holder_c: u64,
@@ -60,7 +60,7 @@ impl Default for ProtocolConfig {
             network_fee: 5000,
             cpi_context_size: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2,
             finalize_counter_limit: 100,
-            place_holder: Pubkey::default(),
+            protocol_fee_recipient: Pubkey::default(),
             address_network_fee: 10000,
             place_holder_b: 0,
             place_holder_c: 0,
@@ -83,7 +83,7 @@ impl ProtocolConfig {
             network_fee: 5000,
             cpi_context_size: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2,
             finalize_counter_limit: 100,
-            place_holder: Pubkey::default(),
+            protocol_fee_recipient: Pubkey::default(),
             address_network_fee: 10000,
             place_holder_b: 0,
             place_holder_c: 0,
@@ -185,7 +185,7 @@ impl ProtocolConfig {
     /// In the last part of the active phase the registration phase starts.
     /// Returns end slot of the registration phase/start slot of the next active phase.
     /// Registration phase time check is temporarily disabled to allow
-    /// foresters to register for the current epoch at any time.        
+    /// foresters to register for the current epoch at any time.
     pub fn is_registration_phase(&self, slot: u64) -> Result<u64> {
         let latest_register_epoch = self.get_latest_register_epoch(slot)?;
         /*
