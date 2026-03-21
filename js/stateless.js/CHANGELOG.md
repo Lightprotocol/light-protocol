@@ -2,9 +2,14 @@
 
 ## [0.23.0-beta.11]
 
+### Fixed
+
+- **Browser bundles / minified builds:** Terser `booleans_as_integers` is disabled so `isSigner` / `isWritable` on `AccountMeta` stay real booleans (see [#2347](https://github.com/Lightprotocol/light-protocol/pull/2347)).
+- **`PackedAccounts`:** `addPreAccountsMeta` and `insertOrGetConfig` normalize signer/writable flags so `1`/`0` from minified or external callers are treated consistently as booleans.
+
 ### Changed
 
-- **Release alignment:** Version bumped with `@lightprotocol/compressed-token@0.23.0-beta.11` for a coordinated JS SDK beta. No functional API changes in `stateless.js` in this release.
+- **Release alignment:** Version bumped with `@lightprotocol/compressed-token@0.23.0-beta.11` for a coordinated JS SDK beta.
 
 ## [0.23.0-beta.10]
 
