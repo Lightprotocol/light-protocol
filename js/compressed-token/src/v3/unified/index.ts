@@ -44,7 +44,6 @@ import {
 import {
     createApproveInterfaceInstructions as _createApproveInterfaceInstructions,
     createRevokeInterfaceInstructions as _createRevokeInterfaceInstructions,
-    type ApproveRevokeOptions,
 } from '../instructions/approve-interface';
 
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
@@ -532,7 +531,7 @@ export async function approveInterface(
     amount: number | bigint | BN,
     owner: Signer,
     confirmOptions?: ConfirmOptions,
-    options?: ApproveRevokeOptions,
+    options?: InterfaceOptions,
     decimals?: number,
 ) {
     return _approveInterface(
@@ -570,7 +569,7 @@ export async function createApproveInterfaceInstructions(
     amount: number | bigint | BN,
     owner: PublicKey,
     decimals?: number,
-    options?: ApproveRevokeOptions,
+    options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
     const resolvedDecimals =
         decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
@@ -613,7 +612,7 @@ export async function revokeInterface(
     mint: PublicKey,
     owner: Signer,
     confirmOptions?: ConfirmOptions,
-    options?: ApproveRevokeOptions,
+    options?: InterfaceOptions,
     decimals?: number,
 ) {
     return _revokeInterface(
@@ -645,7 +644,7 @@ export async function createRevokeInterfaceInstructions(
     tokenAccount: PublicKey,
     owner: PublicKey,
     decimals?: number,
-    options?: ApproveRevokeOptions,
+    options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
     const resolvedDecimals =
         decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;

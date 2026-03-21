@@ -67,14 +67,7 @@ describe('transferDelegatedInterface - failure cases', () => {
         await createAtaInterface(rpc, payer, mint, owner.publicKey);
         ownerAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
 
-        await mintToInterface(
-            rpc,
-            payer,
-            mint,
-            ownerAta,
-            payer,
-            1_000_000_000,
-        );
+        await mintToInterface(rpc, payer, mint, ownerAta, payer, 1_000_000_000);
 
         // Approve delegate for 500M
         await approveInterface(

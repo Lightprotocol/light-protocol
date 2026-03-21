@@ -1,3 +1,18 @@
+## [0.23.0-beta.11]
+
+### Added
+
+- **Delegate approval on the interface stack (SPL, Token-2022, light-token).**
+    - **Actions:** `approveInterface`, `revokeInterface` — send approve/revoke with the same multi-transaction pattern as transfers when cold/load batches are needed (parallel prefix via `sliceLast`, then final approve/revoke).
+    - **Instruction builders:** `createApproveInterfaceInstructions`, `createRevokeInterfaceInstructions` — return `TransactionInstruction[][]`; mirror `createTransferToAccountInterfaceInstructions` batching semantics.
+    - **Light-token primitives:** `createLightTokenApproveInstruction`, `createLightTokenRevokeInstruction` — exported from the package root alongside other light-token instruction helpers.
+- **`InterfaceOptions` on approve/revoke** — the same `options?: InterfaceOptions` used by `transferInterface` (e.g. `splInterfaceInfos`) is accepted on approve/revoke actions and instruction builders and is passed through to `_buildLoadBatches` on light/wrap paths.
+
+### Changed
+
+- **`approveInterface` / `revokeInterface` (v3 actions):** Optional trailing parameters after `wrap`: `options?: InterfaceOptions`, `decimals?: number`. When `programId` is SPL or Token-2022 and `wrap` is `false`, **mint decimals are no longer fetched** via `getMintInterface` unless you pass `decimals` or the flow needs them for load/wrap.
+- **`@lightprotocol/compressed-token/unified`:** `approveInterface`, `revokeInterface`, `createApproveInterfaceInstructions`, and `createRevokeInterfaceInstructions` forward optional `options` and `decimals` to the v3 implementations (still defaulting to unified `wrap: true` behavior).
+
 ## [0.23.0-beta.10]
 
 ### Breaking Changes

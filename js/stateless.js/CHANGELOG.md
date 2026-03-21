@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.0-beta.11]
+
+### Changed
+
+- **Release alignment:** Version bumped with `@lightprotocol/compressed-token@0.23.0-beta.11` for a coordinated JS SDK beta. No functional API changes in `stateless.js` in this release.
+
 ## [0.23.0-beta.10]
 
 ### Breaking Changes

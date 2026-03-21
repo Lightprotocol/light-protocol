@@ -519,9 +519,7 @@ describe('LightToken approve/revoke - E2E', () => {
             sponsor.publicKey,
         );
         const { blockhash } = await rpc.getLatestBlockhash();
-        const tx = buildAndSignTx([ix], sponsor, blockhash, [
-            owner as Keypair,
-        ]);
+        const tx = buildAndSignTx([ix], sponsor, blockhash, [owner as Keypair]);
         await sendAndConfirmTx(rpc, tx);
 
         const { delegate: actualDelegate, delegatedAmount } =

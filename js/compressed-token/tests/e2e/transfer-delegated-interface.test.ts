@@ -97,9 +97,7 @@ describe('transferDelegatedInterface - e2e', () => {
         expect(afterApprove.parsed.delegate?.toBase58()).toBe(
             delegate.publicKey.toBase58(),
         );
-        expect(afterApprove.parsed.delegatedAmount).toBe(
-            BigInt(500_000_000),
-        );
+        expect(afterApprove.parsed.delegatedAmount).toBe(BigInt(500_000_000));
 
         // 2. Delegate transfer 200M (recipient wallet — ATA created internally)
         const sig = await transferInterface(

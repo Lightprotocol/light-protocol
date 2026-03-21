@@ -106,8 +106,15 @@ describe('approveInterface / revokeInterface - SPL mint', () => {
         );
         expect(sig).toBeTruthy();
 
-        const account = await getAccount(rpc, ownerAta, undefined, TOKEN_PROGRAM_ID);
-        expect(account.delegate?.toBase58()).toBe(delegate.publicKey.toBase58());
+        const account = await getAccount(
+            rpc,
+            ownerAta,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
+        expect(account.delegate?.toBase58()).toBe(
+            delegate.publicKey.toBase58(),
+        );
         expect(account.delegatedAmount).toBe(500_000_000n);
     }, 60_000);
 
@@ -123,7 +130,12 @@ describe('approveInterface / revokeInterface - SPL mint', () => {
         );
         expect(sig).toBeTruthy();
 
-        const account = await getAccount(rpc, ownerAta, undefined, TOKEN_PROGRAM_ID);
+        const account = await getAccount(
+            rpc,
+            ownerAta,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
         expect(account.delegate).toBeNull();
         expect(account.delegatedAmount).toBe(0n);
     }, 60_000);
@@ -225,8 +237,15 @@ describe('approveInterface / revokeInterface - Token-2022 mint', () => {
         );
         expect(sig).toBeTruthy();
 
-        const account = await getAccount(rpc, ownerAta, undefined, TOKEN_2022_PROGRAM_ID);
-        expect(account.delegate?.toBase58()).toBe(delegate.publicKey.toBase58());
+        const account = await getAccount(
+            rpc,
+            ownerAta,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+        expect(account.delegate?.toBase58()).toBe(
+            delegate.publicKey.toBase58(),
+        );
         expect(account.delegatedAmount).toBe(500_000_000n);
     }, 60_000);
 
@@ -242,7 +261,12 @@ describe('approveInterface / revokeInterface - Token-2022 mint', () => {
         );
         expect(sig).toBeTruthy();
 
-        const account = await getAccount(rpc, ownerAta, undefined, TOKEN_2022_PROGRAM_ID);
+        const account = await getAccount(
+            rpc,
+            ownerAta,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
         expect(account.delegate).toBeNull();
         expect(account.delegatedAmount).toBe(0n);
     }, 60_000);

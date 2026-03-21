@@ -16,11 +16,11 @@ import BN from 'bn.js';
 import {
     createApproveInterfaceInstructions,
     createRevokeInterfaceInstructions,
-    type ApproveRevokeOptions,
 } from '../instructions/approve-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { getMintInterface } from '../get-mint-interface';
 import { sliceLast } from './slice-last';
+import type { InterfaceOptions } from './transfer-interface';
 import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 
 /**
@@ -56,7 +56,7 @@ export async function approveInterface(
     confirmOptions?: ConfirmOptions,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     wrap = false,
-    options?: ApproveRevokeOptions,
+    options?: InterfaceOptions,
     decimals?: number,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
@@ -78,7 +78,9 @@ export async function approveInterface(
         programId.equals(TOKEN_2022_PROGRAM_ID);
     const resolvedDecimals =
         decimals ??
-        (isSplOrT22 && !wrap ? 0 : (await getMintInterface(rpc, mint)).mint.decimals);
+        (isSplOrT22 && !wrap
+            ? 0
+            : (await getMintInterface(rpc, mint)).mint.decimals);
     const batches = await createApproveInterfaceInstructions(
         rpc,
         payer.publicKey,
@@ -99,23 +101,13 @@ export async function approveInterface(
     await Promise.all(
         loads.map(async ixs => {
             const { blockhash } = await rpc.getLatestBlockhash();
-            const tx = buildAndSignTx(
-                ixs,
-                payer,
-                blockhash,
-                additionalSigners,
-            );
+            const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
             return sendAndConfirmTx(rpc, tx, confirmOptions);
         }),
     );
 
     const { blockhash } = await rpc.getLatestBlockhash();
-    const tx = buildAndSignTx(
-        approveIxs,
-        payer,
-        blockhash,
-        additionalSigners,
-    );
+    const tx = buildAndSignTx(approveIxs, payer, blockhash, additionalSigners);
     return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
@@ -147,7 +139,7 @@ export async function revokeInterface(
     confirmOptions?: ConfirmOptions,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     wrap = false,
-    options?: ApproveRevokeOptions,
+    options?: InterfaceOptions,
     decimals?: number,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
@@ -169,7 +161,9 @@ export async function revokeInterface(
         programId.equals(TOKEN_2022_PROGRAM_ID);
     const resolvedDecimals =
         decimals ??
-        (isSplOrT22 && !wrap ? 0 : (await getMintInterface(rpc, mint)).mint.decimals);
+        (isSplOrT22 && !wrap
+            ? 0
+            : (await getMintInterface(rpc, mint)).mint.decimals);
     const batches = await createRevokeInterfaceInstructions(
         rpc,
         payer.publicKey,
@@ -188,12 +182,7 @@ export async function revokeInterface(
     await Promise.all(
         loads.map(async ixs => {
             const { blockhash } = await rpc.getLatestBlockhash();
-            const tx = buildAndSignTx(
-                ixs,
-                payer,
-                blockhash,
-                additionalSigners,
-            );
+            const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
             return sendAndConfirmTx(rpc, tx, confirmOptions);
         }),
     );

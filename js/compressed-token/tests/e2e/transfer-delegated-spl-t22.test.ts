@@ -136,11 +136,21 @@ describe('delegated transfer - SPL mint', () => {
         expect(sig).toBeTruthy();
 
         // Verify balances
-        const ownerAccount = await getAccount(rpc, ownerAta, undefined, TOKEN_PROGRAM_ID);
+        const ownerAccount = await getAccount(
+            rpc,
+            ownerAta,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
         expect(ownerAccount.amount).toBe(800_000_000n);
         expect(ownerAccount.delegatedAmount).toBe(300_000_000n);
 
-        const recipientAccount = await getAccount(rpc, recipientAta, undefined, TOKEN_PROGRAM_ID);
+        const recipientAccount = await getAccount(
+            rpc,
+            recipientAta,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
         expect(recipientAccount.amount).toBe(200_000_000n);
 
         // Revoke
@@ -154,7 +164,12 @@ describe('delegated transfer - SPL mint', () => {
             TOKEN_PROGRAM_ID,
         );
 
-        const afterRevoke = await getAccount(rpc, ownerAta, undefined, TOKEN_PROGRAM_ID);
+        const afterRevoke = await getAccount(
+            rpc,
+            ownerAta,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
         expect(afterRevoke.delegate).toBeNull();
         expect(afterRevoke.delegatedAmount).toBe(0n);
     }, 120_000);
@@ -329,11 +344,21 @@ describe('delegated transfer - Token-2022 mint', () => {
         expect(sig).toBeTruthy();
 
         // Verify balances
-        const ownerAccount = await getAccount(rpc, ownerAta, undefined, TOKEN_2022_PROGRAM_ID);
+        const ownerAccount = await getAccount(
+            rpc,
+            ownerAta,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
         expect(ownerAccount.amount).toBe(800_000_000n);
         expect(ownerAccount.delegatedAmount).toBe(300_000_000n);
 
-        const recipientAccount = await getAccount(rpc, recipientAta, undefined, TOKEN_2022_PROGRAM_ID);
+        const recipientAccount = await getAccount(
+            rpc,
+            recipientAta,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
         expect(recipientAccount.amount).toBe(200_000_000n);
 
         // Revoke
@@ -347,7 +372,12 @@ describe('delegated transfer - Token-2022 mint', () => {
             TOKEN_2022_PROGRAM_ID,
         );
 
-        const afterRevoke = await getAccount(rpc, ownerAta, undefined, TOKEN_2022_PROGRAM_ID);
+        const afterRevoke = await getAccount(
+            rpc,
+            ownerAta,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
         expect(afterRevoke.delegate).toBeNull();
         expect(afterRevoke.delegatedAmount).toBe(0n);
     }, 120_000);
