@@ -1,0 +1,80 @@
+/Users/ananas/dev/confidential_program/programs/confidential_transfers/docs/protocol/user_flows plan to add user flows for light token accounts in /Users/ananas/dev/light-protocol3/js/compressed-token start with a sub agent to identify potential user flows give me a numbered list and then we decide which ones to actually add in the doc
+
+---
+
+I am only interested in light tokens
+
+---
+
+plan to use the logic review skill to review all of these
+
+---
+
+[Request interrupted by user]
+
+---
+
+I am interested in payment flows
+
+---
+
+what if someone sends me money to an existing to a new token account what if that token account is compressed or hot or spl
+
+---
+
+things like this
+
+---
+
+yes thats more like it what other states could exist?
+
+---
+
+ok plan it out to add user flow diagrams in a new file in /Users/ananas/dev/light-protocol3/js/compressed-token/docs in the same pattern as /Users/ananas/dev/confidential_program/programs/confidential_transfers/docs/protocol/user_flows
+
+---
+
+[Request interrupted by user]
+
+---
+
+Account states (per mint, per user)
+
+  ┌─────┬───────────────────────┬───────────────┬─────────┬────────────────────────────────┐
+  │  #  │        Hot ATA        │ Cold accounts │ SPL ATA │             Notes              │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 1   │ none                  │ none          │ none    │ Fresh -- never held this token │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 2   │ exists (with balance) │ none          │ none    │ Pure hot                       │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 3   │ exists (empty)        │ none          │ none    │ ATA created but drained        │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 4   │ none                  │ 1+ accounts   │ none    │ Pure cold                      │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 5   │ exists (with balance) │ 1+ accounts   │ none    │ Mixed hot+cold                 │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 6   │ exists (empty)        │ 1+ accounts   │ none    │ Hot drained, cold remains      │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 7   │ none                  │ none          │ exists  │ Only SPL (legacy/external)     │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 8   │ exists                │ none          │ exists  │ Hot + SPL                      │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 9   │ none                  │ 1+ accounts   │ exists  │ Cold + SPL                     │
+  ├─────┼───────────────────────┼───────────────┼─────────┼────────────────────────────────┤
+  │ 10  │ exists                │ 1+ accounts   │ exists  │ All three                      │
+  └─────┴───────────────────────┴───────────────┴─────────┴────────────────────────────────┘
+
+  Sub-states that matter
+
+  - Delegation: some/all cold accounts have an approved delegate
+  - Frozen: accounts frozen by freeze authority
+  - V1 vs V2 tree: cold accounts could span different tree versions
+  - Multiple cold accounts: fragmented balance across many small accounts
+  - Mint not yet decompressed: can only receive cold, no ATA possible
+
+  Mint-level states
+
+  - Compressed mint (not decompressed yet) -- only cold minting possible
+  - Decompressed mint -- hot ATAs can be created
+  - With/without freeze authority
+  - With/without metadata for these
