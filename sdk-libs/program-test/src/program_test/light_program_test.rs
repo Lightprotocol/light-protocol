@@ -2,9 +2,11 @@ use std::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "devenv")]
 use account_compression::QueueAccount;
+#[cfg(feature = "devenv")]
+use light_client::rpc::Rpc;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{merkle_tree::MerkleTreeExt, Rpc, RpcError},
+    rpc::{merkle_tree::MerkleTreeExt, RpcError},
 };
 #[cfg(feature = "devenv")]
 use light_compressed_account::hash_to_bn254_field_size_be;
@@ -391,8 +393,8 @@ impl LightProgramTest {
         // reset tx counter after program setup.
         context.transaction_counter = 0;
 
-        // Initialize reimbursement PDAs for all genesis state trees.
-        // Required because BatchAppend, BatchNullify, NullifyLeaves require the PDA.
+        // Initialize reimbursement PDAs for genesis state trees owned by
+        // account-compression. Skip trees owned by other programs (CPI test trees).
         #[cfg(feature = "devenv")]
         {
             let payer = context.get_payer().insecure_clone();
@@ -410,13 +412,18 @@ impl LightProgramTest {
                 )
                 .collect();
             for tree_pubkey in all_state_trees {
-                let ix = light_registry::account_compression_cpi::sdk::create_init_reimbursement_pda_instruction(
-                    payer.pubkey(),
-                    tree_pubkey,
-                );
-                let _ = context
-                    .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
-                    .await;
+                // Only init PDA if the tree is owned by account-compression.
+                if let Some(account) = context.get_account(tree_pubkey).await.ok().flatten() {
+                    if account.owner == account_compression::ID {
+                        let ix = light_registry::account_compression_cpi::sdk::create_init_reimbursement_pda_instruction(
+                            payer.pubkey(),
+                            tree_pubkey,
+                        );
+                        let _ = context
+                            .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
+                            .await;
+                    }
+                }
             }
         }
 
