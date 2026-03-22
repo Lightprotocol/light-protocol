@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7e75d9932bcc",
+  "strategy": "manual-commit",
+  "branch": "jorrit/feat-specify-and-tree-fee-distribution",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/system-cpi-test/tests/test_program_owned_trees.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7e/75d9932bcc/0/metadata.json",
+      "transcript": "/7e/75d9932bcc/0/full.jsonl",
+      "context": "/7e/75d9932bcc/0/context.md",
+      "content_hash": "/7e/75d9932bcc/0/content_hash.txt",
+      "prompt": "/7e/75d9932bcc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6183,
+    "cache_creation_tokens": 131486,
+    "cache_read_tokens": 6638020,
+    "output_tokens": 33221,
+    "api_call_count": 78
+  }
+}
