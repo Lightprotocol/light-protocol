@@ -296,6 +296,28 @@ async fn e2e_test() {
         .await;
     }
 
+    // Init reimbursement PDAs for all state trees.
+    // Required because BatchAppend/BatchNullify/NullifyLeaves require the PDA.
+    {
+        let payer = &env.protocol.governance_authority;
+        let all_state_trees: Vec<Pubkey> = env
+            .v1_state_trees
+            .iter()
+            .map(|t| t.merkle_tree)
+            .chain(env.v2_state_trees.iter().map(|t| t.merkle_tree))
+            .collect();
+        for tree_pubkey in all_state_trees {
+            let ix =
+                light_registry::account_compression_cpi::sdk::create_init_reimbursement_pda_instruction(
+                    payer.pubkey(),
+                    tree_pubkey,
+                );
+            let _ = rpc
+                .create_and_send_transaction(&[ix], &payer.pubkey(), &[payer])
+                .await;
+        }
+    }
+
     // Get initial state for V1 state tree if enabled
     let pre_state_v1_root = if is_v1_state_test_enabled() {
         let (_, _, root) = get_initial_merkle_tree_state(

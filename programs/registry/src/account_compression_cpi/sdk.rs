@@ -45,6 +45,7 @@ pub fn create_nullify_instruction(
         proofs: inputs.proofs,
     };
 
+    let (reimbursement_pda, _) = get_reimbursement_pda(&inputs.merkle_tree);
     let accounts = crate::accounts::NullifyLeaves {
         authority: inputs.authority,
         registered_forester_pda,
@@ -54,6 +55,8 @@ pub fn create_nullify_instruction(
         log_wrapper: NOOP_PUBKEY.into(),
         cpi_authority,
         account_compression_program: account_compression::ID,
+        reimbursement_pda,
+        system_program: solana_sdk::system_program::id(),
     };
     Instruction {
         program_id: crate::ID,
@@ -358,6 +361,64 @@ pub fn create_initialize_batched_merkle_tree_instruction(
     }
 }
 
+pub fn get_reimbursement_pda(merkle_tree_pubkey: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            crate::fee_reimbursement::initialize::REIMBURSEMENT_PDA_SEED,
+            merkle_tree_pubkey.as_ref(),
+        ],
+        &crate::ID,
+    )
+}
+
+pub fn create_init_reimbursement_pda_instruction(
+    payer: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+) -> Instruction {
+    let (reimbursement_pda, _) = get_reimbursement_pda(&merkle_tree_pubkey);
+    let accounts = crate::accounts::InitReimbursementPda {
+        payer,
+        reimbursement_pda,
+        tree: merkle_tree_pubkey,
+        system_program: solana_sdk::system_program::id(),
+    };
+    let instruction_data = crate::instruction::InitReimbursementPda {};
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_claim_fees_wrapper_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    merkle_tree_or_queue: Pubkey,
+    fee_recipient: Pubkey,
+    protocol_config_pda: Pubkey,
+    epoch: u64,
+) -> Instruction {
+    let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+    let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let accounts = crate::accounts::ClaimFeesWrapper {
+        registered_forester_pda: Some(forester_epoch_pda),
+        authority: forester,
+        cpi_authority: cpi_authority_pda,
+        registered_program_pda,
+        account_compression_program: account_compression::ID,
+        merkle_tree_or_queue,
+        protocol_config_pda,
+        fee_recipient,
+    };
+    let instruction_data = crate::instruction::ClaimFees { bump };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
 pub fn create_batch_append_instruction(
     forester: Pubkey,
     derivation_pubkey: Pubkey,
@@ -368,6 +429,7 @@ pub fn create_batch_append_instruction(
 ) -> Instruction {
     let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
     let registered_program_pda = get_registered_program_pda(&crate::ID);
+    let (reimbursement_pda, _) = get_reimbursement_pda(&merkle_tree_pubkey);
 
     let (cpi_authority_pda, bump) = get_cpi_authority_pda();
     let accounts = crate::accounts::BatchAppend {
@@ -380,6 +442,8 @@ pub fn create_batch_append_instruction(
         account_compression_program: account_compression::ID,
         log_wrapper: NOOP_PUBKEY.into(),
         fee_payer: forester,
+        reimbursement_pda,
+        system_program: solana_sdk::system_program::id(),
     };
     let instruction_data = crate::instruction::BatchAppend { bump, data };
     Instruction {
@@ -400,6 +464,7 @@ pub fn create_batch_nullify_instruction(
     let registered_program_pda = get_registered_program_pda(&crate::ID);
 
     let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let (reimbursement_pda, _) = get_reimbursement_pda(&merkle_tree_pubkey);
     let accounts = crate::accounts::BatchNullify {
         authority: forester,
         merkle_tree: merkle_tree_pubkey,
@@ -408,6 +473,7 @@ pub fn create_batch_nullify_instruction(
         registered_program_pda,
         account_compression_program: account_compression::ID,
         log_wrapper: NOOP_PUBKEY.into(),
+        reimbursement_pda,
     };
     let instruction_data = crate::instruction::BatchNullify { bump, data };
     Instruction {

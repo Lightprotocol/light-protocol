@@ -144,8 +144,8 @@ pub struct ProtocolConfig {
     pub network_fee: u64,
     pub cpi_context_size: u64,
     pub finalize_counter_limit: u64,
-    /// Placeholder for future protocol updates.
-    pub place_holder: Pubkey,
+    /// Address that receives excess fees claimed from tree/queue accounts.
+    pub protocol_fee_recipient: Pubkey,
     pub address_network_fee: u64,
     pub place_holder_b: u64,
     pub place_holder_c: u64,
@@ -166,7 +166,7 @@ impl Default for ProtocolConfig {
             network_fee: 5000,
             cpi_context_size: 20 * 1024 + 8, // DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2
             finalize_counter_limit: 100,
-            place_holder: Pubkey::default(),
+            protocol_fee_recipient: Pubkey::default(),
             address_network_fee: 10000,
             place_holder_b: 0,
             place_holder_c: 0,
@@ -465,7 +465,7 @@ pub fn protocol_config_for_tests() -> ProtocolConfig {
         network_fee: 5000,
         cpi_context_size: 20 * 1024 + 8,
         finalize_counter_limit: u64::MAX,
-        place_holder: Pubkey::default(),
+        protocol_fee_recipient: Pubkey::default(),
         address_network_fee: 10000,
         place_holder_b: 0,
         place_holder_c: 0,

@@ -59,3 +59,6 @@ pub use generic::*;
 
 pub mod resize_registered_program_account;
 pub use resize_registered_program_account::*;
+
+pub mod claim_fees;
+pub use claim_fees::*;

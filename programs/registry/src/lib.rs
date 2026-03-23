@@ -11,8 +11,9 @@ use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 
 pub mod account_compression_cpi;
 pub mod errors;
+pub mod fee_reimbursement;
 pub use account_compression_cpi::{
-    batch_append::*, batch_nullify::*, batch_update_address_tree::*,
+    batch_append::*, batch_nullify::*, batch_update_address_tree::*, claim_fees::*,
     initialize_batched_address_tree::*, initialize_batched_state_tree::*,
     initialize_tree_and_queue::*, migrate_state::*, nullify::*, register_program::*,
     rollover_batched_address_tree::*, rollover_batched_state_tree::*, rollover_state_tree::*,
@@ -22,6 +23,7 @@ pub use compressible::{
     claim::*, compress_and_close::*, create_config::*, create_config_counter::*, update_config::*,
     withdraw_funding_pool::*,
 };
+pub use fee_reimbursement::*;
 pub use protocol_config::{initialize::*, update::*};
 
 pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
@@ -410,6 +412,7 @@ pub mod light_registry {
             DEFAULT_WORK_V1,
         )?;
 
+        let network_fee = metadata.rollover_metadata.network_fee;
         process_nullify(
             &ctx,
             bump,
@@ -417,6 +420,7 @@ pub mod light_registry {
             leaves_queue_indices,
             indices,
             proofs,
+            network_fee,
         )
     }
 
@@ -557,7 +561,8 @@ pub mod light_registry {
             merkle_tree.queue_batches.batch_size,
         )?;
 
-        process_batch_nullify(&ctx, bump, data)
+        let network_fee = merkle_tree.metadata.rollover_metadata.network_fee;
+        process_batch_nullify(&ctx, bump, data, network_fee)
     }
 
     pub fn batch_append<'info>(
@@ -582,7 +587,8 @@ pub mod light_registry {
             // Reward for performed work is output queue batch size.
             queue_account.batch_metadata.batch_size,
         )?;
-        process_batch_append(&ctx, bump, data)
+        let network_fee = merkle_tree.metadata.rollover_metadata.network_fee;
+        process_batch_append(&ctx, bump, data, network_fee)
     }
 
     pub fn initialize_batched_address_merkle_tree(
@@ -795,6 +801,27 @@ pub mod light_registry {
 
         // Process the claim CPI
         process_claim(&ctx)
+    }
+
+    /// Creates a reimbursement PDA for a state tree.
+    pub fn init_reimbursement_pda(ctx: Context<InitReimbursementPda>) -> Result<()> {
+        process_init_reimbursement_pda(&ctx)
+    }
+
+    /// Claims excess accumulated fees from a tree/queue account.
+    /// Fees are sent to the protocol_fee_recipient defined in ProtocolConfig.
+    pub fn claim_fees(ctx: Context<ClaimFeesWrapper>, bump: u8) -> Result<()> {
+        if let Some(forester_pda) = ctx.accounts.registered_forester_pda.as_mut() {
+            ForesterEpochPda::check_forester_in_program(
+                forester_pda,
+                &ctx.accounts.authority.key(),
+                &ctx.accounts.merkle_tree_or_queue.key(),
+                0,
+            )?;
+        } else {
+            return err!(RegistryError::InvalidForester);
+        }
+        process_claim_fees_wrapper(&ctx, bump)
     }
 
     /// Compress and close token accounts via transfer2

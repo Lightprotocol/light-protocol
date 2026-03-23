@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use light_batched_merkle_tree::merkle_tree::{
     BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs,
 };
+use light_merkle_tree_metadata::fee::FORESTER_REIMBURSEMENT_CAP;
 
 use crate::{
     emit_indexer_event,
@@ -71,7 +72,7 @@ pub fn process_batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
         transfer_lamports(
             &ctx.accounts.merkle_tree.to_account_info(),
             &ctx.accounts.fee_payer.to_account_info(),
-            network_fee,
+            network_fee.min(FORESTER_REIMBURSEMENT_CAP),
         )?;
     }
     // 5. Emit indexer event.
