@@ -1,0 +1,21 @@
+I want to get data how many txs a vec of keypairs sent on a network default mainnet over the last 10min
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+it should display tx per X minutes
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+TPS over what time?
+
+---
+
+[Request interrupted by user for tool use]
