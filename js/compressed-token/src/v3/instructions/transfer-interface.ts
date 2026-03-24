@@ -31,7 +31,7 @@ import {
     filterInterfaceForAuthority,
 } from '../get-account-interface';
 import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
-import type { TransferOptions } from '../actions/transfer-interface';
+import type { InterfaceOptions } from '../actions/transfer-interface';
 import { calculateCombinedCU } from './calculate-combined-cu';
 
 const LIGHT_TOKEN_TRANSFER_DISCRIMINATOR = 3;
@@ -153,7 +153,8 @@ export async function createTransferToAccountInterfaceInstructions(
     sender: PublicKey,
     destination: PublicKey,
     decimals: number,
-    options?: TransferOptions,
+    options?: InterfaceOptions,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionInstruction[][]> {
     assertBetaEnabled();
 
@@ -163,12 +164,8 @@ export async function createTransferToAccountInterfaceInstructions(
         throw new Error('Transfer amount must be greater than zero.');
     }
 
-    const {
-        wrap = false,
-        programId = LIGHT_TOKEN_PROGRAM_ID,
-        owner: optionsOwner,
-        ...interfaceOptions
-    } = options ?? {};
+    const wrap = options?.wrap ?? false;
+    const optionsOwner = options?.owner;
 
     const effectiveOwner = optionsOwner ?? sender;
 
@@ -229,7 +226,7 @@ export async function createTransferToAccountInterfaceInstructions(
         rpc,
         payer,
         senderInterface,
-        interfaceOptions,
+        options,
         wrap,
         senderAta,
         amountBigInt,

@@ -5,13 +5,14 @@
 - **Delegate approval and revocation** for SPL Token, Token-2022, and light-token, aligned with existing interface helpers:
     - **Actions:** `approveInterface`, `revokeInterface`.
     - **Instruction builders:** `createApproveInterfaceInstructions`, `createRevokeInterfaceInstructions` — each inner array is one transaction’s instructions (same batching style as other interface instruction builders).
-    - **Program-level helpers:** `createLightTokenApproveInstruction`, `createLightTokenRevokeInstruction` 
+    - **Program-level helpers:** `createLightTokenApproveInstruction`, `createLightTokenRevokeInstruction`
 - **Shared options:** approve/revoke accept optional `InterfaceOptions` (same type as `transferInterface`), including `splInterfaceInfos` when you need to supply SPL interface pool accounts explicitly.
 
 ### Changed
 
 - **`approveInterface` / `revokeInterface`:** optional `options?: InterfaceOptions` and `decimals?: number` after `wrap`. For SPL or Token-2022 with `wrap: false`, the SDK skips an extra mint fetch used only for decimals on that path (you can still pass `decimals` when your flow requires it).
 - **`@lightprotocol/compressed-token/unified`:** approve/revoke APIs accept the same optional `options` and `decimals`; unified entrypoints keep their existing default wrapping behavior (`wrap: true`).
+- **Interface API normalization:** `programId` is now flat on transfer interface helpers/instruction builders (SPL-style), while `wrap` is consistently nested under `InterfaceOptions` across transfer/approve/revoke/load interface methods and their unified/root wrappers.
 
 ### Fixed
 

@@ -182,7 +182,6 @@ export async function createLoadAtaInstructions(
         mintInterface.mint.decimals,
         payer,
         options,
-        false,
     );
 }
 
@@ -216,7 +215,6 @@ export async function loadAta(
         payer,
         confirmOptions,
         interfaceOptions,
-        false,
         decimals,
     );
 }

@@ -514,16 +514,9 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
             owner.publicKey,
         );
         await expect(
-            loadAta(
-                rpc,
-                lightTokenAta,
-                owner,
-                mint,
-                payer,
-                undefined,
-                undefined,
-                true,
-            ),
+            loadAta(rpc, lightTokenAta, owner, mint, payer, undefined, {
+                wrap: true,
+            }),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         const splAfter = await getAccount(rpc, splAta);
@@ -574,8 +567,7 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
                 mint,
                 TEST_TOKEN_DECIMALS,
                 payer.publicKey,
-                undefined,
-                true,
+                { wrap: true },
             ),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
     }, 90_000);
@@ -634,22 +626,14 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
                 mint,
                 TEST_TOKEN_DECIMALS,
                 payer.publicKey,
-                undefined,
-                true,
+                { wrap: true },
             ),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         await expect(
-            loadAta(
-                rpc,
-                lightTokenAta,
-                owner,
-                mint,
-                payer,
-                undefined,
-                undefined,
-                true,
-            ),
+            loadAta(rpc, lightTokenAta, owner, mint, payer, undefined, {
+                wrap: true,
+            }),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         const splAfter = await getAccount(rpc, splAta);
@@ -751,16 +735,9 @@ describe('loadAta unified (wrap=true) - frozen T22 source', () => {
             owner.publicKey,
         );
         await expect(
-            loadAta(
-                rpc,
-                lightTokenAta,
-                owner,
-                t22Mint,
-                payer,
-                undefined,
-                undefined,
-                true,
-            ),
+            loadAta(rpc, lightTokenAta, owner, t22Mint, payer, undefined, {
+                wrap: true,
+            }),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         const t22After = await getAccount(
@@ -842,22 +819,14 @@ describe('loadAta unified (wrap=true) - frozen T22 source', () => {
                 t22Mint,
                 TEST_TOKEN_DECIMALS,
                 payer.publicKey,
-                undefined,
-                true,
+                { wrap: true },
             ),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         await expect(
-            loadAta(
-                rpc,
-                lightTokenAta,
-                owner,
-                t22Mint,
-                payer,
-                undefined,
-                undefined,
-                true,
-            ),
+            loadAta(rpc, lightTokenAta, owner, t22Mint, payer, undefined, {
+                wrap: true,
+            }),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         const t22After = await getAccount(
@@ -975,8 +944,7 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
                 mint,
                 TEST_TOKEN_DECIMALS,
                 payer.publicKey,
-                undefined,
-                true,
+                { wrap: true },
             ),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
@@ -1033,16 +1001,9 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
             owner.publicKey,
         );
         await expect(
-            loadAta(
-                rpc,
-                lightTokenAta,
-                owner,
-                mint,
-                payer,
-                undefined,
-                undefined,
-                true,
-            ),
+            loadAta(rpc, lightTokenAta, owner, mint, payer, undefined, {
+                wrap: true,
+            }),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         expect((await getAccount(rpc, splAta)).amount).toBe(BigInt(400));
@@ -1115,22 +1076,14 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
                 mint,
                 TEST_TOKEN_DECIMALS,
                 payer.publicKey,
-                undefined,
-                true,
+                { wrap: true },
             ),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         await expect(
-            loadAta(
-                rpc,
-                lightTokenAta,
-                owner,
-                mint,
-                payer,
-                undefined,
-                undefined,
-                true,
-            ),
+            loadAta(rpc, lightTokenAta, owner, mint, payer, undefined, {
+                wrap: true,
+            }),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
     }, 90_000);
 

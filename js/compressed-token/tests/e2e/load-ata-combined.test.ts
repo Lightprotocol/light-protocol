@@ -223,8 +223,7 @@ describe('loadAta - Export Path Verification', () => {
             mint,
             undefined,
             undefined,
-            undefined,
-            true, // wrap=true
+            { wrap: true },
         );
 
         expect(signature).not.toBeNull();

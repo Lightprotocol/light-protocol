@@ -1288,13 +1288,12 @@ describe('transfer-interface', () => {
                     payer,
                     senderSplAta,
                     mint,
-                    recipientAta,
+                    recipient.publicKey,
                     sender,
                     BigInt(500),
                     TOKEN_PROGRAM_ID,
                     undefined,
-                    { splInterfaceInfos: tokenPoolInfos },
-                    true, // wrap=true
+                    { splInterfaceInfos: tokenPoolInfos, wrap: true },
                 ),
             ).rejects.toThrow(/For wrap=true, ata must be the light-token ATA/);
         }, 120_000);
@@ -1483,7 +1482,6 @@ describe('transfer-interface', () => {
                 TOKEN_PROGRAM_ID,
                 undefined,
                 { splInterfaceInfos: tokenPoolInfos },
-                false,
             );
 
             expect(signature).toBeDefined();
@@ -1544,12 +1542,12 @@ describe('transfer-interface', () => {
                 mint,
                 BigInt(1000),
                 sender.publicKey,
-                recipientSplAta,
+                recipient.publicKey,
                 TEST_TOKEN_DECIMALS,
                 {
-                    programId: TOKEN_PROGRAM_ID,
                     splInterfaceInfos: tokenPoolInfos,
                 },
+                TOKEN_PROGRAM_ID,
             );
 
             // Should have at least one batch with the transfer
@@ -1624,7 +1622,6 @@ describe('transfer-interface', () => {
                 TOKEN_PROGRAM_ID,
                 undefined,
                 undefined,
-                false,
             );
 
             expect(signature).toBeDefined();
@@ -1690,9 +1687,9 @@ describe('transfer-interface', () => {
                 recipient.publicKey,
                 TEST_TOKEN_DECIMALS,
                 {
-                    programId: TOKEN_2022_PROGRAM_ID,
                     splInterfaceInfos: t22TokenPoolInfos,
                 },
+                TOKEN_2022_PROGRAM_ID,
             );
             expect(batches.length).toBeGreaterThan(0);
 
@@ -1751,7 +1748,6 @@ describe('transfer-interface', () => {
                 TOKEN_2022_PROGRAM_ID,
                 undefined,
                 { splInterfaceInfos: t22TokenPoolInfos },
-                false,
             );
             expect(signature).toBeDefined();
 

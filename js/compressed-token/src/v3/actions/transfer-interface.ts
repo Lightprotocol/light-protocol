@@ -25,6 +25,7 @@ import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
 
 export interface InterfaceOptions {
     splInterfaceInfos?: SplInterfaceInfo[];
+    wrap?: boolean;
     /**
      * ATA owner (authority owner) used to derive the ATA when the signer is a
      * delegate. For owner-signed flows, omit this field.
@@ -43,7 +44,6 @@ export async function transferToAccountInterface(
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
-    wrap = false,
     decimals?: number,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
@@ -75,9 +75,8 @@ export async function transferToAccountInterface(
         resolvedDecimals,
         {
             ...options,
-            wrap,
-            programId,
         },
+        programId,
     );
 
     const additionalSigners = dedupeSigner(payer, [owner]);
@@ -105,7 +104,6 @@ export async function transferInterface(
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
-    wrap = false,
     decimals?: number,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
@@ -135,9 +133,8 @@ export async function transferInterface(
         resolvedDecimals,
         {
             ...options,
-            wrap,
-            programId,
         },
+        programId,
     );
 
     const additionalSigners = dedupeSigner(payer, [owner]);
@@ -154,12 +151,6 @@ export async function transferInterface(
     return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
-export interface TransferOptions extends InterfaceOptions {
-    wrap?: boolean;
-    programId?: PublicKey;
-}
-export type TransferToAccountOptions = TransferOptions;
-
 export { sliceLast } from './slice-last';
 
 export async function createTransferInterfaceInstructions(
@@ -170,12 +161,9 @@ export async function createTransferInterfaceInstructions(
     sender: PublicKey,
     recipient: PublicKey,
     decimals: number,
-    options?: TransferOptions,
+    options?: InterfaceOptions,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionInstruction[][]> {
-    // Convenience path intentionally derives ATA from a wallet recipient.
-    // PDA/off-curve recipients should use transferToAccountInterface with an
-    // explicitly derived destination token account.
-    const programId = options?.programId ?? LIGHT_TOKEN_PROGRAM_ID;
     const destination = getAssociatedTokenAddressInterface(
         mint,
         recipient,
@@ -191,6 +179,7 @@ export async function createTransferInterfaceInstructions(
         destination,
         decimals,
         options,
+        programId,
     );
 
     const ensureRecipientAtaIx =

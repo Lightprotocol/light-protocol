@@ -161,10 +161,10 @@ export async function createLoadAtaInstructions(
     decimals: number,
     payer?: PublicKey,
     interfaceOptions?: InterfaceOptions,
-    wrap = false,
 ): Promise<TransactionInstruction[][]> {
     assertBetaEnabled();
     payer ??= owner;
+    const wrap = interfaceOptions?.wrap ?? false;
 
     const effectiveOwner = interfaceOptions?.owner ?? owner;
 

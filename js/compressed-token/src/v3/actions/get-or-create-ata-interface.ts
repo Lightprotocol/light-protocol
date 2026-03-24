@@ -293,8 +293,7 @@ async function getOrCreateLightTokenAta(
                 mint,
                 payer,
                 confirmOptions,
-                undefined,
-                wrap,
+                wrap ? { wrap: true } : undefined,
             );
 
             // Re-fetch the updated account state

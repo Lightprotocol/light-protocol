@@ -35,7 +35,6 @@ export async function loadAta(
     payer?: Signer,
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
-    wrap = false,
     decimals?: number,
 ): Promise<TransactionSignature | null> {
     assertBetaEnabled();
@@ -44,6 +43,7 @@ export async function loadAta(
 
     const resolvedDecimals =
         decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
+    const wrap = interfaceOptions?.wrap ?? false;
     const batches = await createLoadAtaInstructions(
         rpc,
         ata,
@@ -52,7 +52,6 @@ export async function loadAta(
         resolvedDecimals,
         payer.publicKey,
         interfaceOptions,
-        wrap,
     );
 
     if (batches.length === 0) {
