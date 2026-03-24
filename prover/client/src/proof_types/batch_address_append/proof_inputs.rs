@@ -199,6 +199,26 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     changelog: &mut Vec<ChangelogEntry<HEIGHT>>,
     indexed_changelog: &mut Vec<IndexedChangelogEntry<usize, HEIGHT>>,
 ) -> Result<BatchAddressAppendInputs, ProverClientError> {
+    if zkp_batch_size > new_element_values.len()
+        || zkp_batch_size > low_element_values.len()
+        || zkp_batch_size > low_element_indices.len()
+        || zkp_batch_size > low_element_next_indices.len()
+        || zkp_batch_size > low_element_next_values.len()
+        || zkp_batch_size > low_element_proofs.len()
+    {
+        return Err(ProverClientError::GenericError(format!(
+            "zkp_batch_size {} exceeds input slice lengths \
+             (new_element_values={}, low_element_values={}, low_element_indices={}, \
+              low_element_next_indices={}, low_element_next_values={}, low_element_proofs={})",
+            zkp_batch_size,
+            new_element_values.len(),
+            low_element_values.len(),
+            low_element_indices.len(),
+            low_element_next_indices.len(),
+            low_element_next_values.len(),
+            low_element_proofs.len(),
+        )));
+    }
     let new_element_values = &new_element_values[..zkp_batch_size];
     let mut new_root = [0u8; 32];
     let mut low_element_circuit_merkle_proofs = Vec::with_capacity(new_element_values.len());
