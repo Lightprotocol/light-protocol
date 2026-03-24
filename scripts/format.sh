@@ -8,7 +8,10 @@ cd js/compressed-token && pnpm format && cd ../..
 
 # Rust formatting
 cargo +nightly fmt --all
-cargo clippy \
+# Reduce memory pressure on macOS CI/dev machines. Override by exporting
+# CARGO_BUILD_JOBS before running this script.
+CLIPPY_JOBS="${CARGO_BUILD_JOBS:-1}"
+CARGO_BUILD_JOBS="$CLIPPY_JOBS" cargo clippy \
         --workspace \
         --no-deps \
         --all-features \

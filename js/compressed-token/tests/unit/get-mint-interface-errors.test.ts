@@ -31,54 +31,46 @@ const makeCompressedMintSentinelAccount = () =>
         lamports: { toNumber: () => 0 },
     }) as any;
 
-describe.skipIf(!featureFlags.isV2() || !featureFlags.isBeta())(
-    'get-mint-interface errors',
-    () => {
-        it('throws TokenInvalidAccountOwnerError when decompressed on-chain mint owner mismatches', async () => {
-            const mint = PublicKey.unique();
-            const rpc = {
-                getCompressedAccount: async () =>
-                    makeCompressedMintSentinelAccount(),
-                getAccountInfo: async () => ({
-                    executable: false,
-                    owner: PublicKey.unique(),
-                    lamports: 1,
-                    data: Buffer.alloc(100),
-                    rentEpoch: 0,
-                }),
-            } as any;
+describe.skipIf(!featureFlags.isV2())('get-mint-interface errors', () => {
+    it('throws TokenInvalidAccountOwnerError when decompressed on-chain mint owner mismatches', async () => {
+        const mint = PublicKey.unique();
+        const rpc = {
+            getCompressedAccount: async () =>
+                makeCompressedMintSentinelAccount(),
+            getAccountInfo: async () => ({
+                executable: false,
+                owner: PublicKey.unique(),
+                lamports: 1,
+                data: Buffer.alloc(100),
+                rentEpoch: 0,
+            }),
+        } as any;
 
-            await expect(
-                getMintInterface(
-                    rpc,
-                    mint,
-                    'confirmed',
-                    LIGHT_TOKEN_PROGRAM_ID,
-                ),
-            ).rejects.toBeInstanceOf(TokenInvalidAccountOwnerError);
-        });
+        await expect(
+            getMintInterface(rpc, mint, 'confirmed', LIGHT_TOKEN_PROGRAM_ID),
+        ).rejects.toBeInstanceOf(TokenInvalidAccountOwnerError);
+    });
 
-        it('forwards commitment when fetching decompressed on-chain mint', async () => {
-            const mint = PublicKey.unique();
-            const commitment: Commitment = 'processed';
-            let seenCommitment: Commitment | undefined;
+    it('forwards commitment when fetching decompressed on-chain mint', async () => {
+        const mint = PublicKey.unique();
+        const commitment: Commitment = 'processed';
+        let seenCommitment: Commitment | undefined;
 
-            const rpc = {
-                getCompressedAccount: async () =>
-                    makeCompressedMintSentinelAccount(),
-                getAccountInfo: async (
-                    _address: PublicKey,
-                    incomingCommitment?: Commitment,
-                ) => {
-                    seenCommitment = incomingCommitment;
-                    return null;
-                },
-            } as any;
+        const rpc = {
+            getCompressedAccount: async () =>
+                makeCompressedMintSentinelAccount(),
+            getAccountInfo: async (
+                _address: PublicKey,
+                incomingCommitment?: Commitment,
+            ) => {
+                seenCommitment = incomingCommitment;
+                return null;
+            },
+        } as any;
 
-            await expect(
-                getMintInterface(rpc, mint, commitment, LIGHT_TOKEN_PROGRAM_ID),
-            ).rejects.toBeInstanceOf(TokenAccountNotFoundError);
-            expect(seenCommitment).toBe(commitment);
-        });
-    },
-);
+        await expect(
+            getMintInterface(rpc, mint, commitment, LIGHT_TOKEN_PROGRAM_ID),
+        ).rejects.toBeInstanceOf(TokenAccountNotFoundError);
+        expect(seenCommitment).toBe(commitment);
+    });
+});

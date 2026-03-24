@@ -14,7 +14,7 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     MerkleContext,
     CompressedAccountWithMerkleContext,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import { Buffer } from 'buffer';
 import BN from 'bn.js';
@@ -364,7 +364,7 @@ export async function getAccountInterface(
     commitment?: Commitment,
     programId?: PublicKey,
 ): Promise<AccountInterface> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     return _getAccountInterface(rpc, address, commitment, programId, undefined);
 }
@@ -392,7 +392,7 @@ export async function getAtaInterface(
     wrap = false,
     allowOwnerOffCurve = false,
 ): Promise<AccountInterface> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     // Invariant: ata MUST match a valid derivation from mint+owner.
     // Hot path: if programId provided, only validate against that program.

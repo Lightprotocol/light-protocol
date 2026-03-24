@@ -12,7 +12,7 @@ import {
     DerivationMode,
     bn,
     LIGHT_TOKEN_PROGRAM_ID,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import {
     createUpdateMintAuthorityInstruction,
@@ -40,7 +40,7 @@ export async function updateMintAuthority(
     newMintAuthority: PublicKey | null,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const mintInterface = await getMintInterface(
         rpc,
@@ -116,7 +116,7 @@ export async function updateFreezeAuthority(
     newFreezeAuthority: PublicKey | null,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const mintInterface = await getMintInterface(
         rpc,

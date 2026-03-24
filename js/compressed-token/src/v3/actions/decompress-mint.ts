@@ -12,7 +12,7 @@ import {
     DerivationMode,
     bn,
     LIGHT_TOKEN_PROGRAM_ID,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import { createDecompressMintInstruction } from '../instructions/decompress-mint';
 import { getMintInterface } from '../get-mint-interface';
@@ -54,7 +54,7 @@ export async function decompressMint(
     params?: DecompressMintParams,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature | null> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     // Use payer as authority if not provided (decompressMint is permissionless)
     const effectiveAuthority = authority ?? payer;

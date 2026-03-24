@@ -250,6 +250,7 @@ describe('transfer-interface', () => {
                     senderSplAta,
                     splMintWithFreeze,
                     recipientSplAta,
+                    sender.publicKey,
                     sender,
                     BigInt(100),
                     TOKEN_PROGRAM_ID,
@@ -335,12 +336,12 @@ describe('transfer-interface', () => {
                     senderAta,
                     freezableMint,
                     recipientAta,
+                    sender.publicKey,
                     sender,
                     BigInt(100),
                     LIGHT_TOKEN_PROGRAM_ID,
                     undefined,
-                    undefined,
-                    true,
+                    { wrap: true },
                 ),
             ).rejects.toThrow(/Account is frozen|transfer is not allowed/);
         });
@@ -404,11 +405,11 @@ describe('transfer-interface', () => {
                 sourceAta,
                 mint,
                 recipientAta,
+                owner.publicKey,
                 delegate,
                 BigInt(500),
                 LIGHT_TOKEN_PROGRAM_ID,
                 undefined,
-                { owner: owner.publicKey },
             );
             expect(signature).toBeDefined();
             const recipientInfo = await rpc.getAccountInfo(recipientAta);
@@ -450,10 +451,10 @@ describe('transfer-interface', () => {
                 payer.publicKey,
                 mint,
                 BigInt(500),
-                delegate.publicKey,
+                owner.publicKey,
                 recipientAta,
                 TEST_TOKEN_DECIMALS,
-                { owner: owner.publicKey },
+                { delegatePubkey: delegate.publicKey },
             );
 
             expect(batches.length).toBeGreaterThan(0);
@@ -506,11 +507,11 @@ describe('transfer-interface', () => {
                     sourceAta,
                     mint,
                     recipientAta,
+                    owner.publicKey,
                     delegate,
                     BigInt(700),
                     LIGHT_TOKEN_PROGRAM_ID,
                     undefined,
-                    { owner: owner.publicKey },
                 ),
             ).rejects.toThrow();
         }, 120_000);
@@ -543,10 +544,10 @@ describe('transfer-interface', () => {
                     payer.publicKey,
                     mint,
                     BigInt(100),
-                    other,
+                    owner.publicKey,
                     recipientAta,
                     TEST_TOKEN_DECIMALS,
-                    { owner: owner.publicKey },
+                    { delegatePubkey: other },
                 ),
             ).rejects.toThrow(/Signer is not the owner or a delegate/);
         });
@@ -578,10 +579,10 @@ describe('transfer-interface', () => {
                     payer.publicKey,
                     mint,
                     BigInt(500),
-                    delegate.publicKey,
+                    owner.publicKey,
                     recipientAta,
                     TEST_TOKEN_DECIMALS,
-                    { owner: owner.publicKey },
+                    { delegatePubkey: delegate.publicKey },
                 ),
             ).rejects.toThrow(/Insufficient delegated balance/);
         });
@@ -768,6 +769,7 @@ describe('transfer-interface', () => {
                 sourceAta,
                 mint,
                 recipientAta.parsed.address,
+                sender.publicKey,
                 sender,
                 BigInt(1000),
             );
@@ -820,6 +822,7 @@ describe('transfer-interface', () => {
                 sourceAta,
                 mint,
                 recipientAta.parsed.address,
+                sender.publicKey,
                 sender,
                 BigInt(2000),
                 undefined,
@@ -859,6 +862,7 @@ describe('transfer-interface', () => {
                     wrongSource,
                     mint,
                     recipientAta.parsed.address,
+                    sender.publicKey,
                     sender,
                     BigInt(100),
                 ),
@@ -899,6 +903,7 @@ describe('transfer-interface', () => {
                     sourceAta,
                     mint,
                     recipientAta.parsed.address,
+                    sender.publicKey,
                     sender,
                     BigInt(99999),
                     undefined,
@@ -979,6 +984,7 @@ describe('transfer-interface', () => {
                 sourceAta,
                 mint,
                 recipientAta,
+                sender.publicKey,
                 sender,
                 BigInt(500),
             );
@@ -1024,6 +1030,7 @@ describe('transfer-interface', () => {
                 senderAta,
                 mint,
                 recipientAta.parsed.address,
+                sender.publicKey,
                 sender,
                 BigInt(1),
             );
@@ -1073,6 +1080,7 @@ describe('transfer-interface', () => {
                 ownerAta,
                 mint,
                 ownerAtaDest,
+                owner.publicKey,
                 owner,
                 BigInt(100),
             );
@@ -1230,6 +1238,7 @@ describe('transfer-interface', () => {
                 senderAta,
                 mint,
                 recipient.publicKey,
+                sender.publicKey,
                 sender,
                 BigInt(250),
             );
@@ -1288,13 +1297,13 @@ describe('transfer-interface', () => {
                     payer,
                     senderSplAta,
                     mint,
-                    recipientAta,
+                    recipient.publicKey,
+                    sender.publicKey,
                     sender,
                     BigInt(500),
                     TOKEN_PROGRAM_ID,
                     undefined,
-                    { splInterfaceInfos: tokenPoolInfos },
-                    true, // wrap=true
+                    { splInterfaceInfos: tokenPoolInfos, wrap: true },
                 ),
             ).rejects.toThrow(/For wrap=true, ata must be the light-token ATA/);
         }, 120_000);
@@ -1478,12 +1487,12 @@ describe('transfer-interface', () => {
                 senderSplAta,
                 mint,
                 recipientSplAta,
+                sender.publicKey,
                 sender,
                 BigInt(2000),
                 TOKEN_PROGRAM_ID,
                 undefined,
                 { splInterfaceInfos: tokenPoolInfos },
-                false,
             );
 
             expect(signature).toBeDefined();
@@ -1544,12 +1553,12 @@ describe('transfer-interface', () => {
                 mint,
                 BigInt(1000),
                 sender.publicKey,
-                recipientSplAta,
+                recipient.publicKey,
                 TEST_TOKEN_DECIMALS,
                 {
-                    programId: TOKEN_PROGRAM_ID,
                     splInterfaceInfos: tokenPoolInfos,
                 },
+                TOKEN_PROGRAM_ID,
             );
 
             // Should have at least one batch with the transfer
@@ -1619,12 +1628,12 @@ describe('transfer-interface', () => {
                 senderSplAta,
                 mint,
                 recipientSplAta,
+                sender.publicKey,
                 sender,
                 BigInt(1500),
                 TOKEN_PROGRAM_ID,
                 undefined,
                 undefined,
-                false,
             );
 
             expect(signature).toBeDefined();
@@ -1690,9 +1699,9 @@ describe('transfer-interface', () => {
                 recipient.publicKey,
                 TEST_TOKEN_DECIMALS,
                 {
-                    programId: TOKEN_2022_PROGRAM_ID,
                     splInterfaceInfos: t22TokenPoolInfos,
                 },
+                TOKEN_2022_PROGRAM_ID,
             );
             expect(batches.length).toBeGreaterThan(0);
 
@@ -1746,12 +1755,12 @@ describe('transfer-interface', () => {
                 senderT22Ata,
                 t22Mint,
                 recipient.publicKey,
+                sender.publicKey,
                 sender,
                 BigInt(900),
                 TOKEN_2022_PROGRAM_ID,
                 undefined,
                 { splInterfaceInfos: t22TokenPoolInfos },
-                false,
             );
             expect(signature).toBeDefined();
 

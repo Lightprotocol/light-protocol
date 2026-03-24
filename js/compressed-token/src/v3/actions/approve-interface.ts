@@ -9,7 +9,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
-    assertBetaEnabled,
+    assertV2Enabled,
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
@@ -42,7 +42,7 @@ import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
  * @param owner          Owner of the token account (signer)
  * @param confirmOptions Optional confirm options
  * @param programId      Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
- * @param wrap           When true and mint is SPL/T22, wrap into light-token then approve
+ * @param options        Optional interface options (`wrap` is nested here)
  * @returns Transaction signature
  */
 export async function approveInterface(
@@ -55,11 +55,10 @@ export async function approveInterface(
     owner: Signer,
     confirmOptions?: ConfirmOptions,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
-    wrap = false,
     options?: InterfaceOptions,
     decimals?: number,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const expectedAta = getAssociatedTokenAddressInterface(
         mint,
@@ -76,6 +75,7 @@ export async function approveInterface(
     const isSplOrT22 =
         programId.equals(TOKEN_PROGRAM_ID) ||
         programId.equals(TOKEN_2022_PROGRAM_ID);
+    const wrap = options?.wrap ?? false;
     const resolvedDecimals =
         decimals ??
         (isSplOrT22 && !wrap
@@ -91,7 +91,6 @@ export async function approveInterface(
         owner.publicKey,
         resolvedDecimals,
         programId,
-        wrap,
         options,
     );
 
@@ -127,7 +126,7 @@ export async function approveInterface(
  * @param owner          Owner of the token account (signer)
  * @param confirmOptions Optional confirm options
  * @param programId      Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
- * @param wrap           When true and mint is SPL/T22, wrap into light-token then revoke
+ * @param options        Optional interface options (`wrap` is nested here)
  * @returns Transaction signature
  */
 export async function revokeInterface(
@@ -138,11 +137,10 @@ export async function revokeInterface(
     owner: Signer,
     confirmOptions?: ConfirmOptions,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
-    wrap = false,
     options?: InterfaceOptions,
     decimals?: number,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const expectedAta = getAssociatedTokenAddressInterface(
         mint,
@@ -159,6 +157,7 @@ export async function revokeInterface(
     const isSplOrT22 =
         programId.equals(TOKEN_PROGRAM_ID) ||
         programId.equals(TOKEN_2022_PROGRAM_ID);
+    const wrap = options?.wrap ?? false;
     const resolvedDecimals =
         decimals ??
         (isSplOrT22 && !wrap
@@ -172,7 +171,6 @@ export async function revokeInterface(
         owner.publicKey,
         resolvedDecimals,
         programId,
-        wrap,
         options,
     );
 

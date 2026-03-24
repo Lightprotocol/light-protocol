@@ -5,7 +5,7 @@ import {
 } from '@solana/web3.js';
 import {
     Rpc,
-    assertBetaEnabled,
+    assertV2Enabled,
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import {
@@ -64,7 +64,7 @@ function calculateRevokeCU(loadBatch: InternalLoadBatch | null): number {
  * @param owner        Owner public key
  * @param decimals     Token decimals
  * @param programId    Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
- * @param wrap         When true and mint is SPL/T22, wrap into light-token then approve
+ * @param options      Optional interface options (`wrap` is nested here)
  * @returns Instruction batches
  */
 export async function createApproveInterfaceInstructions(
@@ -77,16 +77,16 @@ export async function createApproveInterfaceInstructions(
     owner: PublicKey,
     decimals: number,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
-    wrap = false,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const amountBigInt = BigInt(amount.toString());
 
     const isSplOrT22 =
         programId.equals(TOKEN_PROGRAM_ID) ||
         programId.equals(TOKEN_2022_PROGRAM_ID);
+    const wrap = options?.wrap ?? false;
 
     const accountInterface = await _getAtaInterface(
         rpc,
@@ -209,7 +209,7 @@ export async function createApproveInterfaceInstructions(
  * @param owner        Owner public key
  * @param decimals     Token decimals
  * @param programId    Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
- * @param wrap         When true and mint is SPL/T22, wrap into light-token then revoke
+ * @param options      Optional interface options (`wrap` is nested here)
  * @returns Instruction batches
  */
 export async function createRevokeInterfaceInstructions(
@@ -220,14 +220,14 @@ export async function createRevokeInterfaceInstructions(
     owner: PublicKey,
     decimals: number,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
-    wrap = false,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const isSplOrT22 =
         programId.equals(TOKEN_PROGRAM_ID) ||
         programId.equals(TOKEN_2022_PROGRAM_ID);
+    const wrap = options?.wrap ?? false;
 
     const accountInterface = await _getAtaInterface(
         rpc,

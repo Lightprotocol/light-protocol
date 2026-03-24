@@ -75,8 +75,7 @@ describe('approve/revoke regressions', () => {
             owner,
             6,
             undefined,
-            true,
-            undefined,
+            { wrap: true },
         );
         expect(createRevokeInterfaceInstructionsMock).toHaveBeenCalledWith(
             rpc,
@@ -86,8 +85,7 @@ describe('approve/revoke regressions', () => {
             owner,
             6,
             undefined,
-            true,
-            undefined,
+            { wrap: true },
         );
     });
 
@@ -127,8 +125,7 @@ describe('approve/revoke regressions', () => {
             owner,
             9,
             undefined,
-            true,
-            undefined,
+            { wrap: true },
         );
         expect(createRevokeInterfaceInstructionsMock).toHaveBeenCalledWith(
             rpc,
@@ -138,8 +135,7 @@ describe('approve/revoke regressions', () => {
             owner,
             9,
             undefined,
-            true,
-            undefined,
+            { wrap: true },
         );
     });
 });

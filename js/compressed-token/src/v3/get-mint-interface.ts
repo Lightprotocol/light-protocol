@@ -7,7 +7,7 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     getDefaultAddressTreeInfo,
     MerkleContext,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import {
     Mint,
@@ -61,7 +61,7 @@ export async function getMintInterface(
     commitment?: Commitment,
     programId?: PublicKey,
 ): Promise<MintInterface> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     // try all three programs in parallel
     if (!programId) {

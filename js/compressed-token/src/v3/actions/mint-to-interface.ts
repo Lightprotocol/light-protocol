@@ -9,7 +9,7 @@ import {
     Rpc,
     buildAndSignTx,
     sendAndConfirmTx,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import { createMintToInterfaceInstruction } from '../instructions/mint-to-interface';
 import { getMintInterface } from '../get-mint-interface';
@@ -46,7 +46,7 @@ export async function mintToInterface(
     confirmOptions?: ConfirmOptions,
     programId?: PublicKey,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     // Fetch mint interface (auto-detects program type if not provided)
     const mintInterface = await getMintInterface(

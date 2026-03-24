@@ -646,6 +646,7 @@ describe('Multi-Cold-Inputs', () => {
                 sourceAta,
                 mint,
                 recipientAta,
+                owner.publicKey,
                 owner,
                 totalAmount,
             );
@@ -699,6 +700,7 @@ describe('Multi-Cold-Inputs', () => {
                 sourceAta,
                 mint,
                 recipientAta,
+                owner.publicKey,
                 owner,
                 totalAmount,
             );
@@ -751,6 +753,7 @@ describe('Multi-Cold-Inputs', () => {
                 sourceAta,
                 mint,
                 recipientAta,
+                owner.publicKey,
                 owner,
                 totalAmount,
             );

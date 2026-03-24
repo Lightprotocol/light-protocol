@@ -3,7 +3,7 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import {
     getAssociatedTokenAddressSync,
@@ -71,7 +71,7 @@ export async function getOrCreateAtaInterface(
     programId = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId = getAtaProgramId(programId),
 ): Promise<AccountInterface> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     return _getOrCreateAtaInterface(
         rpc,
@@ -293,8 +293,7 @@ async function getOrCreateLightTokenAta(
                 mint,
                 payer,
                 confirmOptions,
-                undefined,
-                wrap,
+                wrap ? { wrap: true } : undefined,
             );
 
             // Re-fetch the updated account state

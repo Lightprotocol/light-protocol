@@ -36,7 +36,6 @@ import {
     createTransferInterfaceInstructions as _createTransferInterfaceInstructions,
     createTransferToAccountInterfaceInstructions as _createTransferToAccountInterfaceInstructions,
 } from '../actions/transfer-interface';
-import type { TransferOptions as _TransferOptions } from '../actions/transfer-interface';
 import {
     approveInterface as _approveInterface,
     revokeInterface as _revokeInterface,
@@ -140,8 +139,7 @@ export async function createLoadAtaInstructions(
         mint,
         mintInterface.mint.decimals,
         payer,
-        options,
-        true,
+        { ...options, wrap: true },
     );
 }
 
@@ -180,8 +178,7 @@ export async function loadAta(
         mint,
         payer,
         confirmOptions,
-        interfaceOptions,
-        true,
+        { ...interfaceOptions, wrap: true },
         decimals,
     );
 
@@ -225,7 +222,8 @@ export async function loadAta(
  * @param source          Source light-token associated token account address
  * @param mint            Mint address
  * @param recipient       Destination owner wallet address
- * @param owner           Source owner (signer)
+ * @param owner           Source account owner pubkey
+ * @param authority       Signing authority (owner or approved delegate)
  * @param amount          Amount to transfer
  * @param confirmOptions  Optional confirm options
  * @param options         Optional interface options
@@ -237,7 +235,8 @@ export async function transferInterface(
     source: PublicKey,
     mint: PublicKey,
     recipient: PublicKey,
-    owner: Signer,
+    owner: PublicKey,
+    authority: Signer,
     amount: number | bigint | BN,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
@@ -250,11 +249,11 @@ export async function transferInterface(
         mint,
         recipient,
         owner,
+        authority,
         amount,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         confirmOptions,
-        options,
-        true, // wrap=true for unified
+        { ...options, wrap: true }, // unified always wraps
         decimals,
     );
 }
@@ -270,7 +269,8 @@ export async function transferToAccountInterface(
     source: PublicKey,
     mint: PublicKey,
     destination: PublicKey,
-    owner: Signer,
+    owner: PublicKey,
+    authority: Signer,
     amount: number | bigint | BN,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
@@ -283,11 +283,11 @@ export async function transferToAccountInterface(
         mint,
         destination,
         owner,
+        authority,
         amount,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         confirmOptions,
-        options,
-        true, // wrap=true for unified
+        { ...options, wrap: true }, // unified always wraps
         decimals,
     );
 }
@@ -360,9 +360,9 @@ export async function createTransferInterfaceInstructions(
     payer: PublicKey,
     mint: PublicKey,
     amount: number | bigint | BN,
-    sender: PublicKey,
+    owner: PublicKey,
     recipient: PublicKey,
-    options?: Omit<_TransferOptions, 'wrap'>,
+    options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
     const mintInterface = await getMintInterface(rpc, mint);
     return _createTransferInterfaceInstructions(
@@ -370,7 +370,7 @@ export async function createTransferInterfaceInstructions(
         payer,
         mint,
         amount,
-        sender,
+        owner,
         recipient,
         mintInterface.mint.decimals,
         {
@@ -389,9 +389,9 @@ export async function createTransferToAccountInterfaceInstructions(
     payer: PublicKey,
     mint: PublicKey,
     amount: number | bigint | BN,
-    sender: PublicKey,
+    owner: PublicKey,
     destination: PublicKey,
-    options?: Omit<_TransferOptions, 'wrap'>,
+    options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
     const mintInterface = await getMintInterface(rpc, mint);
     return _createTransferToAccountInterfaceInstructions(
@@ -399,7 +399,7 @@ export async function createTransferToAccountInterfaceInstructions(
         payer,
         mint,
         amount,
-        sender,
+        owner,
         destination,
         mintInterface.mint.decimals,
         {
@@ -497,11 +497,6 @@ export async function unwrap(
     );
 }
 
-export type {
-    _TransferOptions as TransferOptions,
-    _TransferOptions as TransferToAccountOptions,
-};
-
 /**
  * Approve a delegate for an associated token account.
  *
@@ -544,8 +539,7 @@ export async function approveInterface(
         owner,
         confirmOptions,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
-        true, // wrap=true for unified
-        options,
+        { ...options, wrap: true }, // unified always wraps
         decimals,
     );
 }
@@ -583,8 +577,7 @@ export async function createApproveInterfaceInstructions(
         owner,
         resolvedDecimals,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
-        true, // wrap=true for unified
-        options,
+        { ...options, wrap: true }, // unified always wraps
     );
 }
 
@@ -623,8 +616,7 @@ export async function revokeInterface(
         owner,
         confirmOptions,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
-        true, // wrap=true for unified
-        options,
+        { ...options, wrap: true }, // unified always wraps
         decimals,
     );
 }
@@ -656,8 +648,7 @@ export async function createRevokeInterfaceInstructions(
         owner,
         resolvedDecimals,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
-        true, // wrap=true for unified
-        options,
+        { ...options, wrap: true }, // unified always wraps
     );
 }
 

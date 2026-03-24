@@ -11,7 +11,7 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import {
     createAssociatedTokenAccountInterfaceInstruction,
@@ -52,7 +52,7 @@ export async function createAtaInterface(
     associatedTokenProgramId?: PublicKey,
     lightTokenConfig?: LightTokenConfig,
 ): Promise<PublicKey> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const effectiveAtaProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
@@ -128,7 +128,7 @@ export async function createAtaInterfaceIdempotent(
     associatedTokenProgramId?: PublicKey,
     lightTokenConfig?: LightTokenConfig,
 ): Promise<PublicKey> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const effectiveAtaProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);

@@ -106,11 +106,9 @@ describe('transferDelegatedInterface - e2e', () => {
             ownerAta,
             mint,
             recipient.publicKey,
+            owner.publicKey,
             delegate,
             200_000_000,
-            undefined,
-            undefined,
-            { owner: owner.publicKey },
         );
         expect(sig).toBeTruthy();
 

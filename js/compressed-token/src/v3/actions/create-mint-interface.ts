@@ -18,7 +18,7 @@ import {
     DerivationMode,
     LIGHT_TOKEN_PROGRAM_ID,
     getDefaultAddressTreeInfo,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
@@ -60,7 +60,7 @@ export async function createMintInterface(
     outputStateTreeInfo?: TreeInfo,
     addressTreeInfo?: AddressTreeInfo,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     // Dispatch to SPL/Token-2022 mint creation
     if (

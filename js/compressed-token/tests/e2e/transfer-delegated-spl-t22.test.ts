@@ -127,11 +127,12 @@ describe('delegated transfer - SPL mint', () => {
             ownerAta,
             splMint,
             recipient.publicKey,
+            owner.publicKey,
             delegate,
             200_000_000n,
             TOKEN_PROGRAM_ID,
             undefined,
-            { owner: owner.publicKey, splInterfaceInfos: [] },
+            { splInterfaceInfos: [] },
         );
         expect(sig).toBeTruthy();
 
@@ -195,11 +196,11 @@ describe('delegated transfer - SPL mint', () => {
                 ownerAta,
                 splMint,
                 recipient.publicKey,
+                owner.publicKey,
                 delegate,
                 200_000_000n, // > 100M allowance
                 TOKEN_PROGRAM_ID,
                 undefined,
-                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 60_000);
@@ -212,11 +213,11 @@ describe('delegated transfer - SPL mint', () => {
                 ownerAta,
                 splMint,
                 recipient.publicKey,
+                owner.publicKey,
                 stranger,
                 50_000_000n,
                 TOKEN_PROGRAM_ID,
                 undefined,
-                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 60_000);
@@ -239,11 +240,11 @@ describe('delegated transfer - SPL mint', () => {
                 ownerAta,
                 splMint,
                 recipient.publicKey,
+                owner.publicKey,
                 delegate,
                 50_000_000n,
                 TOKEN_PROGRAM_ID,
                 undefined,
-                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 60_000);
@@ -335,11 +336,12 @@ describe('delegated transfer - Token-2022 mint', () => {
             ownerAta,
             t22Mint,
             recipient.publicKey,
+            owner.publicKey,
             delegate,
             200_000_000n,
             TOKEN_2022_PROGRAM_ID,
             undefined,
-            { owner: owner.publicKey, splInterfaceInfos: [] },
+            { splInterfaceInfos: [] },
         );
         expect(sig).toBeTruthy();
 

@@ -2,8 +2,7 @@ import { AccountMeta, PublicKey, SystemProgram } from '@solana/web3.js';
 import { defaultStaticAccountsStruct, featureFlags } from '../constants';
 import { LightSystemProgram } from '../programs';
 
-const toStrictBool = (value: unknown): boolean =>
-    value === true || value === 1;
+const toStrictBool = (value: unknown): boolean => value === true || value === 1;
 
 export class PackedAccounts {
     private preAccounts: AccountMeta[] = [];

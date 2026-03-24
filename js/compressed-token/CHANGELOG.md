@@ -5,13 +5,24 @@
 - **Delegate approval and revocation** for SPL Token, Token-2022, and light-token, aligned with existing interface helpers:
     - **Actions:** `approveInterface`, `revokeInterface`.
     - **Instruction builders:** `createApproveInterfaceInstructions`, `createRevokeInterfaceInstructions` — each inner array is one transaction’s instructions (same batching style as other interface instruction builders).
-    - **Program-level helpers:** `createLightTokenApproveInstruction`, `createLightTokenRevokeInstruction` 
+    - **Program-level helpers:** `createLightTokenApproveInstruction`, `createLightTokenRevokeInstruction`
 - **Shared options:** approve/revoke accept optional `InterfaceOptions` (same type as `transferInterface`), including `splInterfaceInfos` when you need to supply SPL interface pool accounts explicitly.
 
 ### Changed
 
 - **`approveInterface` / `revokeInterface`:** optional `options?: InterfaceOptions` and `decimals?: number` after `wrap`. For SPL or Token-2022 with `wrap: false`, the SDK skips an extra mint fetch used only for decimals on that path (you can still pass `decimals` when your flow requires it).
 - **`@lightprotocol/compressed-token/unified`:** approve/revoke APIs accept the same optional `options` and `decimals`; unified entrypoints keep their existing default wrapping behavior (`wrap: true`).
+- **Interface API normalization:** `programId` is now flat on transfer interface helpers/instruction builders (SPL-style), while `wrap` is consistently nested under `InterfaceOptions` across transfer/approve/revoke/load interface methods and their unified/root wrappers.
+
+### Breaking Changes
+
+- **Transfer interface owner/authority split:** `transferInterface`, `transferToAccountInterface`, and the unified wrappers now take the token-account owner pubkey and the signing authority separately.
+    - **Action:** `transferInterface(rpc, payer, source, mint, recipient, owner, authority, amount, ...)`
+    - **Action:** `transferToAccountInterface(rpc, payer, source, mint, destination, owner, authority, amount, ...)`
+    - Owner-signed flows now pass `owner.publicKey, owner`; delegated flows pass `ownerPublicKey, delegateSigner`.
+- **`InterfaceOptions.owner` removed:** transfer interface helpers no longer accept the account owner inside `InterfaceOptions`.
+    - Instruction builders keep flat `owner` as the canonical account owner.
+    - Delegated instruction planning must use `options.delegatePubkey`.
 
 ### Fixed
 
@@ -22,7 +33,7 @@
 ### Breaking Changes
 
 - **`transferInterface` and `createTransferInterfaceInstructions`** now take a recipient wallet address and ensure recipient ATA internally.
-    - **Action:** `transferInterface(rpc, payer, source, mint, recipient, owner, amount, ...)` — `recipient` is the wallet public key.
+    - **Action:** `transferInterface(rpc, payer, source, mint, recipient, owner, authority, amount, ...)` — `recipient` is the wallet public key.
     - **Instruction builder:** `createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, recipient, decimals, options?)` — derives destination ATA and inserts idempotent ATA-create internally.
     - **Advanced explicit-account path:** use `transferToAccountInterface(...)` and `createTransferToAccountInterfaceInstructions(...)` for destination token-account routing (program-owned/custom accounts), preserving the previous destination-account behavior.
     - **`decimals` is required** on v3 action-level instruction builders. Fetch with `getMintInterface(rpc, mint).mint.decimals` if not already threaded.

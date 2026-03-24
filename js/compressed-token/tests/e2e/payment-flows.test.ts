@@ -116,6 +116,7 @@ describe('Payment Flows', () => {
                 sourceAta,
                 mint,
                 recipientAta.parsed.address,
+                sender.publicKey,
                 sender,
                 amount,
                 undefined,
@@ -166,6 +167,7 @@ describe('Payment Flows', () => {
                 sourceAta,
                 mint,
                 recipientAta.parsed.address,
+                sender.publicKey,
                 sender,
                 BigInt(2000),
                 undefined,
@@ -241,6 +243,7 @@ describe('Payment Flows', () => {
                 sourceAta,
                 mint,
                 destAta,
+                sender.publicKey,
                 sender,
                 BigInt(500),
             );

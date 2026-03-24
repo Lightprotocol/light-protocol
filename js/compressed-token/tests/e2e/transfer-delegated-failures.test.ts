@@ -89,11 +89,11 @@ describe('transferDelegatedInterface - failure cases', () => {
                 ownerAta,
                 mint,
                 recipient.publicKey,
+                owner.publicKey,
                 delegate,
                 600_000_000, // > 500M allowance
                 undefined,
                 undefined,
-                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 30_000);
@@ -106,11 +106,11 @@ describe('transferDelegatedInterface - failure cases', () => {
                 ownerAta,
                 mint,
                 recipient.publicKey,
+                owner.publicKey,
                 stranger, // not approved
                 100_000_000,
                 undefined,
                 undefined,
-                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 30_000);
@@ -126,11 +126,11 @@ describe('transferDelegatedInterface - failure cases', () => {
                 ownerAta,
                 mint,
                 recipient.publicKey,
+                owner.publicKey,
                 delegate,
                 100_000_000,
                 undefined,
                 undefined,
-                { owner: owner.publicKey },
             ),
         ).rejects.toThrow();
     }, 60_000);

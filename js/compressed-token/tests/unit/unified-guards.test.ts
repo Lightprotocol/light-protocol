@@ -59,8 +59,8 @@ describe('unified guards', () => {
         ).not.toThrow();
     });
 
-    // Skip unless V2+beta - createLoadAtaInstructions is a V2-only interface method requiring beta
-    it.skipIf(!featureFlags.isV2() || !featureFlags.isBeta())(
+    // Skip unless V2 - createLoadAtaInstructions is a V2-only interface method
+    it.skipIf(!featureFlags.isV2())(
         'throws when unified createLoadAtaInstructions receives non light-token ATA',
         async () => {
             const rpc = {} as Rpc;
