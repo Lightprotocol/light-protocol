@@ -5,7 +5,7 @@ import {
 } from '@solana/web3.js';
 import {
     Rpc,
-    assertBetaEnabled,
+    assertV2Enabled,
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import {
@@ -79,7 +79,7 @@ export async function createApproveInterfaceInstructions(
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const amountBigInt = BigInt(amount.toString());
 
@@ -222,7 +222,7 @@ export async function createRevokeInterfaceInstructions(
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const isSplOrT22 =
         programId.equals(TOKEN_PROGRAM_ID) ||

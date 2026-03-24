@@ -91,7 +91,7 @@ import {
     batchAddressTree,
     LIGHT_TOKEN_PROGRAM_ID,
     getDefaultAddressSpace,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
@@ -2114,7 +2114,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         isCold: boolean;
         loadContext?: MerkleContext;
     } | null> {
-        assertBetaEnabled();
+        assertV2Enabled();
 
         addressSpace = addressSpace ?? getDefaultAddressSpace();
 
@@ -2215,7 +2215,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         options?: SignaturesForAddressOptions,
         compressedOptions?: PaginatedOptions,
     ): Promise<SignaturesForAddressInterfaceResult> {
-        assertBetaEnabled();
+        assertV2Enabled();
 
         const [solanaResult, compressedResult] = await Promise.allSettled([
             this.getSignaturesForAddress(address, options),
@@ -2254,7 +2254,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         options?: SignaturesForAddressOptions,
         compressedOptions?: PaginatedOptions,
     ): Promise<SignaturesForAddressInterfaceResult> {
-        assertBetaEnabled();
+        assertV2Enabled();
 
         const [solanaResult, compressedResult] = await Promise.allSettled([
             this.getSignaturesForAddress(owner, options),
@@ -2296,7 +2296,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         mint: PublicKey,
         commitment?: Commitment,
     ): Promise<UnifiedTokenBalance> {
-        assertBetaEnabled();
+        assertV2Enabled();
 
         const [onChainResult, compressedResult] = await Promise.allSettled([
             this.getTokenAccountBalance(address, commitment),
@@ -2347,7 +2347,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         address: PublicKey,
         commitment?: Commitment,
     ): Promise<UnifiedBalance> {
-        assertBetaEnabled();
+        assertV2Enabled();
 
         const [onChainResult, compressedResult] = await Promise.allSettled([
             this.getBalance(address, commitment),

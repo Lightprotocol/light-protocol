@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
     featureFlags,
     VERSION,
-    assertBetaEnabled,
-    BETA_REQUIRED_ERROR,
+    assertV2Enabled,
+    V2_REQUIRED_ERROR,
 } from '../../src/constants';
 
 describe('Version System', () => {
@@ -32,22 +32,12 @@ describe('Version System', () => {
     });
 });
 
-describe('assertBetaEnabled', () => {
-    it('should throw correct error based on version and beta flag', () => {
-        const isV2 = featureFlags.isV2();
-        const isBeta = featureFlags.isBeta();
-
-        if (!isV2) {
-            // V1 mode: should throw V2 required error
-            expect(() => assertBetaEnabled()).toThrowError(
-                'Interface methods require V2. Set LIGHT_PROTOCOL_VERSION=V2.',
-            );
-        } else if (!isBeta) {
-            // V2 mode without beta: should throw beta required error
-            expect(() => assertBetaEnabled()).toThrowError(BETA_REQUIRED_ERROR);
+describe('assertV2Enabled', () => {
+    it('should throw only when V2 is disabled', () => {
+        if (!featureFlags.isV2()) {
+            expect(() => assertV2Enabled()).toThrowError(V2_REQUIRED_ERROR);
         } else {
-            // V2 mode with beta: should not throw
-            expect(() => assertBetaEnabled()).not.toThrow();
+            expect(() => assertV2Enabled()).not.toThrow();
         }
     });
 
@@ -55,7 +45,7 @@ describe('assertBetaEnabled', () => {
         // This test ensures the V1 guard is in place and produces the expected error.
         // If running in V1 mode, this validates the error. If V2, it's a no-op check.
         if (!featureFlags.isV2()) {
-            expect(() => assertBetaEnabled()).toThrowError(
+            expect(() => assertV2Enabled()).toThrowError(
                 /Interface methods require V2/,
             );
         }

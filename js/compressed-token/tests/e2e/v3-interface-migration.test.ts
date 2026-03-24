@@ -370,6 +370,7 @@ describe('v3-interface-v1-rejection', () => {
                     sourceAta,
                     mint,
                     recipientAta,
+                    owner.publicKey,
                     owner,
                     BigInt(500),
                 ),

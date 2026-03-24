@@ -10,7 +10,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import { getMint } from '@solana/spl-token';
 import { createWrapInstruction } from '../instructions/wrap';
@@ -64,7 +64,7 @@ export async function wrap(
     maxTopUp?: number,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     // Get SPL interface info if not provided
     let resolvedSplInterfaceInfo = splInterfaceInfo;

@@ -14,6 +14,16 @@
 - **`@lightprotocol/compressed-token/unified`:** approve/revoke APIs accept the same optional `options` and `decimals`; unified entrypoints keep their existing default wrapping behavior (`wrap: true`).
 - **Interface API normalization:** `programId` is now flat on transfer interface helpers/instruction builders (SPL-style), while `wrap` is consistently nested under `InterfaceOptions` across transfer/approve/revoke/load interface methods and their unified/root wrappers.
 
+### Breaking Changes
+
+- **Transfer interface owner/authority split:** `transferInterface`, `transferToAccountInterface`, and the unified wrappers now take the token-account owner pubkey and the signing authority separately.
+    - **Action:** `transferInterface(rpc, payer, source, mint, recipient, owner, authority, amount, ...)`
+    - **Action:** `transferToAccountInterface(rpc, payer, source, mint, destination, owner, authority, amount, ...)`
+    - Owner-signed flows now pass `owner.publicKey, owner`; delegated flows pass `ownerPublicKey, delegateSigner`.
+- **`InterfaceOptions.owner` removed:** transfer interface helpers no longer accept the account owner inside `InterfaceOptions`.
+    - Instruction builders keep flat `owner` as the canonical account owner.
+    - Delegated instruction planning must use `options.delegatePubkey`.
+
 ### Fixed
 
 - **Browser bundles:** Terser no longer rewrites booleans to integers in minified output, keeping `AccountMeta` flags compatible with `@solana/web3.js` and runtime expectations (same change as `stateless.js`; see [#2347](https://github.com/Lightprotocol/light-protocol/pull/2347)).

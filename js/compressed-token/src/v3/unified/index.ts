@@ -222,7 +222,8 @@ export async function loadAta(
  * @param source          Source light-token associated token account address
  * @param mint            Mint address
  * @param recipient       Destination owner wallet address
- * @param owner           Source owner (signer)
+ * @param owner           Source account owner pubkey
+ * @param authority       Signing authority (owner or approved delegate)
  * @param amount          Amount to transfer
  * @param confirmOptions  Optional confirm options
  * @param options         Optional interface options
@@ -234,7 +235,8 @@ export async function transferInterface(
     source: PublicKey,
     mint: PublicKey,
     recipient: PublicKey,
-    owner: Signer,
+    owner: PublicKey,
+    authority: Signer,
     amount: number | bigint | BN,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
@@ -247,6 +249,7 @@ export async function transferInterface(
         mint,
         recipient,
         owner,
+        authority,
         amount,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         confirmOptions,
@@ -266,7 +269,8 @@ export async function transferToAccountInterface(
     source: PublicKey,
     mint: PublicKey,
     destination: PublicKey,
-    owner: Signer,
+    owner: PublicKey,
+    authority: Signer,
     amount: number | bigint | BN,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
@@ -279,6 +283,7 @@ export async function transferToAccountInterface(
         mint,
         destination,
         owner,
+        authority,
         amount,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         confirmOptions,
@@ -355,7 +360,7 @@ export async function createTransferInterfaceInstructions(
     payer: PublicKey,
     mint: PublicKey,
     amount: number | bigint | BN,
-    sender: PublicKey,
+    owner: PublicKey,
     recipient: PublicKey,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
@@ -365,7 +370,7 @@ export async function createTransferInterfaceInstructions(
         payer,
         mint,
         amount,
-        sender,
+        owner,
         recipient,
         mintInterface.mint.decimals,
         {
@@ -384,7 +389,7 @@ export async function createTransferToAccountInterfaceInstructions(
     payer: PublicKey,
     mint: PublicKey,
     amount: number | bigint | BN,
-    sender: PublicKey,
+    owner: PublicKey,
     destination: PublicKey,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
@@ -394,7 +399,7 @@ export async function createTransferToAccountInterfaceInstructions(
         payer,
         mint,
         amount,
-        sender,
+        owner,
         destination,
         mintInterface.mint.decimals,
         {

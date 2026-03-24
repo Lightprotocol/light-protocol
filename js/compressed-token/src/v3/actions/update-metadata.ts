@@ -12,7 +12,7 @@ import {
     DerivationMode,
     bn,
     LIGHT_TOKEN_PROGRAM_ID,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import {
     createUpdateMetadataFieldInstruction,
@@ -72,7 +72,7 @@ export async function updateMetadataField(
     extensionIndex: number = 0,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const mintInterface = await getMintInterface(
         rpc,
@@ -149,7 +149,7 @@ export async function updateMetadataAuthority(
     extensionIndex: number = 0,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const mintInterface = await getMintInterface(
         rpc,
@@ -226,7 +226,7 @@ export async function removeMetadataKey(
     extensionIndex: number = 0,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const mintInterface = await getMintInterface(
         rpc,

@@ -9,7 +9,7 @@ import {
     Rpc,
     buildAndSignTx,
     sendAndConfirmTx,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import { MAX_TOP_UP } from '../../constants';
 import { createMintToInstruction } from '../instructions/mint-to';
@@ -40,7 +40,7 @@ export async function mintTo(
     maxTopUp?: number,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     // Use payer as fee payer for top-ups if authority is different from payer
     const feePayer = authority.publicKey.equals(payer.publicKey)

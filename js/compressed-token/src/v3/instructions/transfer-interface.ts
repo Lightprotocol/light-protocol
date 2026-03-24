@@ -6,7 +6,7 @@ import {
 } from '@solana/web3.js';
 import {
     Rpc,
-    assertBetaEnabled,
+    assertV2Enabled,
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import {
@@ -150,13 +150,13 @@ export async function createTransferToAccountInterfaceInstructions(
     payer: PublicKey,
     mint: PublicKey,
     amount: number | bigint | BN,
-    sender: PublicKey,
+    owner: PublicKey,
     destination: PublicKey,
     decimals: number,
     options?: InterfaceOptions,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
 ): Promise<TransactionInstruction[][]> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const amountBigInt = BigInt(amount.toString());
 
@@ -165,9 +165,9 @@ export async function createTransferToAccountInterfaceInstructions(
     }
 
     const wrap = options?.wrap ?? false;
-    const optionsOwner = options?.owner;
-
-    const effectiveOwner = optionsOwner ?? sender;
+    const delegatePubkey = options?.delegatePubkey;
+    const effectiveOwner = owner;
+    const authorityPubkey = delegatePubkey ?? effectiveOwner;
 
     const isSplOrT22 =
         programId.equals(TOKEN_PROGRAM_ID) ||
@@ -200,20 +200,26 @@ export async function createTransferToAccountInterfaceInstructions(
 
     checkNotFrozen(senderInterface, 'transfer');
 
-    const isDelegate = !effectiveOwner.equals(sender);
+    const isDelegate = !effectiveOwner.equals(authorityPubkey);
     if (isDelegate) {
-        if (!isAuthorityForInterface(senderInterface, sender)) {
+        if (!isAuthorityForInterface(senderInterface, authorityPubkey)) {
             throw new Error(
                 'Signer is not the owner or a delegate of the sender account.',
             );
         }
-        const spendable = spendableAmountForAuthority(senderInterface, sender);
+        const spendable = spendableAmountForAuthority(
+            senderInterface,
+            authorityPubkey,
+        );
         if (amountBigInt > spendable) {
             throw new Error(
                 `Insufficient delegated balance. Required: ${amountBigInt}, Available (delegate): ${spendable}`,
             );
         }
-        senderInterface = filterInterfaceForAuthority(senderInterface, sender);
+        senderInterface = filterInterfaceForAuthority(
+            senderInterface,
+            authorityPubkey,
+        );
     } else {
         if (senderInterface.parsed.amount < amountBigInt) {
             throw new Error(
@@ -230,7 +236,7 @@ export async function createTransferToAccountInterfaceInstructions(
         wrap,
         senderAta,
         amountBigInt,
-        sender,
+        authorityPubkey,
         decimals,
     );
 
@@ -240,7 +246,7 @@ export async function createTransferToAccountInterfaceInstructions(
             senderAta,
             mint,
             destination,
-            sender,
+            authorityPubkey,
             amountBigInt,
             decimals,
             [],
@@ -251,14 +257,14 @@ export async function createTransferToAccountInterfaceInstructions(
             senderAta,
             destination,
             mint,
-            sender,
+            authorityPubkey,
             amountBigInt,
             decimals,
             payer,
         );
     }
 
-    const numSigners = payer.equals(sender) ? 1 : 2;
+    const numSigners = payer.equals(authorityPubkey) ? 1 : 2;
 
     if (internalBatches.length === 0) {
         const cu = calculateTransferCU(null);

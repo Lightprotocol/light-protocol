@@ -64,94 +64,91 @@ const makeCompressedAccount = () =>
         proveByIndex: false,
     }) as any;
 
-describe.skipIf(!featureFlags.isV2() || !featureFlags.isBeta())(
-    'get-account-interface errors',
-    () => {
-        it('throws TokenInvalidAccountOwnerError for light-token mode owner mismatch', async () => {
-            const rpc = {
-                getAccountInfo: async () =>
-                    makeOnchainAccount(PublicKey.unique(), Buffer.alloc(10)),
-                getCompressedTokenAccountsByOwner: async () => ({ items: [] }),
-            } as any;
+describe.skipIf(!featureFlags.isV2())('get-account-interface errors', () => {
+    it('throws TokenInvalidAccountOwnerError for light-token mode owner mismatch', async () => {
+        const rpc = {
+            getAccountInfo: async () =>
+                makeOnchainAccount(PublicKey.unique(), Buffer.alloc(10)),
+            getCompressedTokenAccountsByOwner: async () => ({ items: [] }),
+        } as any;
 
-            await expect(
-                getAccountInterface(
-                    rpc,
-                    PublicKey.unique(),
-                    'confirmed',
-                    LIGHT_TOKEN_PROGRAM_ID,
-                ),
-            ).rejects.toBeInstanceOf(TokenInvalidAccountOwnerError);
-        });
-
-        it('propagates SPL parse failures instead of downgrading to not-found', async () => {
-            const rpc = {
-                getAccountInfo: async () =>
-                    makeOnchainAccount(TOKEN_PROGRAM_ID, Buffer.alloc(1)),
-            } as any;
-
-            await expect(
-                getAccountInterface(
-                    rpc,
-                    PublicKey.unique(),
-                    'confirmed',
-                    TOKEN_PROGRAM_ID,
-                ),
-            ).rejects.toThrow('Failed to fetch token account data from RPC');
-        });
-
-        it('throws on RPC failures even when a compressed source exists', async () => {
-            const rpc = {
-                getAccountInfo: async () => {
-                    throw new Error('solana down');
-                },
-                getCompressedTokenAccountsByOwner: async () => ({
-                    items: [{ compressedAccount: makeCompressedAccount() }],
-                }),
-            } as any;
-
-            await expect(
-                getAccountInterface(
-                    rpc,
-                    PublicKey.unique(),
-                    'confirmed',
-                    LIGHT_TOKEN_PROGRAM_ID,
-                ),
-            ).rejects.toThrow(
-                'Failed to fetch token account data from RPC: solana down',
-            );
-        });
-
-        it('getAtaInterface propagates compressed RPC fetch failures', async () => {
-            const owner = PublicKey.unique();
-            const mint = PublicKey.unique();
-            const ata = getAssociatedTokenAddressSync(
-                mint,
-                owner,
-                false,
+        await expect(
+            getAccountInterface(
+                rpc,
+                PublicKey.unique(),
+                'confirmed',
                 LIGHT_TOKEN_PROGRAM_ID,
-                getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
-            );
+            ),
+        ).rejects.toBeInstanceOf(TokenInvalidAccountOwnerError);
+    });
 
-            const rpc = {
-                getAccountInfo: async () => null,
-                getCompressedTokenAccountsByOwner: async () => {
-                    throw new Error('compression timeout');
-                },
-            } as any;
+    it('propagates SPL parse failures instead of downgrading to not-found', async () => {
+        const rpc = {
+            getAccountInfo: async () =>
+                makeOnchainAccount(TOKEN_PROGRAM_ID, Buffer.alloc(1)),
+        } as any;
 
-            await expect(
-                getAtaInterface(
-                    rpc,
-                    ata,
-                    owner,
-                    mint,
-                    'confirmed',
-                    LIGHT_TOKEN_PROGRAM_ID,
-                ),
-            ).rejects.toThrow(
-                'Failed to fetch token account data from RPC: compression timeout',
-            );
-        });
-    },
-);
+        await expect(
+            getAccountInterface(
+                rpc,
+                PublicKey.unique(),
+                'confirmed',
+                TOKEN_PROGRAM_ID,
+            ),
+        ).rejects.toThrow('Failed to fetch token account data from RPC');
+    });
+
+    it('throws on RPC failures even when a compressed source exists', async () => {
+        const rpc = {
+            getAccountInfo: async () => {
+                throw new Error('solana down');
+            },
+            getCompressedTokenAccountsByOwner: async () => ({
+                items: [{ compressedAccount: makeCompressedAccount() }],
+            }),
+        } as any;
+
+        await expect(
+            getAccountInterface(
+                rpc,
+                PublicKey.unique(),
+                'confirmed',
+                LIGHT_TOKEN_PROGRAM_ID,
+            ),
+        ).rejects.toThrow(
+            'Failed to fetch token account data from RPC: solana down',
+        );
+    });
+
+    it('getAtaInterface propagates compressed RPC fetch failures', async () => {
+        const owner = PublicKey.unique();
+        const mint = PublicKey.unique();
+        const ata = getAssociatedTokenAddressSync(
+            mint,
+            owner,
+            false,
+            LIGHT_TOKEN_PROGRAM_ID,
+            getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
+        );
+
+        const rpc = {
+            getAccountInfo: async () => null,
+            getCompressedTokenAccountsByOwner: async () => {
+                throw new Error('compression timeout');
+            },
+        } as any;
+
+        await expect(
+            getAtaInterface(
+                rpc,
+                ata,
+                owner,
+                mint,
+                'confirmed',
+                LIGHT_TOKEN_PROGRAM_ID,
+            ),
+        ).rejects.toThrow(
+            'Failed to fetch token account data from RPC: compression timeout',
+        );
+    });
+});

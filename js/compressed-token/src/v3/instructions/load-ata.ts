@@ -3,7 +3,7 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     ParsedTokenAccount,
     bn,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import { assertV2Only } from '../assert-v2-only';
 import {
@@ -162,11 +162,12 @@ export async function createLoadAtaInstructions(
     payer?: PublicKey,
     interfaceOptions?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
-    assertBetaEnabled();
+    assertV2Enabled();
     payer ??= owner;
     const wrap = interfaceOptions?.wrap ?? false;
 
-    const effectiveOwner = interfaceOptions?.owner ?? owner;
+    const effectiveOwner = owner;
+    const authorityPubkey = interfaceOptions?.delegatePubkey ?? owner;
 
     let accountInterface: AccountInterface;
     try {
@@ -186,14 +187,17 @@ export async function createLoadAtaInstructions(
         throw e;
     }
 
-    const isDelegate = !effectiveOwner.equals(owner);
+    const isDelegate = !effectiveOwner.equals(authorityPubkey);
     if (isDelegate) {
-        if (!isAuthorityForInterface(accountInterface, owner)) {
+        if (!isAuthorityForInterface(accountInterface, authorityPubkey)) {
             throw new Error(
                 'Signer is not the owner or a delegate of the account.',
             );
         }
-        accountInterface = filterInterfaceForAuthority(accountInterface, owner);
+        accountInterface = filterInterfaceForAuthority(
+            accountInterface,
+            authorityPubkey,
+        );
     }
 
     const internalBatches = await _buildLoadBatches(
@@ -204,7 +208,7 @@ export async function createLoadAtaInstructions(
         wrap,
         ata,
         undefined,
-        owner,
+        authorityPubkey,
         decimals,
     );
 

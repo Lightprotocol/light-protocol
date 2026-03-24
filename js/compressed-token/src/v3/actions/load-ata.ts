@@ -3,7 +3,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import {
     PublicKey,
@@ -37,7 +37,7 @@ export async function loadAta(
     interfaceOptions?: InterfaceOptions,
     decimals?: number,
 ): Promise<TransactionSignature | null> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     payer ??= owner;
 

@@ -10,7 +10,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
-    assertBetaEnabled,
+    assertV2Enabled,
 } from '@lightprotocol/stateless.js';
 import { sliceLast } from './transfer-interface';
 import BN from 'bn.js';
@@ -33,7 +33,7 @@ export async function unwrap(
     decimals?: number,
     wrap = false,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const resolvedDecimals =
         decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;

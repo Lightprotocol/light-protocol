@@ -11,7 +11,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
-    assertBetaEnabled,
+    assertV2Enabled,
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
@@ -27,10 +27,9 @@ export interface InterfaceOptions {
     splInterfaceInfos?: SplInterfaceInfo[];
     wrap?: boolean;
     /**
-     * ATA owner (authority owner) used to derive the ATA when the signer is a
-     * delegate. For owner-signed flows, omit this field.
+     * Delegate authority pubkey. For owner-signed flows, omit this field.
      */
-    owner?: PublicKey;
+    delegatePubkey?: PublicKey;
 }
 
 export async function transferToAccountInterface(
@@ -39,19 +38,22 @@ export async function transferToAccountInterface(
     source: PublicKey,
     mint: PublicKey,
     destination: PublicKey,
-    owner: Signer,
+    owner: PublicKey,
+    authority: Signer,
     amount: number | bigint | BN,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
     decimals?: number,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
+    const delegatePubkey = authority.publicKey.equals(owner)
+        ? undefined
+        : authority.publicKey;
 
-    const effectiveOwner = options?.owner ?? owner.publicKey;
     const expectedSource = getAssociatedTokenAddressInterface(
         mint,
-        effectiveOwner,
+        owner,
         false,
         programId,
     );
@@ -70,16 +72,17 @@ export async function transferToAccountInterface(
         payer.publicKey,
         mint,
         amountBigInt,
-        owner.publicKey,
+        owner,
         destination,
         resolvedDecimals,
         {
             ...options,
+            delegatePubkey: options?.delegatePubkey ?? delegatePubkey,
         },
         programId,
     );
 
-    const additionalSigners = dedupeSigner(payer, [owner]);
+    const additionalSigners = dedupeSigner(payer, [authority]);
     const { rest: loads, last: transferIxs } = sliceLast(batches);
     await Promise.all(
         loads.map(async ixs => {
@@ -99,19 +102,22 @@ export async function transferInterface(
     source: PublicKey,
     mint: PublicKey,
     recipient: PublicKey,
-    owner: Signer,
+    owner: PublicKey,
+    authority: Signer,
     amount: number | bigint | BN,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
     decimals?: number,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
+    const delegatePubkey = authority.publicKey.equals(owner)
+        ? undefined
+        : authority.publicKey;
 
-    const effectiveOwner = options?.owner ?? owner.publicKey;
     const expectedSource = getAssociatedTokenAddressInterface(
         mint,
-        effectiveOwner,
+        owner,
         false,
         programId,
     );
@@ -128,16 +134,17 @@ export async function transferInterface(
         payer.publicKey,
         mint,
         amount,
-        owner.publicKey,
+        owner,
         recipient,
         resolvedDecimals,
         {
             ...options,
+            delegatePubkey: options?.delegatePubkey ?? delegatePubkey,
         },
         programId,
     );
 
-    const additionalSigners = dedupeSigner(payer, [owner]);
+    const additionalSigners = dedupeSigner(payer, [authority]);
     const { rest: loads, last: transferIxs } = sliceLast(batches);
     await Promise.all(
         loads.map(async ixs => {
@@ -158,7 +165,7 @@ export async function createTransferInterfaceInstructions(
     payer: PublicKey,
     mint: PublicKey,
     amount: number | bigint | BN,
-    sender: PublicKey,
+    owner: PublicKey,
     recipient: PublicKey,
     decimals: number,
     options?: InterfaceOptions,
@@ -175,7 +182,7 @@ export async function createTransferInterfaceInstructions(
         payer,
         mint,
         amount,
-        sender,
+        owner,
         destination,
         decimals,
         options,
@@ -207,7 +214,8 @@ export async function createTransferInterfaceInstructions(
         ensureRecipientAtaIx,
         ...finalBatch.slice(insertionIdx),
     ];
-    const numSigners = payer.equals(sender) ? 1 : 2;
+    const authority = options?.delegatePubkey ?? owner;
+    const numSigners = payer.equals(authority) ? 1 : 2;
     assertTransactionSizeWithinLimit(
         patchedFinalBatch,
         numSigners,

@@ -9,7 +9,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
-    assertBetaEnabled,
+    assertV2Enabled,
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
@@ -58,7 +58,7 @@ export async function approveInterface(
     options?: InterfaceOptions,
     decimals?: number,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const expectedAta = getAssociatedTokenAddressInterface(
         mint,
@@ -140,7 +140,7 @@ export async function revokeInterface(
     options?: InterfaceOptions,
     decimals?: number,
 ): Promise<TransactionSignature> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     const expectedAta = getAssociatedTokenAddressInterface(
         mint,

@@ -6,7 +6,7 @@ import {
 } from '@solana/web3.js';
 import {
     Rpc,
-    assertBetaEnabled,
+    assertV2Enabled,
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import { TokenAccountNotFoundError } from '@solana/spl-token';
@@ -175,7 +175,7 @@ export async function createUnwrapInstructions(
     interfaceOptions?: InterfaceOptions,
     wrap = false,
 ): Promise<TransactionInstruction[][]> {
-    assertBetaEnabled();
+    assertV2Enabled();
 
     payer ??= owner;
 
