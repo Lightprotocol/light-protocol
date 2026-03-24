@@ -1,3 +1,111 @@
+## [0.23.0] - 2026-03-24
+
+Stable release. It supersedes the **`0.23.0-beta.x`** line and is intended for production use with **ZK Compression V2**. Upgrade from **`0.22.x`** or any beta version requires addressing the breaking changes listed below.
+
+### Highlights
+
+- **V2 is the default for npm consumers:** **`@lightprotocol/compressed-token@0.23.0`** pairs with **`@lightprotocol/stateless.js@0.23.0`**. You do **not** need **`LIGHT_PROTOCOL_VERSION=V2`** in app code for published packages. Set **`LIGHT_PROTOCOL_VERSION=V1`** only when **building these packages from source** and you need V1 artifacts.
+- **Light token surface:** Public names are **LightToken** / **`LIGHT_TOKEN_PROGRAM_ID`** (replacing CToken / **`CTOKEN_PROGRAM_ID`**).
+- **Interface transfers & loads:** The new token API is much closer to spl-token now, and uses the same Account types. Changes include: Recipient wallet vs explicit destination account, **owner pubkey + signing authority** split for delegates, batched **`TransactionInstruction[][]`**, and **`loadAta`** / **`createLoadAtaInstructions`** replacing **`decompressInterface`**.
+
+### Breaking changes (since 0.22.0)
+
+**Transfers (actions)**
+
+- **`transferInterface`**: `recipient` is the **recipient wallet** `PublicKey` (not a pre-derived ATA). Signature:
+
+    `transferInterface(rpc, payer, source, mint, recipient, owner, authority, amount, programId?, confirmOptions?, options?, decimals?)`
+    - **`owner`**: source token-account **owner** pubkey (for ATA derivation / source checks).
+    - **`authority`**: **`Signer`** — use **`owner`** for owner-signed flows (`owner.publicKey` + `owner`), or **`delegate`** for delegated flows (`owner.publicKey` + `delegate`).
+
+- **`transferToAccountInterface`**: explicit **`destination`** token account; same **`owner` / `authority`** split:
+
+    `transferToAccountInterface(rpc, payer, source, mint, destination, owner, authority, amount, programId?, confirmOptions?, options?, decimals?)`
+
+- **Multiple transactions:** for large cold-input fan-in, these actions may send **parallel load transactions** followed by a **final transfer** (Solana size / proof limits). Instruction builders expose the same as **`TransactionInstruction[][]`**.
+
+**Transfers (instruction builders)**
+
+- **`createTransferInterfaceInstructions`**: returns **`TransactionInstruction[][]`** (one inner array per transaction). Wallet recipient; embeds idempotent recipient ATA creation in the final batch.
+
+    `createTransferInterfaceInstructions(rpc, payer, mint, amount, owner, recipient, decimals, options?, programId?)`
+
+- **`createTransferToAccountInterfaceInstructions`**: same batching shape; **`destination`** is the token account address.
+
+    `createTransferToAccountInterfaceInstructions(rpc, payer, mint, amount, owner, destination, decimals, options?, programId?)`
+
+- **`InterfaceOptions`**: **`wrap`** and related options are nested here; **`programId`** is **not** inside `InterfaceOptions` (flat parameter, SPL-style). **`InterfaceOptions.owner` was removed** — use flat **`owner`** args and, for delegated **planning**, **`options.delegatePubkey`**.
+
+- **`decimals`** is required on these v3 builders unless you use a higher-level wrapper that resolves decimals for you.
+
+**Load / decompress**
+
+- **`decompressInterface`** removed. Use **`loadAta`** (action) or **`createLoadAtaInstructions`** (builder). **`createLoadAtaInstructions`** returns **`TransactionInstruction[][]`**, not a flat instruction array.
+
+- **Delegated loads:** flat args still pass the token-account **`owner`** pubkey; when the **`Signer`** is a **delegate**, set **`interfaceOptions.delegatePubkey`** to the delegate’s pubkey (do not stuff the owner into removed **`InterfaceOptions.owner`**).
+
+- **`createLoadAtaInstructionsFromInterface`** is **not** exported from the package root; use **`createLoadAtaInstructions`**.
+
+**Renames (CToken → LightToken)**
+
+- Examples: **`CTOKEN_PROGRAM_ID` → `LIGHT_TOKEN_PROGRAM_ID`**, **`createAssociatedCTokenAccountInstruction` → `createAssociatedLightTokenAccountInstruction`**, **`parseCTokenHot` / `parseCTokenCold` → `parseLightTokenHot` / `parseLightTokenCold`**, **`mintToCToken` → `mintToLightToken`**, **`createCTokenTransferInstruction` → `createLightTokenTransferInstruction`**.
+
+**`createLightTokenTransferInstruction`**
+
+- Instruction **data layout** (9-byte) and **account metas** changed: includes **`system_program`** and **`fee_payer`**; **`owner` is writable** (compressible rent top-ups).
+
+**`createDecompressInterfaceInstruction`**
+
+- **`decimals: number`** required after **`splInterfaceInfo`** where applicable for SPL destination decompression.
+
+**Deprecated dispatcher**
+
+- **`createTransferInterfaceInstruction`** (monolithic multi-program helper): deprecated; use **`createLightTokenTransferInstruction`** or SPL **`createTransferCheckedInstruction`** as appropriate.
+
+**Token pool / SPL interface**
+
+- Prefer **`CompressedTokenProgram.createSplInterface`**; **`createTokenPool`** is deprecated.
+
+**Removed exports**
+
+- **`createLoadAccountsParams`**, **`calculateCompressibleLoadComputeUnits`**, and related types — use **`createLoadAtaInstructions`** and **`calculateLoadBatchComputeUnits`**.
+
+**`mintToCompressed`**
+
+- **`maxTopUp`** was inserted **before** optional **`confirmOptions`** — update positional call sites.
+
+**RPC / typing strictness**
+
+- **`getAccountInterface`**, **`getAtaInterface`**, **`getMintInterface`**: unexpected failures and wrong-program owners surface as **errors** instead of being treated like empty/not-found in several cases.
+
+**Synthetic delegate views**
+
+- In **`getAtaInterface` / `getAccountInterface`**, canonical delegate and **`delegatedAmount`** aggregation follow updated rules (hot delegate preferred; cold delegates aligned with hot).
+
+### New APIs (consumer-visible)
+
+- **`approveInterface`**, **`revokeInterface`**; builders **`createApproveInterfaceInstructions`**, **`createRevokeInterfaceInstructions`**; **`createLightTokenApproveInstruction`**, **`createLightTokenRevokeInstruction`**.
+- **`createUnwrapInstructions`**, **`selectInputsForAmount`**.
+- **`createLightTokenFreezeAccountInstruction`**, **`createLightTokenThawAccountInstruction`**.
+- **`MAX_TOP_UP`** and **`maxTopUp`** on compressible instruction builders and selected actions.
+- **`sliceLast`**, **`chunkAccountsByTreeVersion`**, **`assertUniqueInputHashes`** for batch orchestration.
+- **`assertV2Only`** on load/decompress paths — V1 compressed inputs fail fast with a clear error.
+- **`LightTokenProgram`** alias for **`CompressedTokenProgram`**.
+- **`getOrCreateAtaInterface`** / create-mint flows: decompressed mint handling integrated where documented so typical flows do not require a separate **`decompressMint`** before ATAs.
+
+### Changed / fixed (summary)
+
+- **`approveInterface` / `revokeInterface`**: optional **`InterfaceOptions`** (incl. **`wrap`**) and trailing **`decimals`**; unified approve/revoke entrypoints match the same options pattern.
+
+- **`@lightprotocol/compressed-token/unified`**: transfer-related entrypoints keep **`wrap: true`**; use the non-unified exports for explicit **`programId`** / no-wrap SPL Token-2022 style flows.
+
+- **`loadAta`**: may send **parallel** load batches; frozen-source handling and SPL interface error propagation improved.
+- **`maxTopUp`** default **`MAX_TOP_UP` (65535)** so rent top-ups are not silently blocked.
+- **Browser bundles:** minified output keeps **`AccountMeta`** **`isSigner` / `isWritable`** as real **booleans** (Terser; see **`@lightprotocol/stateless.js`** changelog).
+- **`delegatedAmount`** parsed from CompressedOnly TLV where applicable.
+
+---
+
 ## [0.23.0-beta.11]
 
 ### Added

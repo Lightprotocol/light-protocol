@@ -28,15 +28,15 @@ export const featureFlags = {
     isV2: () =>
         featureFlags.version.replace(/['"]/g, '').toUpperCase() === 'V2',
     /**
-     * @deprecated Interface methods are production-ready; beta gating is ignored.
+     * @deprecated Legacy compatibility; always false. Published packages default to V2.
      */
-    isBeta: (): boolean => true,
+    isBeta: (): boolean => false,
     /**
-     * @deprecated Interface methods are production-ready; beta gating is ignored.
+     * @deprecated No-op. Retained for backward compatibility.
      */
     enableBeta: (): void => {},
     /**
-     * @deprecated Interface methods are production-ready; beta gating is ignored.
+     * @deprecated No-op. Retained for backward compatibility.
      */
     disableBeta: (): void => {},
 };
@@ -45,7 +45,7 @@ export const featureFlags = {
  * Error message for V2-only interface methods.
  */
 export const V2_REQUIRED_ERROR =
-    'Interface methods require V2. Set LIGHT_PROTOCOL_VERSION=V2.';
+    'Interface methods require V2. Use @lightprotocol/stateless.js and @lightprotocol/compressed-token ^0.23.0 (V2 default), or set LIGHT_PROTOCOL_VERSION=V2 when building from source.';
 
 /**
  * Assert that V2 interface methods are enabled.
