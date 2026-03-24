@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.23.0] - 2026-03-24
+
+Stable release. It supersedes the **`0.23.0-beta.x`** line and pairs with **`@lightprotocol/compressed-token@0.23.0`** for production ZK Compression **V2** workflows.
+
+### Highlights
+
+- **V2 is the default** for **published npm packages** (no app-level env required). When **building this repo from source**, `pnpm build` / `pnpm build-ci` and Rollup-injected **`__BUILD_VERSION__`** target **V2** when **`LIGHT_PROTOCOL_VERSION`** is unset. Set **`LIGHT_PROTOCOL_VERSION=V1`** to produce V1 bundles and tests.
+- **Runtime:** when not using a pre-built bundle, **`featureFlags`** defaults to **V2** if the env var is unset (see `src/constants.ts`).
+- **Stricter compressed account fetch:** **`getAccountInfoInterface`** surfaces **RPC errors** when no definitive account result is available, instead of returning **`null`** on some failure paths.
+
+### Breaking / migration (since 0.22.0 stable)
+
+- **Build default (new in 0.23 betas, stable here):** consumers who relied on implicit **V1** builds must set **`LIGHT_PROTOCOL_VERSION=V1`** for installs/scripts, or they will get **V2** artifacts.
+- **Compression RPC method names:** in **V2** mode, **`Rpc`** uses V2-suffixed JSON-RPC methods for many calls (e.g. **`getCompressedAccountV2`**) via **`versionedEndpoint`**. Your **Photon / compression** endpoint must support the V2 surface.
+- **`getAccountInfoInterface`:** treat **thrown / rejected RPC errors** as first-class; do not assume “null means missing account” on all failures.
+
+### Added / changed
+
+- **Minified browser builds:** Terser no longer uses **`booleans_as_integers`**, so **`AccountMeta`** flags stay boolean-compatible with **`@solana/web3.js`**.
+- **`PackedAccounts`:** **`addPreAccountsMeta`** / **`insertOrGetConfig`** normalize signer and writable flags so **`0`/`1`** from callers are handled consistently.
+
+### Deprecated (compatibility)
+
+- **`featureFlags.isBeta`**, **`enableBeta`**, **`disableBeta`**: deprecated no-ops; versioning is driven by **V2 default** / **`LIGHT_PROTOCOL_VERSION`** (source builds) and **`assertV2Enabled`** in **`@lightprotocol/compressed-token`**.
+
+### If you are on 0.22.x
+
+You already applied the **0.22.0** breaking change (**`transfer`** no longer takes **`stateTreeInfo`**). **0.23.0** adds the **V2-default build**, runtime **V2 default**, stricter **`getAccountInfoInterface`**, and the minification fixes above.
+
+---
+
 ## [0.23.0-beta.11]
 
 ### Fixed
