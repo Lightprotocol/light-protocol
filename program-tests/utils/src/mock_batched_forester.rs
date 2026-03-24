@@ -132,7 +132,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
 
         assert_eq!(computed_new_root, self.merkle_tree.root());
 
-        let proof_client = ProofClient::local()?;
+        let proof_client = ProofClient::local();
         let proof_result = match proof_client
             .generate_batch_append_proof(circuit_inputs)
             .await
@@ -208,7 +208,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             batch_size,
             &[],
         )?;
-        let proof_client = ProofClient::local()?;
+        let proof_client = ProofClient::local();
         let proof_result = proof_client.generate_batch_update_proof(inputs).await?;
         let new_root = self.merkle_tree.root();
         let proof = CompressedProof {
@@ -318,7 +318,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
                 )));
             }
         };
-        let proof_client = ProofClient::local()?;
+        let proof_client = ProofClient::local();
         let proof_result = match proof_client
             .generate_batch_address_append_proof(inputs)
             .await

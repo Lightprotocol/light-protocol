@@ -221,12 +221,12 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     }
     let new_element_values = &new_element_values[..zkp_batch_size];
     let mut new_root = [0u8; 32];
-    let mut low_element_circuit_merkle_proofs = Vec::with_capacity(batch_len);
-    let mut new_element_circuit_merkle_proofs = Vec::with_capacity(batch_len);
-    let mut patched_low_element_next_values = Vec::with_capacity(batch_len);
-    let mut patched_low_element_next_indices = Vec::with_capacity(batch_len);
-    let mut patched_low_element_values = Vec::with_capacity(batch_len);
-    let mut patched_low_element_indices = Vec::with_capacity(batch_len);
+    let mut low_element_circuit_merkle_proofs = Vec::with_capacity(zkp_batch_size);
+    let mut new_element_circuit_merkle_proofs = Vec::with_capacity(zkp_batch_size);
+    let mut patched_low_element_next_values = Vec::with_capacity(zkp_batch_size);
+    let mut patched_low_element_next_indices = Vec::with_capacity(zkp_batch_size);
+    let mut patched_low_element_values = Vec::with_capacity(zkp_batch_size);
+    let mut patched_low_element_indices = Vec::with_capacity(zkp_batch_size);
 
     let computed_hashchain = create_hash_chain_from_slice(new_element_values).map_err(|e| {
         ProverClientError::GenericError(format!("Failed to compute hashchain: {}", e))
@@ -261,7 +261,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     let is_first_batch = indexed_changelog.is_empty();
     let mut expected_root_for_low = current_root;
 
-    for i in 0..batch_len {
+    for i in 0..zkp_batch_size {
         let mut changelog_index = 0;
         let low_element_index = low_element_indices[i].try_into().map_err(|_| {
             ProverClientError::IntegerConversion(format!(

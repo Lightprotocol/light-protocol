@@ -67,15 +67,15 @@ pub struct ProofClient {
 }
 
 impl ProofClient {
-    pub fn local() -> Result<Self, ProverClientError> {
-        Ok(Self {
-            client: build_http_client()?,
+    pub fn local() -> Self {
+        Self {
+            client: build_http_client(),
             server_address: SERVER_ADDRESS.to_string(),
             polling_interval: Duration::from_millis(DEFAULT_POLLING_INTERVAL_MS),
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
             api_key: None,
             initial_poll_delay: Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS),
-        })
+        }
     }
 
     #[allow(unused)]
@@ -84,21 +84,21 @@ impl ProofClient {
         polling_interval: Duration,
         max_wait_time: Duration,
         api_key: Option<String>,
-    ) -> Result<Self, ProverClientError> {
+    ) -> Self {
         let initial_poll_delay = if api_key.is_some() {
             Duration::from_millis(INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS)
         } else {
             Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS)
         };
 
-        Ok(Self {
-            client: build_http_client()?,
+        Self {
+            client: build_http_client(),
             server_address,
             polling_interval,
             max_wait_time,
             api_key,
             initial_poll_delay,
-        })
+        }
     }
 
     #[allow(unused)]
@@ -108,15 +108,15 @@ impl ProofClient {
         max_wait_time: Duration,
         api_key: Option<String>,
         initial_poll_delay: Duration,
-    ) -> Result<Self, ProverClientError> {
-        Ok(Self {
-            client: build_http_client()?,
+    ) -> Self {
+        Self {
+            client: build_http_client(),
             server_address,
             polling_interval,
             max_wait_time,
             api_key,
             initial_poll_delay,
-        })
+        }
     }
 
     pub async fn submit_proof_async(
