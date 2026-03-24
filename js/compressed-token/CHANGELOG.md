@@ -33,7 +33,7 @@
 ### Breaking Changes
 
 - **`transferInterface` and `createTransferInterfaceInstructions`** now take a recipient wallet address and ensure recipient ATA internally.
-    - **Action:** `transferInterface(rpc, payer, source, mint, recipient, owner, amount, ...)` — `recipient` is the wallet public key.
+    - **Action:** `transferInterface(rpc, payer, source, mint, recipient, owner, authority, amount, ...)` — `recipient` is the wallet public key.
     - **Instruction builder:** `createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, recipient, decimals, options?)` — derives destination ATA and inserts idempotent ATA-create internally.
     - **Advanced explicit-account path:** use `transferToAccountInterface(...)` and `createTransferToAccountInterfaceInstructions(...)` for destination token-account routing (program-owned/custom accounts), preserving the previous destination-account behavior.
     - **`decimals` is required** on v3 action-level instruction builders. Fetch with `getMintInterface(rpc, mint).mint.decimals` if not already threaded.
