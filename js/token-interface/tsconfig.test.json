@@ -1,0 +1,8 @@
+{
+    "compilerOptions": {
+        "esModuleInterop": true,
+        "rootDirs": ["src", "tests"]
+    },
+    "extends": "./tsconfig.json",
+    "include": ["./tests/**/*.ts", "vitest.config.ts"]
+}
