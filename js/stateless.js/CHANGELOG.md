@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-03-24
+
+### Breaking Changes
+
+- V2 is the default for published npm packages. Consumers who relied on implicit V1 builds must set `LIGHT_PROTOCOL_VERSION=V1` when building from source.
+  Before: packages defaulted to V1 builds
+  After: packages default to ZK Compression V2
+  Migration: set `LIGHT_PROTOCOL_VERSION=V1` only for source builds targeting V1 artifacts. No change needed for npm consumers.
+
+- `getAccountInfoInterface()`: unexpected RPC failures now throw errors instead of silently returning `null`.
+  Before: function returned `null` on some failure paths
+  After: throws on unexpected RPC failures when no definitive account result is available
+  Migration: add explicit error handling at call sites where `null` was previously assumed for all failure paths.
+
+- `Rpc` in V2 mode uses V2-suffixed JSON-RPC methods (e.g. `getCompressedAccountV2`). Photon/compression endpoints must support the V2 API surface.
+
+### Fixes
+
+- Browser bundles: `AccountMeta` `isSigner`/`isWritable` flags stay boolean-compatible with `@solana/web3.js`; Terser `booleans_as_integers` disabled. (#2347)
+- `PackedAccounts`: `addPreAccountsMeta()` and `insertOrGetConfig()` normalize signer/writable flags so `0`/`1` from minified or external callers are treated as booleans consistently. (#2347)
+
+### Deprecated
+
+- `featureFlags.isBeta`, `enableBeta`, `disableBeta` are deprecated no-ops. Use `LIGHT_PROTOCOL_VERSION` for source builds; V2 is the default for published packages.
+
 ## [0.22.0] - 2025-06-16
 
 ### Breaking Changes

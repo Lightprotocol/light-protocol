@@ -1,3 +1,70 @@
+## 2026-03-24
+
+### Breaking Changes
+
+- `transferInterface()` takes a recipient wallet `PublicKey` as `recipient` (not a pre-derived ATA). Derives the ATA internally.
+  Before: `transferInterface(rpc, payer, source, mint, ataAddress, ownerKeypair, amount, ...)`
+  After: `transferInterface(rpc, payer, source, mint, walletPublicKey, owner.publicKey, ownerKeypair, amount, ...)`
+  Migration: pass the recipient wallet public key; add `owner.publicKey` before the signing keypair. For delegated flows: `ownerPublicKey, delegateSigner`. (#2347)
+
+- `decompressInterface()` removed. Use `loadAta()` (action) or `createLoadAtaInstructions()` (builder).
+  Before: `decompressInterface(rpc, payer, owner, mint, amount?, destinationAta?, ...)`
+  After: `loadAta(rpc, ata, owner, mint, payer?, confirmOptions?, interfaceOptions?, wrap?)`
+  Migration: derive target ATA with `getAssociatedTokenAddressInterface(mint, owner)` and pass to `loadAta()`. Supports >8 compressed inputs. (#2341)
+
+- `CTOKEN_PROGRAM_ID` renamed to `LIGHT_TOKEN_PROGRAM_ID`. Related: `createAssociatedCTokenAccountInstruction` -> `createAssociatedLightTokenAccountInstruction`, `parseCTokenHot`/`parseCTokenCold` -> `parseLightTokenHot`/`parseLightTokenCold`, `mintToCToken` -> `mintToLightToken`, `createCTokenTransferInstruction` -> `createLightTokenTransferInstruction`.
+  Migration: update all call sites to the new LightToken names. (#2330)
+
+- `createTransferInterfaceInstructions()` and `createLoadAtaInstructions()` now return `TransactionInstruction[][]` (one inner array per transaction) instead of flat instruction arrays.
+  Before: `const ixs = await createTransferInterfaceInstructions(...)`
+  After: `const batches = await createTransferInterfaceInstructions(...)` — send each inner array as a separate transaction
+  Migration: iterate outer array. Use `sliceLast(batches)` to split load transactions from the final transfer. (#2344)
+
+- `InterfaceOptions.owner` removed. Use the flat `owner` param.
+  Before: `options: { owner: ownerPublicKey, ... }`
+  After: flat `owner` argument. For delegated instruction planning use `options.delegatePubkey` instead. (#2347)
+
+- `createLoadAtaInstructionsFromInterface` no longer exported from the package root. Use `createLoadAtaInstructions`. (#2341)
+
+- `createLoadAccountsParams` and `calculateCompressibleLoadComputeUnits` removed. Use `createLoadAtaInstructions` and `calculateLoadBatchComputeUnits`. (#2341)
+
+- `mintToCompressed()`: `maxTopUp` inserted before `confirmOptions`.
+  Before: `mintToCompressed(rpc, payer, mint, owner, amount, confirmOptions?)`
+  After: `mintToCompressed(rpc, payer, mint, owner, amount, maxTopUp?, confirmOptions?)`
+  Migration: update positional call sites that pass `confirmOptions`. (#2338)
+
+- `getAccountInterface()`, `getAtaInterface()`, `getMintInterface()`: unexpected RPC failures now throw instead of being silently treated as empty/not-found.
+  Migration: add explicit error handling at call sites. (#2340)
+
+- `createTransferInterfaceInstruction` (multi-program dispatcher) deprecated. Use `createLightTokenTransferInstruction` for Light token transfers, or SPL's `createTransferCheckedInstruction` for SPL/Token-2022. (#2330)
+
+- `createTokenPool` deprecated. Use `CompressedTokenProgram.createSplInterface`. (#2309)
+
+### Features
+
+- `approveInterface()` and `revokeInterface()` actions for delegate approval/revocation on Light token, SPL Token, and Token-2022 accounts. (#2350)
+- `createApproveInterfaceInstructions()` and `createRevokeInterfaceInstructions()` instruction builders returning batched `TransactionInstruction[][]`. (#2350)
+- `createLightTokenApproveInstruction()` and `createLightTokenRevokeInstruction()` low-level program helpers. (#2350)
+- `loadAta()` replaces `decompressInterface()`; parallel batched transactions for >8 compressed inputs; creates ATA if needed. (#2341)
+- `createUnwrapInstructions()` returns `TransactionInstruction[][]` with amount-aware input selection. (#2342)
+- `selectInputsForAmount()` for greedy amount-aware compressed account selection. (#2342)
+- `createLightTokenFreezeAccountInstruction()` and `createLightTokenThawAccountInstruction()` for native freeze/thaw of decompressed light-token accounts (discriminators 10 and 11). (#2333)
+- `MAX_TOP_UP` constant (65535) exported from constants. (#2338)
+- `maxTopUp` optional param on all compressible instruction builders for explicit rent top-up capping. (#2338)
+- `LightTokenProgram` alias for `CompressedTokenProgram`. (#2330)
+- `assertV2Only()` guard on load/decompress paths; V1 inputs fail fast with a clear error. (#2341)
+- `sliceLast()`, `chunkAccountsByTreeVersion()`, `assertUniqueInputHashes()` for batch orchestration. (#2344)
+
+### Fixes
+
+- `maxTopUp` default changed from `0` to `MAX_TOP_UP` (65535); rent top-ups no longer silently blocked. (#2338)
+- `delegatedAmount` correctly parsed from CompressedOnly TLV extension instead of defaulting to 0. (#2339)
+- Browser bundles: Terser no longer rewrites `AccountMeta` `isSigner`/`isWritable` flags to integers; flags stay boolean-compatible with `@solana/web3.js`. (#2347)
+- `parseLightTokenHot` uses `unpackAccountSPL` for correct hot token account parsing. (#2339)
+- Frozen light-token-hot sources correctly excluded from load paths. (#2339)
+- SPL interface fetch errors rethrown in load paths when SPL or Token-2022 balance exists. (#2339)
+- `getSplOrToken2022AccountInterface` fetches hot and cold accounts in parallel. (#2339)
+
 ## [0.23.0-beta.9]
 
 ### Fixed
