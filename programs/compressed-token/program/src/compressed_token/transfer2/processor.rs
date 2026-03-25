@@ -279,6 +279,50 @@ fn process_with_system_program_cpi<'a>(
         mint_cache,
     )?;
 
+    // Idempotency check for DecompressIdempotent: if the compressed account is already
+    // spent (found in the V2 tree's bloom filter), return Ok as a no-op.
+    if transfer_config.is_decompress_idempotent {
+        let input_data = &inputs.in_token_data[0];
+        let merkle_context = &input_data.merkle_context;
+        let input_account = cpi_instruction_struct
+            .input_compressed_accounts
+            .first()
+            .ok_or(ProgramError::InvalidAccountData)?;
+
+        let owner_hashed = light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(
+            &crate::LIGHT_CPI_SIGNER.program_id,
+        );
+        let tree_account = validated_accounts
+            .packed_accounts
+            .get_u8(merkle_context.merkle_tree_pubkey_index, "idempotent: tree")?;
+        let merkle_tree_hashed =
+            light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(tree_account.key());
+
+        let lamports: u64 = (*input_account.lamports).into();
+        let account_hash = light_compressed_account::compressed_account::hash_with_hashed_values(
+            &lamports,
+            input_account.address.as_ref().map(|x| x.as_slice()),
+            Some((
+                input_account.discriminator.as_slice(),
+                input_account.data_hash.as_slice(),
+            )),
+            &owner_hashed,
+            &merkle_tree_hashed,
+            &merkle_context.leaf_index.get(),
+            true,
+        )
+        .map_err(ProgramError::from)?;
+
+        let mut tree =
+            light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount::state_from_account_info(tree_account)
+                .map_err(ProgramError::from)?;
+
+        if tree.check_input_queue_non_inclusion(&account_hash).is_err() {
+            // Account is in bloom filter -- already spent. Idempotent no-op.
+            return Ok(());
+        }
+    }
+
     // Process output compressed accounts.
     set_output_compressed_accounts(
         &mut cpi_instruction_struct,

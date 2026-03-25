@@ -1,5 +1,7 @@
 use anchor_lang::prelude::ProgramError;
-use light_token_interface::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
+use light_token_interface::instructions::transfer2::{
+    ZCompressedTokenInstructionDataTransfer2, ZCompressionMode,
+};
 
 /// Configuration for Transfer2 account validation
 /// Replaces complex boolean parameters with clean single config object
@@ -20,6 +22,8 @@ pub struct Transfer2Config {
     pub total_output_lamports: u64,
     /// No compressed accounts (neither input nor output) - determines system CPI path
     pub no_compressed_accounts: bool,
+    /// DecompressIdempotent mode -- enables bloom filter check for idempotency
+    pub is_decompress_idempotent: bool,
 }
 
 impl Transfer2Config {
@@ -41,6 +45,10 @@ impl Transfer2Config {
             total_input_lamports: 0,
             total_output_lamports: 0,
             no_compressed_accounts,
+            is_decompress_idempotent: inputs.compressions.as_ref().is_some_and(|c| {
+                c.iter()
+                    .any(|c| c.mode == ZCompressionMode::DecompressIdempotent)
+            }),
         })
     }
 }

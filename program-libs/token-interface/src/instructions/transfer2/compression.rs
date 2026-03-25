@@ -34,10 +34,6 @@ impl ZCompressionMode {
         )
     }
 
-    pub fn is_decompress_idempotent(&self) -> bool {
-        matches!(self, ZCompressionMode::DecompressIdempotent)
-    }
-
     pub fn is_compress_and_close(&self) -> bool {
         matches!(self, ZCompressionMode::CompressAndClose)
     }

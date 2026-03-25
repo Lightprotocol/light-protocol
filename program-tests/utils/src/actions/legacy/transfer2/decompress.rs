@@ -85,7 +85,7 @@ pub async fn decompress_idempotent<R: Rpc + Indexer>(
             },
         )],
         payer.pubkey(),
-        false,
+        true,
     )
     .await
     .map_err(|e| RpcError::CustomError(e.to_string()))?;
