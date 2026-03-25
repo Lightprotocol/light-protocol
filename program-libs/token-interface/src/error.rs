@@ -206,6 +206,12 @@ pub enum TokenError {
 
     #[error("ATA derivation failed or mismatched for is_ata compressed token")]
     InvalidAtaDerivation,
+
+    #[error("DecompressIdempotent requires exactly 1 input and 1 compression")]
+    IdempotentDecompressRequiresSingleInput,
+
+    #[error("DecompressIdempotent is only supported for ATA accounts (is_ata must be true)")]
+    IdempotentDecompressRequiresAta,
 }
 
 impl From<TokenError> for u32 {
@@ -277,6 +283,8 @@ impl From<TokenError> for u32 {
             TokenError::DecompressAmountMismatch => 18064,
             TokenError::CompressionIndexOutOfBounds => 18065,
             TokenError::InvalidAtaDerivation => 18066,
+            TokenError::IdempotentDecompressRequiresSingleInput => 18067,
+            TokenError::IdempotentDecompressRequiresAta => 18068,
             TokenError::HasherError(e) => u32::from(e),
             TokenError::ZeroCopyError(e) => u32::from(e),
             TokenError::CompressedAccountError(e) => u32::from(e),

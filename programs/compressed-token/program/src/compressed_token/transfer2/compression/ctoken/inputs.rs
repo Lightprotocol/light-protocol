@@ -39,7 +39,7 @@ impl<'a> DecompressCompressOnlyInputs<'a> {
         let idx = input_idx as usize;
 
         // Compression must be Decompress mode to consume an input
-        if compression.mode != ZCompressionMode::Decompress {
+        if !compression.mode.is_decompress() {
             msg!(
                 "Input linked to non-decompress compression at index {}",
                 compression_index
@@ -109,7 +109,7 @@ impl<'a> CTokenCompressionInputs<'a> {
         mint_checks: Option<MintExtensionChecks>,
         decompress_inputs: Option<DecompressCompressOnlyInputs<'a>>,
     ) -> Result<Self, anchor_lang::prelude::ProgramError> {
-        let authority_account = if compression.mode != ZCompressionMode::Decompress {
+        let authority_account = if !compression.mode.is_decompress() {
             Some(packed_accounts.get_u8(
                 compression.authority,
                 "process_ctoken_compression: authority",

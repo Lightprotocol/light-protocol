@@ -118,6 +118,28 @@ pub fn validate_instruction_data(
             return Err(TokenError::CompressedOnlyBlocksTransfer);
         }
     }
+    // DecompressIdempotent: exactly 1 input, 1 compression, must have CompressedOnly with is_ata=true
+    if let Some(compressions) = inputs.compressions.as_ref() {
+        let has_idempotent = compressions
+            .iter()
+            .any(|c| c.mode == ZCompressionMode::DecompressIdempotent);
+        if has_idempotent {
+            if inputs.in_token_data.len() != 1 || compressions.len() != 1 {
+                msg!("DecompressIdempotent requires exactly 1 input and 1 compression");
+                return Err(TokenError::IdempotentDecompressRequiresSingleInput);
+            }
+            let has_ata = inputs.in_tlv.as_ref().is_some_and(|tlvs| {
+                tlvs.iter().flatten().any(|ext| {
+                    matches!(ext, ZExtensionInstructionData::CompressedOnly(data) if data.is_ata())
+                })
+            });
+            if !has_ata {
+                msg!("DecompressIdempotent requires is_ata=true in CompressedOnly extension");
+                return Err(TokenError::IdempotentDecompressRequiresAta);
+            }
+        }
+    }
+
     // out_tlv is only allowed for CompressAndClose when rent authority is signer
     // (forester compressing accounts with marker extensions)
     if let Some(out_tlv) = inputs.out_tlv.as_ref() {

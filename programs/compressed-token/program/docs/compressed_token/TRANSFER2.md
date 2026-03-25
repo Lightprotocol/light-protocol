@@ -26,9 +26,12 @@
    - SPL tokens when compressed are backed by tokens stored in ctoken pool PDAs
 
 3. Compression modes:
-   - `Compress`: Move tokens from Solana account (ctoken or SPL) to compressed state
-   - `Decompress`: Move tokens from compressed state to Solana account (ctoken or SPL)
-   - `CompressAndClose`: Compress full ctoken balance and close the account (authority: compression_authority only, requires compressible extension, **ctoken accounts only - NOT supported for SPL tokens**)
+   - `Compress` (0): Move tokens from Solana account (ctoken or SPL) to compressed state
+   - `Decompress` (1): Move tokens from compressed state to Solana account (ctoken or SPL)
+   - `CompressAndClose` (2): Compress full ctoken balance and close the account (authority: compression_authority only, requires compressible extension, **ctoken accounts only - NOT supported for SPL tokens**)
+   - `DecompressIdempotent` (3): Permissionless ATA decompress. Requires exactly 1 input, 1 compression, and CompressedOnly extension with `is_ata=true`. On-chain behavior is identical to `Decompress`; the mode enforces single-input constraints. ATA must be pre-created. **CToken ATAs only - NOT supported for SPL tokens.**
+
+   **Permissionless ATA decompress:** Both `Decompress` and `DecompressIdempotent` modes skip the owner/delegate signer check when the input has CompressedOnly extension with `is_ata=true`. This is safe because the destination is a deterministic PDA (ATA derivation is still validated).
 
 4. Global sum check enforces transaction balance:
    - Input sum = compressed inputs + compress operations (tokens entering compressed state)
@@ -59,7 +62,7 @@
    - `out_tlv`: Optional TLV data for output accounts (used for CompressedOnly extension during CompressAndClose)
 
 2. Compression struct fields (path: program-libs/token-interface/src/instructions/transfer2/compression.rs):
-   - `mode`: CompressionMode enum (Compress, Decompress, CompressAndClose)
+   - `mode`: CompressionMode enum (Compress=0, Decompress=1, CompressAndClose=2, DecompressIdempotent=3)
    - `amount`: u64 - Amount to compress/decompress
    - `mint`: u8 - Index of mint account in packed accounts
    - `source_or_recipient`: u8 - Index of source (compress) or recipient (decompress) account

@@ -31,6 +31,7 @@ export const EXTENSION_DISCRIMINANT_COMPRESSIBLE = 32;
 export const COMPRESSION_MODE_COMPRESS = 0;
 export const COMPRESSION_MODE_DECOMPRESS = 1;
 export const COMPRESSION_MODE_COMPRESS_AND_CLOSE = 2;
+export const COMPRESSION_MODE_DECOMPRESS_IDEMPOTENT = 3;
 
 /**
  * Compression struct for Transfer2 instruction

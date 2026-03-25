@@ -246,6 +246,31 @@ impl CTokenAccount2 {
     }
 
     #[profile]
+    pub fn decompress_idempotent(
+        &mut self,
+        amount: u64,
+        source_index: u8,
+    ) -> Result<(), TokenSdkError> {
+        if self.compression.is_some() {
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
+        }
+
+        if self.output.amount < amount {
+            return Err(TokenSdkError::InsufficientBalance);
+        }
+        self.output.amount -= amount;
+
+        self.compression = Some(Compression::decompress_idempotent(
+            amount,
+            self.output.mint,
+            source_index,
+        ));
+        self.method_used = true;
+
+        Ok(())
+    }
+
+    #[profile]
     pub fn decompress_spl(
         &mut self,
         amount: u64,

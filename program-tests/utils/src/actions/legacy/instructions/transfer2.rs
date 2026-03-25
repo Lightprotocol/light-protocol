@@ -160,6 +160,7 @@ pub enum Transfer2InstructionType {
     Transfer(TransferInput),
     Approve(ApproveInput),
     CompressAndClose(CompressAndCloseInput),
+    DecompressIdempotent(DecompressInput),
 }
 
 // Note doesn't support multiple signers.
@@ -199,6 +200,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
             .iter()
             .for_each(|account| hashes.push(account.account.hash)),
         Transfer2InstructionType::Approve(input) => input
+            .compressed_token_account
+            .iter()
+            .for_each(|account| hashes.push(account.account.hash)),
+        Transfer2InstructionType::DecompressIdempotent(input) => input
             .compressed_token_account
             .iter()
             .for_each(|account| hashes.push(account.account.hash)),
@@ -372,9 +377,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     use light_token_interface::state::Token;
                     if let Ok(ctoken) = Token::deserialize(&mut &recipient_account.data[..]) {
                         let wallet_owner = Pubkey::from(ctoken.owner.to_bytes());
-                        // Add wallet owner as signer and get its index
-                        let wallet_owner_index =
-                            packed_tree_accounts.insert_or_get_config(wallet_owner, true, false);
+                        // Add wallet owner (not as signer -- ATA decompress is permissionless)
+                        let wallet_owner_index = packed_tree_accounts.insert_or_get(wallet_owner);
                         // Update the owner_index in collected_in_tlv for CompressedOnly extensions
                         for tlv in collected_in_tlv.iter_mut() {
                             for ext in tlv.iter_mut() {
@@ -445,6 +449,94 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     // Use the new SPL-specific decompress method
                     token_account.decompress(input.decompress_amount, recipient_index)?;
                 }
+
+                out_lamports.push(
+                    input
+                        .compressed_token_account
+                        .iter()
+                        .map(|account| account.account.lamports)
+                        .sum::<u64>(),
+                );
+
+                token_accounts.push(token_account);
+            }
+            Transfer2InstructionType::DecompressIdempotent(input) => {
+                // Same as Decompress but uses DecompressIdempotent mode
+                if let Some(ref tlv_data) = input.in_tlv {
+                    has_any_tlv = true;
+                    collected_in_tlv.extend(tlv_data.iter().cloned());
+                } else {
+                    for _ in 0..input.compressed_token_account.len() {
+                        collected_in_tlv.push(Vec::new());
+                    }
+                }
+
+                let is_ata = input.in_tlv.as_ref().is_some_and(|tlv| {
+                    tlv.iter().flatten().any(|ext| {
+                        matches!(ext, ExtensionInstructionData::CompressedOnly(data) if data.is_ata)
+                    })
+                });
+
+                let recipient_index =
+                    packed_tree_accounts.insert_or_get(input.solana_token_account);
+                let recipient_account = rpc
+                    .get_account(input.solana_token_account)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let recipient_account_owner = recipient_account.owner;
+
+                if is_ata && recipient_account_owner.to_bytes() == LIGHT_TOKEN_PROGRAM_ID {
+                    use borsh::BorshDeserialize;
+                    use light_token_interface::state::Token;
+                    if let Ok(ctoken) = Token::deserialize(&mut &recipient_account.data[..]) {
+                        let wallet_owner = Pubkey::from(ctoken.owner.to_bytes());
+                        // Not as signer -- permissionless
+                        let wallet_owner_index = packed_tree_accounts.insert_or_get(wallet_owner);
+                        for tlv in collected_in_tlv.iter_mut() {
+                            for ext in tlv.iter_mut() {
+                                if let ExtensionInstructionData::CompressedOnly(data) = ext {
+                                    if data.is_ata {
+                                        data.owner_index = wallet_owner_index;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let token_data = input
+                    .compressed_token_account
+                    .iter()
+                    .zip(
+                        packed_tree_infos
+                            .state_trees
+                            .as_ref()
+                            .unwrap()
+                            .packed_tree_infos[inputs_offset..]
+                            .iter(),
+                    )
+                    .map(|(account, rpc_account)| {
+                        pack_input_token_account(
+                            account,
+                            rpc_account,
+                            &mut packed_tree_accounts,
+                            &mut in_lamports,
+                            false,
+                            TokenDataVersion::from_discriminator(
+                                account.account.data.as_ref().unwrap().discriminator,
+                            )
+                            .unwrap(),
+                            None,
+                            is_ata,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                inputs_offset += token_data.len();
+                let mut token_account = CTokenAccount2::new(token_data)?;
+
+                // Use decompress_idempotent instead of decompress
+                token_account.decompress_idempotent(input.decompress_amount, recipient_index)?;
 
                 out_lamports.push(
                     input
