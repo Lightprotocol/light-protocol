@@ -66,6 +66,7 @@ api-docs/
 # Third-party dependencies
 /.local
 /.vscode
+.cursor/
 
 **/.idea
 **/*.iml
