@@ -1,3 +1,5 @@
+export const ERR_FETCH_BY_OWNER_REQUIRED = 'fetchByOwner is required';
+
 export class MultiTransactionNotSupportedError extends Error {
     readonly operation: string;
     readonly batchCount: number;

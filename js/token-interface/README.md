@@ -20,12 +20,12 @@ const rpc = createRpc();
 
 ## Canonical for Kit users
 
-Use `getTransferInstructionPlan` from `/kit`.
+Use `createTransferInstructionPlan` from `/kit`.
 
 ```ts
-import { getTransferInstructionPlan } from '@lightprotocol/token-interface/kit';
+import { createTransferInstructionPlan } from '@lightprotocol/token-interface/kit';
 
-const transferPlan = await getTransferInstructionPlan({
+const transferPlan = await createTransferInstructionPlan({
     rpc,
     payer: payer.publicKey,
     mint,
@@ -76,10 +76,10 @@ Use these when you want manual orchestration:
 
 ```ts
 import {
-    getCreateAtaInstruction,
-    getLoadInstruction,
-    getTransferInstruction,
-} from '@lightprotocol/token-interface/instructions/raw';
+    createAtaInstruction,
+    createLoadInstruction,
+    createTransferCheckedInstruction,
+} from '@lightprotocol/token-interface/instructions';
 ```
 
 ## No-wrap instruction-flow builders (advanced)
@@ -87,7 +87,7 @@ import {
 If you explicitly want to disable automatic sender wrapping, use:
 
 ```ts
-import { buildTransferInstructions } from '@lightprotocol/token-interface/instructions/nowrap';
+import { buildTransferInstructionsNowrap } from '@lightprotocol/token-interface/instructions';
 ```
 
 ## Read account

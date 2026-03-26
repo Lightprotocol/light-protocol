@@ -1,8 +1,8 @@
+import { getAssociatedTokenAddress } from './read/associated-token-address';
 import {
-    getAssociatedTokenAddressInterface,
     parseLightTokenCold,
     parseLightTokenHot,
-} from '@lightprotocol/compressed-token';
+} from './read/get-account';
 import {
     LIGHT_TOKEN_PROGRAM_ID,
     type ParsedTokenAccount,
@@ -126,7 +126,7 @@ export async function getAtaOrNull({
     mint,
     commitment,
 }: GetAtaInput): Promise<TokenInterfaceAccount | null> {
-    const address = getAssociatedTokenAddressInterface(mint, owner);
+    const address = getAssociatedTokenAddress(mint, owner);
 
     const [hotInfo, compressedResult] = await Promise.all([
         rpc.getAccountInfo(address, commitment),
@@ -201,11 +201,22 @@ export function getSpendableAmount(
 
 export function assertAccountNotFrozen(
     account: TokenInterfaceAccount,
-    operation: 'load' | 'transfer' | 'approve' | 'revoke',
+    operation: 'load' | 'transfer' | 'approve' | 'revoke' | 'burn' | 'freeze',
 ): void {
     if (account.parsed.isFrozen) {
         throw new Error(
             `Account is frozen; ${operation} is not allowed.`,
+        );
+    }
+}
+
+export function assertAccountFrozen(
+    account: TokenInterfaceAccount,
+    operation: 'thaw',
+): void {
+    if (!account.parsed.isFrozen) {
+        throw new Error(
+            `Account is not frozen; ${operation} is not allowed.`,
         );
     }
 }
