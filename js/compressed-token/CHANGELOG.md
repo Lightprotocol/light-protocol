@@ -5,7 +5,7 @@
 - **Delegate approval and revocation** for SPL Token, Token-2022, and light-token, aligned with existing interface helpers:
     - **Actions:** `approveInterface`, `revokeInterface`.
     - **Instruction builders:** `createApproveInterfaceInstructions`, `createRevokeInterfaceInstructions` — each inner array is one transaction’s instructions (same batching style as other interface instruction builders).
-    - **Program-level helpers:** `createLightTokenApproveInstruction`, `createLightTokenRevokeInstruction` 
+    - **Program-level helpers:** `createLightTokenApproveInstruction`, `createLightTokenRevokeInstruction`
 - **Shared options:** approve/revoke accept optional `InterfaceOptions` (same type as `transferInterface`), including `splInterfaceInfos` when you need to supply SPL interface pool accounts explicitly.
 
 ### Changed

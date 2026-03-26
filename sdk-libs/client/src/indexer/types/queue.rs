@@ -66,59 +66,14 @@ pub struct AddressQueueData {
 }
 
 impl AddressQueueData {
-    /// Reconstruct a merkle proof for a given low_element_index from the deduplicated nodes.
-    pub fn reconstruct_proof<const HEIGHT: usize>(
+    /// Reconstruct a single merkle proof for a given address index.
+    #[cfg(test)]
+    fn reconstruct_proof<const HEIGHT: usize>(
         &self,
         address_idx: usize,
     ) -> Result<[[u8; 32]; HEIGHT], IndexerError> {
-        let leaf_index = *self.low_element_indices.get(address_idx).ok_or_else(|| {
-            IndexerError::MissingResult {
-                context: "reconstruct_proof".to_string(),
-                message: format!(
-                    "address_idx {} out of bounds for low_element_indices (len {})",
-                    address_idx,
-                    self.low_element_indices.len(),
-                ),
-            }
-        })?;
-        let mut proof = [[0u8; 32]; HEIGHT];
-        let mut pos = leaf_index;
-
-        for (level, proof_element) in proof.iter_mut().enumerate() {
-            let sibling_pos = if pos.is_multiple_of(2) {
-                pos + 1
-            } else {
-                pos - 1
-            };
-            let sibling_idx = Self::encode_node_index(level, sibling_pos);
-
-            let hash_idx = self
-                .nodes
-                .iter()
-                .position(|&n| n == sibling_idx)
-                .ok_or_else(|| IndexerError::MissingResult {
-                    context: "reconstruct_proof".to_string(),
-                    message: format!(
-                        "Missing proof node at level {} position {} (encoded: {})",
-                        level, sibling_pos, sibling_idx
-                    ),
-                })?;
-            let hash =
-                self.node_hashes
-                    .get(hash_idx)
-                    .ok_or_else(|| IndexerError::MissingResult {
-                        context: "reconstruct_proof".to_string(),
-                        message: format!(
-                            "node_hashes index {} out of bounds (len {})",
-                            hash_idx,
-                            self.node_hashes.len(),
-                        ),
-                    })?;
-            *proof_element = *hash;
-            pos /= 2;
-        }
-
-        Ok(proof)
+        let node_lookup = self.build_node_lookup();
+        self.reconstruct_proof_with_lookup::<HEIGHT>(address_idx, &node_lookup)
     }
 
     /// Reconstruct a contiguous batch of proofs while reusing a single node lookup table.
