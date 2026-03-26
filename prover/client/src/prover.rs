@@ -51,7 +51,10 @@ pub async fn spawn_prover() {
 }
 
 pub async fn health_check(retries: usize, timeout: usize) -> bool {
-    let client = reqwest::Client::new();
+    let client = match reqwest::Client::builder().no_proxy().build() {
+        Ok(client) => client,
+        Err(_) => return false,
+    };
     let mut result = false;
     for _ in 0..retries {
         match client
