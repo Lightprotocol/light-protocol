@@ -12,14 +12,9 @@ import {
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
-import {
-    TokenPoolInfo,
-    createMint,
-    getTokenPoolInfos,
-    mintTo,
-    parseLightTokenHot,
-    selectTokenPoolInfo,
-} from '@lightprotocol/compressed-token';
+import { createMint, mintTo } from '@lightprotocol/compressed-token';
+import { parseLightTokenHot } from '../../src/read';
+import { getSplPoolInfos } from '../../src/spl-interface';
 
 featureFlags.version = VERSION.V2;
 
@@ -31,7 +26,7 @@ export interface MintFixture {
     mint: PublicKey;
     mintAuthority: Keypair;
     stateTreeInfo: TreeInfo;
-    tokenPoolInfos: TokenPoolInfo[];
+    tokenPoolInfos: Awaited<ReturnType<typeof getSplPoolInfos>>;
     freezeAuthority?: Keypair;
 }
 
@@ -66,7 +61,7 @@ export async function createMintFixture(
     ).mint;
 
     const stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
-    const tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+    const tokenPoolInfos = await getSplPoolInfos(rpc, mint);
 
     return {
         rpc,
@@ -84,6 +79,13 @@ export async function mintCompressedToOwner(
     owner: PublicKey,
     amount: bigint,
 ): Promise<void> {
+    const selectedSplInterfaceInfo = fixture.tokenPoolInfos.find(
+        info => info.isInitialized,
+    );
+    if (!selectedSplInterfaceInfo) {
+        throw new Error('No initialized SPL interface info found.');
+    }
+
     await mintTo(
         fixture.rpc,
         fixture.payer,
@@ -92,7 +94,7 @@ export async function mintCompressedToOwner(
         fixture.mintAuthority,
         bn(amount.toString()),
         fixture.stateTreeInfo,
-        selectTokenPoolInfo(fixture.tokenPoolInfos),
+        selectedSplInterfaceInfo,
     );
 }
 

@@ -4,7 +4,6 @@ import { newAccountWithLamports } from '@lightprotocol/stateless.js';
 import {
     createAtaInstructions,
     createFreezeInstructions,
-    createLoadInstructions,
     createThawInstructions,
     getAtaAddress,
 } from '../../src';
@@ -39,20 +38,10 @@ describe('freeze and thaw instructions', () => {
         await sendInstructions(
             fixture.rpc,
             fixture.payer,
-            await createLoadInstructions({
+            await createFreezeInstructions({
                 rpc: fixture.rpc,
                 payer: fixture.payer.publicKey,
                 owner: owner.publicKey,
-                mint: fixture.mint,
-            }),
-            [owner],
-        );
-
-        await sendInstructions(
-            fixture.rpc,
-            fixture.payer,
-            await createFreezeInstructions({
-                tokenAccount,
                 mint: fixture.mint,
                 freezeAuthority: fixture.freezeAuthority!.publicKey,
             }),
@@ -67,7 +56,9 @@ describe('freeze and thaw instructions', () => {
             fixture.rpc,
             fixture.payer,
             await createThawInstructions({
-                tokenAccount,
+                rpc: fixture.rpc,
+                payer: fixture.payer.publicKey,
+                owner: owner.publicKey,
                 mint: fixture.mint,
                 freezeAuthority: fixture.freezeAuthority!.publicKey,
             }),

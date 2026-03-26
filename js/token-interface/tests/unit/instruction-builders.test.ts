@@ -5,15 +5,12 @@ import {
     createApproveInstruction,
     createAtaInstruction,
     createFreezeInstruction,
-    getCreateAtaInstruction,
-    getLoadInstruction,
-    getTransferInstruction,
     createRevokeInstruction,
     createThawInstruction,
     createTransferCheckedInstruction,
-} from '../../src/instructions/raw';
+} from '../../src/instructions';
 
-describe('raw instruction builders', () => {
+describe('instruction builders', () => {
     it('creates a canonical light-token ata instruction', () => {
         const payer = Keypair.generate().publicKey;
         const owner = Keypair.generate().publicKey;
@@ -88,9 +85,4 @@ describe('raw instruction builders', () => {
         expect(thaw.data[0]).toBe(11);
     });
 
-    it('exports getX raw aliases', () => {
-        expect(typeof getCreateAtaInstruction).toBe('function');
-        expect(typeof getLoadInstruction).toBe('function');
-        expect(typeof getTransferInstruction).toBe('function');
-    });
 });

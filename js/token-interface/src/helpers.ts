@@ -1,7 +1,5 @@
-import {
-    type InterfaceOptions,
-    getMintInterface,
-} from '@lightprotocol/compressed-token';
+import type { LoadOptions } from './load-options';
+import { getMint } from './read';
 import { ComputeBudgetProgram, PublicKey } from '@solana/web3.js';
 import type { Rpc } from '@lightprotocol/stateless.js';
 import type { TransactionInstruction } from '@solana/web3.js';
@@ -11,20 +9,20 @@ export async function getMintDecimals(
     rpc: Rpc,
     mint: PublicKey,
 ): Promise<number> {
-    const mintInterface = await getMintInterface(rpc, mint);
-    return mintInterface.mint.decimals;
+    const mintInfo = await getMint(rpc, mint);
+    return mintInfo.mint.decimals;
 }
 
-export function toInterfaceOptions(
+export function toLoadOptions(
     owner: PublicKey,
     authority?: PublicKey,
     wrap = false,
-): InterfaceOptions | undefined {
+): LoadOptions | undefined {
     if ((!authority || authority.equals(owner)) && !wrap) {
         return undefined;
     }
 
-    const options: InterfaceOptions = {};
+    const options: LoadOptions = {};
     if (wrap) {
         options.wrap = true;
     }

@@ -71,15 +71,38 @@ export interface CreateRevokeInstructionsInput extends AtaOwnerInput {
     payer: PublicKey;
 }
 
-export interface CreateFreezeInstructionsInput {
+export interface CreateBurnInstructionsInput extends AtaOwnerInput {
+    rpc: Rpc;
+    payer: PublicKey;
+    authority: PublicKey;
+    amount: number | bigint;
+    /** When set, emits BurnChecked; otherwise Burn. */
+    decimals?: number;
+}
+
+/** Single freeze ix (hot token account address already known). */
+export interface CreateRawFreezeInstructionInput {
     tokenAccount: PublicKey;
     mint: PublicKey;
     freezeAuthority: PublicKey;
 }
 
-export interface CreateThawInstructionsInput {
+/** Single thaw ix (hot token account address already known). */
+export interface CreateRawThawInstructionInput {
     tokenAccount: PublicKey;
     mint: PublicKey;
+    freezeAuthority: PublicKey;
+}
+
+export interface CreateFreezeInstructionsInput extends AtaOwnerInput {
+    rpc: Rpc;
+    payer: PublicKey;
+    freezeAuthority: PublicKey;
+}
+
+export interface CreateThawInstructionsInput extends AtaOwnerInput {
+    rpc: Rpc;
+    payer: PublicKey;
     freezeAuthority: PublicKey;
 }
 
@@ -93,6 +116,21 @@ export interface CreateRawTransferInstructionInput {
     authority: PublicKey;
     payer: PublicKey;
     amount: number | bigint;
+    decimals: number;
+}
+
+/** Light-token CTokenBurn (hot account only). `mint` is the CMint account. */
+export interface CreateRawBurnInstructionInput {
+    source: PublicKey;
+    mint: PublicKey;
+    authority: PublicKey;
+    amount: number | bigint;
+    payer?: PublicKey;
+}
+
+/** Light-token CTokenBurnChecked (hot account only). */
+export interface CreateRawBurnCheckedInstructionInput
+    extends CreateRawBurnInstructionInput {
     decimals: number;
 }
 

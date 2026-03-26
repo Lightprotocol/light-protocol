@@ -6,18 +6,21 @@ import commonjs from '@rollup/plugin-commonjs';
 const inputs = {
     index: 'src/index.ts',
     'instructions/index': 'src/instructions/index.ts',
-    'instructions/nowrap/index': 'src/instructions/nowrap/index.ts',
-    'instructions/raw/index': 'src/instructions/raw/index.ts',
     'kit/index': 'src/kit/index.ts',
 };
 
 const external = [
-    '@lightprotocol/compressed-token',
+    '@coral-xyz/borsh',
     '@lightprotocol/stateless.js',
+    '@solana/buffer-layout',
+    '@solana/buffer-layout-utils',
     '@solana/compat',
+    '@solana/instruction-plans',
     '@solana/kit',
     '@solana/spl-token',
     '@solana/web3.js',
+    'bn.js',
+    'buffer',
 ];
 
 const jsConfig = format => ({
@@ -66,14 +69,6 @@ export default [
     dtsEntry(
         'src/instructions/index.ts',
         'dist/types/instructions/index.d.ts',
-    ),
-    dtsEntry(
-        'src/instructions/raw/index.ts',
-        'dist/types/instructions/raw/index.d.ts',
-    ),
-    dtsEntry(
-        'src/instructions/nowrap/index.ts',
-        'dist/types/instructions/nowrap/index.d.ts',
     ),
     dtsEntry('src/kit/index.ts', 'dist/types/kit/index.d.ts'),
 ];

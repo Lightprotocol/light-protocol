@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Keypair } from '@solana/web3.js';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
-import { getAssociatedTokenAddressInterface } from '@lightprotocol/compressed-token';
+import { getAssociatedTokenAddress } from '../../src/read';
 import {
     buildTransferInstructions,
     MultiTransactionNotSupportedError,
     createAtaInstructions,
-    createTransferInstructions,
-    createFreezeInstructions,
-    createThawInstructions,
+    createFreezeInstruction,
+    createThawInstruction,
     getAtaAddress,
 } from '../../src';
 
@@ -18,7 +17,7 @@ describe('public api', () => {
         const mint = Keypair.generate().publicKey;
 
         expect(getAtaAddress({ owner, mint }).equals(
-            getAssociatedTokenAddressInterface(mint, owner),
+            getAssociatedTokenAddress(mint, owner),
         )).toBe(true);
     });
 
@@ -39,26 +38,24 @@ describe('public api', () => {
         );
     });
 
-    it('wraps freeze and thaw as single-instruction arrays', async () => {
+    it('raw freeze and thaw instructions use light-token discriminators', () => {
         const tokenAccount = Keypair.generate().publicKey;
         const mint = Keypair.generate().publicKey;
         const freezeAuthority = Keypair.generate().publicKey;
 
-        const freezeInstructions = await createFreezeInstructions({
+        const freeze = createFreezeInstruction({
             tokenAccount,
             mint,
             freezeAuthority,
         });
-        const thawInstructions = await createThawInstructions({
+        const thaw = createThawInstruction({
             tokenAccount,
             mint,
             freezeAuthority,
         });
 
-        expect(freezeInstructions).toHaveLength(1);
-        expect(freezeInstructions[0].data[0]).toBe(10);
-        expect(thawInstructions).toHaveLength(1);
-        expect(thawInstructions[0].data[0]).toBe(11);
+        expect(freeze.data[0]).toBe(10);
+        expect(thaw.data[0]).toBe(11);
     });
 
     it('exposes a clear single-transaction error', () => {
@@ -72,8 +69,7 @@ describe('public api', () => {
         expect(error.message).toContain('createLoadInstructions');
     });
 
-    it('exports transfer builder alias', () => {
+    it('exports canonical transfer builder', () => {
         expect(typeof buildTransferInstructions).toBe('function');
-        expect(typeof createTransferInstructions).toBe('function');
     });
 });

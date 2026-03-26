@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { Keypair } from '@solana/web3.js';
-import { createAtaInstruction } from '../../src/instructions/raw';
+import { createAtaInstruction } from '../../src/instructions';
 import {
     buildTransferInstructions,
     createAtaInstructions,
-    createTransferInstructions,
-    getTransferInstructionPlan,
+    createTransferInstructionPlan,
     toKitInstructions,
 } from '../../src/kit';
 
@@ -35,9 +34,8 @@ describe('kit adapter', () => {
         expect(instructions[0]).toBeDefined();
     });
 
-    it('exports transfer aliases and plan builder', () => {
+    it('exports transfer builder and plan builder', () => {
         expect(typeof buildTransferInstructions).toBe('function');
-        expect(typeof createTransferInstructions).toBe('function');
-        expect(typeof getTransferInstructionPlan).toBe('function');
+        expect(typeof createTransferInstructionPlan).toBe('function');
     });
 });

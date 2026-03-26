@@ -16,16 +16,6 @@
             "import": "./dist/es/instructions/index.js",
             "types": "./dist/types/instructions/index.d.ts"
         },
-        "./instructions/raw": {
-            "require": "./dist/cjs/instructions/raw/index.cjs",
-            "import": "./dist/es/instructions/raw/index.js",
-            "types": "./dist/types/instructions/raw/index.d.ts"
-        },
-        "./instructions/nowrap": {
-            "require": "./dist/cjs/instructions/nowrap/index.cjs",
-            "import": "./dist/es/instructions/nowrap/index.js",
-            "types": "./dist/types/instructions/nowrap/index.d.ts"
-        },
         "./kit": {
             "require": "./dist/cjs/kit/index.cjs",
             "import": "./dist/es/kit/index.js",
@@ -44,20 +34,27 @@
     ],
     "license": "Apache-2.0",
     "peerDependencies": {
+        "@coral-xyz/borsh": "^0.29.0",
         "@lightprotocol/stateless.js": "workspace:*",
         "@solana/spl-token": ">=0.3.9",
         "@solana/web3.js": ">=1.73.5"
     },
     "dependencies": {
-        "@lightprotocol/compressed-token": "workspace:*",
+        "@solana/buffer-layout": "^4.0.1",
+        "@solana/buffer-layout-utils": "^0.2.0",
         "@solana/compat": "^6.5.0",
-        "@solana/kit": "^6.5.0"
+        "@solana/instruction-plans": "^6.5.0",
+        "@solana/kit": "^6.5.0",
+        "bn.js": "^5.2.1",
+        "buffer": "6.0.3"
     },
     "devDependencies": {
+        "@lightprotocol/compressed-token": "workspace:*",
         "@eslint/js": "9.36.0",
         "@rollup/plugin-commonjs": "^26.0.1",
         "@rollup/plugin-node-resolve": "^15.2.3",
         "@rollup/plugin-typescript": "^11.1.6",
+        "@types/bn.js": "^5.1.5",
         "@types/node": "^22.5.5",
         "@typescript-eslint/eslint-plugin": "^8.44.0",
         "@typescript-eslint/parser": "^8.44.0",
@@ -74,7 +71,7 @@
     "scripts": {
         "build": "pnpm build:v2",
         "build:v2": "pnpm build:deps:v2 && pnpm build:bundle",
-        "build:deps:v2": "pnpm --dir ../compressed-token build:v2",
+        "build:deps:v2": "pnpm --dir ../stateless.js build:v2",
         "build:bundle": "rimraf dist && rollup -c",
         "test": "pnpm test:unit:all && pnpm test:e2e:all",
         "test:unit:all": "pnpm build:deps:v2 && LIGHT_PROTOCOL_VERSION=V2 EXCLUDE_E2E=true vitest run tests/unit --reporter=verbose",

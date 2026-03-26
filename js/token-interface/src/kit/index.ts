@@ -1,21 +1,26 @@
-import { fromLegacyTransactionInstruction } from '@solana/compat';
-import {
-    sequentialInstructionPlan,
-    type InstructionPlan,
-} from '@solana/kit';
 import type { TransactionInstruction } from '@solana/web3.js';
 import {
-    createApproveInstructions as createLegacyApproveInstructions,
-    buildTransferInstructions as buildLegacyTransferInstructions,
-    createAtaInstructions as createLegacyAtaInstructions,
-    createFreezeInstructions as createLegacyFreezeInstructions,
-    createLoadInstructions as createLegacyLoadInstructions,
-    createRevokeInstructions as createLegacyRevokeInstructions,
-    createThawInstructions as createLegacyThawInstructions,
+    buildTransferInstructions as buildTransferInstructionsTx,
+    buildTransferInstructionsNowrap as buildTransferInstructionsNowrapTx,
+    createApproveInstructions as createApproveInstructionsTx,
+    createApproveInstructionsNowrap as createApproveInstructionsNowrapTx,
+    createAtaInstructions as createAtaInstructionsTx,
+    createBurnInstructions as createBurnInstructionsTx,
+    createBurnInstructionsNowrap as createBurnInstructionsNowrapTx,
+    createFreezeInstructions as createFreezeInstructionsTx,
+    createFreezeInstructionsNowrap as createFreezeInstructionsNowrapTx,
+    createLoadInstructions as createLoadInstructionsTx,
+    createRevokeInstructions as createRevokeInstructionsTx,
+    createRevokeInstructionsNowrap as createRevokeInstructionsNowrapTx,
+    createThawInstructions as createThawInstructionsTx,
+    createThawInstructionsNowrap as createThawInstructionsNowrapTx,
 } from '../instructions';
+import type { KitInstruction } from '../instructions/_plan';
+import { toKitInstructions } from '../instructions/_plan';
 import type {
     CreateApproveInstructionsInput,
     CreateAtaInstructionsInput,
+    CreateBurnInstructionsInput,
     CreateFreezeInstructionsInput,
     CreateLoadInstructionsInput,
     CreateRevokeInstructionsInput,
@@ -23,84 +28,115 @@ import type {
     CreateTransferInstructionsInput,
 } from '../types';
 
-export type KitInstruction = ReturnType<typeof fromLegacyTransactionInstruction>;
+export type { KitInstruction };
 
-export function toKitInstructions(
-    instructions: TransactionInstruction[],
-): KitInstruction[] {
-    return instructions.map(instruction =>
-        fromLegacyTransactionInstruction(instruction),
-    );
+export {
+    createApproveInstructionPlan,
+    createAtaInstructionPlan,
+    createBurnInstructionPlan,
+    createFreezeInstructionPlan,
+    createLoadInstructionPlan,
+    createRevokeInstructionPlan,
+    createThawInstructionPlan,
+    createTransferInstructionPlan,
+    toInstructionPlan,
+    toKitInstructions,
+} from '../instructions';
+
+function wrap(
+    instructions: Promise<TransactionInstruction[]>,
+): Promise<KitInstruction[]> {
+    return instructions.then(ixs => toKitInstructions(ixs));
 }
 
 export async function createAtaInstructions(
     input: CreateAtaInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return toKitInstructions(await createLegacyAtaInstructions(input));
+    return wrap(createAtaInstructionsTx(input));
 }
 
-/**
- * Advanced: standalone load (decompress) instructions for an ATA, plus create-ATA if missing.
- * Prefer the canonical builders (`buildTransferInstructions`, `createApproveInstructions`,
- * `createRevokeInstructions`, …), which prepend load automatically when needed.
- */
 export async function createLoadInstructions(
     input: CreateLoadInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return toKitInstructions(await createLegacyLoadInstructions(input));
+    return wrap(createLoadInstructionsTx(input));
 }
 
-/**
- * Canonical Kit instruction-array builder.
- * Returns Kit instructions (not an InstructionPlan).
- */
 export async function buildTransferInstructions(
     input: CreateTransferInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return toKitInstructions(await buildLegacyTransferInstructions(input));
+    return wrap(buildTransferInstructionsTx(input));
 }
 
-/**
- * Backwards-compatible alias.
- */
-export const createTransferInstructions = buildTransferInstructions;
-
-/**
- * Canonical Kit plan builder.
- */
-export async function getTransferInstructionPlan(
+export async function buildTransferInstructionsNowrap(
     input: CreateTransferInstructionsInput,
-): Promise<InstructionPlan> {
-    return sequentialInstructionPlan(await buildTransferInstructions(input));
+): Promise<KitInstruction[]> {
+    return wrap(buildTransferInstructionsNowrapTx(input));
 }
 
 export async function createApproveInstructions(
     input: CreateApproveInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return toKitInstructions(await createLegacyApproveInstructions(input));
+    return wrap(createApproveInstructionsTx(input));
+}
+
+export async function createApproveInstructionsNowrap(
+    input: CreateApproveInstructionsInput,
+): Promise<KitInstruction[]> {
+    return wrap(createApproveInstructionsNowrapTx(input));
 }
 
 export async function createRevokeInstructions(
     input: CreateRevokeInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return toKitInstructions(await createLegacyRevokeInstructions(input));
+    return wrap(createRevokeInstructionsTx(input));
+}
+
+export async function createRevokeInstructionsNowrap(
+    input: CreateRevokeInstructionsInput,
+): Promise<KitInstruction[]> {
+    return wrap(createRevokeInstructionsNowrapTx(input));
 }
 
 export async function createFreezeInstructions(
     input: CreateFreezeInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return toKitInstructions(await createLegacyFreezeInstructions(input));
+    return wrap(createFreezeInstructionsTx(input));
+}
+
+export async function createFreezeInstructionsNowrap(
+    input: CreateFreezeInstructionsInput,
+): Promise<KitInstruction[]> {
+    return wrap(createFreezeInstructionsNowrapTx(input));
 }
 
 export async function createThawInstructions(
     input: CreateThawInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return toKitInstructions(await createLegacyThawInstructions(input));
+    return wrap(createThawInstructionsTx(input));
+}
+
+export async function createThawInstructionsNowrap(
+    input: CreateThawInstructionsInput,
+): Promise<KitInstruction[]> {
+    return wrap(createThawInstructionsNowrapTx(input));
+}
+
+export async function createBurnInstructions(
+    input: CreateBurnInstructionsInput,
+): Promise<KitInstruction[]> {
+    return wrap(createBurnInstructionsTx(input));
+}
+
+export async function createBurnInstructionsNowrap(
+    input: CreateBurnInstructionsInput,
+): Promise<KitInstruction[]> {
+    return wrap(createBurnInstructionsNowrapTx(input));
 }
 
 export type {
     CreateApproveInstructionsInput,
     CreateAtaInstructionsInput,
+    CreateBurnInstructionsInput,
     CreateFreezeInstructionsInput,
     CreateLoadInstructionsInput,
     CreateRevokeInstructionsInput,
