@@ -200,7 +200,7 @@ pub(crate) fn validate_compression_mode_fields(
     compression: &ZCompression,
 ) -> Result<(), ProgramError> {
     match compression.mode {
-        ZCompressionMode::Decompress | ZCompressionMode::DecompressIdempotent => {
+        ZCompressionMode::Decompress => {
             // the authority field is not used.
             if compression.authority != 0 {
                 msg!("authority must be 0 for Decompress mode");

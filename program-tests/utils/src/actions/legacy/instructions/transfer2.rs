@@ -160,7 +160,6 @@ pub enum Transfer2InstructionType {
     Transfer(TransferInput),
     Approve(ApproveInput),
     CompressAndClose(CompressAndCloseInput),
-    DecompressIdempotent(DecompressInput),
 }
 
 // Note doesn't support multiple signers.
@@ -200,10 +199,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
             .iter()
             .for_each(|account| hashes.push(account.account.hash)),
         Transfer2InstructionType::Approve(input) => input
-            .compressed_token_account
-            .iter()
-            .for_each(|account| hashes.push(account.account.hash)),
-        Transfer2InstructionType::DecompressIdempotent(input) => input
             .compressed_token_account
             .iter()
             .for_each(|account| hashes.push(account.account.hash)),
@@ -338,11 +333,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 }
                 token_accounts.push(token_account);
             }
-            Transfer2InstructionType::Decompress(ref input)
-            | Transfer2InstructionType::DecompressIdempotent(ref input) => {
-                let is_idempotent =
-                    matches!(action, Transfer2InstructionType::DecompressIdempotent(_));
-
+            Transfer2InstructionType::Decompress(ref input) => {
                 // Collect in_tlv data if provided
                 if let Some(ref tlv_data) = input.in_tlv {
                     has_any_tlv = true;
@@ -421,10 +412,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 inputs_offset += token_data.len();
                 let mut token_account = CTokenAccount2::new(token_data)?;
 
-                if is_idempotent {
-                    token_account
-                        .decompress_idempotent(input.decompress_amount, recipient_index)?;
-                } else if recipient_account_owner.to_bytes() != LIGHT_TOKEN_PROGRAM_ID {
+                if recipient_account_owner.to_bytes() != LIGHT_TOKEN_PROGRAM_ID {
                     let mint = input.compressed_token_account[0].token.mint;
                     let _token_program_index =
                         packed_tree_accounts.insert_or_get_read_only(recipient_account_owner);

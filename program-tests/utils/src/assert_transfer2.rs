@@ -63,8 +63,7 @@ pub async fn assert_transfer2_with_delegate(
                     }
                 }
             }
-            Transfer2InstructionType::Decompress(decompress_input)
-            | Transfer2InstructionType::DecompressIdempotent(decompress_input) => {
+            Transfer2InstructionType::Decompress(decompress_input) => {
                 let pubkey = decompress_input.solana_token_account;
 
                 // Get or initialize the expected account state
@@ -202,8 +201,7 @@ pub async fn assert_transfer2_with_delegate(
                     );
                 }
             }
-            Transfer2InstructionType::Decompress(decompress_input)
-            | Transfer2InstructionType::DecompressIdempotent(decompress_input) => {
+            Transfer2InstructionType::Decompress(decompress_input) => {
                 // Get mint from the source compressed token account
                 let source_mint = decompress_input.compressed_token_account[0].token.mint;
                 let source_owner = decompress_input.compressed_token_account[0].token.owner;

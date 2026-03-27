@@ -16,10 +16,6 @@ pub enum CompressionMode {
     /// Signer must be rent authority, token account must be compressible
     /// Not implemented for spl token accounts.
     CompressAndClose,
-    /// Permissionless ATA decompress with single-input constraint.
-    /// Requires CompressedOnly extension with is_ata=true.
-    /// On-chain behavior is identical to Decompress.
-    DecompressIdempotent,
 }
 
 impl ZCompressionMode {
@@ -28,10 +24,7 @@ impl ZCompressionMode {
     }
 
     pub fn is_decompress(&self) -> bool {
-        matches!(
-            self,
-            ZCompressionMode::Decompress | ZCompressionMode::DecompressIdempotent
-        )
+        matches!(self, ZCompressionMode::Decompress)
     }
 
     pub fn is_compress_and_close(&self) -> bool {
@@ -42,7 +35,6 @@ impl ZCompressionMode {
 pub const COMPRESS: u8 = 0u8;
 pub const DECOMPRESS: u8 = 1u8;
 pub const COMPRESS_AND_CLOSE: u8 = 2u8;
-pub const DECOMPRESS_IDEMPOTENT: u8 = 3u8;
 
 impl<'a> ZeroCopyAtMut<'a> for CompressionMode {
     type ZeroCopyAtMut = Ref<&'a mut [u8], u8>;
@@ -212,20 +204,6 @@ impl Compression {
             decimals: 0,
         }
     }
-
-    pub fn decompress_idempotent(amount: u64, mint: u8, recipient: u8) -> Self {
-        Compression {
-            amount,
-            mode: CompressionMode::DecompressIdempotent,
-            mint,
-            source_or_recipient: recipient,
-            authority: 0,
-            pool_account_index: 0,
-            pool_index: 0,
-            bump: 0,
-            decimals: 0,
-        }
-    }
 }
 
 impl ZCompressionMut<'_> {
@@ -234,7 +212,6 @@ impl ZCompressionMut<'_> {
             COMPRESS => Ok(CompressionMode::Compress),
             DECOMPRESS => Ok(CompressionMode::Decompress),
             COMPRESS_AND_CLOSE => Ok(CompressionMode::CompressAndClose),
-            DECOMPRESS_IDEMPOTENT => Ok(CompressionMode::DecompressIdempotent),
             _ => Err(TokenError::InvalidCompressionMode),
         }
     }
@@ -249,7 +226,7 @@ impl ZCompression<'_> {
                     .checked_add((*self.amount).into())
                     .ok_or(TokenError::ArithmeticOverflow)
             }
-            ZCompressionMode::Decompress | ZCompressionMode::DecompressIdempotent => {
+            ZCompressionMode::Decompress => {
                 // Decompress: subtract from balance (tokens are being removed from spl token pool)
                 current_balance
                     .checked_sub((*self.amount).into())

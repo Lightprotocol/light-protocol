@@ -78,10 +78,6 @@ pub(super) fn process_spl_compressions(
             msg!("CompressAndClose is unimplemented for spl token accounts");
             unimplemented!()
         }
-        ZCompressionMode::DecompressIdempotent => {
-            msg!("DecompressIdempotent is not supported for SPL token accounts");
-            return Err(ProgramError::InvalidInstructionData);
-        }
     }
     Ok(())
 }

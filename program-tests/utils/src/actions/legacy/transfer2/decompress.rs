@@ -57,39 +57,3 @@ pub async fn decompress<R: Rpc + Indexer>(
     rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &signers)
         .await
 }
-
-/// Decompress ATA compressed tokens using DecompressIdempotent mode.
-/// Permissionless -- only payer needs to sign.
-pub async fn decompress_idempotent<R: Rpc + Indexer>(
-    rpc: &mut R,
-    compressed_token_account: &[CompressedTokenAccount],
-    decompress_amount: u64,
-    solana_token_account: Pubkey,
-    payer: &Keypair,
-    decimals: u8,
-    in_tlv: Option<
-        Vec<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>,
-    >,
-) -> Result<Signature, RpcError> {
-    let ix = create_generic_transfer2_instruction(
-        rpc,
-        vec![Transfer2InstructionType::DecompressIdempotent(
-            DecompressInput {
-                compressed_token_account: compressed_token_account.to_vec(),
-                decompress_amount,
-                solana_token_account,
-                amount: decompress_amount,
-                pool_index: None,
-                decimals,
-                in_tlv,
-            },
-        )],
-        payer.pubkey(),
-        true,
-    )
-    .await
-    .map_err(|e| RpcError::CustomError(e.to_string()))?;
-
-    rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[payer])
-        .await
-}

@@ -118,28 +118,6 @@ pub fn validate_instruction_data(
             return Err(TokenError::CompressedOnlyBlocksTransfer);
         }
     }
-    // DecompressIdempotent: exactly 1 input, 1 compression, must have CompressedOnly with is_ata=true
-    if let Some(compressions) = inputs.compressions.as_ref() {
-        let has_idempotent = compressions
-            .iter()
-            .any(|c| c.mode == ZCompressionMode::DecompressIdempotent);
-        if has_idempotent {
-            if inputs.in_token_data.len() != 1 || compressions.len() != 1 {
-                msg!("DecompressIdempotent requires exactly 1 input and 1 compression");
-                return Err(TokenError::IdempotentDecompressRequiresSingleInput);
-            }
-            let has_ata = inputs.in_tlv.as_ref().is_some_and(|tlvs| {
-                tlvs.iter().flatten().any(|ext| {
-                    matches!(ext, ZExtensionInstructionData::CompressedOnly(data) if data.is_ata())
-                })
-            });
-            if !has_ata {
-                msg!("DecompressIdempotent requires is_ata=true in CompressedOnly extension");
-                return Err(TokenError::IdempotentDecompressRequiresAta);
-            }
-        }
-    }
-
     // out_tlv is only allowed for CompressAndClose when rent authority is signer
     // (forester compressing accounts with marker extensions)
     if let Some(out_tlv) = inputs.out_tlv.as_ref() {
@@ -279,9 +257,26 @@ fn process_with_system_program_cpi<'a>(
         mint_cache,
     )?;
 
-    // Idempotency check for DecompressIdempotent: if the compressed account is already
-    // spent (found in the V2 tree's bloom filter), return Ok as a no-op.
-    if transfer_config.is_decompress_idempotent {
+    // ATA decompress is permissionless and idempotent.
+    // Detect from Decompress mode + CompressedOnly extension with is_ata=true.
+    let is_ata_decompress = inputs
+        .compressions
+        .as_ref()
+        .is_some_and(|c| c.iter().any(|c| c.mode.is_decompress()))
+        && inputs.in_tlv.as_ref().is_some_and(|tlvs| {
+            tlvs.iter().flatten().any(|ext| {
+            matches!(ext, ZExtensionInstructionData::CompressedOnly(data) if data.is_ata())
+        })
+        });
+
+    if is_ata_decompress {
+        // Single-input constraint: permissionless decompress must be atomic.
+        if inputs.in_token_data.len() != 1
+            || inputs.compressions.as_ref().map_or(0, |c| c.len()) != 1
+        {
+            msg!("ATA decompress requires exactly 1 input and 1 compression");
+            return Err(TokenError::InvalidInstructionData.into());
+        }
         let input_data = &inputs.in_token_data[0];
         let merkle_context = &input_data.merkle_context;
         let input_account = cpi_instruction_struct
