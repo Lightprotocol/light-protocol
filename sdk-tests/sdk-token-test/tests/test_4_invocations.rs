@@ -47,9 +47,11 @@ fn pack_selected_output_tree_index(
         .next_tree_info
         .map(|next| next.pack_output_tree_index(remaining_accounts))
         .unwrap_or_else(|| tree_info.pack_output_tree_index(remaining_accounts))
-        .map_err(|error| Box::new(
-            RpcError::CustomError(format!("Failed to pack output tree index: {error}"))
-        ))
+        .map_err(|error| {
+            Box::new(RpcError::CustomError(format!(
+                "Failed to pack output tree index: {error}"
+            )))
+        })
 }
 
 #[ignore = "fix cpi context usage"]

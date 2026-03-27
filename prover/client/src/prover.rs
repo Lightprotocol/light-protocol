@@ -6,7 +6,6 @@ use std::{
 
 use tokio::time::sleep;
 use tracing::info;
-use tokio::time::sleep;
 
 use crate::{
     constants::{HEALTH_CHECK, SERVER_ADDRESS},

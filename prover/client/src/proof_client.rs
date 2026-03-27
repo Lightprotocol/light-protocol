@@ -75,7 +75,7 @@ impl ProofClient {
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
             api_key: None,
             initial_poll_delay: Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS),
-        })
+        }
     }
 
     #[allow(unused)]
@@ -91,7 +91,7 @@ impl ProofClient {
             Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS)
         };
 
-        Self {
+        Ok(Self {
             client: build_http_client(),
             server_address,
             polling_interval,
@@ -116,7 +116,7 @@ impl ProofClient {
             max_wait_time,
             api_key,
             initial_poll_delay,
-        })
+        }
     }
 
     pub async fn submit_proof_async(
