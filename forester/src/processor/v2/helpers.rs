@@ -499,27 +499,22 @@ impl StreamingAddressQueue {
         let actual_end = end;
         let data = lock_recover(&self.data, "streaming_address_queue.data");
 
-        for (name, len) in [
-            ("addresses", data.addresses.len()),
-            ("low_element_values", data.low_element_values.len()),
-            (
-                "low_element_next_values",
-                data.low_element_next_values.len(),
-            ),
-            ("low_element_indices", data.low_element_indices.len()),
-            (
-                "low_element_next_indices",
-                data.low_element_next_indices.len(),
-            ),
-        ] {
-            if len < actual_end {
-                return Err(anyhow!(
-                    "incomplete batch data: {} len {} < required end {}",
-                    name,
-                    len,
-                    actual_end
-                ));
-            }
+        let min_len = [
+            data.addresses.len(),
+            data.low_element_values.len(),
+            data.low_element_next_values.len(),
+            data.low_element_indices.len(),
+            data.low_element_next_indices.len(),
+        ]
+        .into_iter()
+        .min()
+        .unwrap_or(0);
+        if min_len < actual_end {
+            return Err(anyhow!(
+                "incomplete batch data: min field length {} < required end {}",
+                min_len,
+                actual_end
+            ));
         }
 
         let addresses = data.addresses[start..actual_end].to_vec();
