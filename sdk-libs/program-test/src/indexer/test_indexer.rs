@@ -95,6 +95,21 @@ use crate::accounts::{
 };
 use crate::indexer::TestIndexerExtensions;
 
+fn build_compressed_proof(body: &str) -> Result<CompressedProof, IndexerError> {
+    let proof_json = deserialize_gnark_proof_json(body)
+        .map_err(|error| IndexerError::CustomError(error.to_string()))?;
+    let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json)
+        .map_err(|error| IndexerError::CustomError(error.to_string()))?;
+    let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c)
+        .map_err(|error| IndexerError::CustomError(error.to_string()))?;
+
+    Ok(CompressedProof {
+        a: proof_a,
+        b: proof_b,
+        c: proof_c,
+    })
+}
+
 #[derive(Debug)]
 pub struct TestIndexer {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
@@ -472,8 +487,6 @@ impl Indexer for TestIndexer {
                 let account_data = account.value.ok_or(IndexerError::AccountNotFound)?;
                 state_merkle_tree_pubkeys.push(account_data.tree_info.tree);
             }
-            println!("state_merkle_tree_pubkeys {:?}", state_merkle_tree_pubkeys);
-            println!("hashes {:?}", hashes);
             let mut proof_inputs = vec![];
 
             let mut indices_to_remove = Vec::new();
@@ -495,14 +508,7 @@ impl Indexer for TestIndexer {
                             .output_queue_elements
                             .iter()
                             .find(|(hash, _)| hash == compressed_account);
-                        println!("queue_element {:?}", queue_element);
-
                         if let Some((_, index)) = queue_element {
-                            println!("index {:?}", index);
-                            println!(
-                                "accounts.output_queue_batch_size {:?}",
-                                accounts.output_queue_batch_size
-                            );
                             if accounts.output_queue_batch_size.is_some()
                                 && accounts.leaf_index_in_queue_range(*index as usize)?
                             {
@@ -513,12 +519,7 @@ impl Indexer for TestIndexer {
                                     hash: *compressed_account,
                                     root: [0u8; 32],
                                     root_index: RootIndex::new_none(),
-                                    leaf_index: accounts
-                                        .output_queue_elements
-                                        .iter()
-                                        .position(|(x, _)| x == compressed_account)
-                                        .unwrap()
-                                        as u64,
+                                    leaf_index: *index,
                                     tree_info: light_client::indexer::TreeInfo {
                                         cpi_context: Some(accounts.accounts.cpi_context),
                                         tree: accounts.accounts.merkle_tree,
@@ -726,9 +727,8 @@ impl Indexer for TestIndexer {
                         initial_root: address_tree_bundle.root(),
                         leaves_hash_chains: Vec::new(),
                         subtrees: address_tree_bundle.get_subtrees(),
-                        // Consumers use start_index as the sparse tree's next insertion index,
-                        // not the pagination offset used for queue slicing.
-                        start_index: address_tree_bundle.right_most_index() as u64,
+                        start_index: start as u64,
+                        tree_next_insertion_index: address_tree_bundle.right_most_index() as u64,
                         root_seq: address_tree_bundle.sequence_number(),
                     })
                 } else {
@@ -2086,6 +2086,107 @@ impl TestIndexer {
     }
 }
 
+#[cfg(all(test, feature = "v2"))]
+mod tests {
+    use light_compressed_account::compressed_account::CompressedAccount;
+
+    use super::*;
+
+    fn queued_account(
+        owner: [u8; 32],
+        merkle_tree: Pubkey,
+        queue: Pubkey,
+        leaf_index: u32,
+    ) -> CompressedAccountWithMerkleContext {
+        CompressedAccountWithMerkleContext {
+            compressed_account: CompressedAccount {
+                owner: owner.into(),
+                lamports: 0,
+                address: None,
+                data: None,
+            },
+            merkle_context: MerkleContext {
+                merkle_tree_pubkey: merkle_tree.to_bytes().into(),
+                queue_pubkey: queue.to_bytes().into(),
+                leaf_index,
+                prove_by_index: false,
+                tree_type: TreeType::StateV2,
+            },
+        }
+    }
+
+    #[tokio::test]
+    async fn get_validity_proof_preserves_sparse_queue_leaf_indices() {
+        let merkle_tree = Pubkey::new_unique();
+        let queue = Pubkey::new_unique();
+        let sparse_leaf_indices = [5_u32, 1, 0, 4];
+
+        let compressed_accounts: Vec<_> = sparse_leaf_indices
+            .iter()
+            .enumerate()
+            .map(|(i, &leaf_index)| {
+                queued_account([i as u8 + 1; 32], merkle_tree, queue, leaf_index)
+            })
+            .collect();
+        let hashes: Vec<_> = compressed_accounts
+            .iter()
+            .map(|account| account.hash().unwrap())
+            .collect();
+
+        let output_queue_elements = hashes
+            .iter()
+            .zip(sparse_leaf_indices.iter())
+            .map(|(hash, &leaf_index)| (*hash, leaf_index as u64))
+            .collect();
+
+        let indexer = TestIndexer {
+            state_merkle_trees: vec![StateMerkleTreeBundle {
+                rollover_fee: 0,
+                network_fee: 0,
+                merkle_tree: Box::new(MerkleTree::<Poseidon>::new_with_history(
+                    DEFAULT_BATCH_STATE_TREE_HEIGHT,
+                    0,
+                    0,
+                    DEFAULT_BATCH_ROOT_HISTORY_LEN,
+                )),
+                accounts: StateMerkleTreeAccounts {
+                    merkle_tree,
+                    nullifier_queue: queue,
+                    cpi_context: Pubkey::new_unique(),
+                    tree_type: TreeType::StateV2,
+                },
+                tree_type: TreeType::StateV2,
+                output_queue_elements,
+                input_leaf_indices: vec![],
+                output_queue_batch_size: Some(500),
+                num_inserted_batches: 0,
+            }],
+            address_merkle_trees: vec![],
+            payer: Keypair::new(),
+            governance_authority: Keypair::new(),
+            group_pda: Pubkey::new_unique(),
+            compressed_accounts,
+            nullified_compressed_accounts: vec![],
+            token_compressed_accounts: vec![],
+            token_nullified_compressed_accounts: vec![],
+            events: vec![],
+            onchain_pubkey_index: HashMap::new(),
+        };
+
+        let response = Indexer::get_validity_proof(&indexer, hashes, vec![], None)
+            .await
+            .unwrap();
+        let leaf_indices: Vec<u64> = response
+            .value
+            .accounts
+            .iter()
+            .map(|account| account.leaf_index)
+            .collect();
+
+        assert_eq!(leaf_indices, sparse_leaf_indices.map(u64::from));
+    }
+}
+
 impl TestIndexer {
     async fn process_inclusion_proofs(
         &self,
@@ -2347,7 +2448,16 @@ impl TestIndexer {
                     new_addresses.unwrap().len()
                 )));
             }
-            let client = Client::new();
+            let client = Client::builder()
+                .no_proxy()
+                .connect_timeout(Duration::from_secs(5))
+                .timeout(Duration::from_secs(120))
+                .build()
+                .map_err(|error| {
+                    IndexerError::CustomError(format!(
+                        "failed to build prover HTTP client: {error}"
+                    ))
+                })?;
             let (account_proof_inputs, address_proof_inputs, json_payload) =
                 match (compressed_accounts, new_addresses) {
                     (Some(accounts), None) => {
@@ -2472,6 +2582,7 @@ impl TestIndexer {
                 };
 
             let mut retries = 3;
+            let mut last_error = "Failed to get proof from server".to_string();
             while retries > 0 {
                 let response_result = client
                     .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
@@ -2479,33 +2590,40 @@ impl TestIndexer {
                     .body(json_payload.clone())
                     .send()
                     .await;
-                if let Ok(response_result) = response_result {
-                    if response_result.status().is_success() {
-                        let body = response_result.text().await.unwrap();
-                        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-                        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-                        let (proof_a, proof_b, proof_c) =
-                            compress_proof(&proof_a, &proof_b, &proof_c);
-                        return Ok(ValidityProofWithContext {
-                            accounts: account_proof_inputs,
-                            addresses: address_proof_inputs,
-                            proof: CompressedProof {
-                                a: proof_a,
-                                b: proof_b,
-                                c: proof_c,
-                            }
-                            .into(),
-                        });
+                match response_result {
+                    Ok(response_result) => {
+                        let status = response_result.status();
+                        let body = response_result.text().await.map_err(|error| {
+                            IndexerError::CustomError(format!(
+                                "failed to read prover response body: {error}"
+                            ))
+                        })?;
+
+                        if status.is_success() {
+                            return Ok(ValidityProofWithContext {
+                                accounts: account_proof_inputs,
+                                addresses: address_proof_inputs,
+                                proof: build_compressed_proof(&body)?.into(),
+                            });
+                        }
+
+                        let body_preview: String = body.chars().take(512).collect();
+                        last_error = format!(
+                            "prover returned HTTP {status} for validity proof request: {body_preview}"
+                        );
                     }
-                } else {
-                    println!("Error: {:#?}", response_result);
+                    Err(error) => {
+                        last_error =
+                            format!("failed to contact prover for validity proof: {error}");
+                    }
+                }
+
+                retries -= 1;
+                if retries > 0 {
                     tokio::time::sleep(Duration::from_secs(5)).await;
-                    retries -= 1;
                 }
             }
-            Err(IndexerError::CustomError(
-                "Failed to get proof from server".to_string(),
-            ))
+            Err(IndexerError::CustomError(last_error))
         }
     }
 }

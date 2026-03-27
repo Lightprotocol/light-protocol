@@ -6,7 +6,7 @@ use tokio::time::sleep;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::{
-    constants::PROVE_PATH,
+    constants::{PROVE_PATH, SERVER_ADDRESS},
     errors::ProverClientError,
     proof::{
         compress_proof, deserialize_gnark_proof_json, proof_from_json_struct, ProofCompressed,
@@ -17,14 +17,13 @@ use crate::{
         batch_append::{BatchAppendInputsJson, BatchAppendsCircuitInputs},
         batch_update::{update_inputs_string, BatchUpdateCircuitInputs},
     },
+    prover::build_http_client,
 };
 
 const MAX_RETRIES: u32 = 10;
 const BASE_RETRY_DELAY_SECS: u64 = 1;
 const DEFAULT_POLLING_INTERVAL_MS: u64 = 100;
 const DEFAULT_MAX_WAIT_TIME_SECS: u64 = 600;
-const DEFAULT_LOCAL_SERVER: &str = "http://localhost:3001";
-
 const INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS: u64 = 200;
 const INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS: u64 = 200;
 
@@ -70,8 +69,8 @@ pub struct ProofClient {
 impl ProofClient {
     pub fn local() -> Self {
         Self {
-            client: Client::new(),
-            server_address: DEFAULT_LOCAL_SERVER.to_string(),
+            client: build_http_client(),
+            server_address: SERVER_ADDRESS.to_string(),
             polling_interval: Duration::from_millis(DEFAULT_POLLING_INTERVAL_MS),
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
             api_key: None,
@@ -85,21 +84,21 @@ impl ProofClient {
         polling_interval: Duration,
         max_wait_time: Duration,
         api_key: Option<String>,
-    ) -> Self {
+    ) -> Result<Self, ProverClientError> {
         let initial_poll_delay = if api_key.is_some() {
             Duration::from_millis(INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS)
         } else {
             Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS)
         };
 
-        Self {
-            client: Client::new(),
+        Ok(Self {
+            client: build_http_client(),
             server_address,
             polling_interval,
             max_wait_time,
             api_key,
             initial_poll_delay,
-        }
+        })
     }
 
     #[allow(unused)]
@@ -111,7 +110,7 @@ impl ProofClient {
         initial_poll_delay: Duration,
     ) -> Self {
         Self {
-            client: Client::new(),
+            client: build_http_client(),
             server_address,
             polling_interval,
             max_wait_time,
@@ -655,8 +654,8 @@ impl ProofClient {
             ProverClientError::ProverServerError(format!("Failed to deserialize proof JSON: {}", e))
         })?;
 
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json)?;
+        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c)?;
 
         Ok(ProofResult {
             proof: ProofCompressed {

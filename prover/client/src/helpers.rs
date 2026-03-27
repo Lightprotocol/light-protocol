@@ -49,9 +49,9 @@ pub fn bigint_to_u8_32(n: &BigInt) -> Result<[u8; 32], Box<dyn std::error::Error
 pub fn compute_root_from_merkle_proof<const HEIGHT: usize>(
     leaf: [u8; 32],
     path_elements: &[[u8; 32]; HEIGHT],
-    path_index: u32,
+    path_index: usize,
 ) -> Result<([u8; 32], ChangelogEntry<HEIGHT>), ProverClientError> {
-    let mut changelog_entry = ChangelogEntry::default_with_index(path_index as usize);
+    let mut changelog_entry = ChangelogEntry::default_with_index(path_index);
 
     let mut current_hash = leaf;
     let mut current_index = path_index;

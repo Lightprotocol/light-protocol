@@ -190,7 +190,7 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
         let (updated_root, changelog_entry) = compute_root_from_merkle_proof(
             final_leaf,
             &merkle_proof_array,
-            start_index + i as u32,
+            start_index as usize + i,
         )?;
         new_root = updated_root;
         changelog.push(changelog_entry);

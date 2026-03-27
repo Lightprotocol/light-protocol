@@ -493,16 +493,77 @@ impl StreamingAddressQueue {
         hashchain_idx: usize,
     ) -> crate::Result<Option<AddressBatchSnapshot<HEIGHT>>> {
         let available = self.wait_for_batch(end);
-        if start >= available {
+        if available < end || start >= end {
             return Ok(None);
         }
-        let actual_end = end.min(available);
         let data = lock_recover(&self.data, "streaming_address_queue.data");
+
+        let min_len = [
+            data.addresses.len(),
+            data.low_element_values.len(),
+            data.low_element_next_values.len(),
+            data.low_element_indices.len(),
+            data.low_element_next_indices.len(),
+        ]
+        .into_iter()
+        .min()
+        .unwrap_or(0);
+        if min_len < actual_end {
+            return Err(anyhow!(
+                "incomplete batch data: min field length {} < required end {}",
+                min_len,
+                actual_end
+            ));
+        }
 
         let addresses = data.addresses[start..actual_end].to_vec();
         if addresses.is_empty() {
-            return Err(anyhow!("Empty batch at start={}", start));
+            return Ok(None);
         }
+        let expected_len = addresses.len();
+        let Some(low_element_values) = data
+            .low_element_values
+            .get(start..end)
+            .map(|slice| slice.to_vec())
+        else {
+            return Ok(None);
+        };
+        let Some(low_element_next_values) = data
+            .low_element_next_values
+            .get(start..end)
+            .map(|slice| slice.to_vec())
+        else {
+            return Ok(None);
+        };
+        let Some(low_element_indices) = data
+            .low_element_indices
+            .get(start..end)
+            .map(|slice| slice.to_vec())
+        else {
+            return Ok(None);
+        };
+        let Some(low_element_next_indices) = data
+            .low_element_next_indices
+            .get(start..end)
+            .map(|slice| slice.to_vec())
+        else {
+            return Ok(None);
+        };
+        if [
+            low_element_values.len(),
+            low_element_next_values.len(),
+            low_element_indices.len(),
+            low_element_next_indices.len(),
+        ]
+        .iter()
+        .any(|&len| len != expected_len)
+        {
+            return Ok(None);
+        }
+        let low_element_proofs = match data.reconstruct_proofs::<HEIGHT>(start..end) {
+            Ok(proofs) if proofs.len() == expected_len => proofs,
+            Ok(_) | Err(_) => return Ok(None),
+        };
 
         let leaves_hashchain = match data.leaves_hash_chains.get(hashchain_idx).copied() {
             Some(hashchain) => hashchain,
@@ -528,7 +589,11 @@ impl StreamingAddressQueue {
             low_element_next_values: data.low_element_next_values[start..actual_end].to_vec(),
             low_element_indices: data.low_element_indices[start..actual_end].to_vec(),
             low_element_next_indices: data.low_element_next_indices[start..actual_end].to_vec(),
-            low_element_proofs: data.reconstruct_proofs::<HEIGHT>(start..actual_end)?,
+            low_element_proofs: data
+                .reconstruct_proofs::<HEIGHT>(start..actual_end)
+                .map_err(|error| {
+                    anyhow!("incomplete batch data: failed to reconstruct proofs: {error}")
+                })?,
             addresses,
             leaves_hashchain,
         }))
@@ -564,6 +629,10 @@ impl StreamingAddressQueue {
 
     pub fn start_index(&self) -> u64 {
         lock_recover(&self.data, "streaming_address_queue.data").start_index
+    }
+
+    pub fn tree_next_insertion_index(&self) -> u64 {
+        lock_recover(&self.data, "streaming_address_queue.data").tree_next_insertion_index
     }
 
     pub fn subtrees(&self) -> Vec<[u8; 32]> {

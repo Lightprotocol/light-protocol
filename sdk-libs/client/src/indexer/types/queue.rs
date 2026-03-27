@@ -61,11 +61,17 @@ pub struct AddressQueueData {
     pub initial_root: [u8; 32],
     pub leaves_hash_chains: Vec<[u8; 32]>,
     pub subtrees: Vec<[u8; 32]>,
+    /// Pagination offset for the returned queue slice.
     pub start_index: u64,
+    /// Sparse tree insertion point / next index used to initialize staging trees.
+    pub tree_next_insertion_index: u64,
     pub root_seq: u64,
 }
 
 impl AddressQueueData {
+    pub const ADDRESS_TREE_HEIGHT: usize =
+        light_prover_client::constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize;
+
     /// Reconstruct a single merkle proof for a given address index.
     #[cfg(test)]
     fn reconstruct_proof<const HEIGHT: usize>(
@@ -81,6 +87,20 @@ impl AddressQueueData {
         &self,
         address_range: std::ops::Range<usize>,
     ) -> Result<Vec<[[u8; 32]; HEIGHT]>, IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
+        let available = self.proof_count();
+        if address_range.start > address_range.end {
+            return Err(IndexerError::InvalidParameters(format!(
+                "invalid address proof range {}..{}",
+                address_range.start, address_range.end
+            )));
+        }
+        if address_range.end > available {
+            return Err(IndexerError::InvalidParameters(format!(
+                "address proof range {}..{} exceeds available proofs {}",
+                address_range.start, address_range.end, available
+            )));
+        }
         let node_lookup = self.build_node_lookup();
         let mut proofs = Vec::with_capacity(address_range.len());
 
@@ -95,16 +115,20 @@ impl AddressQueueData {
     pub fn reconstruct_all_proofs<const HEIGHT: usize>(
         &self,
     ) -> Result<Vec<[[u8; 32]; HEIGHT]>, IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         self.reconstruct_proofs::<HEIGHT>(0..self.addresses.len())
     }
 
     fn build_node_lookup(&self) -> HashMap<u64, usize> {
-        self.nodes
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(idx, node)| (node, idx))
-            .collect()
+        let mut lookup = HashMap::with_capacity(self.nodes.len());
+        for (idx, node) in self.nodes.iter().copied().enumerate() {
+            lookup.entry(node).or_insert(idx);
+        }
+        lookup
+    }
+
+    fn proof_count(&self) -> usize {
+        self.addresses.len().min(self.low_element_indices.len())
     }
 
     fn reconstruct_proof_with_lookup<const HEIGHT: usize>(
@@ -112,6 +136,7 @@ impl AddressQueueData {
         address_idx: usize,
         node_lookup: &HashMap<u64, usize>,
     ) -> Result<[[u8; 32]; HEIGHT], IndexerError> {
+        self.validate_proof_height::<HEIGHT>()?;
         let leaf_index = *self.low_element_indices.get(address_idx).ok_or_else(|| {
             IndexerError::MissingResult {
                 context: "reconstruct_proof".to_string(),
@@ -163,6 +188,18 @@ impl AddressQueueData {
     #[inline]
     fn encode_node_index(level: usize, position: u64) -> u64 {
         ((level as u64) << 56) | position
+    }
+
+    fn validate_proof_height<const HEIGHT: usize>(&self) -> Result<(), IndexerError> {
+        if HEIGHT == Self::ADDRESS_TREE_HEIGHT {
+            return Ok(());
+        }
+
+        Err(IndexerError::InvalidParameters(format!(
+            "address queue proofs require HEIGHT={} but got HEIGHT={}",
+            Self::ADDRESS_TREE_HEIGHT,
+            HEIGHT
+        )))
     }
 }
 
@@ -217,6 +254,7 @@ mod tests {
             leaves_hash_chains: vec![[3u8; 32]; num_addresses.max(1)],
             subtrees: vec![[4u8; 32]; HEIGHT],
             start_index: 0,
+            tree_next_insertion_index: 0,
             root_seq: 0,
         }
     }

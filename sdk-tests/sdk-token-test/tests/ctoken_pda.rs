@@ -156,7 +156,9 @@ pub async fn create_mint<R: Rpc + Indexer>(
     let config = SystemAccountMetaConfig::new_with_cpi_context(ID, tree_info.cpi_context.unwrap());
     packed_accounts.add_system_accounts_v2(config).unwrap();
     // packed_accounts.insert_or_get(tree_info.get_output_pubkey()?);
-    rpc_result.pack_tree_infos(&mut packed_accounts);
+    rpc_result
+        .pack_tree_infos(&mut packed_accounts)
+        .map_err(|error| RpcError::CustomError(format!("Failed to pack tree infos: {error}")))?;
 
     // Create PDA parameters
     let pda_amount = 100u64;

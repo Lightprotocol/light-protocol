@@ -164,7 +164,7 @@ pub async fn create_append_batch_ix_data<R: Rpc>(
             bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
             bundle.merkle_tree.root()
         );
-        let proof_client = ProofClient::local();
+        let proof_client = ProofClient::local().unwrap();
         let inputs_json = BatchAppendInputsJson::from_inputs(&circuit_inputs).to_string();
 
         match proof_client.generate_proof(inputs_json).await {
@@ -293,7 +293,7 @@ pub async fn get_batched_nullify_ix_data<R: Rpc>(
         &[],
     )
     .unwrap();
-    let proof_client = ProofClient::local();
+    let proof_client = ProofClient::local().unwrap();
     let circuit_inputs_new_root =
         bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
     let inputs_json = update_inputs_string(&inputs);
@@ -670,7 +670,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
     // // local_leaves_hash_chain is only used for a test assertion.
     // let local_nullifier_hash_chain = create_hash_chain_from_slice(addresses.as_slice()).unwrap();
     // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
-    let start_index = address_queue.start_index as usize;
+    let start_index = address_queue.tree_next_insertion_index as usize;
     assert!(
         start_index >= 1,
         "start index should be greater than 2 else tree is not inited"
@@ -715,7 +715,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
         )
         .unwrap();
 
-    let proof_client = ProofClient::local();
+    let proof_client = ProofClient::local().unwrap();
     let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs_json = to_json(&inputs);
 
