@@ -36,6 +36,7 @@
   - State transitions (PDA balance changes, account lamport changes) MUST be asserted with exact expected values, not just direction (e.g., assert `balance == 5000`, not `balance > 0`).
   - Account state MUST be asserted by deserializing the full account and comparing with a single `assert_eq` against a fully constructed expected struct -- not by checking individual fields or magic byte offsets.
   - Every new instruction MUST have a reusable assert function in `light-test-utils` (`program-tests/utils/`) that validates the instruction's effects. Tests call these assert functions rather than inlining assertions. This keeps test logic DRY and ensures consistent validation across test files.
+  - Failing integration tests MUST use `assert_rpc_error` to validate expected error codes. Do not catch errors manually or match on error strings.
 
 ### IV. Spec-First
 
