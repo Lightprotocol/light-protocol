@@ -1550,6 +1550,96 @@ All endpoints return AccountV2.*/
             Default::default()
         }
     }
+    /**Parameters for requesting input queue leaf indices.
+Returns (hash, queue_index, leaf_index) for nullifier queue items.*/
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "Parameters for requesting input queue leaf indices.\nReturns (hash, queue_index, leaf_index) for nullifier queue items.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "limit",
+    ///    "tree"
+    ///  ],
+    ///  "properties": {
+    ///    "limit": {
+    ///      "type": "integer",
+    ///      "format": "uint16",
+    ///      "minimum": 0.0
+    ///    },
+    ///    "startIndex": {
+    ///      "type": [
+    ///        "integer",
+    ///        "null"
+    ///      ],
+    ///      "format": "uint64",
+    ///      "minimum": 0.0
+    ///    },
+    ///    "tree": {
+    ///      "$ref": "#/components/schemas/Hash"
+    ///    }
+    ///  },
+    ///  "additionalProperties": false
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+    #[serde(deny_unknown_fields)]
+    pub struct GetQueueLeafIndicesRequest {
+        pub limit: u16,
+        #[serde(
+            rename = "startIndex",
+            default,
+            skip_serializing_if = "::std::option::Option::is_none"
+        )]
+        pub start_index: ::std::option::Option<u64>,
+        pub tree: Hash,
+    }
+    impl GetQueueLeafIndicesRequest {
+        pub fn builder() -> builder::GetQueueLeafIndicesRequest {
+            Default::default()
+        }
+    }
+    ///Response containing queue leaf indices
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "Response containing queue leaf indices",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "context",
+    ///    "value"
+    ///  ],
+    ///  "properties": {
+    ///    "context": {
+    ///      "$ref": "#/components/schemas/Context"
+    ///    },
+    ///    "value": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/QueueLeafIndex"
+    ///      }
+    ///    }
+    ///  },
+    ///  "additionalProperties": false
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+    #[serde(deny_unknown_fields)]
+    pub struct GetQueueLeafIndicesResponse {
+        pub context: Context,
+        pub value: ::std::vec::Vec<QueueLeafIndex>,
+    }
+    impl GetQueueLeafIndicesResponse {
+        pub fn builder() -> builder::GetQueueLeafIndicesResponse {
+            Default::default()
+        }
+    }
     ///A 32-byte hash represented as a base58 string.
     ///
     /// <details><summary>JSON schema</summary>
@@ -24678,6 +24768,662 @@ All endpoints return AccountV2.*/
             Default::default()
         }
     }
+    ///`PostGetQueueLeafIndicesBody`
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "type": "object",
+    ///  "required": [
+    ///    "id",
+    ///    "jsonrpc",
+    ///    "method",
+    ///    "params"
+    ///  ],
+    ///  "properties": {
+    ///    "id": {
+    ///      "description": "An ID to identify the request.",
+    ///      "type": "string",
+    ///      "enum": [
+    ///        "test-account"
+    ///      ]
+    ///    },
+    ///    "jsonrpc": {
+    ///      "description": "The version of the JSON-RPC protocol.",
+    ///      "type": "string",
+    ///      "enum": [
+    ///        "2.0"
+    ///      ]
+    ///    },
+    ///    "method": {
+    ///      "description": "The name of the method to invoke.",
+    ///      "type": "string",
+    ///      "enum": [
+    ///        "getQueueLeafIndices"
+    ///      ]
+    ///    },
+    ///    "params": {
+    ///      "description": "Parameters for requesting input queue leaf indices.\nReturns (hash, queue_index, leaf_index) for nullifier queue items.",
+    ///      "type": "object",
+    ///      "required": [
+    ///        "limit",
+    ///        "tree"
+    ///      ],
+    ///      "properties": {
+    ///        "limit": {
+    ///          "type": "integer",
+    ///          "format": "uint16",
+    ///          "minimum": 0.0
+    ///        },
+    ///        "startIndex": {
+    ///          "type": [
+    ///            "integer",
+    ///            "null"
+    ///          ],
+    ///          "format": "uint64",
+    ///          "minimum": 0.0
+    ///        },
+    ///        "tree": {
+    ///          "$ref": "#/components/schemas/Hash"
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+    pub struct PostGetQueueLeafIndicesBody {
+        ///An ID to identify the request.
+        pub id: PostGetQueueLeafIndicesBodyId,
+        ///The version of the JSON-RPC protocol.
+        pub jsonrpc: PostGetQueueLeafIndicesBodyJsonrpc,
+        ///The name of the method to invoke.
+        pub method: PostGetQueueLeafIndicesBodyMethod,
+        pub params: PostGetQueueLeafIndicesBodyParams,
+    }
+    impl PostGetQueueLeafIndicesBody {
+        pub fn builder() -> builder::PostGetQueueLeafIndicesBody {
+            Default::default()
+        }
+    }
+    ///An ID to identify the request.
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "An ID to identify the request.",
+    ///  "type": "string",
+    ///  "enum": [
+    ///    "test-account"
+    ///  ]
+    ///}
+    /// ```
+    /// </details>
+    #[derive(
+        ::serde::Deserialize,
+        ::serde::Serialize,
+        Clone,
+        Copy,
+        Debug,
+        Eq,
+        Hash,
+        Ord,
+        PartialEq,
+        PartialOrd
+    )]
+    pub enum PostGetQueueLeafIndicesBodyId {
+        #[serde(rename = "test-account")]
+        TestAccount,
+    }
+    impl ::std::fmt::Display for PostGetQueueLeafIndicesBodyId {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            match *self {
+                Self::TestAccount => f.write_str("test-account"),
+            }
+        }
+    }
+    impl ::std::str::FromStr for PostGetQueueLeafIndicesBodyId {
+        type Err = self::error::ConversionError;
+        fn from_str(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            match value {
+                "test-account" => Ok(Self::TestAccount),
+                _ => Err("invalid value".into()),
+            }
+        }
+    }
+    impl ::std::convert::TryFrom<&str> for PostGetQueueLeafIndicesBodyId {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<&::std::string::String>
+    for PostGetQueueLeafIndicesBodyId {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<::std::string::String>
+    for PostGetQueueLeafIndicesBodyId {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: ::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    ///The version of the JSON-RPC protocol.
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The version of the JSON-RPC protocol.",
+    ///  "type": "string",
+    ///  "enum": [
+    ///    "2.0"
+    ///  ]
+    ///}
+    /// ```
+    /// </details>
+    #[derive(
+        ::serde::Deserialize,
+        ::serde::Serialize,
+        Clone,
+        Copy,
+        Debug,
+        Eq,
+        Hash,
+        Ord,
+        PartialEq,
+        PartialOrd
+    )]
+    pub enum PostGetQueueLeafIndicesBodyJsonrpc {
+        #[serde(rename = "2.0")]
+        X20,
+    }
+    impl ::std::fmt::Display for PostGetQueueLeafIndicesBodyJsonrpc {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            match *self {
+                Self::X20 => f.write_str("2.0"),
+            }
+        }
+    }
+    impl ::std::str::FromStr for PostGetQueueLeafIndicesBodyJsonrpc {
+        type Err = self::error::ConversionError;
+        fn from_str(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            match value {
+                "2.0" => Ok(Self::X20),
+                _ => Err("invalid value".into()),
+            }
+        }
+    }
+    impl ::std::convert::TryFrom<&str> for PostGetQueueLeafIndicesBodyJsonrpc {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<&::std::string::String>
+    for PostGetQueueLeafIndicesBodyJsonrpc {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<::std::string::String>
+    for PostGetQueueLeafIndicesBodyJsonrpc {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: ::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    ///The name of the method to invoke.
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The name of the method to invoke.",
+    ///  "type": "string",
+    ///  "enum": [
+    ///    "getQueueLeafIndices"
+    ///  ]
+    ///}
+    /// ```
+    /// </details>
+    #[derive(
+        ::serde::Deserialize,
+        ::serde::Serialize,
+        Clone,
+        Copy,
+        Debug,
+        Eq,
+        Hash,
+        Ord,
+        PartialEq,
+        PartialOrd
+    )]
+    pub enum PostGetQueueLeafIndicesBodyMethod {
+        #[serde(rename = "getQueueLeafIndices")]
+        GetQueueLeafIndices,
+    }
+    impl ::std::fmt::Display for PostGetQueueLeafIndicesBodyMethod {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            match *self {
+                Self::GetQueueLeafIndices => f.write_str("getQueueLeafIndices"),
+            }
+        }
+    }
+    impl ::std::str::FromStr for PostGetQueueLeafIndicesBodyMethod {
+        type Err = self::error::ConversionError;
+        fn from_str(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            match value {
+                "getQueueLeafIndices" => Ok(Self::GetQueueLeafIndices),
+                _ => Err("invalid value".into()),
+            }
+        }
+    }
+    impl ::std::convert::TryFrom<&str> for PostGetQueueLeafIndicesBodyMethod {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<&::std::string::String>
+    for PostGetQueueLeafIndicesBodyMethod {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<::std::string::String>
+    for PostGetQueueLeafIndicesBodyMethod {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: ::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    /**Parameters for requesting input queue leaf indices.
+Returns (hash, queue_index, leaf_index) for nullifier queue items.*/
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "Parameters for requesting input queue leaf indices.\nReturns (hash, queue_index, leaf_index) for nullifier queue items.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "limit",
+    ///    "tree"
+    ///  ],
+    ///  "properties": {
+    ///    "limit": {
+    ///      "type": "integer",
+    ///      "format": "uint16",
+    ///      "minimum": 0.0
+    ///    },
+    ///    "startIndex": {
+    ///      "type": [
+    ///        "integer",
+    ///        "null"
+    ///      ],
+    ///      "format": "uint64",
+    ///      "minimum": 0.0
+    ///    },
+    ///    "tree": {
+    ///      "$ref": "#/components/schemas/Hash"
+    ///    }
+    ///  },
+    ///  "additionalProperties": false
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+    #[serde(deny_unknown_fields)]
+    pub struct PostGetQueueLeafIndicesBodyParams {
+        pub limit: u16,
+        #[serde(
+            rename = "startIndex",
+            default,
+            skip_serializing_if = "::std::option::Option::is_none"
+        )]
+        pub start_index: ::std::option::Option<u64>,
+        pub tree: Hash,
+    }
+    impl PostGetQueueLeafIndicesBodyParams {
+        pub fn builder() -> builder::PostGetQueueLeafIndicesBodyParams {
+            Default::default()
+        }
+    }
+    ///`PostGetQueueLeafIndicesResponse`
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "type": "object",
+    ///  "required": [
+    ///    "id",
+    ///    "jsonrpc"
+    ///  ],
+    ///  "properties": {
+    ///    "error": {
+    ///      "type": "object",
+    ///      "properties": {
+    ///        "code": {
+    ///          "type": "integer"
+    ///        },
+    ///        "message": {
+    ///          "type": "string"
+    ///        }
+    ///      }
+    ///    },
+    ///    "id": {
+    ///      "description": "An ID to identify the response.",
+    ///      "type": "string",
+    ///      "enum": [
+    ///        "test-account"
+    ///      ]
+    ///    },
+    ///    "jsonrpc": {
+    ///      "description": "The version of the JSON-RPC protocol.",
+    ///      "type": "string",
+    ///      "enum": [
+    ///        "2.0"
+    ///      ]
+    ///    },
+    ///    "result": {
+    ///      "description": "Response containing queue leaf indices",
+    ///      "type": "object",
+    ///      "required": [
+    ///        "context",
+    ///        "value"
+    ///      ],
+    ///      "properties": {
+    ///        "context": {
+    ///          "$ref": "#/components/schemas/Context"
+    ///        },
+    ///        "value": {
+    ///          "type": "array",
+    ///          "items": {
+    ///            "$ref": "#/components/schemas/QueueLeafIndex"
+    ///          }
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+    pub struct PostGetQueueLeafIndicesResponse {
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        pub error: ::std::option::Option<PostGetQueueLeafIndicesResponseError>,
+        ///An ID to identify the response.
+        pub id: PostGetQueueLeafIndicesResponseId,
+        ///The version of the JSON-RPC protocol.
+        pub jsonrpc: PostGetQueueLeafIndicesResponseJsonrpc,
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        pub result: ::std::option::Option<PostGetQueueLeafIndicesResponseResult>,
+    }
+    impl PostGetQueueLeafIndicesResponse {
+        pub fn builder() -> builder::PostGetQueueLeafIndicesResponse {
+            Default::default()
+        }
+    }
+    ///`PostGetQueueLeafIndicesResponseError`
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "type": "object",
+    ///  "properties": {
+    ///    "code": {
+    ///      "type": "integer"
+    ///    },
+    ///    "message": {
+    ///      "type": "string"
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+    pub struct PostGetQueueLeafIndicesResponseError {
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        pub code: ::std::option::Option<i64>,
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        pub message: ::std::option::Option<::std::string::String>,
+    }
+    impl ::std::default::Default for PostGetQueueLeafIndicesResponseError {
+        fn default() -> Self {
+            Self {
+                code: Default::default(),
+                message: Default::default(),
+            }
+        }
+    }
+    impl PostGetQueueLeafIndicesResponseError {
+        pub fn builder() -> builder::PostGetQueueLeafIndicesResponseError {
+            Default::default()
+        }
+    }
+    ///An ID to identify the response.
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "An ID to identify the response.",
+    ///  "type": "string",
+    ///  "enum": [
+    ///    "test-account"
+    ///  ]
+    ///}
+    /// ```
+    /// </details>
+    #[derive(
+        ::serde::Deserialize,
+        ::serde::Serialize,
+        Clone,
+        Copy,
+        Debug,
+        Eq,
+        Hash,
+        Ord,
+        PartialEq,
+        PartialOrd
+    )]
+    pub enum PostGetQueueLeafIndicesResponseId {
+        #[serde(rename = "test-account")]
+        TestAccount,
+    }
+    impl ::std::fmt::Display for PostGetQueueLeafIndicesResponseId {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            match *self {
+                Self::TestAccount => f.write_str("test-account"),
+            }
+        }
+    }
+    impl ::std::str::FromStr for PostGetQueueLeafIndicesResponseId {
+        type Err = self::error::ConversionError;
+        fn from_str(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            match value {
+                "test-account" => Ok(Self::TestAccount),
+                _ => Err("invalid value".into()),
+            }
+        }
+    }
+    impl ::std::convert::TryFrom<&str> for PostGetQueueLeafIndicesResponseId {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<&::std::string::String>
+    for PostGetQueueLeafIndicesResponseId {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<::std::string::String>
+    for PostGetQueueLeafIndicesResponseId {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: ::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    ///The version of the JSON-RPC protocol.
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The version of the JSON-RPC protocol.",
+    ///  "type": "string",
+    ///  "enum": [
+    ///    "2.0"
+    ///  ]
+    ///}
+    /// ```
+    /// </details>
+    #[derive(
+        ::serde::Deserialize,
+        ::serde::Serialize,
+        Clone,
+        Copy,
+        Debug,
+        Eq,
+        Hash,
+        Ord,
+        PartialEq,
+        PartialOrd
+    )]
+    pub enum PostGetQueueLeafIndicesResponseJsonrpc {
+        #[serde(rename = "2.0")]
+        X20,
+    }
+    impl ::std::fmt::Display for PostGetQueueLeafIndicesResponseJsonrpc {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            match *self {
+                Self::X20 => f.write_str("2.0"),
+            }
+        }
+    }
+    impl ::std::str::FromStr for PostGetQueueLeafIndicesResponseJsonrpc {
+        type Err = self::error::ConversionError;
+        fn from_str(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            match value {
+                "2.0" => Ok(Self::X20),
+                _ => Err("invalid value".into()),
+            }
+        }
+    }
+    impl ::std::convert::TryFrom<&str> for PostGetQueueLeafIndicesResponseJsonrpc {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<&::std::string::String>
+    for PostGetQueueLeafIndicesResponseJsonrpc {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<::std::string::String>
+    for PostGetQueueLeafIndicesResponseJsonrpc {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: ::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    ///Response containing queue leaf indices
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "Response containing queue leaf indices",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "context",
+    ///    "value"
+    ///  ],
+    ///  "properties": {
+    ///    "context": {
+    ///      "$ref": "#/components/schemas/Context"
+    ///    },
+    ///    "value": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/QueueLeafIndex"
+    ///      }
+    ///    }
+    ///  },
+    ///  "additionalProperties": false
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+    #[serde(deny_unknown_fields)]
+    pub struct PostGetQueueLeafIndicesResponseResult {
+        pub context: Context,
+        pub value: ::std::vec::Vec<QueueLeafIndex>,
+    }
+    impl PostGetQueueLeafIndicesResponseResult {
+        pub fn builder() -> builder::PostGetQueueLeafIndicesResponseResult {
+            Default::default()
+        }
+    }
     ///`PostGetTransactionWithCompressionInfoBody`
     ///
     /// <details><summary>JSON schema</summary>
@@ -27415,6 +28161,52 @@ All endpoints return AccountV2.*/
     }
     impl QueueInfo {
         pub fn builder() -> builder::QueueInfo {
+            Default::default()
+        }
+    }
+    ///A lightweight queue leaf index entry
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A lightweight queue leaf index entry",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "hash",
+    ///    "leafIndex",
+    ///    "queueIndex"
+    ///  ],
+    ///  "properties": {
+    ///    "hash": {
+    ///      "$ref": "#/components/schemas/Hash"
+    ///    },
+    ///    "leafIndex": {
+    ///      "type": "integer",
+    ///      "format": "uint64",
+    ///      "minimum": 0.0
+    ///    },
+    ///    "queueIndex": {
+    ///      "type": "integer",
+    ///      "format": "uint64",
+    ///      "minimum": 0.0
+    ///    }
+    ///  },
+    ///  "additionalProperties": false
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+    #[serde(deny_unknown_fields)]
+    pub struct QueueLeafIndex {
+        pub hash: Hash,
+        #[serde(rename = "leafIndex")]
+        pub leaf_index: u64,
+        #[serde(rename = "queueIndex")]
+        pub queue_index: u64,
+    }
+    impl QueueLeafIndex {
+        pub fn builder() -> builder::QueueLeafIndex {
             Default::default()
         }
     }
@@ -30886,6 +31678,148 @@ All endpoints return AccountV2.*/
                     root: Ok(value.root),
                     root_seq: Ok(value.root_seq),
                     tree_context: Ok(value.tree_context),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct GetQueueLeafIndicesRequest {
+            limit: ::std::result::Result<u16, ::std::string::String>,
+            start_index: ::std::result::Result<
+                ::std::option::Option<u64>,
+                ::std::string::String,
+            >,
+            tree: ::std::result::Result<super::Hash, ::std::string::String>,
+        }
+        impl ::std::default::Default for GetQueueLeafIndicesRequest {
+            fn default() -> Self {
+                Self {
+                    limit: Err("no value supplied for limit".to_string()),
+                    start_index: Ok(Default::default()),
+                    tree: Err("no value supplied for tree".to_string()),
+                }
+            }
+        }
+        impl GetQueueLeafIndicesRequest {
+            pub fn limit<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<u16>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.limit = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for limit: {e}")
+                    });
+                self
+            }
+            pub fn start_index<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<::std::option::Option<u64>>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.start_index = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for start_index: {e}")
+                    });
+                self
+            }
+            pub fn tree<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::Hash>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.tree = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for tree: {e}")
+                    });
+                self
+            }
+        }
+        impl ::std::convert::TryFrom<GetQueueLeafIndicesRequest>
+        for super::GetQueueLeafIndicesRequest {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: GetQueueLeafIndicesRequest,
+            ) -> ::std::result::Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    limit: value.limit?,
+                    start_index: value.start_index?,
+                    tree: value.tree?,
+                })
+            }
+        }
+        impl ::std::convert::From<super::GetQueueLeafIndicesRequest>
+        for GetQueueLeafIndicesRequest {
+            fn from(value: super::GetQueueLeafIndicesRequest) -> Self {
+                Self {
+                    limit: Ok(value.limit),
+                    start_index: Ok(value.start_index),
+                    tree: Ok(value.tree),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct GetQueueLeafIndicesResponse {
+            context: ::std::result::Result<super::Context, ::std::string::String>,
+            value: ::std::result::Result<
+                ::std::vec::Vec<super::QueueLeafIndex>,
+                ::std::string::String,
+            >,
+        }
+        impl ::std::default::Default for GetQueueLeafIndicesResponse {
+            fn default() -> Self {
+                Self {
+                    context: Err("no value supplied for context".to_string()),
+                    value: Err("no value supplied for value".to_string()),
+                }
+            }
+        }
+        impl GetQueueLeafIndicesResponse {
+            pub fn context<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::Context>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.context = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for context: {e}")
+                    });
+                self
+            }
+            pub fn value<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<::std::vec::Vec<super::QueueLeafIndex>>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.value = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for value: {e}")
+                    });
+                self
+            }
+        }
+        impl ::std::convert::TryFrom<GetQueueLeafIndicesResponse>
+        for super::GetQueueLeafIndicesResponse {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: GetQueueLeafIndicesResponse,
+            ) -> ::std::result::Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    context: value.context?,
+                    value: value.value?,
+                })
+            }
+        }
+        impl ::std::convert::From<super::GetQueueLeafIndicesResponse>
+        for GetQueueLeafIndicesResponse {
+            fn from(value: super::GetQueueLeafIndicesResponse) -> Self {
+                Self {
+                    context: Ok(value.context),
+                    value: Ok(value.value),
                 }
             }
         }
@@ -46275,6 +47209,424 @@ All endpoints return AccountV2.*/
             }
         }
         #[derive(Clone, Debug)]
+        pub struct PostGetQueueLeafIndicesBody {
+            id: ::std::result::Result<
+                super::PostGetQueueLeafIndicesBodyId,
+                ::std::string::String,
+            >,
+            jsonrpc: ::std::result::Result<
+                super::PostGetQueueLeafIndicesBodyJsonrpc,
+                ::std::string::String,
+            >,
+            method: ::std::result::Result<
+                super::PostGetQueueLeafIndicesBodyMethod,
+                ::std::string::String,
+            >,
+            params: ::std::result::Result<
+                super::PostGetQueueLeafIndicesBodyParams,
+                ::std::string::String,
+            >,
+        }
+        impl ::std::default::Default for PostGetQueueLeafIndicesBody {
+            fn default() -> Self {
+                Self {
+                    id: Err("no value supplied for id".to_string()),
+                    jsonrpc: Err("no value supplied for jsonrpc".to_string()),
+                    method: Err("no value supplied for method".to_string()),
+                    params: Err("no value supplied for params".to_string()),
+                }
+            }
+        }
+        impl PostGetQueueLeafIndicesBody {
+            pub fn id<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::PostGetQueueLeafIndicesBodyId>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.id = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for id: {e}"));
+                self
+            }
+            pub fn jsonrpc<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::PostGetQueueLeafIndicesBodyJsonrpc>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.jsonrpc = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for jsonrpc: {e}")
+                    });
+                self
+            }
+            pub fn method<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::PostGetQueueLeafIndicesBodyMethod>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.method = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for method: {e}")
+                    });
+                self
+            }
+            pub fn params<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::PostGetQueueLeafIndicesBodyParams>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.params = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for params: {e}")
+                    });
+                self
+            }
+        }
+        impl ::std::convert::TryFrom<PostGetQueueLeafIndicesBody>
+        for super::PostGetQueueLeafIndicesBody {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: PostGetQueueLeafIndicesBody,
+            ) -> ::std::result::Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    id: value.id?,
+                    jsonrpc: value.jsonrpc?,
+                    method: value.method?,
+                    params: value.params?,
+                })
+            }
+        }
+        impl ::std::convert::From<super::PostGetQueueLeafIndicesBody>
+        for PostGetQueueLeafIndicesBody {
+            fn from(value: super::PostGetQueueLeafIndicesBody) -> Self {
+                Self {
+                    id: Ok(value.id),
+                    jsonrpc: Ok(value.jsonrpc),
+                    method: Ok(value.method),
+                    params: Ok(value.params),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct PostGetQueueLeafIndicesBodyParams {
+            limit: ::std::result::Result<u16, ::std::string::String>,
+            start_index: ::std::result::Result<
+                ::std::option::Option<u64>,
+                ::std::string::String,
+            >,
+            tree: ::std::result::Result<super::Hash, ::std::string::String>,
+        }
+        impl ::std::default::Default for PostGetQueueLeafIndicesBodyParams {
+            fn default() -> Self {
+                Self {
+                    limit: Err("no value supplied for limit".to_string()),
+                    start_index: Ok(Default::default()),
+                    tree: Err("no value supplied for tree".to_string()),
+                }
+            }
+        }
+        impl PostGetQueueLeafIndicesBodyParams {
+            pub fn limit<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<u16>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.limit = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for limit: {e}")
+                    });
+                self
+            }
+            pub fn start_index<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<::std::option::Option<u64>>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.start_index = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for start_index: {e}")
+                    });
+                self
+            }
+            pub fn tree<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::Hash>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.tree = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for tree: {e}")
+                    });
+                self
+            }
+        }
+        impl ::std::convert::TryFrom<PostGetQueueLeafIndicesBodyParams>
+        for super::PostGetQueueLeafIndicesBodyParams {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: PostGetQueueLeafIndicesBodyParams,
+            ) -> ::std::result::Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    limit: value.limit?,
+                    start_index: value.start_index?,
+                    tree: value.tree?,
+                })
+            }
+        }
+        impl ::std::convert::From<super::PostGetQueueLeafIndicesBodyParams>
+        for PostGetQueueLeafIndicesBodyParams {
+            fn from(value: super::PostGetQueueLeafIndicesBodyParams) -> Self {
+                Self {
+                    limit: Ok(value.limit),
+                    start_index: Ok(value.start_index),
+                    tree: Ok(value.tree),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct PostGetQueueLeafIndicesResponse {
+            error: ::std::result::Result<
+                ::std::option::Option<super::PostGetQueueLeafIndicesResponseError>,
+                ::std::string::String,
+            >,
+            id: ::std::result::Result<
+                super::PostGetQueueLeafIndicesResponseId,
+                ::std::string::String,
+            >,
+            jsonrpc: ::std::result::Result<
+                super::PostGetQueueLeafIndicesResponseJsonrpc,
+                ::std::string::String,
+            >,
+            result: ::std::result::Result<
+                ::std::option::Option<super::PostGetQueueLeafIndicesResponseResult>,
+                ::std::string::String,
+            >,
+        }
+        impl ::std::default::Default for PostGetQueueLeafIndicesResponse {
+            fn default() -> Self {
+                Self {
+                    error: Ok(Default::default()),
+                    id: Err("no value supplied for id".to_string()),
+                    jsonrpc: Err("no value supplied for jsonrpc".to_string()),
+                    result: Ok(Default::default()),
+                }
+            }
+        }
+        impl PostGetQueueLeafIndicesResponse {
+            pub fn error<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<
+                    ::std::option::Option<super::PostGetQueueLeafIndicesResponseError>,
+                >,
+                T::Error: ::std::fmt::Display,
+            {
+                self.error = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for error: {e}")
+                    });
+                self
+            }
+            pub fn id<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::PostGetQueueLeafIndicesResponseId>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.id = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for id: {e}"));
+                self
+            }
+            pub fn jsonrpc<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<
+                    super::PostGetQueueLeafIndicesResponseJsonrpc,
+                >,
+                T::Error: ::std::fmt::Display,
+            {
+                self.jsonrpc = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for jsonrpc: {e}")
+                    });
+                self
+            }
+            pub fn result<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<
+                    ::std::option::Option<super::PostGetQueueLeafIndicesResponseResult>,
+                >,
+                T::Error: ::std::fmt::Display,
+            {
+                self.result = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for result: {e}")
+                    });
+                self
+            }
+        }
+        impl ::std::convert::TryFrom<PostGetQueueLeafIndicesResponse>
+        for super::PostGetQueueLeafIndicesResponse {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: PostGetQueueLeafIndicesResponse,
+            ) -> ::std::result::Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    error: value.error?,
+                    id: value.id?,
+                    jsonrpc: value.jsonrpc?,
+                    result: value.result?,
+                })
+            }
+        }
+        impl ::std::convert::From<super::PostGetQueueLeafIndicesResponse>
+        for PostGetQueueLeafIndicesResponse {
+            fn from(value: super::PostGetQueueLeafIndicesResponse) -> Self {
+                Self {
+                    error: Ok(value.error),
+                    id: Ok(value.id),
+                    jsonrpc: Ok(value.jsonrpc),
+                    result: Ok(value.result),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct PostGetQueueLeafIndicesResponseError {
+            code: ::std::result::Result<
+                ::std::option::Option<i64>,
+                ::std::string::String,
+            >,
+            message: ::std::result::Result<
+                ::std::option::Option<::std::string::String>,
+                ::std::string::String,
+            >,
+        }
+        impl ::std::default::Default for PostGetQueueLeafIndicesResponseError {
+            fn default() -> Self {
+                Self {
+                    code: Ok(Default::default()),
+                    message: Ok(Default::default()),
+                }
+            }
+        }
+        impl PostGetQueueLeafIndicesResponseError {
+            pub fn code<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<::std::option::Option<i64>>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.code = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for code: {e}")
+                    });
+                self
+            }
+            pub fn message<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.message = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for message: {e}")
+                    });
+                self
+            }
+        }
+        impl ::std::convert::TryFrom<PostGetQueueLeafIndicesResponseError>
+        for super::PostGetQueueLeafIndicesResponseError {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: PostGetQueueLeafIndicesResponseError,
+            ) -> ::std::result::Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    code: value.code?,
+                    message: value.message?,
+                })
+            }
+        }
+        impl ::std::convert::From<super::PostGetQueueLeafIndicesResponseError>
+        for PostGetQueueLeafIndicesResponseError {
+            fn from(value: super::PostGetQueueLeafIndicesResponseError) -> Self {
+                Self {
+                    code: Ok(value.code),
+                    message: Ok(value.message),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct PostGetQueueLeafIndicesResponseResult {
+            context: ::std::result::Result<super::Context, ::std::string::String>,
+            value: ::std::result::Result<
+                ::std::vec::Vec<super::QueueLeafIndex>,
+                ::std::string::String,
+            >,
+        }
+        impl ::std::default::Default for PostGetQueueLeafIndicesResponseResult {
+            fn default() -> Self {
+                Self {
+                    context: Err("no value supplied for context".to_string()),
+                    value: Err("no value supplied for value".to_string()),
+                }
+            }
+        }
+        impl PostGetQueueLeafIndicesResponseResult {
+            pub fn context<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::Context>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.context = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for context: {e}")
+                    });
+                self
+            }
+            pub fn value<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<::std::vec::Vec<super::QueueLeafIndex>>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.value = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for value: {e}")
+                    });
+                self
+            }
+        }
+        impl ::std::convert::TryFrom<PostGetQueueLeafIndicesResponseResult>
+        for super::PostGetQueueLeafIndicesResponseResult {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: PostGetQueueLeafIndicesResponseResult,
+            ) -> ::std::result::Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    context: value.context?,
+                    value: value.value?,
+                })
+            }
+        }
+        impl ::std::convert::From<super::PostGetQueueLeafIndicesResponseResult>
+        for PostGetQueueLeafIndicesResponseResult {
+            fn from(value: super::PostGetQueueLeafIndicesResponseResult) -> Self {
+                Self {
+                    context: Ok(value.context),
+                    value: Ok(value.value),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
         pub struct PostGetTransactionWithCompressionInfoBody {
             id: ::std::result::Result<
                 super::PostGetTransactionWithCompressionInfoBodyId,
@@ -48206,6 +49558,80 @@ All endpoints return AccountV2.*/
             }
         }
         #[derive(Clone, Debug)]
+        pub struct QueueLeafIndex {
+            hash: ::std::result::Result<super::Hash, ::std::string::String>,
+            leaf_index: ::std::result::Result<u64, ::std::string::String>,
+            queue_index: ::std::result::Result<u64, ::std::string::String>,
+        }
+        impl ::std::default::Default for QueueLeafIndex {
+            fn default() -> Self {
+                Self {
+                    hash: Err("no value supplied for hash".to_string()),
+                    leaf_index: Err("no value supplied for leaf_index".to_string()),
+                    queue_index: Err("no value supplied for queue_index".to_string()),
+                }
+            }
+        }
+        impl QueueLeafIndex {
+            pub fn hash<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<super::Hash>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.hash = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for hash: {e}")
+                    });
+                self
+            }
+            pub fn leaf_index<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<u64>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.leaf_index = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for leaf_index: {e}")
+                    });
+                self
+            }
+            pub fn queue_index<T>(mut self, value: T) -> Self
+            where
+                T: ::std::convert::TryInto<u64>,
+                T::Error: ::std::fmt::Display,
+            {
+                self.queue_index = value
+                    .try_into()
+                    .map_err(|e| {
+                        format!("error converting supplied value for queue_index: {e}")
+                    });
+                self
+            }
+        }
+        impl ::std::convert::TryFrom<QueueLeafIndex> for super::QueueLeafIndex {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: QueueLeafIndex,
+            ) -> ::std::result::Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    hash: value.hash?,
+                    leaf_index: value.leaf_index?,
+                    queue_index: value.queue_index?,
+                })
+            }
+        }
+        impl ::std::convert::From<super::QueueLeafIndex> for QueueLeafIndex {
+            fn from(value: super::QueueLeafIndex) -> Self {
+                Self {
+                    hash: Ok(value.hash),
+                    leaf_index: Ok(value.leaf_index),
+                    queue_index: Ok(value.queue_index),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
         pub struct QueueRequest {
             limit: ::std::result::Result<u16, ::std::string::String>,
             start_index: ::std::result::Result<
@@ -50079,6 +51505,17 @@ let response = client.post_get_queue_info()
 ```*/
     pub fn post_get_queue_info(&self) -> builder::PostGetQueueInfo<'_> {
         builder::PostGetQueueInfo::new(self)
+    }
+    /**Sends a `POST` request to `/getQueueLeafIndices`
+
+```ignore
+let response = client.post_get_queue_leaf_indices()
+    .body(body)
+    .send()
+    .await;
+```*/
+    pub fn post_get_queue_leaf_indices(&self) -> builder::PostGetQueueLeafIndices<'_> {
+        builder::PostGetQueueLeafIndices::new(self)
     }
     /**Sends a `POST` request to `/getTransactionWithCompressionInfo`
 
@@ -53643,6 +55080,109 @@ pub mod builder {
                 .build()?;
             let info = OperationInfo {
                 operation_id: "post_get_queue_info",
+            };
+            client.pre(&mut request, &info).await?;
+            let result = client.exec(request, &info).await;
+            client.post(&result, &info).await?;
+            let response = result?;
+            match response.status().as_u16() {
+                200u16 => ResponseValue::from_response(response).await,
+                429u16 => {
+                    Err(
+                        Error::ErrorResponse(
+                            ResponseValue::from_response(response).await?,
+                        ),
+                    )
+                }
+                500u16 => {
+                    Err(
+                        Error::ErrorResponse(
+                            ResponseValue::from_response(response).await?,
+                        ),
+                    )
+                }
+                _ => Err(Error::UnexpectedResponse(response)),
+            }
+        }
+    }
+    /**Builder for [`Client::post_get_queue_leaf_indices`]
+
+[`Client::post_get_queue_leaf_indices`]: super::Client::post_get_queue_leaf_indices*/
+    #[derive(Debug, Clone)]
+    pub struct PostGetQueueLeafIndices<'a> {
+        client: &'a super::Client,
+        body: Result<types::builder::PostGetQueueLeafIndicesBody, String>,
+    }
+    impl<'a> PostGetQueueLeafIndices<'a> {
+        pub fn new(client: &'a super::Client) -> Self {
+            Self {
+                client: client,
+                body: Ok(::std::default::Default::default()),
+            }
+        }
+        pub fn body<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<types::PostGetQueueLeafIndicesBody>,
+            <V as std::convert::TryInto<
+                types::PostGetQueueLeafIndicesBody,
+            >>::Error: std::fmt::Display,
+        {
+            self.body = value
+                .try_into()
+                .map(From::from)
+                .map_err(|s| {
+                    format!(
+                        "conversion to `PostGetQueueLeafIndicesBody` for body failed: {}",
+                        s
+                    )
+                });
+            self
+        }
+        pub fn body_map<F>(mut self, f: F) -> Self
+        where
+            F: std::ops::FnOnce(
+                types::builder::PostGetQueueLeafIndicesBody,
+            ) -> types::builder::PostGetQueueLeafIndicesBody,
+        {
+            self.body = self.body.map(f);
+            self
+        }
+        ///Sends a `POST` request to `/getQueueLeafIndices`
+        pub async fn send(
+            self,
+        ) -> Result<
+            ResponseValue<types::PostGetQueueLeafIndicesResponse>,
+            Error<types::PostGetQueueLeafIndicesResponse>,
+        > {
+            let Self { client, body } = self;
+            let body = body
+                .and_then(|v| {
+                    types::PostGetQueueLeafIndicesBody::try_from(v)
+                        .map_err(|e| e.to_string())
+                })
+                .map_err(Error::InvalidRequest)?;
+            let url = format!("{}/getQueueLeafIndices", client.baseurl,);
+            let mut header_map = ::reqwest::header::HeaderMap::with_capacity(1usize);
+            header_map
+                .append(
+                    ::reqwest::header::HeaderName::from_static("api-version"),
+                    ::reqwest::header::HeaderValue::from_static(
+                        super::Client::api_version(),
+                    ),
+                );
+            #[allow(unused_mut)]
+            let mut request = client
+                .client
+                .post(url)
+                .header(
+                    ::reqwest::header::ACCEPT,
+                    ::reqwest::header::HeaderValue::from_static("application/json"),
+                )
+                .json(&body)
+                .headers(header_map)
+                .build()?;
+            let info = OperationInfo {
+                operation_id: "post_get_queue_leaf_indices",
             };
             client.pre(&mut request, &info).await?;
             let result = client.exec(request, &info).await;

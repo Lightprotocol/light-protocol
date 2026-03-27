@@ -69,6 +69,9 @@ pub struct AddressQueueData {
 }
 
 impl AddressQueueData {
+    pub const ADDRESS_TREE_HEIGHT: usize =
+        light_prover_client::constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize;
+
     /// Reconstruct a single merkle proof for a given address index.
     #[cfg(test)]
     fn reconstruct_proof<const HEIGHT: usize>(
