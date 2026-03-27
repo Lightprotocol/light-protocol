@@ -102,7 +102,7 @@ async fn test_create_all() {
         rent_sponsor: rent_sponsor_pda(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let ix = Instruction {

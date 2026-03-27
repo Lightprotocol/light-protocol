@@ -266,7 +266,7 @@ impl<R: Rpc> TxSender<R> {
                                         sender_context.merkle_tree,
                                         sender_context.output_queue,
                                         sender_context.epoch,
-                                        data.try_to_vec()?,
+                                        borsh::to_vec(&data)?,
                                     ))
                                 })
                                 .collect::<anyhow::Result<Vec<_>>>()?;
@@ -282,7 +282,7 @@ impl<R: Rpc> TxSender<R> {
                                         sender_context.derivation,
                                         sender_context.merkle_tree,
                                         sender_context.epoch,
-                                        data.try_to_vec()?,
+                                        borsh::to_vec(&data)?,
                                     ))
                                 })
                                 .collect::<anyhow::Result<Vec<_>>>()?;
@@ -297,7 +297,7 @@ impl<R: Rpc> TxSender<R> {
                                         sender_context.derivation,
                                         sender_context.merkle_tree,
                                         sender_context.epoch,
-                                        data.try_to_vec()?,
+                                        borsh::to_vec(&data)?,
                                     ))
                                 })
                                 .collect::<anyhow::Result<Vec<_>>>()?;

@@ -15,7 +15,7 @@ use light_hasher::{errors::HasherError, DataHasher, Poseidon};
 use light_system_program::program::LightSystemProgram;
 
 pub fn process_create_pda<'info>(
-    ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+    ctx: Context<'info, CreateCompressedPda<'info>>,
     data: [u8; 31],
     proof: Option<CompressedProof>,
     new_address_params: NewAddressParamsPacked,
@@ -33,7 +33,7 @@ pub fn process_create_pda<'info>(
 }
 
 fn cpi_compressed_pda_transfer_as_program<'info>(
-    ctx: &Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+    ctx: &Context<'info, CreateCompressedPda<'info>>,
     proof: Option<CompressedProof>,
     new_address_params: NewAddressParamsPacked,
     compressed_pda: OutputCompressedAccountWithPackedContext,
@@ -74,7 +74,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
     let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.light_system_program.to_account_info(),
+        ctx.accounts.light_system_program.key(),
         cpi_accounts,
         &signer_seeds,
     );
@@ -87,7 +87,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
 fn create_compressed_pda_data(
     data: [u8; 31],
-    ctx: &Context<'_, '_, '_, '_, CreateCompressedPda<'_>>,
+    ctx: &Context<'_, CreateCompressedPda<'_>>,
     new_address_params: &NewAddressParamsPacked,
 ) -> Result<OutputCompressedAccountWithPackedContext> {
     let timelock_compressed_pda = RegisteredUser {
@@ -96,7 +96,7 @@ fn create_compressed_pda_data(
     };
     let compressed_account_data = CompressedAccountData {
         discriminator: 1u64.to_le_bytes(),
-        data: timelock_compressed_pda.try_to_vec().unwrap(),
+        data: borsh::to_vec(&timelock_compressed_pda).unwrap(),
         data_hash: timelock_compressed_pda.hash::<Poseidon>().unwrap(),
     };
     let mut discriminator_bytes = [0u8; 8];

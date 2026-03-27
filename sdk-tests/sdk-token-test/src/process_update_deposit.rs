@@ -215,7 +215,7 @@ pub fn transfer_tokens_to_escrow_pda<'a, 'info>(
 }
 
 pub fn process_update_deposit<'info>(
-    ctx: Context<'_, '_, '_, 'info, crate::GenericWithAuthority<'info>>,
+    ctx: Context<'info, crate::GenericWithAuthority<'info>>,
     output_tree_index: u8,
     output_tree_queue_index: u8,
     proof: ValidityProof,

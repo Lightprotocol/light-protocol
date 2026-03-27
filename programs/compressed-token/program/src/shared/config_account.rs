@@ -6,7 +6,8 @@ use light_account_checks::{
 use light_compressible::config::CompressibleConfig;
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
-use spl_pod::{bytemuck, solana_msg::msg};
+use solana_msg::msg;
+use spl_pod::bytemuck;
 
 #[profile]
 #[inline(always)]

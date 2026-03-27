@@ -20,7 +20,7 @@ use pinocchio::{
     pubkey::{pubkey_eq, Pubkey},
     sysvars::Sysvar,
 };
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use super::inputs::CompressAndCloseInputs;
 #[cfg(target_os = "solana")]

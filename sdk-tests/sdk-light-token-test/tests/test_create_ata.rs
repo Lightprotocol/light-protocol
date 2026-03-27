@@ -42,7 +42,7 @@ async fn test_create_ata_invoke() {
         lamports_per_write: 1,
     };
     // Discriminator 4 = CreateAtaInvoke
-    let instruction_data = [vec![4u8], create_ata_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![4u8], borsh::to_vec(&create_ata_data).unwrap()].concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
@@ -127,7 +127,7 @@ async fn test_create_ata_invoke_signed() {
         lamports_per_write: 1,
     };
     // Discriminator 5 = CreateAtaInvokeSigned
-    let instruction_data = [vec![5u8], create_ata_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![5u8], borsh::to_vec(&create_ata_data).unwrap()].concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();

@@ -20,7 +20,7 @@ struct QueueIndicesTestInput {
 }
 
 fn create_zero_copy_cpi_context(cpi_context: &CpiContext) -> Vec<u8> {
-    cpi_context.try_to_vec().unwrap()
+    borsh::to_vec(&cpi_context).unwrap()
 }
 
 #[test]

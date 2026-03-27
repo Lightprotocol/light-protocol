@@ -115,7 +115,7 @@ impl Mint {
     pub fn hash(&self) -> Result<[u8; 32], TokenError> {
         match self.metadata.version {
             3 => Ok(Sha256BE::hash(
-                self.try_to_vec()
+                borsh::to_vec(&self)
                     .map_err(|_| TokenError::BorshFailed)?
                     .as_slice(),
             )?),

@@ -121,7 +121,7 @@ pub async fn create_pda(
         system_accounts_offset: system_accounts_offset as u8,
         tree_accounts_offset: tree_accounts_offset as u8,
     };
-    let inputs = instruction_data.try_to_vec().unwrap();
+    let inputs = borsh::to_vec(&instruction_data).unwrap();
 
     let instruction = Instruction {
         program_id: Pubkey::new_from_array(sdk_pinocchio_v2_test::ID),
@@ -193,7 +193,7 @@ pub async fn update_pda(
         new_data: new_account_data,
         system_accounts_offset: system_accounts_offset as u8,
     };
-    let inputs = instruction_data.try_to_vec().unwrap();
+    let inputs = borsh::to_vec(&instruction_data).unwrap();
 
     let instruction = Instruction {
         program_id: Pubkey::new_from_array(sdk_pinocchio_v2_test::ID),

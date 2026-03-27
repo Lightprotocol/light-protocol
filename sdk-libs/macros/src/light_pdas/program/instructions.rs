@@ -617,7 +617,7 @@ pub(crate) fn generate_light_program_items_with_backend(
         let init_config_instruction: syn::ItemFn = syn::parse_quote! {
             #[inline(never)]
             pub fn initialize_compression_config<'info>(
-                ctx: Context<'_, '_, '_, 'info, InitializeCompressionConfig<'info>>,
+                ctx: Context<'info, InitializeCompressionConfig<'info>>,
                 params: InitConfigParams,
             ) -> Result<()> {
                 #account_crate::process_initialize_light_config(
@@ -640,7 +640,7 @@ pub(crate) fn generate_light_program_items_with_backend(
         let update_config_instruction: syn::ItemFn = syn::parse_quote! {
             #[inline(never)]
             pub fn update_compression_config<'info>(
-                ctx: Context<'_, '_, '_, 'info, UpdateCompressionConfig<'info>>,
+                ctx: Context<'info, UpdateCompressionConfig<'info>>,
                 instruction_data: Vec<u8>,
             ) -> Result<()> {
                 let remaining = [

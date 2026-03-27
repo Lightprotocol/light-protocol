@@ -14,7 +14,7 @@ pub enum BasicEnum {
 fn main() {
     // Test Borsh compatibility
     let ref_enum = BasicEnum::SingleField(42);
-    let bytes = ref_enum.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_enum).unwrap();
 
     let (_enum_copy, remaining) = BasicEnum::zero_copy_at(&bytes).unwrap();
     assert!(remaining.is_empty());

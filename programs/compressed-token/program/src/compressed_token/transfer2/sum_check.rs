@@ -6,7 +6,7 @@ use light_token_interface::instructions::transfer2::{
     ZCompression, ZCompressionMode, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 /// Process inputs and add amounts to mint sums
 #[inline(always)]

@@ -20,7 +20,7 @@ fn main() {
         middle: Some(42),
         last: vec![10, 20, 30],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (_struct_copy, remaining) = VecOptionVec::zero_copy_at(&bytes).unwrap();
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation with Vec<primitive>

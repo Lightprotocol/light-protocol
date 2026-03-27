@@ -15,7 +15,7 @@ pub struct Struct1Derived {
 #[test]
 fn test_struct_1_derived() {
     let ref_struct = Struct1Derived { a: 1, b: 2 };
-    let mut bytes = ref_struct.try_to_vec().unwrap();
+    let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
     {
         let (struct1, remaining) = Struct1Derived::zero_copy_at(&bytes).unwrap();
@@ -54,7 +54,7 @@ fn test_struct_2_derived() {
         b: 2,
         vec: vec![1u8; 32],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct2, remaining) = Struct2Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct2.a, 1u8);
@@ -82,7 +82,7 @@ fn test_struct_3_derived() {
         vec: vec![1u8; 32],
         c: 3,
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (zero_copy, remaining) = Struct3Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -124,7 +124,7 @@ fn test_struct_4_derived() {
         c: 3,
         vec_2: vec![Struct4NestedDerived { a: 1, b: 2 }; 32],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (zero_copy, remaining) = Struct4Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -150,7 +150,7 @@ fn test_struct_5_derived() {
     let ref_struct = Struct5Derived {
         a: vec![vec![1u8; 32]; 32],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (zero_copy, remaining) = Struct5Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(
@@ -180,7 +180,7 @@ fn test_struct_6_derived() {
             32
         ],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (zero_copy, remaining) = Struct6Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(
@@ -213,7 +213,7 @@ fn test_struct_7_derived() {
         b: 2,
         option: Some(3),
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (zero_copy, remaining) = Struct7Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -266,7 +266,7 @@ fn test_struct_8_derived() {
             32
         ],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (zero_copy, remaining) = Struct8Derived::zero_copy_at(&bytes).unwrap();
     // Check length of vec matches
@@ -291,7 +291,7 @@ fn test_array_struct() {
         b: [2u8; 64],
         c: [3u8; 32],
     };
-    let bytes = array_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&array_struct).unwrap();
 
     let (zero_copy, remaining) = ArrayStruct::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, [1u8; 32]);
@@ -326,7 +326,7 @@ fn test_compressed_account_data() {
         data: vec![2u8; 32],
         data_hash: [3u8; 32],
     };
-    let bytes = compressed_account_data.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&compressed_account_data).unwrap();
 
     let (zero_copy, remaining) = CompressedAccountData::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.discriminator, [1u8; 8]);

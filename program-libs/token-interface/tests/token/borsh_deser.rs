@@ -50,7 +50,7 @@ fn serialize_token_with_account_type(account_type_byte: u8) -> Vec<u8> {
         })]),
     };
 
-    let mut bytes = token.try_to_vec().unwrap();
+    let mut bytes = borsh::to_vec(&token).unwrap();
     // Tamper byte 165 (account_type) to the requested value
     bytes[165] = account_type_byte;
     bytes
@@ -116,7 +116,7 @@ fn test_borsh_deser_accepts_base_token_without_extensions() {
         extensions: None,
     };
 
-    let bytes = token.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&token).unwrap();
     assert_eq!(bytes.len(), 165, "Base token should be 165 bytes");
 
     let deserialized = Token::try_from_slice(&bytes).expect("Should deserialize base token");

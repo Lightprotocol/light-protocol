@@ -36,7 +36,7 @@ pub struct InitializeConfig<'info> {
 }
 
 pub fn process_initialize_config<'info>(
-    ctx: Context<'_, '_, '_, 'info, InitializeConfig<'info>>,
+    ctx: Context<'info, InitializeConfig<'info>>,
     params: InitConfigParams,
 ) -> Result<()> {
     process_initialize_light_config(
@@ -66,7 +66,7 @@ pub struct UpdateConfig<'info> {
 }
 
 pub fn process_update_config<'info>(
-    ctx: Context<'_, '_, '_, 'info, UpdateConfig<'info>>,
+    ctx: Context<'info, UpdateConfig<'info>>,
     instruction_data: Vec<u8>,
 ) -> Result<()> {
     let remaining = [

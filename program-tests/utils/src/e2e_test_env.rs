@@ -165,11 +165,11 @@ use rand::{
 };
 use reqwest::Client;
 use solana_sdk::{
+    native_token::LAMPORTS_PER_SOL,
     pubkey::Pubkey,
     signature::{Keypair, Signature},
     signer::{SeedDerivable, Signer},
 };
-use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
 
 use crate::{
     address_tree_rollover::{
@@ -860,7 +860,7 @@ where
                                 payer.pubkey(),
                                 merkle_tree_pubkey,
                                 self.epoch,
-                                instruction_data.try_to_vec().unwrap(),
+                                borsh::to_vec(&instruction_data).unwrap(),
                             );
                             self.rpc
                                 .create_and_send_transaction(
@@ -2867,7 +2867,7 @@ where
             user.pubkey(),
             [
                 light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-                ix_data.try_to_vec().unwrap(),
+                borsh::to_vec(&ix_data).unwrap(),
             ]
             .concat(),
             remaining_accounts,

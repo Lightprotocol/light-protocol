@@ -1,7 +1,7 @@
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 use pinocchio_system::instructions::Transfer as SystemTransfer;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 /// A transfer instruction containing the recipient account and amount
 #[derive(Debug)]

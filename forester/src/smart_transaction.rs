@@ -4,12 +4,11 @@ use std::{collections::HashSet, time::Duration};
 
 use light_client::rpc::{Rpc, RpcError};
 use solana_client::rpc_config::RpcSendTransactionConfig;
+use solana_compute_budget_interface::ComputeBudgetInstruction;
 use solana_sdk::{
-    address_lookup_table::AddressLookupTableAccount,
-    compute_budget::ComputeBudgetInstruction,
     hash::Hash,
     instruction::Instruction,
-    message::{v0, VersionedMessage},
+    message::{v0, AddressLookupTableAccount, VersionedMessage},
     pubkey::Pubkey,
     signature::{Signature, Signer},
     signer::keypair::Keypair,

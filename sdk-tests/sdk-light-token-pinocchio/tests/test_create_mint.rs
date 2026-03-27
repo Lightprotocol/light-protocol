@@ -115,7 +115,7 @@ async fn test_create_compressed_mint() {
         rent_payment: 16,
         write_top_up: 766,
     };
-    let instruction_data = [vec![0u8], create_mint_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![0u8], borsh::to_vec(&create_mint_data).unwrap()].concat();
 
     // Use CreateMint builder to get the correct account metas
     let create_mint_ix = CreateMint::new(
@@ -209,7 +209,7 @@ async fn test_create_compressed_mint_invoke_signed() {
         write_top_up: 766,
     };
     // Discriminator 12 = CreateCmintInvokeSigned
-    let instruction_data = [vec![12u8], create_mint_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![12u8], borsh::to_vec(&create_mint_data).unwrap()].concat();
 
     // Build accounts manually since SDK marks mint_signer as signer, but we need it as non-signer
     // for invoke_signed (the wrapper program signs via CPI)

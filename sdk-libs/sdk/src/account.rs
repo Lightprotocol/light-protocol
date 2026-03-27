@@ -575,10 +575,7 @@ pub mod __internal {
                     output.data_hash = DEFAULT_DATA_HASH;
                     output.discriminator = [0u8; 8];
                 } else {
-                    output.data = self
-                        .account
-                        .try_to_vec()
-                        .map_err(|_| LightSdkError::Borsh)?;
+                    output.data = borsh::to_vec(&self.account).map_err(|_| LightSdkError::Borsh)?;
                     // For HASH_FLAT = false, always use DataHasher
                     output.data_hash = self
                         .account
@@ -639,20 +636,16 @@ pub mod __internal {
                     output.data_hash = DEFAULT_DATA_HASH;
                     output.discriminator = [0u8; 8];
                 } else {
-                    output.data = self
-                        .account
-                        .try_to_vec()
-                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                    output.data =
+                        borsh::to_vec(&self.account).map_err(|_| ProgramError::BorshIoError)?;
                     // For HASH_FLAT = false, always use DataHasher
                     output.data_hash = self
                         .account
                         .hash::<H>()
                         .map_err(LightSdkError::from)
                         .map_err(ProgramError::from)?;
-                    output.data = self
-                        .account
-                        .try_to_vec()
-                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                    output.data =
+                        borsh::to_vec(&self.account).map_err(|_| ProgramError::BorshIoError)?;
                 }
                 let result = OutputCompressedAccountWithPackedContext::from_with_owner(
                     &output,
@@ -789,9 +782,7 @@ pub mod __internal {
         ) -> Result<Self, ProgramError> {
             let input_account_info = {
                 // For HASH_FLAT = true, use direct serialization
-                let data = input_account
-                    .try_to_vec()
-                    .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                let data = borsh::to_vec(&input_account).map_err(|_| ProgramError::BorshIoError)?;
                 let mut input_data_hash = H::hash(data.as_slice())
                     .map_err(LightSdkError::from)
                     .map_err(ProgramError::from)?;
@@ -845,8 +836,7 @@ pub mod __internal {
             packed_account_pubkeys: &[Pubkey],
         ) -> Result<Self, ProgramError> {
             // Hash account data once and reuse (SHA256 flat: borsh serialize then hash)
-            let data = input_account
-                .try_to_vec()
+            let data = borsh::to_vec(&input_account)
                 .map_err(|_| LightSdkError::Borsh)
                 .map_err(ProgramError::from)?;
             let mut input_data_hash = H::hash(data.as_slice())
@@ -928,10 +918,8 @@ pub mod __internal {
                     output.data_hash = DEFAULT_DATA_HASH;
                     output.discriminator = [0u8; 8];
                 } else {
-                    output.data = self
-                        .account
-                        .try_to_vec()
-                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                    output.data =
+                        borsh::to_vec(&self.account).map_err(|_| ProgramError::BorshIoError)?;
                     // For HASH_FLAT = true, use direct serialization
                     output.data_hash = H::hash(output.data.as_slice())
                         .map_err(LightSdkError::from)
@@ -992,19 +980,15 @@ pub mod __internal {
                     output.data_hash = DEFAULT_DATA_HASH;
                     output.discriminator = [0u8; 8];
                 } else {
-                    output.data = self
-                        .account
-                        .try_to_vec()
-                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                    output.data =
+                        borsh::to_vec(&self.account).map_err(|_| ProgramError::BorshIoError)?;
                     // For HASH_FLAT = true, use direct serialization
                     output.data_hash = H::hash(output.data.as_slice())
                         .map_err(LightSdkError::from)
                         .map_err(ProgramError::from)?;
                     output.data_hash[0] = 0;
-                    output.data = self
-                        .account
-                        .try_to_vec()
-                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                    output.data =
+                        borsh::to_vec(&self.account).map_err(|_| ProgramError::BorshIoError)?;
                 }
 
                 let result = OutputCompressedAccountWithPackedContext::from_with_owner(
@@ -1025,9 +1009,7 @@ pub mod __internal {
         ) -> Result<(LightAccountInner<H, A, true>, Vec<u8>), ProgramError> {
             let (input_account_info, data) = {
                 // For HASH_FLAT = true, use direct serialization
-                let data = input_account
-                    .try_to_vec()
-                    .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                let data = borsh::to_vec(&input_account).map_err(|_| ProgramError::BorshIoError)?;
                 let mut input_data_hash = H::hash(data.as_slice())
                     .map_err(LightSdkError::from)
                     .map_err(ProgramError::from)?;

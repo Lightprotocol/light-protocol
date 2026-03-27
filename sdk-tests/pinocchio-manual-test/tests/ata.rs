@@ -41,7 +41,7 @@ async fn test_create_ata() {
         AccountMeta::new_readonly(config_pda(), false),
         AccountMeta::new(rent_sponsor_pda(), false),
         AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false),
     ];
 
     let data = [
@@ -97,7 +97,7 @@ async fn test_create_ata_idempotent() {
         AccountMeta::new_readonly(config_pda(), false),
         AccountMeta::new(rent_sponsor_pda(), false),
         AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false),
     ];
 
     let data = [

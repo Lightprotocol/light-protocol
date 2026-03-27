@@ -54,10 +54,10 @@ pub unsafe fn convert_account_infos<'a, const N: usize>(
                 lamports: Rc::clone(&existing.lamports),
                 data: Rc::clone(&existing.data),
                 owner: existing.owner,
-                rent_epoch: existing.rent_epoch,
                 is_signer: pinocchio_account.is_signer(),
                 is_writable: pinocchio_account.is_writable(),
                 executable: pinocchio_account.executable(),
+                _unused: 0,
             });
             continue;
         }
@@ -76,10 +76,10 @@ pub unsafe fn convert_account_infos<'a, const N: usize>(
             lamports,
             data,
             owner,
-            rent_epoch: 0, // Pinocchio doesn't track rent epoch
             is_signer: pinocchio_account.is_signer(),
             is_writable: pinocchio_account.is_writable(),
             executable: pinocchio_account.executable(),
+            _unused: 0,
         };
 
         solana_accounts.push(account_info);

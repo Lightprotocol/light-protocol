@@ -53,7 +53,7 @@ pub mod anchor_semi_manual_test {
     // =========================================================================
 
     pub fn compress_accounts_idempotent<'info>(
-        ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
+        ctx: Context<'info, EmptyAccounts<'info>>,
         params: light_account::CompressAndCloseParams,
     ) -> Result<()> {
         light_account::process_compress_pda_accounts_idempotent(
@@ -67,7 +67,7 @@ pub mod anchor_semi_manual_test {
     }
 
     pub fn decompress_accounts_idempotent<'info>(
-        ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
+        ctx: Context<'info, EmptyAccounts<'info>>,
         params: light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
     ) -> Result<()> {
         use solana_program::{clock::Clock, sysvar::Sysvar};
@@ -83,7 +83,7 @@ pub mod anchor_semi_manual_test {
     }
 
     pub fn initialize_compression_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
+        ctx: Context<'info, EmptyAccounts<'info>>,
         params: InitConfigParams,
     ) -> Result<()> {
         light_account::process_initialize_light_config(
@@ -103,7 +103,7 @@ pub mod anchor_semi_manual_test {
     }
 
     pub fn update_compression_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
+        ctx: Context<'info, EmptyAccounts<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
         light_account::process_update_light_config(
@@ -119,7 +119,7 @@ pub mod anchor_semi_manual_test {
     // =========================================================================
 
     pub fn create_pda<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreatePda<'info>>,
+        ctx: Context<'info, CreatePda<'info>>,
         params: CreatePdaParams,
     ) -> Result<()> {
         let has_pre_init = ctx
@@ -134,7 +134,7 @@ pub mod anchor_semi_manual_test {
     }
 
     pub fn create_ata<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateAta<'info>>,
+        ctx: Context<'info, CreateAta<'info>>,
         params: CreateAtaParams,
     ) -> Result<()> {
         let has_pre_init = ctx
@@ -148,7 +148,7 @@ pub mod anchor_semi_manual_test {
     }
 
     pub fn create_token_vault<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateTokenVault<'info>>,
+        ctx: Context<'info, CreateTokenVault<'info>>,
         params: CreateTokenVaultParams,
     ) -> Result<()> {
         let has_pre_init = ctx
@@ -162,7 +162,7 @@ pub mod anchor_semi_manual_test {
     }
 
     pub fn create_zero_copy_record<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateZeroCopyRecord<'info>>,
+        ctx: Context<'info, CreateZeroCopyRecord<'info>>,
         params: CreateZeroCopyRecordParams,
     ) -> Result<()> {
         let has_pre_init = ctx
@@ -180,7 +180,7 @@ pub mod anchor_semi_manual_test {
     }
 
     pub fn create_mint<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateMint<'info>>,
+        ctx: Context<'info, CreateMint<'info>>,
         params: CreateMintParams,
     ) -> Result<()> {
         let has_pre_init = ctx
@@ -194,7 +194,7 @@ pub mod anchor_semi_manual_test {
     }
 
     pub fn create_two_mints<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateTwoMints<'info>>,
+        ctx: Context<'info, CreateTwoMints<'info>>,
         params: CreateTwoMintsParams,
     ) -> Result<()> {
         let has_pre_init = ctx
@@ -208,7 +208,7 @@ pub mod anchor_semi_manual_test {
     }
 
     pub fn create_all<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateAll<'info>>,
+        ctx: Context<'info, CreateAll<'info>>,
         params: CreateAllParams,
     ) -> Result<()> {
         let has_pre_init = ctx
@@ -231,6 +231,28 @@ pub mod anchor_semi_manual_test {
 /// Uses PhantomData for the `<'info>` lifetime so Anchor's CPI codegen works.
 /// All accounts are passed via remaining_accounts.
 pub struct EmptyAccounts<'info>(PhantomData<&'info ()>);
+
+impl<'info> EmptyAccounts<'info> {
+    #[doc(hidden)]
+    pub const __ANCHOR_IX_PARAM_COUNT: usize = 0;
+
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_0<__T>(_arg: &__T) {}
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_1<__T>(_arg: &__T) {}
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_2<__T>(_arg: &__T) {}
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_3<__T>(_arg: &__T) {}
+}
 
 impl<'info> anchor_lang::Accounts<'info, EmptyAccountsBumps> for EmptyAccounts<'info> {
     fn try_accounts(
@@ -291,10 +313,10 @@ pub(crate) mod __client_accounts_empty_accounts {
     use super::*;
     pub struct EmptyAccounts<'info>(PhantomData<&'info ()>);
     impl<'info> borsh::ser::BorshSerialize for EmptyAccounts<'info> {
-        fn serialize<W: borsh::maybestd::io::Write>(
+        fn serialize<W: std::io::Write>(
             &self,
             _writer: &mut W,
-        ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+        ) -> ::core::result::Result<(), std::io::Error> {
             Ok(())
         }
     }

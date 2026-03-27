@@ -634,7 +634,7 @@ async fn test_create_ata_failing() {
         context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         // Use system program pubkey as fake config (wrong owner)
-        let fake_config = solana_sdk::system_program::ID;
+        let fake_config = anchor_lang::solana_program::system_program::ID;
 
         let compressible_params = CompressibleParams {
             compressible_config: fake_config, // Wrong owner!

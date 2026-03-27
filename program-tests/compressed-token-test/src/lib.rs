@@ -15,7 +15,7 @@ pub mod compressed_token_test {
     /// Wrapper for write_to_cpi_context mode mint_action CPI
     /// All accounts are in remaining_accounts (unchecked)
     pub fn write_to_cpi_context_mint_action<'info>(
-        ctx: Context<'_, '_, '_, 'info, MintActionCpiWrapper<'info>>,
+        ctx: Context<'info, MintActionCpiWrapper<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         execute_mint_action_cpi(ctx, inputs)
@@ -24,7 +24,7 @@ pub mod compressed_token_test {
     /// Wrapper for execute_cpi_context mode mint_action CPI
     /// All accounts are in remaining_accounts (unchecked)
     pub fn execute_cpi_context_mint_action<'info>(
-        ctx: Context<'_, '_, '_, 'info, MintActionCpiWrapper<'info>>,
+        ctx: Context<'info, MintActionCpiWrapper<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         execute_mint_action_cpi(ctx, inputs)
@@ -42,7 +42,7 @@ pub struct MintActionCpiWrapper<'info> {
 /// Shared implementation for both wrapper instructions
 /// Passes through raw instruction bytes and accounts without any validation
 fn execute_mint_action_cpi<'info>(
-    ctx: Context<'_, '_, '_, 'info, MintActionCpiWrapper<'info>>,
+    ctx: Context<'info, MintActionCpiWrapper<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     // Build account_metas from remaining_accounts - pass through as-is

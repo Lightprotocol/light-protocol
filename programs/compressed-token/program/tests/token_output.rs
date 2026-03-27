@@ -134,7 +134,7 @@ fn test_rnd_create_output_compressed_accounts() {
                 tlv_instruction_data_vecs.push(vec![]);
                 // Empty vec needs explicit type annotation and borsh serialization
                 let empty_vec: Vec<ExtensionInstructionData> = vec![];
-                tlv_bytes_vecs.push(empty_vec.try_to_vec().unwrap());
+                tlv_bytes_vecs.push(borsh::to_vec(&empty_vec).unwrap());
             }
         }
 
@@ -220,7 +220,7 @@ fn test_rnd_create_output_compressed_accounts() {
 
             // Use V3 hash (SHA256 of serialized data) when TLV present, V2 hash otherwise
             let (data_hash, discriminator) = if tlv_flags[i] {
-                let serialized = token_data.try_to_vec().unwrap();
+                let serialized = borsh::to_vec(&token_data).unwrap();
                 let hash = light_hasher::sha256::Sha256BE::hash(&serialized).unwrap();
                 (hash, TOKEN_COMPRESSED_ACCOUNT_V3_DISCRIMINATOR)
             } else {
@@ -236,7 +236,7 @@ fn test_rnd_create_output_compressed_accounts() {
                     owner: light_compressed_token::ID.into(),
                     lamports: account_lamports,
                     data: Some(CompressedAccountData {
-                        data: token_data.try_to_vec().unwrap(),
+                        data: borsh::to_vec(&token_data).unwrap(),
                         discriminator,
                         data_hash,
                     }),

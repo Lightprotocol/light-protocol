@@ -34,7 +34,7 @@ use solana_program::{
     instruction::InstructionError, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
 };
 use solana_sdk::{
-    address_lookup_table::AddressLookupTableAccount,
+    message::AddressLookupTableAccount,
     signature::{Keypair, Signer},
     transaction::TransactionError,
 };
@@ -1232,7 +1232,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
-            commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::confirmed()),
+            commitment_config: Some(solana_commitment_config::CommitmentConfig::confirmed()),
             fetch_active_tree: false,
         })
         .await
@@ -1323,7 +1323,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
-            commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::processed()),
+            commitment_config: Some(solana_commitment_config::CommitmentConfig::processed()),
             fetch_active_tree: false,
         })
         .await?;
@@ -3867,8 +3867,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 match &proof.instruction {
                     BatchInstruction::Append(data) => {
                         for d in data {
-                            let serialized = d
-                                .try_to_vec()
+                            let serialized = borsh::to_vec(&d)
                                 .with_context(|| "Failed to serialize batch append payload")?;
                             instructions.push(create_batch_append_instruction(
                                 authority,
@@ -3882,8 +3881,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                     BatchInstruction::Nullify(data) => {
                         for d in data {
-                            let serialized = d
-                                .try_to_vec()
+                            let serialized = borsh::to_vec(&d)
                                 .with_context(|| "Failed to serialize batch nullify payload")?;
                             instructions.push(create_batch_nullify_instruction(
                                 authority,
@@ -3896,7 +3894,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                     BatchInstruction::AddressAppend(data) => {
                         for d in data {
-                            let serialized = d.try_to_vec().with_context(|| {
+                            let serialized = borsh::to_vec(&d).with_context(|| {
                                 "Failed to serialize batch address append payload"
                             })?;
                             instructions.push(create_batch_update_address_tree_instruction(
@@ -4060,7 +4058,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
-            commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::processed()),
+            commitment_config: Some(solana_commitment_config::CommitmentConfig::processed()),
             fetch_active_tree: false,
         })
         .await?;

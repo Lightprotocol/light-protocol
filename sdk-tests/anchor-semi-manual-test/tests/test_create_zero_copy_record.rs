@@ -37,7 +37,7 @@ async fn test_create_zero_copy_record_derive() {
         compression_config: env.config_pda,
         pda_rent_sponsor: env.rent_sponsor,
         record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = anchor_semi_manual_test::instruction::CreateZeroCopyRecord {

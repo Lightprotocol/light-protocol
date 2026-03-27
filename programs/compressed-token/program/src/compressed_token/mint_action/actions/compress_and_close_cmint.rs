@@ -6,7 +6,7 @@ use pinocchio::{
     pubkey::pubkey_eq,
     sysvars::{clock::Clock, Sysvar},
 };
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{
     compressed_token::mint_action::accounts::MintActionAccounts,

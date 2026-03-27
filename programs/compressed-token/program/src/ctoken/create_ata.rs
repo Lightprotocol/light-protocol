@@ -4,7 +4,7 @@ use light_account_checks::AccountIterator;
 use light_program_profiler::profile;
 use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
 use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::pubkey_eq};
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{
     extensions::has_mint_extensions,

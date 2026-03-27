@@ -53,7 +53,7 @@ async fn test_create_compress_decompress() {
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(config_pda, false),
         AccountMeta::new(record_pda, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false),
     ];
 
     let ix = Instruction {

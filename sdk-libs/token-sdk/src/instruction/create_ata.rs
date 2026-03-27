@@ -92,7 +92,7 @@ impl CreateAssociatedTokenAccount {
         data.push(discriminator);
         instruction_data
             .serialize(&mut data)
-            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+            .map_err(|_| ProgramError::BorshIoError)?;
 
         let accounts = vec![
             AccountMeta::new_readonly(self.owner, false),

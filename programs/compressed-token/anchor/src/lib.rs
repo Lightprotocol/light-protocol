@@ -48,7 +48,7 @@ pub mod light_compressed_token {
     /// transferrred to the token pool, and their compressed equivalent is
     /// minted into a Merkle tree.
     pub fn create_token_pool<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction<'info>>,
+        ctx: Context<'info, CreateTokenPoolInstruction<'info>>,
     ) -> Result<()> {
         instructions::create_token_pool::assert_mint_extensions(
             &ctx.accounts.mint.to_account_info().try_borrow_data()?,
@@ -66,7 +66,7 @@ pub mod light_compressed_token {
     /// The maximum number of token pools per mint is 5.
     /// For mints with restricted extensions, uses restricted PDA derivation.
     pub fn add_token_pool<'info>(
-        ctx: Context<'_, '_, '_, 'info, AddTokenPoolInstruction<'info>>,
+        ctx: Context<'info, AddTokenPoolInstruction<'info>>,
         token_pool_index: u8,
     ) -> Result<()> {
         if token_pool_index == 0 || token_pool_index >= NUM_MAX_POOL_ACCOUNTS {
@@ -102,7 +102,7 @@ pub mod light_compressed_token {
     /// to a compressed token account is to prevent spam. This is the only way
     /// to add lamports to a compressed token account.
     pub fn mint_to<'info>(
-        ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+        ctx: Context<'info, MintToInstruction<'info>>,
         public_keys: Vec<Pubkey>,
         amounts: Vec<u64>,
         lamports: Option<u64>,
@@ -119,7 +119,7 @@ pub mod light_compressed_token {
 
     /// Batch compress tokens to an of recipients.
     pub fn batch_compress<'info>(
-        ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+        ctx: Context<'info, MintToInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let (inputs, _) = batch_compress::BatchCompressInstructionData::zero_copy_at(&inputs)
@@ -149,7 +149,7 @@ pub mod light_compressed_token {
     /// amount. This instruction does not close the spl token account. To close
     /// the account bundle a close spl account instruction in your transaction.
     pub fn compress_spl_token_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+        ctx: Context<'info, TransferInstruction<'info>>,
         owner: Pubkey,
         remaining_amount: Option<u64>,
         cpi_context: Option<CompressedCpiContext>,
@@ -166,7 +166,7 @@ pub mod light_compressed_token {
     /// delegate. If a delegated token account is transferred the delegate is
     /// not preserved.
     pub fn transfer<'info>(
-        ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+        ctx: Context<'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let mut inputs = inputs;
@@ -188,7 +188,7 @@ pub mod light_compressed_token {
     /// 1. one account with delegated amount
     /// 2. one account with remaining(change) amount
     pub fn approve<'info>(
-        ctx: Context<'_, '_, '_, 'info, GenericInstruction<'info>>,
+        ctx: Context<'info, GenericInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         delegation::process_approve(ctx, inputs)
@@ -197,7 +197,7 @@ pub mod light_compressed_token {
     /// Revokes a delegation. The instruction merges all inputs into one output
     /// account. Cannot be called by a delegate. Delegates are not preserved.
     pub fn revoke<'info>(
-        ctx: Context<'_, '_, '_, 'info, GenericInstruction<'info>>,
+        ctx: Context<'info, GenericInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         delegation::process_revoke(ctx, inputs)
@@ -206,7 +206,7 @@ pub mod light_compressed_token {
     /// Freezes compressed token accounts. Inputs must not be frozen. Creates as
     /// many outputs as inputs. Balances and delegates are preserved.
     pub fn freeze<'info>(
-        ctx: Context<'_, '_, '_, 'info, FreezeInstruction<'info>>,
+        ctx: Context<'info, FreezeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         // Inputs are not frozen, outputs are frozen.
@@ -216,7 +216,7 @@ pub mod light_compressed_token {
     /// Thaws frozen compressed token accounts. Inputs must be frozen. Creates
     /// as many outputs as inputs. Balances and delegates are preserved.
     pub fn thaw<'info>(
-        ctx: Context<'_, '_, '_, 'info, FreezeInstruction<'info>>,
+        ctx: Context<'info, FreezeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         // Inputs are frozen, outputs are not frozen.
@@ -226,10 +226,7 @@ pub mod light_compressed_token {
     /// Burns compressed tokens and spl tokens from the pool account. Delegates
     /// can burn tokens. The output compressed token account remains delegated.
     /// Creates one output compressed token account.
-    pub fn burn<'info>(
-        ctx: Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
-        inputs: Vec<u8>,
-    ) -> Result<()> {
+    pub fn burn<'info>(ctx: Context<'info, BurnInstruction<'info>>, inputs: Vec<u8>) -> Result<()> {
         burn::process_burn(ctx, inputs)
     }
 }

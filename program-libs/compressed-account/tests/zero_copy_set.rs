@@ -73,7 +73,7 @@ fn test_output_account_set_success_with_address() {
         merkle_tree_index: 0,
     };
 
-    let mut data = output_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&output_account).unwrap();
     let (mut z_output, _) =
         OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
 
@@ -104,7 +104,7 @@ fn test_output_account_set_success_without_address() {
         merkle_tree_index: 0,
     };
 
-    let mut data = output_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&output_account).unwrap();
     let (mut z_output, _) =
         OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
 
@@ -128,7 +128,7 @@ fn test_output_account_set_error_missing_address() {
         merkle_tree_index: 0,
     };
 
-    let mut data = output_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&output_account).unwrap();
     let (mut z_output, _) =
         OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
 
@@ -158,7 +158,7 @@ fn test_output_account_set_error_unexpected_address() {
         merkle_tree_index: 0,
     };
 
-    let mut data = output_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&output_account).unwrap();
     let (mut z_output, _) =
         OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
 
@@ -188,7 +188,7 @@ fn test_output_account_set_error_data_not_initialized() {
         merkle_tree_index: 0,
     };
 
-    let mut data = output_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&output_account).unwrap();
     let (mut z_output, _) =
         OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
 
@@ -218,7 +218,7 @@ fn test_output_account_set_edge_case_zero_lamports() {
         merkle_tree_index: 0,
     };
 
-    let mut data = output_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&output_account).unwrap();
     let (mut z_output, _) =
         OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
 
@@ -245,7 +245,7 @@ fn test_output_account_set_edge_case_max_lamports() {
         merkle_tree_index: 0,
     };
 
-    let mut data = output_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&output_account).unwrap();
     let (mut z_output, _) =
         OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
 
@@ -272,7 +272,7 @@ fn test_output_account_set_edge_case_zero_values() {
         merkle_tree_index: 0,
     };
 
-    let mut data = output_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&output_account).unwrap();
     let (mut z_output, _) =
         OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
 
@@ -307,7 +307,7 @@ fn test_output_account_set_edge_case_max_values() {
         merkle_tree_index: 0,
     };
 
-    let mut data = output_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&output_account).unwrap();
     let (mut z_output, _) =
         OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
 
@@ -350,7 +350,7 @@ fn test_in_account_set_success_with_address() {
         address: Some([0u8; 32]),
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute
@@ -407,7 +407,7 @@ fn test_in_account_set_success_without_address() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute
@@ -443,7 +443,7 @@ fn test_in_account_set_error_missing_address() {
         address: Some([0u8; 32]),
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute with None address when address is expected
@@ -482,7 +482,7 @@ fn test_in_account_set_error_unexpected_address() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute with address when not expected
@@ -526,7 +526,7 @@ fn test_new_address_set_success_with_assigned_account() {
         assigned_account_index: 0,
     };
 
-    let mut data = new_address.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&new_address).unwrap();
     let (mut z_new_address, _) =
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
@@ -554,7 +554,7 @@ fn test_new_address_set_success_without_assigned_account() {
         assigned_account_index: 0,
     };
 
-    let mut data = new_address.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&new_address).unwrap();
     let (mut z_new_address, _) =
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
@@ -575,7 +575,7 @@ fn test_new_address_set_invariant_address_queue_account_index() {
     // Setup
     let new_address = NewAddressParamsAssignedPacked::default();
 
-    let mut data = new_address.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&new_address).unwrap();
     let (mut z_new_address, _) =
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
@@ -608,7 +608,7 @@ fn test_in_account_set_z_success_with_address() {
         address: Some([0u8; 32]),
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute - Create the zero-copy merkle context
@@ -618,7 +618,7 @@ fn test_in_account_set_z_success_with_address() {
         leaf_index: 100,
         prove_by_index: true,
     };
-    let merkle_context_bytes = merkle_context.try_to_vec().unwrap();
+    let merkle_context_bytes = borsh::to_vec(&merkle_context).unwrap();
     let (z_merkle_context, _) = PackedMerkleContext::zero_copy_at(&merkle_context_bytes).unwrap();
 
     let address = [7u8; 32];
@@ -665,7 +665,7 @@ fn test_in_account_set_z_success_without_address() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute - Create the zero-copy merkle context
@@ -675,7 +675,7 @@ fn test_in_account_set_z_success_without_address() {
         leaf_index: 100,
         prove_by_index: true,
     };
-    let merkle_context_bytes = merkle_context.try_to_vec().unwrap();
+    let merkle_context_bytes = borsh::to_vec(&merkle_context).unwrap();
     let (z_merkle_context, _) = PackedMerkleContext::zero_copy_at(&merkle_context_bytes).unwrap();
 
     let result = z_in.set_z(
@@ -709,7 +709,7 @@ fn test_in_account_set_z_error_missing_address() {
         address: Some([0u8; 32]),
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Create zero-copy merkle context
@@ -719,7 +719,7 @@ fn test_in_account_set_z_error_missing_address() {
         leaf_index: 999,
         prove_by_index: false,
     };
-    let ctx_data = merkle_ctx.try_to_vec().unwrap();
+    let ctx_data = borsh::to_vec(&merkle_ctx).unwrap();
     let (z_context, _) = PackedMerkleContext::zero_copy_at(&ctx_data).unwrap();
 
     // Execute: call set_z() with None address (but InAccount has address slot)
@@ -756,7 +756,7 @@ fn test_in_account_set_z_error_unexpected_address() {
         address: None, // No address slot
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Create zero-copy merkle context
@@ -766,7 +766,7 @@ fn test_in_account_set_z_error_unexpected_address() {
         leaf_index: 999,
         prove_by_index: false,
     };
-    let ctx_data = merkle_ctx.try_to_vec().unwrap();
+    let ctx_data = borsh::to_vec(&merkle_ctx).unwrap();
     let (z_context, _) = PackedMerkleContext::zero_copy_at(&ctx_data).unwrap();
 
     // Execute: call set_z() with Some(&[7u8; 32]) address (but InAccount has no address slot)
@@ -804,7 +804,7 @@ fn test_in_account_set_z_edge_case_zero_lamports() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Create zero-copy merkle context
@@ -814,7 +814,7 @@ fn test_in_account_set_z_edge_case_zero_lamports() {
         leaf_index: 999,
         prove_by_index: false,
     };
-    let ctx_data = merkle_ctx.try_to_vec().unwrap();
+    let ctx_data = borsh::to_vec(&merkle_ctx).unwrap();
     let (z_context, _) = PackedMerkleContext::zero_copy_at(&ctx_data).unwrap();
 
     // Execute: call set_z() with lamports = 0
@@ -849,7 +849,7 @@ fn test_in_account_set_z_edge_case_max_lamports() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Create zero-copy merkle context
@@ -859,7 +859,7 @@ fn test_in_account_set_z_edge_case_max_lamports() {
         leaf_index: 999,
         prove_by_index: false,
     };
-    let ctx_data = merkle_ctx.try_to_vec().unwrap();
+    let ctx_data = borsh::to_vec(&merkle_ctx).unwrap();
     let (z_context, _) = PackedMerkleContext::zero_copy_at(&ctx_data).unwrap();
 
     // Execute: call set_z() with lamports = u64::MAX
@@ -889,7 +889,7 @@ fn test_in_account_set_z_edge_case_merkle_context_bounds() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Test with prove_by_index: false
@@ -899,7 +899,7 @@ fn test_in_account_set_z_edge_case_merkle_context_bounds() {
         leaf_index: u32::MAX,
         prove_by_index: false,
     };
-    let ctx_data = merkle_ctx_false.try_to_vec().unwrap();
+    let ctx_data = borsh::to_vec(&merkle_ctx_false).unwrap();
     let (z_context, _) = PackedMerkleContext::zero_copy_at(&ctx_data).unwrap();
 
     let result = z_in.set_z([3u8; 8], [4u8; 32], &z_context, U16::new(2), 2000, None);
@@ -918,7 +918,7 @@ fn test_in_account_set_z_edge_case_merkle_context_bounds() {
         leaf_index: u32::MAX,
         prove_by_index: true,
     };
-    let ctx_data_true = merkle_ctx_true.try_to_vec().unwrap();
+    let ctx_data_true = borsh::to_vec(&merkle_ctx_true).unwrap();
     let (z_context_true, _) = PackedMerkleContext::zero_copy_at(&ctx_data_true).unwrap();
 
     let result2 = z_in.set_z(
@@ -950,7 +950,7 @@ fn test_in_account_set_z_merkle_context_copying() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Create PackedMerkleContext with specific values
@@ -960,7 +960,7 @@ fn test_in_account_set_z_merkle_context_copying() {
         leaf_index: 999999,
         prove_by_index: false,
     };
-    let ctx_data = merkle_ctx.try_to_vec().unwrap();
+    let ctx_data = borsh::to_vec(&merkle_ctx).unwrap();
     let (z_context, _) = PackedMerkleContext::zero_copy_at(&ctx_data).unwrap();
 
     // Execute: call set_z() with zero-copy context
@@ -987,7 +987,7 @@ fn test_in_account_set_error_invalid_address_length() {
         address: Some([0u8; 32]),
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute: call set() with Some(&[7u8; 16]) (wrong length)
@@ -1020,7 +1020,7 @@ fn test_in_account_set_edge_case_zero_lamports() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute: call set() with lamports = 0
@@ -1056,7 +1056,7 @@ fn test_in_account_set_edge_case_max_lamports() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute: call set() with lamports = u64::MAX
@@ -1092,7 +1092,7 @@ fn test_in_account_set_merkle_context_copying() {
         address: None,
     };
 
-    let mut data = in_account.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&in_account).unwrap();
     let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut data).unwrap();
 
     // Create PackedMerkleContext with specific values
@@ -1149,7 +1149,7 @@ fn test_instruction_initialize_success_with_proof() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1159,7 +1159,7 @@ fn test_instruction_initialize_success_with_proof() {
         b: [6u8; 64],
         c: [7u8; 32],
     };
-    let proof_data = compressed_proof.try_to_vec().unwrap();
+    let proof_data = borsh::to_vec(&compressed_proof).unwrap();
     let (z_proof, _) = CompressedProof::zero_copy_at(&proof_data).unwrap();
 
     let invoking_program_id = Pubkey::new_unique();
@@ -1203,7 +1203,7 @@ fn test_instruction_initialize_success_without_proof() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1234,7 +1234,7 @@ fn test_new_address_set_edge_case_zero_seed() {
     // Setup: NewAddressParamsAssignedPacked
     let new_address = NewAddressParamsAssignedPacked::default();
 
-    let mut data = new_address.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&new_address).unwrap();
     let (mut z_new_address, _) =
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1259,7 +1259,7 @@ fn test_new_address_set_edge_case_max_seed() {
     // Setup: NewAddressParamsAssignedPacked
     let new_address = NewAddressParamsAssignedPacked::default();
 
-    let mut data = new_address.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&new_address).unwrap();
     let (mut z_new_address, _) =
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1284,7 +1284,7 @@ fn test_new_address_set_edge_case_zero_root_index() {
     // Setup: NewAddressParamsAssignedPacked
     let new_address = NewAddressParamsAssignedPacked::default();
 
-    let mut data = new_address.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&new_address).unwrap();
     let (mut z_new_address, _) =
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1305,7 +1305,7 @@ fn test_new_address_set_edge_case_max_root_index() {
     // Setup: NewAddressParamsAssignedPacked
     let new_address = NewAddressParamsAssignedPacked::default();
 
-    let mut data = new_address.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&new_address).unwrap();
     let (mut z_new_address, _) =
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1326,7 +1326,7 @@ fn test_new_address_set_edge_case_zero_merkle_tree_account_index() {
     // Setup: NewAddressParamsAssignedPacked
     let new_address = NewAddressParamsAssignedPacked::default();
 
-    let mut data = new_address.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&new_address).unwrap();
     let (mut z_new_address, _) =
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1347,7 +1347,7 @@ fn test_new_address_set_edge_case_max_merkle_tree_account_index() {
     // Setup: NewAddressParamsAssignedPacked
     let new_address = NewAddressParamsAssignedPacked::default();
 
-    let mut data = new_address.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&new_address).unwrap();
     let (mut z_new_address, _) =
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1387,7 +1387,7 @@ fn test_instruction_initialize_error_missing_proof() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1429,7 +1429,7 @@ fn test_instruction_initialize_mode_invariant() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1463,7 +1463,7 @@ fn test_instruction_initialize_edge_case_zero_bump() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1497,7 +1497,7 @@ fn test_instruction_initialize_edge_case_max_bump() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1531,7 +1531,7 @@ fn test_instruction_initialize_success_without_cpi_context() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1566,7 +1566,7 @@ fn test_instruction_initialize_error_unexpected_proof() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1576,7 +1576,7 @@ fn test_instruction_initialize_error_unexpected_proof() {
         b: [6u8; 64],
         c: [7u8; 32],
     };
-    let proof_data = compressed_proof.try_to_vec().unwrap();
+    let proof_data = borsh::to_vec(&compressed_proof).unwrap();
     let (z_proof, _) = CompressedProof::zero_copy_at(&proof_data).unwrap();
 
     // Execute: call initialize() with Some(zero_copy_proof) (but InstructionData has no proof slot)
@@ -1613,7 +1613,7 @@ fn test_instruction_initialize_success_with_cpi_context() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1657,7 +1657,7 @@ fn test_instruction_initialize_proof_copying() {
         read_only_accounts: Vec::new(),
     };
 
-    let mut data = instruction.try_to_vec().unwrap();
+    let mut data = borsh::to_vec(&instruction).unwrap();
     let (mut z_instruction, _) =
         InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut data).unwrap();
 
@@ -1667,7 +1667,7 @@ fn test_instruction_initialize_proof_copying() {
         b: [6u8; 64],
         c: [7u8; 32],
     };
-    let proof_data = compressed_proof.try_to_vec().unwrap();
+    let proof_data = borsh::to_vec(&compressed_proof).unwrap();
     let (z_proof, _) = CompressedProof::zero_copy_at(&proof_data).unwrap();
 
     let result = z_instruction.initialize(
@@ -1699,7 +1699,7 @@ fn test_randomized_all_functions() {
             compressed_account: create_compressed_account(Some([1u8; 32]), None),
             merkle_tree_index: rng.gen::<u8>(),
         };
-        let mut data = output_account.try_to_vec().unwrap();
+        let mut data = borsh::to_vec(&output_account).unwrap();
         let (mut z_output, _) =
             OutputCompressedAccountWithPackedContext::zero_copy_at_mut(&mut data).unwrap();
         let _ = z_output.set(
@@ -1725,7 +1725,7 @@ fn test_randomized_all_functions() {
             lamports: rng.gen::<u64>(),
             address: None,
         };
-        let mut in_data = in_account.try_to_vec().unwrap();
+        let mut in_data = borsh::to_vec(&in_account).unwrap();
         let (mut z_in, _) = InAccount::zero_copy_at_mut(&mut in_data).unwrap();
 
         let merkle_ctx = PackedMerkleContext {
@@ -1734,7 +1734,7 @@ fn test_randomized_all_functions() {
             leaf_index: rng.gen::<u32>(),
             prove_by_index: rng.gen::<bool>(),
         };
-        let ctx_data = merkle_ctx.try_to_vec().unwrap();
+        let ctx_data = borsh::to_vec(&merkle_ctx).unwrap();
         let (z_context, _) = PackedMerkleContext::zero_copy_at(&ctx_data).unwrap();
 
         let _ = z_in.set_z(
@@ -1773,7 +1773,7 @@ fn test_randomized_all_functions() {
             read_only_addresses: Vec::new(),
             read_only_accounts: Vec::new(),
         };
-        let mut inst_data = instruction.try_to_vec().unwrap();
+        let mut inst_data = borsh::to_vec(&instruction).unwrap();
         let (mut z_instruction, _) =
             InstructionDataInvokeCpiWithReadOnly::zero_copy_at_mut(&mut inst_data).unwrap();
 
@@ -1786,7 +1786,7 @@ fn test_randomized_all_functions() {
 
         // Test ZNewAddressParamsAssignedPackedMut::set()
         let new_address = NewAddressParamsAssignedPacked::default();
-        let mut addr_data = new_address.try_to_vec().unwrap();
+        let mut addr_data = borsh::to_vec(&new_address).unwrap();
         let (mut z_new_address, _) =
             NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut addr_data).unwrap();
 

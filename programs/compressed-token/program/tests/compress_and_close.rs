@@ -91,7 +91,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
     ];
 
     // Serialize to bytes
-    let compression_bytes = compressions.try_to_vec().unwrap();
+    let compression_bytes = borsh::to_vec(&compressions).unwrap();
 
     // Convert to zero-copy slice
     let (compressions_zc, _) = Vec::<Compression>::zero_copy_at(&compression_bytes).unwrap();

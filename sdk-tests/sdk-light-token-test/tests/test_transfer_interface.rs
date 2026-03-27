@@ -90,7 +90,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 19 = TransferInterfaceInvoke
-    let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![19u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
@@ -199,7 +199,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
             spl_interface_pda_bump: Some(spl_interface_pda_bump),
             decimals: CREATE_MINT_HELPER_DECIMALS,
         };
-        let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
+        let wrapper_instruction_data = [vec![19u8], borsh::to_vec(&data).unwrap()].concat();
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(compressed_token_program_id, false),
             AccountMeta::new(temp_spl_keypair.pubkey(), false),
@@ -228,7 +228,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         spl_interface_pda_bump: Some(spl_interface_pda_bump),
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
-    let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![19u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
@@ -344,7 +344,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
             spl_interface_pda_bump: Some(spl_interface_pda_bump),
             decimals: CREATE_MINT_HELPER_DECIMALS,
         };
-        let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
+        let wrapper_instruction_data = [vec![19u8], borsh::to_vec(&data).unwrap()].concat();
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(compressed_token_program_id, false),
             AccountMeta::new(temp_spl_keypair.pubkey(), false),
@@ -373,7 +373,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
         spl_interface_pda_bump: None, // Not needed for Light Token->Light Token
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
-    let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![19u8], borsh::to_vec(&data).unwrap()].concat();
 
     // For Light Token->Light Token, we need 8 accounts (mint required for TransferChecked)
     let wrapper_accounts = vec![
@@ -492,7 +492,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
-    let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![20u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
@@ -618,7 +618,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
             spl_interface_pda_bump: Some(spl_interface_pda_bump),
             decimals: CREATE_MINT_HELPER_DECIMALS,
         };
-        let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
+        let wrapper_instruction_data = [vec![19u8], borsh::to_vec(&data).unwrap()].concat();
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(compressed_token_program_id, false),
             AccountMeta::new(temp_spl_keypair.pubkey(), false),
@@ -648,7 +648,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
-    let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![20u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
@@ -775,7 +775,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
             spl_interface_pda_bump: Some(spl_interface_pda_bump),
             decimals: CREATE_MINT_HELPER_DECIMALS,
         };
-        let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
+        let wrapper_instruction_data = [vec![19u8], borsh::to_vec(&data).unwrap()].concat();
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(compressed_token_program_id, false),
             AccountMeta::new(temp_spl_keypair.pubkey(), false),
@@ -805,7 +805,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
-    let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![20u8], borsh::to_vec(&data).unwrap()].concat();
 
     // For Light Token->Light Token, we need 8 accounts (mint required for TransferChecked)
     let wrapper_accounts = vec![
@@ -910,7 +910,7 @@ async fn test_transfer_interface_spl_to_spl_invoke() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 19 = TransferInterfaceInvoke
-    let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![19u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
@@ -1029,7 +1029,7 @@ async fn test_transfer_interface_spl_to_spl_invoke_signed() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
-    let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![20u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
@@ -1141,7 +1141,7 @@ async fn test_transfer_interface_t22_to_t22_invoke() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 19 = TransferInterfaceInvoke
-    let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![19u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
@@ -1265,7 +1265,7 @@ async fn test_transfer_interface_t22_to_t22_invoke_signed() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
-    let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![20u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),

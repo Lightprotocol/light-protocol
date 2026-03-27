@@ -236,7 +236,7 @@ fn compare_mint_borsh_vs_zero_copy(original: &Mint, borsh_bytes: &[u8]) {
 fn test_mint_borsh_zero_copy_compatibility() {
     for _ in 0..1000 {
         let mint = generate_random_mint();
-        let borsh_bytes = mint.try_to_vec().unwrap();
+        let borsh_bytes = borsh::to_vec(&mint).unwrap();
         compare_mint_borsh_vs_zero_copy(&mint, &borsh_bytes);
     }
 }
@@ -273,7 +273,7 @@ fn generate_mint_with_extensions() -> Mint {
 fn test_mint_with_extensions_borsh_zero_copy_compatibility() {
     for _ in 0..500 {
         let mint = generate_mint_with_extensions();
-        let borsh_bytes = mint.try_to_vec().unwrap();
+        let borsh_bytes = borsh::to_vec(&mint).unwrap();
         compare_mint_borsh_vs_zero_copy(&mint, &borsh_bytes);
     }
 }
@@ -309,7 +309,7 @@ fn test_mint_extension_edge_cases() {
             additional_metadata: vec![], // No additional metadata
         })]),
     };
-    let borsh_bytes = mint_empty_strings.try_to_vec().unwrap();
+    let borsh_bytes = borsh::to_vec(&mint_empty_strings).unwrap();
     compare_mint_borsh_vs_zero_copy(&mint_empty_strings, &borsh_bytes);
 
     // Test 2: Maximum reasonable lengths
@@ -353,7 +353,7 @@ fn test_mint_extension_edge_cases() {
             ],
         })]),
     };
-    let borsh_bytes = mint_max_lengths.try_to_vec().unwrap();
+    let borsh_bytes = borsh::to_vec(&mint_max_lengths).unwrap();
     compare_mint_borsh_vs_zero_copy(&mint_max_lengths, &borsh_bytes);
 
     // Test 3: Zero update authority (represents None)
@@ -384,7 +384,7 @@ fn test_mint_extension_edge_cases() {
             additional_metadata: vec![],
         })]),
     };
-    let borsh_bytes = mint_zero_authority.try_to_vec().unwrap();
+    let borsh_bytes = borsh::to_vec(&mint_zero_authority).unwrap();
     compare_mint_borsh_vs_zero_copy(&mint_zero_authority, &borsh_bytes);
 
     // Test 4: No extensions (explicit None)
@@ -408,6 +408,6 @@ fn test_mint_extension_edge_cases() {
         compression: CompressionInfo::default(),
         extensions: None,
     };
-    let borsh_bytes = mint_no_extensions.try_to_vec().unwrap();
+    let borsh_bytes = borsh::to_vec(&mint_no_extensions).unwrap();
     compare_mint_borsh_vs_zero_copy(&mint_no_extensions, &borsh_bytes);
 }

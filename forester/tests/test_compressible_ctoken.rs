@@ -272,7 +272,7 @@ async fn register_forester(
     let rpc_pool = Arc::new(
         SolanaRpcPoolBuilder::<LightClient>::new()
             .url("http://localhost:8899".to_string())
-            .commitment(solana_sdk::commitment_config::CommitmentConfig::confirmed())
+            .commitment(solana_commitment_config::CommitmentConfig::confirmed())
             .build()
             .await
             .expect("Failed to create RPC pool"),

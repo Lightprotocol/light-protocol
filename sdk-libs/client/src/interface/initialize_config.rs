@@ -119,9 +119,8 @@ impl InitializeRentFreeConfig {
         // SHA256("global:initialize_compression_config")[..8]
         const DISCRIMINATOR: [u8; 8] = [133, 228, 12, 169, 56, 76, 222, 61];
 
-        let serialized_data = instruction_data
-            .try_to_vec()
-            .expect("Failed to serialize instruction data");
+        let serialized_data =
+            borsh::to_vec(&instruction_data).expect("Failed to serialize instruction data");
 
         let mut data = Vec::with_capacity(DISCRIMINATOR.len() + serialized_data.len());
         data.extend_from_slice(&DISCRIMINATOR);

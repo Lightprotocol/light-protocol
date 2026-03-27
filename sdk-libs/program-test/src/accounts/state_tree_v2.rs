@@ -76,7 +76,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
         )
     } else {
         let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
-            bytes: params.try_to_vec().unwrap(),
+            bytes: borsh::to_vec(&params).unwrap(),
         };
         let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
             authority: payer.pubkey(),

@@ -6,7 +6,7 @@ use pinocchio::{
     instruction::{Seed, Signer},
 };
 use pinocchio_system::instructions::Transfer;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::shared::{convert_program_error, parse_config_account};
 

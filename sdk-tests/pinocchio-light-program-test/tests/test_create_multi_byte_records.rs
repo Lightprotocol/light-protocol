@@ -71,7 +71,7 @@ async fn test_create_compress_decompress_multi_byte_records() {
         AccountMeta::new(five_byte_pda, false),
         AccountMeta::new(six_byte_pda, false),
         AccountMeta::new(seven_byte_pda, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false),
     ];
 
     let instruction = Instruction {

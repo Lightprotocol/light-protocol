@@ -281,8 +281,7 @@ fn build_compressions_only_instruction(
     };
 
     // Serialize instruction data
-    let serialized = instruction_data
-        .try_to_vec()
+    let serialized = borsh::to_vec(&instruction_data)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to serialize: {:?}", e)))?;
 
     // Build instruction data with discriminator

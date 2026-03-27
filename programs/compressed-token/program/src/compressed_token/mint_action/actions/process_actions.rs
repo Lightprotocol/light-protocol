@@ -11,7 +11,7 @@ use light_token_interface::{
     TokenError,
 };
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{
     compressed_token::mint_action::{

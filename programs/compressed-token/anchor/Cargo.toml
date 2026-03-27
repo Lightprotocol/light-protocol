@@ -25,11 +25,11 @@ cpi-without-program-ids = []
 
 [dependencies]
 anchor-lang = { workspace = true }
-anchor-spl = { version = "0.31.1" }
+anchor-spl = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 account-compression = { workspace = true, features = ["cpi", "no-idl"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
-solana-security-txt = "1.1.0"
+solana-security-txt = { workspace = true }
 light-hasher = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }

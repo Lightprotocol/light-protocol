@@ -21,7 +21,7 @@ fn main() {
         opt: Some(42),
         c: 30,
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct_copy, remaining) = MetaBoundaryOption::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct_copy, ref_struct);

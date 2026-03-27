@@ -9,7 +9,7 @@ use light_token_interface::{
 };
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::pubkey::pubkey_eq;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use super::{
     compress_and_close::process_compress_and_close, decompress::validate_and_apply_compressed_only,

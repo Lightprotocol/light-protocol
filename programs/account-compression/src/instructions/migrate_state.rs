@@ -57,7 +57,7 @@ pub struct MigrateLeafParams {
 ///    2.3 Inserts the leaf in the output queue.
 /// 3. Emit nullifier event
 pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
+    ctx: &'a Context<'info, MigrateState<'info>>,
     migrate_leaf_params: MigrateLeafParams,
 ) -> Result<()> {
     // 1. Check that signer is a registered program.
@@ -91,7 +91,7 @@ pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
         output_queue,
     )?;
     // 3. Emit nullifier event
-    emit_indexer_event(nullify_event.try_to_vec()?, &ctx.accounts.log_wrapper)?;
+    emit_indexer_event(borsh::to_vec(&nullify_event)?, &ctx.accounts.log_wrapper)?;
 
     Ok(())
 }

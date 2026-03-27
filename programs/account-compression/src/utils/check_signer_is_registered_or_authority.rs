@@ -22,7 +22,7 @@ pub fn check_signer_is_registered_or_authority<
     C: GroupAccounts<'info> + anchor_lang::Bumps,
     A: GroupAccess,
 >(
-    ctx: &'a Context<'a, 'b, 'c, 'info, C>,
+    ctx: &'a Context<'info, C>,
     checked_account: &'a A,
 ) -> Result<()> {
     match ctx.accounts.get_registered_program_pda() {

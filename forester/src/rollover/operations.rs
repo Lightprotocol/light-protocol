@@ -24,9 +24,10 @@ use light_registry::{
     },
     protocol_config::state::ProtocolConfig,
 };
+use solana_compute_budget_interface::ComputeBudgetInstruction;
 use solana_sdk::{
-    compute_budget::ComputeBudgetInstruction, instruction::Instruction, pubkey::Pubkey,
-    signature::Keypair, signer::Signer, transaction::Transaction,
+    instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
+    transaction::Transaction,
 };
 use tracing::{trace, warn};
 

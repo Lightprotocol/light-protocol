@@ -3,8 +3,8 @@ use account_compression::{
 };
 use anchor_lang::InstructionData;
 use light_client::rpc::{errors::RpcError, Rpc};
+use solana_compute_budget_interface::ComputeBudgetInstruction;
 use solana_sdk::{
-    compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},

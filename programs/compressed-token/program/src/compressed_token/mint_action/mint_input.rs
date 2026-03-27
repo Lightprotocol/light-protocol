@@ -38,9 +38,7 @@ pub fn create_input_compressed_mint_account(
         )
     } else {
         // Data from instruction - compute hash
-        let bytes = compressed_mint
-            .try_to_vec()
-            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+        let bytes = borsh::to_vec(&compressed_mint).map_err(|_| ProgramError::BorshIoError)?;
         (
             COMPRESSED_MINT_DISCRIMINATOR,
             Sha256BE::hash(bytes.as_slice())?,

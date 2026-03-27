@@ -86,7 +86,7 @@ fn compare_mints(light: &BaseMint, spl: &SplMint, iteration: usize) {
     );
 
     // Test Light serialization roundtrip
-    let light_bytes = light.try_to_vec().unwrap();
+    let light_bytes = borsh::to_vec(&light).unwrap();
     let light_deserialized = BaseMint::try_from_slice(&light_bytes).unwrap();
     assert_eq!(
         light, &light_deserialized,

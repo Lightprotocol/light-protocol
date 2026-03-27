@@ -40,7 +40,7 @@ async fn test_create_token_vault() {
         AccountMeta::new_readonly(config_pda(), false),
         AccountMeta::new(rent_sponsor_pda(), false),
         AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false),
     ];
 
     let ix = Instruction {

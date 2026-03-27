@@ -168,7 +168,7 @@ fn compare_metadata(light: &LightTokenMetadata, spl: &SplTokenMetadata, iteratio
     }
 
     // Test Light serialization round-trip
-    let light_bytes = light.try_to_vec().unwrap();
+    let light_bytes = borsh::to_vec(&light).unwrap();
     let light_restored = LightTokenMetadata::try_from_slice(&light_bytes).unwrap();
 
     // Single assertion for complete Light struct

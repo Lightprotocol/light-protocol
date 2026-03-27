@@ -41,9 +41,8 @@ impl LightInstructionData for InstructionDataInvokeCpi {
         #[cfg(not(feature = "anchor"))]
         use borsh::BorshSerialize;
 
-        let inputs = self
-            .try_to_vec()
-            .map_err(|_| crate::CompressedAccountError::InvalidArgument)?;
+        let inputs =
+            borsh::to_vec(&self).map_err(|_| crate::CompressedAccountError::InvalidArgument)?;
         let mut data = Vec::with_capacity(12 + inputs.len());
         data.extend_from_slice(self.discriminator());
         data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());

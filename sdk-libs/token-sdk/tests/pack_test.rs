@@ -48,8 +48,8 @@ fn test_token_data_with_variant_packing() {
 
     #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
     enum MyVariant {
-        TypeA = 0,
-        TypeB = 1,
+        TypeA,
+        TypeB,
     }
 
     impl Pack for MyVariant {
