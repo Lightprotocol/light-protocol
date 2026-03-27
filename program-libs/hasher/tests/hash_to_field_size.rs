@@ -35,7 +35,7 @@ fn hash_to_field_size_borsh() {
         c: u64,
     }
     let test_struct = TestStruct { a: 1, b: 2, c: 3 };
-    let serialized = test_struct.try_to_vec().unwrap();
+    let serialized = borsh::to_vec(&test_struct).unwrap();
     let hash = test_struct.hash_to_field_size().unwrap();
     let manual_hash = hash_to_bn254_field_size_be(&serialized);
     assert_eq!(hash, manual_hash);

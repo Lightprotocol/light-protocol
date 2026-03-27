@@ -31,7 +31,7 @@ impl<'info> GroupAccounts<'info> for InitializeBatchedStateMerkleTreeAndQueue<'i
 }
 
 pub fn process_initialize_batched_state_merkle_tree<'info>(
-    ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+    ctx: Context<'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
     params: InitStateTreeAccountsInstructionData,
 ) -> Result<()> {
     #[cfg(feature = "test")]

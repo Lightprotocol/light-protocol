@@ -52,7 +52,7 @@ mod test {
             },
             ..PackedCompressedAccountWithMerkleContext::default()
         };
-        let bytes = compressed_account_with_context.try_to_vec().unwrap();
+        let bytes = borsh::to_vec(&compressed_account_with_context).unwrap();
         let compressed_account_with_context =
             ZPackedCompressedAccountWithMerkleContext::zero_copy_at(&bytes)
                 .unwrap()
@@ -76,9 +76,7 @@ mod test {
                     ..PackedCompressedAccountWithMerkleContext::default()
                 };
 
-            let bytes = invalid_compressed_account_with_context
-                .try_to_vec()
-                .unwrap();
+            let bytes = borsh::to_vec(&invalid_compressed_account_with_context).unwrap();
             let invalid_compressed_account_with_context =
                 ZPackedCompressedAccountWithMerkleContext::zero_copy_at(&bytes)
                     .unwrap()

@@ -20,7 +20,7 @@ fn main() {
         lifetime: 42,
         static_field: vec![1, 2, 3],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (_struct_copy, remaining) = LifetimeName::zero_copy_at(&bytes).unwrap();
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation with Vec<primitive>

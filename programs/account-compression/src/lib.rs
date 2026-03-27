@@ -35,7 +35,7 @@ pub mod account_compression {
     use crate::processor::insert_into_queues::process_insert_into_queues;
 
     pub fn initialize_address_merkle_tree_and_queue<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
+        ctx: Context<'info, InitializeAddressMerkleTreeAndQueue<'info>>,
         index: u64,
         program_owner: Option<Pubkey>,
         forester: Option<Pubkey>,
@@ -54,7 +54,7 @@ pub mod account_compression {
 
     /// Updates the address Merkle tree with a new address.
     pub fn update_address_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateAddressMerkleTree<'info>>,
+        ctx: Context<'info, UpdateAddressMerkleTree<'info>>,
         // Index of the Merkle tree changelog.
         changelog_index: u16,
         indexed_changelog_index: u16,
@@ -83,7 +83,7 @@ pub mod account_compression {
     }
 
     pub fn rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
+        ctx: Context<'info, RolloverAddressMerkleTreeAndQueue<'info>>,
     ) -> Result<()> {
         process_rollover_address_merkle_tree_and_queue(ctx)
     }
@@ -91,7 +91,7 @@ pub mod account_compression {
     /// initialize group (a group can be used to give multiple programs access
     /// to the same Merkle trees by registering the programs to the group)
     pub fn initialize_group_authority<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeGroupAuthority<'info>>,
+        ctx: Context<'info, InitializeGroupAuthority<'info>>,
         authority: Pubkey,
     ) -> Result<()> {
         let seed_pubkey = ctx.accounts.seed.key();
@@ -104,14 +104,14 @@ pub mod account_compression {
     }
 
     pub fn update_group_authority<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateGroupAuthority<'info>>,
+        ctx: Context<'info, UpdateGroupAuthority<'info>>,
         authority: Pubkey,
     ) -> Result<()> {
         set_group_authority(&mut ctx.accounts.group_authority, authority, None)
     }
 
     pub fn register_program_to_group<'info>(
-        ctx: Context<'_, '_, '_, 'info, RegisterProgramToGroup<'info>>,
+        ctx: Context<'info, RegisterProgramToGroup<'info>>,
     ) -> Result<()> {
         process_register_program(ctx)
     }
@@ -121,7 +121,7 @@ pub mod account_compression {
     }
 
     pub fn resize_registered_program_pda<'info>(
-        ctx: Context<'_, '_, '_, 'info, ResizeRegisteredProgramPda<'info>>,
+        ctx: Context<'info, ResizeRegisteredProgramPda<'info>>,
     ) -> Result<()> {
         process_resize_registered_program_pda(ctx)
     }
@@ -129,7 +129,7 @@ pub mod account_compression {
     /// Initializes a new Merkle tree from config bytes.
     /// Index is an optional identifier and not checked by the program.
     pub fn initialize_state_merkle_tree_and_nullifier_queue<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeStateMerkleTreeAndNullifierQueue<'info>>,
+        ctx: Context<'info, InitializeStateMerkleTreeAndNullifierQueue<'info>>,
         index: u64,
         program_owner: Option<Pubkey>,
         forester: Option<Pubkey>,
@@ -157,14 +157,14 @@ pub mod account_compression {
     /// Inserts nullifiers, leaves, and addresses
     /// into v1 and batched Merkle trees.
     pub fn insert_into_queues<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
+        ctx: Context<'info, GenericInstruction<'info>>,
         bytes: Vec<u8>,
     ) -> Result<()> {
         process_insert_into_queues(&ctx, bytes)
     }
 
     pub fn nullify_leaves<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
+        ctx: Context<'info, NullifyLeaves<'info>>,
         change_log_indices: Vec<u64>,
         leaves_queue_indices: Vec<u16>,
         leaf_indices: Vec<u64>,
@@ -180,7 +180,7 @@ pub mod account_compression {
     }
 
     pub fn rollover_state_merkle_tree_and_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
+        ctx: Context<'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
     ) -> Result<()> {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
@@ -202,7 +202,7 @@ pub mod account_compression {
     ///    Nullifiers are inserted from the input queue into the
     ///    state Merkle tree with the instruction batch_nullify.
     pub fn initialize_batched_state_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+        ctx: Context<'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
         bytes: Vec<u8>,
     ) -> Result<()> {
         let params = InitStateTreeAccountsInstructionData::try_from_slice(&bytes)
@@ -222,7 +222,7 @@ pub mod account_compression {
     ///     The address tree is updated with the instruction
     ///     batch_update_address_tree.
     pub fn initialize_batched_address_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeBatchedAddressMerkleTree<'info>>,
+        ctx: Context<'info, InitializeBatchedAddressMerkleTree<'info>>,
         bytes: Vec<u8>,
     ) -> Result<()> {
         let params = InitAddressTreeAccountsInstructionData::try_from_slice(&bytes)
@@ -233,7 +233,7 @@ pub mod account_compression {
     /// Nullify a batch of leaves from the input queue
     /// to a batched Merkle tree with a zkp.
     pub fn batch_nullify<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
+        ctx: Context<'info, BatchNullify<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
         let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
@@ -244,7 +244,7 @@ pub mod account_compression {
     /// Append a batch of leaves from an output queue
     /// to a batched Merkle tree with a zkp.
     pub fn batch_append<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
+        ctx: Context<'info, BatchAppend<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
         let instruction_data = InstructionDataBatchAppendInputs::try_from_slice(&data)
@@ -255,7 +255,7 @@ pub mod account_compression {
     /// Insert a batch of addresses into a
     /// batched address Merkle tree with a zkp.
     pub fn batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,
+        ctx: Context<'info, BatchUpdateAddressTree<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
         let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
@@ -268,7 +268,7 @@ pub mod account_compression {
     /// with the parameters of the old account.
     /// Rent is reimbursed from the old account to the payer.
     pub fn rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedAddressMerkleTree<'info>>,
+        ctx: Context<'info, RolloverBatchedAddressMerkleTree<'info>>,
         network_fee: Option<u64>,
     ) -> Result<()> {
         process_rollover_batched_address_merkle_tree(ctx, network_fee)
@@ -279,7 +279,7 @@ pub mod account_compression {
     /// with the parameters of the old accounts.
     /// Rent is reimbursed from the old output queue account to the payer.
     pub fn rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedStateMerkleTree<'info>>,
+        ctx: Context<'info, RolloverBatchedStateMerkleTree<'info>>,
         additional_bytes: u64,
         network_fee: Option<u64>,
     ) -> Result<()> {
@@ -289,7 +289,7 @@ pub mod account_compression {
     /// Migrate state from a v1 state Merkle tree
     /// to a v2 state Merkle tree.
     pub fn migrate_state<'a, 'b, 'c: 'info, 'info>(
-        _ctx: Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
+        _ctx: Context<'info, MigrateState<'info>>,
         _input: MigrateLeafParams,
     ) -> Result<()> {
         #[cfg(feature = "migrate-state")]

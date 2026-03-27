@@ -85,12 +85,12 @@ async fn test_create_v2_address() {
 
     let (_, _, pre_root) = get_initial_merkle_tree_state(&mut rpc, &env.v2_address_trees[0]).await;
 
-    let batch_payer = Keypair::from_bytes(&[
+    let batch_payer = Keypair::try_from(&[
         88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150,
         87, 182, 238, 155, 87, 24, 176, 252, 157, 119, 68, 81, 148, 156, 30, 0, 60, 63, 34, 247,
         192, 120, 4, 170, 32, 149, 221, 144, 74, 244, 181, 142, 37, 197, 196, 136, 159, 196, 101,
         21, 194, 56, 163, 1,
-    ])
+    ].as_slice())
     .unwrap();
     ensure_sufficient_balance(&mut rpc, &batch_payer.pubkey(), LAMPORTS_PER_SOL * 100).await;
 
@@ -305,7 +305,7 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
 
         let instruction = create_pda_instruction(create_ix_inputs);
         let instructions = vec![
-            solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+            solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
                 COMPUTE_BUDGET_LIMIT,
             ),
             instruction,
@@ -390,7 +390,7 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
             payer.pubkey(),
             [
                 light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-                ix_data.try_to_vec()?,
+                borsh::to_vec(&ix_data)?,
             ]
             .concat(),
             remaining_accounts,
@@ -398,7 +398,7 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
         );
 
         let instructions = vec![
-            solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+            solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
                 COMPUTE_BUDGET_LIMIT,
             ),
             instruction,

@@ -86,7 +86,7 @@ impl default::Default for NullifierQueueConfig {
 }
 
 pub fn process_initialize_state_merkle_tree_and_nullifier_queue<'info>(
-    ctx: Context<'_, '_, '_, 'info, InitializeStateMerkleTreeAndNullifierQueue<'info>>,
+    ctx: Context<'info, InitializeStateMerkleTreeAndNullifierQueue<'info>>,
     index: u64,
     program_owner: Option<Pubkey>,
     forester: Option<Pubkey>,

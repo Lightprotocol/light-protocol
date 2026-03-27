@@ -233,7 +233,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
         };
         // Discriminator 14 = CreateCmintWithPdaAuthority
         let wrapper_instruction_data =
-            [vec![14u8], create_mint_data.try_to_vec().unwrap()].concat();
+            [vec![14u8], borsh::to_vec(&create_mint_data).unwrap()].concat();
 
         // Account order matches process_create_mint_with_pda_authority (MintActionMetaConfig):
         // [0]: compressed_token_program

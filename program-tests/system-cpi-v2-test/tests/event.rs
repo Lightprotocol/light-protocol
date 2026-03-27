@@ -732,7 +732,7 @@ pub async fn perform_test_transaction<R: Rpc>(
         payer.pubkey(),
         [
             light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-            ix_data.try_to_vec().unwrap(),
+            borsh::to_vec(&ix_data).unwrap(),
         ]
         .concat(),
         remaining_accounts,

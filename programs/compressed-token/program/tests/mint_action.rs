@@ -276,7 +276,7 @@ fn test_accounts_config_randomized() {
             0..6,       // 1-5 actions
         );
         // Serialize to bytes then deserialize as zero-copy
-        let serialized = instruction_data.try_to_vec().expect("Failed to serialize");
+        let serialized = borsh::to_vec(&instruction_data).expect("Failed to serialize");
         let (zero_copy_data, _) = MintActionCompressedInstructionData::zero_copy_at(&serialized)
             .expect("Failed to deserialize as zero-copy");
 

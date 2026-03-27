@@ -44,7 +44,7 @@ pub struct CompressedTokenInstructionDataApprove {
 /// 4. pack token data into input compressed accounts
 /// 5. execute compressed transaction
 pub fn process_approve<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
+    ctx: Context<'info, GenericInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataApprove =
@@ -177,7 +177,7 @@ pub struct CompressedTokenInstructionDataRevoke {
 }
 
 pub fn process_revoke<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
+    ctx: Context<'info, GenericInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataRevoke =
@@ -355,7 +355,7 @@ pub mod sdk {
             ),
             account_compression_program: account_compression::ID,
             self_program: crate::ID,
-            system_program: solana_sdk::system_program::ID,
+            system_program: anchor_lang::solana_program::system_program::ID,
         };
 
         Ok(Instruction {
@@ -429,7 +429,7 @@ pub mod sdk {
             ),
             account_compression_program: account_compression::ID,
             self_program: crate::ID,
-            system_program: solana_sdk::system_program::ID,
+            system_program: anchor_lang::solana_program::system_program::ID,
         };
 
         Ok(Instruction {

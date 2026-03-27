@@ -194,7 +194,7 @@ fn serialize_actions(actions: &[Action]) -> Vec<u8> {
             extensions: None,
         }),
     };
-    instruction_data.try_to_vec().expect("Failed to serialize")
+    borsh::to_vec(&instruction_data).expect("Failed to serialize")
 }
 
 #[test]

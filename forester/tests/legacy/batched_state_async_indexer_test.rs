@@ -129,19 +129,19 @@ async fn test_state_indexer_async_batched() {
         get_batch_size(&mut rpc, &env.v2_state_trees[0].merkle_tree).await
     );
 
-    let batch_payer = Keypair::from_bytes(&[
+    let batch_payer = Keypair::try_from(&[
         88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150,
         87, 182, 238, 155, 87, 24, 176, 252, 157, 119, 68, 81, 148, 156, 30, 0, 60, 63, 34, 247,
         192, 120, 4, 170, 32, 149, 221, 144, 74, 244, 181, 142, 37, 197, 196, 136, 159, 196, 101,
         21, 194, 56, 163, 1,
-    ])
+    ].as_slice())
     .unwrap();
-    let legacy_payer = Keypair::from_bytes(&[
+    let legacy_payer = Keypair::try_from(&[
         58, 94, 30, 2, 133, 249, 254, 202, 188, 51, 184, 201, 173, 158, 211, 81, 202, 46, 41, 227,
         38, 227, 101, 115, 246, 157, 174, 33, 64, 96, 207, 87, 161, 151, 87, 233, 147, 93, 116, 35,
         227, 168, 135, 146, 45, 183, 134, 2, 97, 130, 200, 207, 211, 117, 232, 198, 233, 80, 205,
         75, 41, 148, 68, 97,
-    ])
+    ].as_slice())
     .unwrap();
 
     println!("batch payer pubkey: {:?}", batch_payer.pubkey());
@@ -150,12 +150,12 @@ async fn test_state_indexer_async_batched() {
     ensure_sufficient_balance(&mut rpc, &legacy_payer.pubkey(), LAMPORTS_PER_SOL * 100).await;
     ensure_sufficient_balance(&mut rpc, &batch_payer.pubkey(), LAMPORTS_PER_SOL * 100).await;
 
-    let mint_keypair = Keypair::from_bytes(&[
+    let mint_keypair = Keypair::try_from(&[
         87, 206, 67, 171, 178, 112, 231, 204, 169, 148, 206, 45, 217, 171, 233, 199, 226, 229, 142,
         204, 52, 3, 40, 197, 103, 125, 199, 80, 17, 18, 42, 42, 72, 237, 17, 77, 168, 248, 87, 226,
         202, 233, 163, 7, 148, 155, 201, 160, 255, 17, 124, 254, 98, 74, 111, 251, 24, 230, 93,
         130, 105, 104, 119, 110,
-    ])
+    ].as_slice())
     .unwrap();
     let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &batch_payer, &mint_keypair).await;
 
@@ -653,7 +653,7 @@ async fn mint_to<R: Rpc>(
         0,
     );
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
         mint_to_ix,
@@ -782,7 +782,7 @@ async fn compressed_token_transfer<R: Rpc, I: Indexer>(
     );
     println!("transfer root_indices: {:?}", root_indices);
     let mut instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
     ];
@@ -926,7 +926,7 @@ async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
     );
     println!("transfer root_indices: {:?}", root_indices);
     let mut instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
     ];
@@ -969,7 +969,7 @@ async fn compress<R: Rpc>(
         true,
     );
     let mut instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
     ];
@@ -1057,7 +1057,7 @@ async fn create_v1_address<R: Rpc, I: Indexer>(
     );
     println!("create address instruction: {:?}", instruction);
     let mut instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
     ];

@@ -56,7 +56,7 @@ fn main() {
     };
 
     // Test Borsh serialization
-    let bytes = instance.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&instance).unwrap();
 
     // Test zero_copy_at
     let (_zero_copy_instance, remaining) = CombinationAllFeatures::zero_copy_at(&bytes).unwrap();

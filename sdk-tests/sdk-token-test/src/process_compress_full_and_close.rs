@@ -11,7 +11,7 @@ use light_token::instruction::CloseAccount;
 use crate::Generic;
 
 pub fn process_compress_full_and_close<'info>(
-    ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+    ctx: Context<'info, Generic<'info>>,
     // All offsets are static and could be hardcoded
     recipient_index: u8,
     mint_index: u8,

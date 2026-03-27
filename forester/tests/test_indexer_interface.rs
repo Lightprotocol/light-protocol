@@ -212,7 +212,7 @@ async fn test_indexer_interface_scenarios() {
         payer.pubkey(),
         [
             light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-            ix_data.try_to_vec().unwrap(),
+            borsh::to_vec(&ix_data).unwrap(),
         ]
         .concat(),
         remaining_accounts_metas,
@@ -220,7 +220,9 @@ async fn test_indexer_interface_scenarios() {
     );
 
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
+            1_000_000,
+        ),
         instruction,
     ];
     let address_sig = rpc

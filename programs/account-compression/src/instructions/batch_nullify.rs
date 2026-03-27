@@ -42,7 +42,7 @@ impl<'info> GroupAccounts<'info> for BatchNullify<'info> {
 ///    3.1 Verifies batch zkp and updates root.
 /// 4. Emit indexer event.
 pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
+    ctx: &'a Context<'info, BatchNullify<'info>>,
     instruction_data: InstructionDataBatchNullifyInputs,
 ) -> Result<()> {
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
@@ -59,5 +59,5 @@ pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
         .update_tree_from_input_queue(instruction_data)
         .map_err(ProgramError::from)?;
     // 4. Emit indexer event.
-    emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)
+    emit_indexer_event(borsh::to_vec(&event)?, &ctx.accounts.log_wrapper)
 }

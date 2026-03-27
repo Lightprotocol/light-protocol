@@ -40,7 +40,7 @@ pub enum WithInputAccountsMode {
 // TODO: Functional tests with cpi context:
 // - ability to store multiple accounts in cpi context account and combine them successfully (can check with multiple token program invocations)
 pub fn process_with_input_accounts<'info>(
-    ctx: Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    ctx: Context<'info, InvalidateNotOwnedCompressedAccount<'info>>,
     compressed_account: PackedCompressedAccountWithMerkleContext,
     proof: Option<CompressedProof>,
     bump: u8,
@@ -95,7 +95,7 @@ pub fn process_with_input_accounts<'info>(
 /// transfer tokens
 /// execute complete transaction
 pub fn process_invalidate_not_owned_compressed_account<'info>(
-    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    ctx: &Context<'info, InvalidateNotOwnedCompressedAccount<'info>>,
     compressed_account: PackedCompressedAccountWithMerkleContext,
     proof: Option<CompressedProof>,
     bump: u8,
@@ -174,7 +174,7 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
     let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.light_system_program.to_account_info(),
+        ctx.accounts.light_system_program.key(),
         cpi_accounts,
         &signer_seeds,
     );
@@ -225,7 +225,7 @@ pub struct TokenTransferData {
 
 #[inline(never)]
 pub fn cpi_context_tx<'info>(
-    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    ctx: &Context<'info, InvalidateNotOwnedCompressedAccount<'info>>,
     compressed_account: PackedCompressedAccountWithMerkleContext,
     proof: CompressedProof,
     bump: u8,
@@ -292,7 +292,7 @@ pub fn cpi_context_tx<'info>(
 
 #[inline(never)]
 pub fn cpi_compressed_token_transfer<'info>(
-    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    ctx: &Context<'info, InvalidateNotOwnedCompressedAccount<'info>>,
     proof: CompressedProof,
     token_transfer_data: TokenTransferData,
     mode: WithInputAccountsMode,
@@ -360,10 +360,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         system_program: ctx.accounts.system_program.to_account_info(),
     };
 
-    let mut cpi_ctx = CpiContext::new(
-        ctx.accounts.compressed_token_program.to_account_info(),
-        cpi_accounts,
-    );
+    let mut cpi_ctx = CpiContext::new(ctx.accounts.compressed_token_program.key(), cpi_accounts);
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
     light_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
@@ -372,7 +369,7 @@ pub fn cpi_compressed_token_transfer<'info>(
 
 #[inline(never)]
 pub fn cpi_compressed_token_approve_revoke<'info>(
-    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    ctx: &Context<'info, InvalidateNotOwnedCompressedAccount<'info>>,
     proof: CompressedProof,
     token_transfer_data: TokenTransferData,
     mode: WithInputAccountsMode,
@@ -441,10 +438,7 @@ pub fn cpi_compressed_token_approve_revoke<'info>(
         system_program: ctx.accounts.system_program.to_account_info(),
     };
 
-    let mut cpi_ctx = CpiContext::new(
-        ctx.accounts.compressed_token_program.to_account_info(),
-        cpi_accounts,
-    );
+    let mut cpi_ctx = CpiContext::new(ctx.accounts.compressed_token_program.key(), cpi_accounts);
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
     match mode {
@@ -461,7 +455,7 @@ pub fn cpi_compressed_token_approve_revoke<'info>(
 
 #[inline(never)]
 pub fn cpi_compressed_token_burn<'info>(
-    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    ctx: &Context<'info, InvalidateNotOwnedCompressedAccount<'info>>,
     proof: CompressedProof,
     token_transfer_data: TokenTransferData,
     cpi_context: Option<CompressedCpiContext>,
@@ -508,10 +502,7 @@ pub fn cpi_compressed_token_burn<'info>(
         mint: ctx.accounts.mint.to_account_info(),
     };
 
-    let mut cpi_ctx = CpiContext::new(
-        ctx.accounts.compressed_token_program.to_account_info(),
-        cpi_accounts,
-    );
+    let mut cpi_ctx = CpiContext::new(ctx.accounts.compressed_token_program.key(), cpi_accounts);
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
     light_compressed_token::cpi::burn(cpi_ctx, inputs)?;
@@ -521,7 +512,7 @@ pub fn cpi_compressed_token_burn<'info>(
 
 #[inline(never)]
 pub fn cpi_compressed_token_freeze_or_thaw<'info>(
-    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    ctx: &Context<'info, InvalidateNotOwnedCompressedAccount<'info>>,
     proof: CompressedProof,
     token_transfer_data: TokenTransferData,
     mode: WithInputAccountsMode,
@@ -582,10 +573,7 @@ pub fn cpi_compressed_token_freeze_or_thaw<'info>(
         mint: ctx.accounts.mint.to_account_info(),
     };
 
-    let mut cpi_ctx = CpiContext::new(
-        ctx.accounts.compressed_token_program.to_account_info(),
-        cpi_accounts,
-    );
+    let mut cpi_ctx = CpiContext::new(ctx.accounts.compressed_token_program.key(), cpi_accounts);
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
     match mode {
@@ -601,7 +589,7 @@ pub fn cpi_compressed_token_freeze_or_thaw<'info>(
 }
 
 fn write_into_cpi_account<'info>(
-    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    ctx: &Context<'info, InvalidateNotOwnedCompressedAccount<'info>>,
     compressed_account: PackedCompressedAccountWithMerkleContext,
     proof: Option<CompressedProof>,
     bump: u8,
@@ -654,7 +642,7 @@ fn write_into_cpi_account<'info>(
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
     let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.light_system_program.to_account_info(),
+        ctx.accounts.light_system_program.key(),
         cpi_accounts,
         &signer_seeds,
     );

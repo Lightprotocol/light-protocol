@@ -55,7 +55,7 @@ pub mod light_system_program {
     // /// practice.
     // #[cfg(feature = "idl-build")]
     // pub fn stub_idl_build<'info>(
-    //     _ctx: Context<'_, '_, '_, 'info, InvokeInstruction<'info>>,
+    //     _ctx: Context<'info, InvokeInstruction<'info>>,
     //     _inputs1: InstructionDataInvoke,
     //     _inputs2: InstructionDataInvokeCpi,
     //     _inputs3: PublicTransactionEvent,
@@ -82,7 +82,7 @@ fn test_borsh_equivalence() {
         inputs: struct_a.clone(),
     };
 
-    let struct_a_bytes: Vec<u8> = struct_a.try_to_vec().unwrap();
-    let struct_b_bytes: Vec<u8> = struct_b.try_to_vec().unwrap();
+    let struct_a_bytes: Vec<u8> = borsh::to_vec(&struct_a).unwrap();
+    let struct_b_bytes: Vec<u8> = borsh::to_vec(&struct_b).unwrap();
     assert_eq!(struct_a_bytes, struct_b_bytes);
 }

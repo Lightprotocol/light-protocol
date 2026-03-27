@@ -65,7 +65,7 @@ async fn test_create_single_pda() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = single_pda_test::instruction::CreatePda {

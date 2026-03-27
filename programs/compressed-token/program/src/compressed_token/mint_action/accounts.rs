@@ -9,7 +9,7 @@ use light_token_interface::{
 };
 use light_zero_copy::U16;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::shared::{
     accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},

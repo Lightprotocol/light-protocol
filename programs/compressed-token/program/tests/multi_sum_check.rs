@@ -94,9 +94,9 @@ fn multi_sum_check_test(
     });
 
     // Serialize to bytes using borsh
-    let input_bytes = inputs.try_to_vec().unwrap();
-    let output_bytes = outputs.try_to_vec().unwrap();
-    let compression_bytes = compressions.as_ref().map(|c| c.try_to_vec().unwrap());
+    let input_bytes = borsh::to_vec(&inputs).unwrap();
+    let output_bytes = borsh::to_vec(&outputs).unwrap();
+    let compression_bytes = compressions.as_ref().map(|c| borsh::to_vec(&c).unwrap());
 
     // Deserialize as zero-copy
     let (inputs_zc, _) = Vec::<MultiInputTokenDataWithContext>::zero_copy_at(&input_bytes).unwrap();
@@ -359,12 +359,12 @@ fn test_multi_mint_scenario(
         .collect();
 
     // Serialize to bytes
-    let input_bytes = input_structs.try_to_vec().unwrap();
-    let output_bytes = output_structs.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&input_structs).unwrap();
+    let output_bytes = borsh::to_vec(&output_structs).unwrap();
     let compression_bytes = if compression_structs.is_empty() {
         None
     } else {
-        Some(compression_structs.try_to_vec().unwrap())
+        Some(borsh::to_vec(&compression_structs).unwrap())
     };
 
     // Deserialize as zero-copy
@@ -451,8 +451,8 @@ fn test_duplicate_mint_pubkey_detection() {
         })
         .collect();
 
-    let input_bytes = input_structs.try_to_vec().unwrap();
-    let output_bytes = output_structs.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&input_structs).unwrap();
+    let output_bytes = borsh::to_vec(&output_structs).unwrap();
 
     let (inputs_zc, _) = Vec::<MultiInputTokenDataWithContext>::zero_copy_at(&input_bytes).unwrap();
     let (outputs_zc, _) = Vec::<MultiTokenTransferOutputData>::zero_copy_at(&output_bytes).unwrap();

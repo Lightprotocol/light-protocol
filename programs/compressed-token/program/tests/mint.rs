@@ -334,7 +334,7 @@ fn test_rnd_create_compressed_mint_account() {
 
             // COMPLETE STRUCT ASSERTION: This verifies the entire CPI instruction structure is valid
             // by ensuring it can round-trip through borsh serialization/deserialization
-            let reserialize_test = cpi_borsh.try_to_vec().unwrap();
+            let reserialize_test = borsh::to_vec(&cpi_borsh).unwrap();
             let redeserialized =
                 InstructionDataInvokeCpiWithReadOnly::deserialize(&mut reserialize_test.as_slice())
                     .unwrap();

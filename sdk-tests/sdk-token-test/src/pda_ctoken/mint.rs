@@ -10,7 +10,7 @@ use light_token_interface::instructions::mint_action::{
 use super::{processor::ChainedCtokenInstructionData, PdaCToken};
 
 pub fn process_mint_action<'a, 'info>(
-    ctx: &Context<'_, '_, '_, 'info, PdaCToken<'info>>,
+    ctx: &Context<'info, PdaCToken<'info>>,
     input: &ChainedCtokenInstructionData,
     cpi_accounts: &CpiAccounts<'a, AccountInfo<'info>>,
 ) -> Result<()> {

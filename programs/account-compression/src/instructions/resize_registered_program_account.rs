@@ -5,6 +5,7 @@ use anchor_lang::{
     Discriminator,
 };
 use bytemuck::from_bytes_mut;
+use light_account_checks::AccountInfoTrait;
 
 use crate::{utils::constants::CPI_AUTHORITY_PDA_SEED, RegisteredProgram};
 
@@ -29,7 +30,7 @@ pub struct ResizeRegisteredProgramPda<'info> {
 }
 
 pub fn process_resize_registered_program_pda<'info>(
-    ctx: Context<'_, '_, '_, 'info, ResizeRegisteredProgramPda<'info>>,
+    ctx: Context<'info, ResizeRegisteredProgramPda<'info>>,
 ) -> Result<()> {
     // account checks
     // 1. Discriminator check
@@ -67,7 +68,9 @@ pub fn process_resize_registered_program_pda<'info>(
             ],
         )?;
 
-        account_info.realloc(RegisteredProgram::LEN, true)?;
+        account_info
+            .realloc(RegisteredProgram::LEN, true)
+            .map_err(|_| ProgramError::InvalidArgument)?;
     }
 
     // Initialize registered_program_signer_pda with derived signer pda.

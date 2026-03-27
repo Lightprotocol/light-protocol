@@ -8,7 +8,7 @@ use light_zero_copy::{
     traits::{ZeroCopyAt, ZeroCopyAtMut},
     ZeroCopy, ZeroCopyMut, ZeroCopyNew,
 };
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use super::compressed_mint::{MintMetadata, ACCOUNT_TYPE_MINT};
 use crate::{

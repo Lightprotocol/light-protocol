@@ -67,13 +67,12 @@ impl ForesterEpochPda {
         epoch: u64,
     ) -> Result<u64> {
         // Domain separation using the pubkey and current_light_slot.
-        let mut hasher = anchor_lang::solana_program::hash::Hasher::default();
-        hasher.hashv(&[
+        let hash = solana_program::hash::hashv(&[
             pubkey.to_bytes().as_slice(),
             &epoch.to_be_bytes(),
             &current_light_slot.to_be_bytes(),
         ]);
-        let hash_value = u64::from_be_bytes(hasher.result().to_bytes()[0..8].try_into().unwrap());
+        let hash_value = u64::from_be_bytes(hash.to_bytes()[0..8].try_into().unwrap());
         let forester_index = hash_value % total_epoch_weight;
         Ok(forester_index)
     }
@@ -136,7 +135,7 @@ impl ForesterEpochPda {
         queue_pubkey: &Pubkey,
         num_work_items: u64,
     ) -> Result<()> {
-        let current_solana_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
+        let current_solana_slot = anchor_lang::prelude::Clock::get()?.slot;
         Self::check_forester(
             forester_epoch_pda,
             authority,

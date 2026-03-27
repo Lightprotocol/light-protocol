@@ -41,7 +41,11 @@ async fn test_create_token_account_invoke() {
         pre_pay_num_epochs: 2,
         lamports_per_write: 1,
     };
-    let instruction_data = [vec![2u8], create_token_account_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [
+        vec![2u8],
+        borsh::to_vec(&create_token_account_data).unwrap(),
+    ]
+    .concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
@@ -117,7 +121,11 @@ async fn test_create_token_account_invoke_signed() {
         lamports_per_write: 1,
     };
     // Discriminator 3 = CreateTokenAccountInvokeSigned
-    let instruction_data = [vec![3u8], create_token_account_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [
+        vec![3u8],
+        borsh::to_vec(&create_token_account_data).unwrap(),
+    ]
+    .concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();

@@ -117,7 +117,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         account_compression_authority,
         self_program: crate::ID,
         cpi_signer,
-        system_program: solana_sdk::system_program::id(),
+        system_program: anchor_lang::solana_program::system_program::id(),
     };
     let remaining_accounts = to_account_metas_light(remaining_accounts);
 
@@ -188,7 +188,7 @@ pub fn create_invalidate_not_owned_account_instruction(
         account_compression_authority,
         self_program: crate::ID,
         cpi_signer,
-        system_program: solana_sdk::system_program::id(),
+        system_program: anchor_lang::solana_program::system_program::id(),
         compressed_token_program: light_compressed_token::ID,
         invalid_fee_payer: *input_params.invalid_fee_payer,
         token_pool_account,

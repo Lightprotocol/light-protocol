@@ -1,4 +1,6 @@
-use anchor_lang::{prelude::ProgramError, pubkey, AnchorDeserialize, AnchorSerialize, Result};
+use anchor_lang::{
+    prelude::ProgramError, pubkey, solana_program::msg, AnchorDeserialize, AnchorSerialize, Result,
+};
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_program_profiler::profile;
 use light_token_interface::{
@@ -15,7 +17,6 @@ use light_zero_copy::traits::ZeroCopyAt;
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
-use spl_pod::solana_msg::msg;
 
 use crate::errors::RegistryError;
 
@@ -230,9 +231,8 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         max_top_up: u16::MAX, // No limit
     };
     // Serialize instruction data
-    let serialized = instruction_data
-        .try_to_vec()
-        .map_err(|_| RegistryError::SerializationFailed)?;
+    let serialized =
+        borsh::to_vec(&instruction_data).map_err(|_| RegistryError::SerializationFailed)?;
 
     // Build instruction data with discriminator
     let mut data = Vec::with_capacity(1 + serialized.len());

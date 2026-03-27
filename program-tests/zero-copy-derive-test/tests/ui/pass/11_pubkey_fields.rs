@@ -24,7 +24,7 @@ fn main() {
         authority: Pubkey([2; 32]),
         mint: Pubkey([3; 32]),
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct_copy, remaining) = PubkeyFields::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct_copy, ref_struct);

@@ -425,7 +425,7 @@ fn test_set_cpi_context_first_invocation() {
     let cpi_context_account = create_test_cpi_context_account(None);
 
     let instruction_data = create_test_instruction_data(true, true, 1);
-    let input_bytes = instruction_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&instruction_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
     let result = set_cpi_context(
@@ -437,7 +437,7 @@ fn test_set_cpi_context_first_invocation() {
     // assert
     {
         assert!(result.is_ok());
-        let input_bytes = instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&instruction_data).unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
         assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
@@ -470,7 +470,7 @@ fn test_set_cpi_context_new_address_owner() {
         },
     ];
 
-    let input_bytes = instruction_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&instruction_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
     set_cpi_context(
@@ -531,7 +531,7 @@ fn test_set_cpi_context_new_address_owner_subsequent() {
         address_merkle_tree_root_index: 10,
     }];
 
-    let input_bytes = first_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&first_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
     set_cpi_context(
@@ -551,7 +551,7 @@ fn test_set_cpi_context_new_address_owner_subsequent() {
         address_merkle_tree_root_index: 20,
     }];
 
-    let input_bytes = second_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&second_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
     set_cpi_context(
@@ -594,7 +594,7 @@ fn test_set_cpi_context_subsequent_invocation() {
     let mut first_instruction_data = create_test_instruction_data(true, true, 1);
     // First invocation
     {
-        let input_bytes = first_instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&first_instruction_data).unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
         set_cpi_context(
@@ -619,7 +619,7 @@ fn test_set_cpi_context_subsequent_invocation() {
     // assert
     {
         assert!(result.is_ok());
-        let input_bytes = inputs_subsequent.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&inputs_subsequent).unwrap();
         let (_z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
         assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
@@ -633,7 +633,7 @@ fn test_set_cpi_context_subsequent_invocation() {
             .input_compressed_accounts_with_merkle_context
             .extend(inputs_subsequent.input_compressed_accounts_with_merkle_context);
 
-        let input_bytes = first_instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&first_instruction_data).unwrap();
         let (z_expected_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         // Assert that the CPI context contains the combined instruction data
         assert!(
@@ -651,7 +651,7 @@ fn test_set_cpi_context_fee_payer_mismatch() {
     let first_instruction_data = create_test_instruction_data(true, true, 1);
     // First invocation
     {
-        let input_bytes = first_instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&first_instruction_data).unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
         set_cpi_context(
@@ -964,7 +964,7 @@ fn test_process_cpi_context_set_context() {
 
         // Create expected instruction data.
         clean_input_data(&mut instruction_data);
-        let input_bytes = instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&instruction_data).unwrap();
         let (z_expected_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         // Assert that the CPI context contains the instruction data
         assert!(
@@ -987,7 +987,7 @@ fn test_process_cpi_context_scenario() {
     // Inject malicious data into cpi context account by setting context with malicious inputs.
     {
         // Set the malicious data as if it was the first invocation
-        let input_bytes = malicious_inputs.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&malicious_inputs).unwrap();
         let (z_malicious_inputs, _) =
             ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_malicious_instruction_data = WrappedInstructionData::new(z_malicious_inputs).unwrap();
@@ -1017,7 +1017,7 @@ fn test_process_cpi_context_scenario() {
         let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
         // Create expected instruction data.
         clean_input_data(&mut instruction_data);
-        let input_bytes = instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&instruction_data).unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         assert!(instruction_data_eq(&cpi_context, &z_inputs));
         assert_eq!(
@@ -1043,7 +1043,7 @@ fn test_process_cpi_context_scenario() {
         // assert
         {
             assert!(result.is_ok());
-            let input_bytes = inputs_subsequent.try_to_vec().unwrap();
+            let input_bytes = borsh::to_vec(&inputs_subsequent).unwrap();
             let (z_inputs_subsequent, _) =
                 ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
             let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
@@ -1059,7 +1059,7 @@ fn test_process_cpi_context_scenario() {
                 .input_compressed_accounts_with_merkle_context
                 .extend(inputs_subsequent.input_compressed_accounts_with_merkle_context);
 
-            let input_bytes = instruction_data.try_to_vec().unwrap();
+            let input_bytes = borsh::to_vec(&instruction_data).unwrap();
             let (z_combined_inputs, _) =
                 ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
             assert!(instruction_data_eq(&cpi_context, &z_combined_inputs));

@@ -531,7 +531,7 @@ pub fn create_invoke_instruction(
         account_compression_authority: get_cpi_authority_pda(&light_system_program::ID),
         sol_pool_pda,
         decompression_recipient,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
     Instruction {
         program_id: light_system_program::ID,

@@ -8,7 +8,7 @@ use light_token_interface::{
     },
     state::{ExtensionStruct, Mint, TokenMetadata},
 };
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::compressed_token::mint_action::check_authority;
 

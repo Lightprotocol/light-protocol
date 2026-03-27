@@ -9,7 +9,7 @@ license = "MIT"
 [features]
 anchor = ["light-compressed-account/anchor", "dep:anchor-lang", "light-compressible/anchor"]
 idl-build = ["anchor-lang/idl-build", "anchor", "light-compressed-account/idl-build", "light-compressible/idl-build"]
-solana = ["dep:solana-program-error", "dep:solana-sysvar", "solana-msg"]
+solana = ["dep:solana-program-error", "dep:solana-sysvar"]
 default = []
 test-only = []
 profile-program = []
@@ -35,7 +35,7 @@ light-macros = { workspace = true }
 solana-sysvar = { workspace = true, optional = true }
 spl-pod = { workspace = true }
 spl-token-2022 = { workspace = true }
-solana-msg = { workspace = true, optional = true }
+solana-msg = { workspace = true }
 light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-compressible = {workspace = true }

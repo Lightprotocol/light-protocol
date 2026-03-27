@@ -22,7 +22,7 @@ fn main() {
         medium: [3; 32],
         large: [4; 128],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (_struct_copy, remaining) = MixedArrays::zero_copy_at(&bytes).unwrap();
     assert!(remaining.is_empty());

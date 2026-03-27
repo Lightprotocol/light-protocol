@@ -24,14 +24,14 @@ light-sdk = { workspace = true, features = ["v2"] }
 light-client = { workspace = true, optional = true }
 
 # Solana dependencies
-solana-program = "2.2"
+solana-program = { workspace = true }
 
 # Serialization
-borsh = "0.10.4"
+borsh = { workspace = true }
 
 # Optional test dependencies
 light-program-test = { workspace = true, optional = true }
-solana-sdk = { version = "2.2", optional = true }
+solana-sdk = { workspace = true, optional = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }
@@ -41,10 +41,10 @@ light-compressed-account = { workspace = true }
 light-token-client = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { version = "1.36.0", features = ["full"] }
-solana-sdk = "2.2"
+solana-sdk = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
-anchor-spl = "0.31.1"
+anchor-spl = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

@@ -29,6 +29,8 @@ tabled = "0.20"
 light-test-utils = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
+solana-commitment-config = { workspace = true }
+solana-system-interface = { workspace = true }
 light-program-test = { workspace = true }
 light-client = { workspace = true }
 dirs = "6.0"

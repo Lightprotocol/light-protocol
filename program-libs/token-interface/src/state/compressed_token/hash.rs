@@ -84,7 +84,7 @@ impl TokenData {
     #[profile]
     #[inline(always)]
     pub fn hash_sha_flat(&self) -> Result<[u8; 32], HasherError> {
-        let bytes = self.try_to_vec().map_err(|_| HasherError::BorshError)?;
+        let bytes = borsh::to_vec(&self).map_err(|_| HasherError::BorshError)?;
         Sha256BE::hash(bytes.as_slice())
     }
 

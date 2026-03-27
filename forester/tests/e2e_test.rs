@@ -1013,7 +1013,7 @@ async fn mint_to<R: Rpc>(
         0,
     );
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
         mint_to_ix,
@@ -1123,7 +1123,7 @@ async fn compressed_token_transfer<R: Rpc>(
     .unwrap();
 
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
         instruction,
@@ -1248,7 +1248,7 @@ async fn transfer<const V2: bool, R: Rpc>(
     );
 
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
         instruction,
@@ -1319,7 +1319,7 @@ async fn compress<R: Rpc>(
         true,
     );
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
         instruction,
@@ -1399,7 +1399,7 @@ async fn create_v1_address<R: Rpc>(
     );
 
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
         instruction,
@@ -1490,7 +1490,7 @@ async fn create_v2_addresses<R: Rpc>(
         payer.pubkey(),
         [
             light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-            ix_data.try_to_vec()?,
+            borsh::to_vec(&ix_data)?,
         ]
         .concat(),
         remaining_accounts_metas,
@@ -1498,7 +1498,7 @@ async fn create_v2_addresses<R: Rpc>(
     );
 
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
         instruction,

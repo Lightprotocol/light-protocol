@@ -13,7 +13,7 @@ pub struct MaxArray {
 fn main() {
     // Test Borsh compatibility
     let ref_struct = MaxArray { huge: [42; 65536] };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct_copy, remaining) = MaxArray::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct_copy, ref_struct);

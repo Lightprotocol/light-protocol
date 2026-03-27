@@ -10,7 +10,7 @@ use light_token_interface::{
     state::Mint,
 };
 use pinocchio::sysvars::{clock::Clock, Sysvar};
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{
     compressed_token::mint_action::{
@@ -106,9 +106,7 @@ fn serialize_compressed_mint<'a>(
             Sha256BE::hash(compressed_account_data.data)?,
         )
     } else {
-        let data = compressed_mint
-            .try_to_vec()
-            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+        let data = borsh::to_vec(&compressed_mint).map_err(|_| ProgramError::BorshIoError)?;
         if data.len() != compressed_account_data.data.len() {
             msg!(
                 "Data allocation for output mint account is wrong: {} (expected) != {}",
@@ -149,8 +147,7 @@ fn serialize_decompressed_mint(
         .ok_or(ErrorCode::CMintNotFound)?;
 
     // STEP 1: Serialize FIRST to know final size
-    let serialized = compressed_mint
-        .try_to_vec()
+    let serialized = borsh::to_vec(&*compressed_mint)
         .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
     let required_size = serialized.len();
 

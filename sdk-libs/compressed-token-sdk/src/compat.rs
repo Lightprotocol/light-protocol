@@ -14,8 +14,8 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 #[repr(u8)]
 pub enum AccountState {
     #[default]
-    Initialized = 0,
-    Frozen = 1,
+    Initialized,
+    Frozen,
 }
 
 impl From<AccountState> for light_token_interface::state::CompressedTokenAccountState {
@@ -68,7 +68,7 @@ impl TokenData {
     #[inline(always)]
     pub fn hash_sha_flat(&self) -> Result<[u8; 32], HasherError> {
         use light_sdk::light_hasher::Hasher;
-        let bytes = self.try_to_vec().map_err(|_| HasherError::BorshError)?;
+        let bytes = borsh::to_vec(&self).map_err(|_| HasherError::BorshError)?;
         Sha256BE::hash(bytes.as_slice())
     }
 }

@@ -338,7 +338,7 @@ pub fn create_initialize_batched_merkle_tree_instruction(
     let protocol_config_pda = get_protocol_config_pda_address().0;
     let instruction_data = crate::instruction::InitializeBatchedStateMerkleTree {
         bump,
-        params: params.try_to_vec().unwrap(),
+        params: borsh::to_vec(&params).unwrap(),
     };
     let accounts = crate::accounts::InitializeBatchedStateMerkleTreeAndQueue {
         authority,
@@ -470,7 +470,7 @@ pub fn create_initialize_batched_address_merkle_tree_instruction(
 
     let instruction_data = crate::instruction::InitializeBatchedAddressMerkleTree {
         bump,
-        params: params.try_to_vec().unwrap(),
+        params: borsh::to_vec(&params).unwrap(),
     };
     let protocol_config_pda = get_protocol_config_pda_address().0;
     let accounts = crate::accounts::InitializeBatchedAddressTree {

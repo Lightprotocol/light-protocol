@@ -93,9 +93,7 @@ where
     }
 
     // 5. Hash with canonical CompressionInfo::compressed() for input verification
-    let data_bytes = account_data
-        .try_to_vec()
-        .map_err(|_| LightSdkTypesError::Borsh)?;
+    let data_bytes = borsh::to_vec(&account_data).map_err(|_| LightSdkTypesError::Borsh)?;
     let data_len = data_bytes.len();
     let mut input_data_hash = Sha256BE::hash(&data_bytes)?;
     input_data_hash[0] = 0; // Zero first byte per protocol convention

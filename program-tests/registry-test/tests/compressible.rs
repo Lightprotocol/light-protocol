@@ -77,7 +77,7 @@ async fn withdraw_funding_pool_via_registry<R: Rpc>(
         rent_sponsor,
         compression_authority,
         destination,
-        system_program: solana_sdk::system_program::id(),
+        system_program: anchor_lang::solana_program::system_program::id(),
         compressed_token_program: compressed_token_program_id,
     };
 

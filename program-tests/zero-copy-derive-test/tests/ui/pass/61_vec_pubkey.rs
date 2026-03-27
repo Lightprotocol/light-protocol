@@ -23,7 +23,7 @@ fn main() {
     };
 
     // Test Borsh serialization
-    let serialized = original.try_to_vec().unwrap();
+    let serialized = borsh::to_vec(&original).unwrap();
     let _deserialized: VecPubkey = VecPubkey::try_from_slice(&serialized).unwrap();
 
     // Test zero_copy_at (read-only)

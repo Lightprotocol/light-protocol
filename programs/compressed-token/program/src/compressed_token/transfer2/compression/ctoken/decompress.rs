@@ -7,7 +7,7 @@ use light_token_interface::{
     TokenError,
 };
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use super::inputs::DecompressCompressOnlyInputs;
 

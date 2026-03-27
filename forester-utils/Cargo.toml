@@ -35,6 +35,7 @@ borsh = { workspace = true }
 solana-instruction = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-sdk = { workspace = true }
+solana-commitment-config = { workspace = true }
 anchor-lang = { workspace = true }
 
 tokio = { workspace = true }

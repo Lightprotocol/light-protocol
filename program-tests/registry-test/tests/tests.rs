@@ -210,7 +210,7 @@ async fn test_initialize_protocol_config() {
     //         protocol_config_pda,
     //         authority: payer.pubkey(),
     //         fee_payer: payer.pubkey(),
-    //         system_program: solana_sdk::system_program::id(),
+    //         system_program: anchor_lang::solana_program::system_program::id(),
     //         self_program: light_registry::ID,
     //     };
     //     let ix = Instruction {
@@ -234,7 +234,7 @@ async fn test_initialize_protocol_config() {
             protocol_config_pda,
             authority: program_account_keypair.pubkey(),
             fee_payer: payer.pubkey(),
-            system_program: solana_sdk::system_program::id(),
+            system_program: anchor_lang::solana_program::system_program::id(),
             self_program: light_registry::ID,
         };
         let ix = Instruction {
@@ -2089,7 +2089,7 @@ pub async fn perform_batch_address_merkle_tree_update<
         *derivation_pubkey,
         *merkle_tree_pubkey,
         epoch,
-        instruction_data.try_to_vec().unwrap(),
+        borsh::to_vec(&instruction_data).unwrap(),
     );
     rpc.create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
         .await

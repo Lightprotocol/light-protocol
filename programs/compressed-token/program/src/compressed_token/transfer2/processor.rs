@@ -16,7 +16,7 @@ use light_token_interface::{
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use super::check_extensions::{build_mint_extension_cache, MintExtensionCache};
 use crate::{

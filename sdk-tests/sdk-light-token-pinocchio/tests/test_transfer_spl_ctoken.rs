@@ -102,7 +102,7 @@ async fn test_spl_to_ctoken_invoke() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 15 = SplToCtokenInvoke
-    let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![15u8], borsh::to_vec(&data).unwrap()].concat();
 
     // Account order from handler:
     // - accounts[0]: compressed_token_program (for CPI)
@@ -228,7 +228,7 @@ async fn test_ctoken_to_spl_invoke() {
             spl_interface_pda_bump,
             decimals: CREATE_MINT_HELPER_DECIMALS,
         };
-        let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
+        let wrapper_instruction_data = [vec![15u8], borsh::to_vec(&data).unwrap()].concat();
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(compressed_token_program_id, false),
             AccountMeta::new(temp_spl_account_keypair.pubkey(), false),
@@ -267,7 +267,7 @@ async fn test_ctoken_to_spl_invoke() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 17 = CtokenToSplInvoke
-    let wrapper_instruction_data = [vec![17u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![17u8], borsh::to_vec(&data).unwrap()].concat();
 
     // Account order from handler:
     // - accounts[0]: compressed_token_program (for CPI)
@@ -402,7 +402,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 16 = SplToCtokenInvokeSigned
-    let wrapper_instruction_data = [vec![16u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![16u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
@@ -540,7 +540,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
             spl_interface_pda_bump,
             decimals: CREATE_MINT_HELPER_DECIMALS,
         };
-        let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
+        let wrapper_instruction_data = [vec![15u8], borsh::to_vec(&data).unwrap()].concat();
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(compressed_token_program_id, false),
             AccountMeta::new(temp_spl_account_keypair.pubkey(), false),
@@ -579,7 +579,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 18 = CtokenToSplInvokeSigned
-    let wrapper_instruction_data = [vec![18u8], data.try_to_vec().unwrap()].concat();
+    let wrapper_instruction_data = [vec![18u8], borsh::to_vec(&data).unwrap()].concat();
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),

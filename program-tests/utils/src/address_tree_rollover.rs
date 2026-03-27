@@ -149,7 +149,6 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: Rpc>(
         &mut new_mt_account.data,
         &account_compression::ID,
         false,
-        0u64,
     );
     let new_mt_account =
         AccountLoader::<AddressMerkleTreeAccount>::try_from(&account_info).unwrap();
@@ -170,7 +169,6 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: Rpc>(
         &mut old_mt_account.data,
         &account_compression::ID,
         false,
-        0u64,
     );
     let old_mt_account =
         AccountLoader::<AddressMerkleTreeAccount>::try_from(&account_info).unwrap();
@@ -220,7 +218,6 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: Rpc>(
             &mut new_queue_account.data,
             &account_compression::ID,
             false,
-            0u64,
         );
         let new_queue_account = AccountLoader::<QueueAccount>::try_from(&account_info).unwrap();
         let new_loaded_queue_account = new_queue_account.load().unwrap();
@@ -235,7 +232,6 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: Rpc>(
             &mut old_queue_account.data,
             &account_compression::ID,
             false,
-            0u64,
         );
         let old_queue_account = AccountLoader::<QueueAccount>::try_from(&account_info).unwrap();
         let old_loaded_queue_account = old_queue_account.load().unwrap();

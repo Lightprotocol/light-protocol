@@ -9,6 +9,7 @@ anchor-lang = { workspace = true }
 clap = { version = "4.5.53", features = ["derive", "env"] }
 solana-sdk = { workspace = true }
 solana-commitment-config = { workspace = true }
+solana-compute-budget-interface = { workspace = true }
 solana-client = { workspace = true }
 solana-account-decoder = { workspace = true }
 solana-program = { workspace = true }

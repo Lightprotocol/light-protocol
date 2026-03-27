@@ -52,9 +52,8 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     };
 
     // Serialize instruction data
-    let data_vec = instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+    let data_vec =
+        borsh::to_vec(&instruction_data).map_err(|_| TokenSdkError::SerializationError)?;
     let mut data = Vec::with_capacity(data_vec.len() + 8 + 4);
     data.extend_from_slice(BATCH_COMPRESS.as_slice());
     data.extend_from_slice(

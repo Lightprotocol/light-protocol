@@ -141,7 +141,7 @@ fn test_cpi_context_new_address_uses_invoking_program_owner_without_inputs() {
     let instruction_data = create_instruction_data_with_new_address_no_inputs(output_account_owner);
 
     // Serialize and deserialize to zero-copy format
-    let input_bytes = instruction_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&instruction_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
 
@@ -253,7 +253,7 @@ fn test_cpi_context_new_address_uses_invoking_program_owner_with_inputs() {
     };
 
     // Serialize and deserialize to zero-copy format
-    let input_bytes = instruction_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&instruction_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
 
@@ -388,7 +388,7 @@ async fn test_duplicate_address_in_v2_batched_tree() {
         payer.pubkey(),
         [
             light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-            ix_data.try_to_vec().unwrap(),
+            borsh::to_vec(&ix_data).unwrap(),
         ]
         .concat(),
         remaining_accounts,
@@ -466,7 +466,7 @@ async fn test_address_position_with_none_in_context_addresses() {
             payer.pubkey(),
             [
                 light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-                ix_data.try_to_vec().unwrap(),
+                borsh::to_vec(&ix_data).unwrap(),
             ]
             .concat(),
             remaining_accounts_vec,
@@ -583,7 +583,7 @@ async fn test_address_position_with_none_in_context_addresses() {
             payer.pubkey(),
             [
                 light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-                ix_data.try_to_vec().unwrap(),
+                borsh::to_vec(&ix_data).unwrap(),
             ]
             .concat(),
             remaining_accounts_vec,

@@ -24,7 +24,7 @@ fn main() {
     };
 
     // Test Borsh serialization
-    let serialized = original.try_to_vec().unwrap();
+    let serialized = borsh::to_vec(&original).unwrap();
 
     // Test zero_copy_at (read-only)
     let _zero_copy_read = RustTypeFieldNames::zero_copy_at(&serialized).unwrap();

@@ -13,7 +13,7 @@ pub struct SingleU8 {
 fn main() {
     // Test Borsh compatibility
     let ref_struct = SingleU8 { value: 42 };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct_copy, remaining) = SingleU8::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct_copy, ref_struct);

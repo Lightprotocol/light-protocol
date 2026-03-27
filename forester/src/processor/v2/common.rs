@@ -13,7 +13,7 @@ use light_registry::{
     protocol_config::state::EpochState, utils::get_forester_epoch_pda_from_authority,
 };
 use solana_sdk::{
-    address_lookup_table::AddressLookupTableAccount, instruction::Instruction, pubkey::Pubkey,
+    instruction::Instruction, message::AddressLookupTableAccount, pubkey::Pubkey,
     signature::Keypair, signer::Signer,
 };
 use tokio::sync::Mutex;

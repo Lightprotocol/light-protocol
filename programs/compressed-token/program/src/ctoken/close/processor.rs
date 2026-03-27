@@ -8,7 +8,7 @@ use light_zero_copy::traits::ZeroCopyAtMut;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use super::accounts::CloseTokenAccountAccounts;
 use crate::shared::{convert_program_error, transfer_lamports};

@@ -18,9 +18,9 @@ use light_program_test::{
 use solana_sdk::{
     native_token::LAMPORTS_PER_SOL,
     signature::{read_keypair_file, write_keypair_file, Keypair, Signer},
-    system_instruction,
     transaction::Transaction,
 };
+use solana_system_interface::instruction as system_instruction;
 /// cargo xtask
 #[derive(Debug, Parser)]
 pub struct Options {

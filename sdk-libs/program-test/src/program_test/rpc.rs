@@ -17,11 +17,10 @@ use light_event::{
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_sdk::{
     account::Account,
-    address_lookup_table::AddressLookupTableAccount,
     clock::{Clock, Slot},
     hash::Hash,
     instruction::Instruction,
-    message::VersionedMessage,
+    message::{AddressLookupTableAccount, VersionedMessage},
     pubkey::Pubkey,
     rent::Rent,
     signature::{Keypair, Signature},

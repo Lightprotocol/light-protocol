@@ -59,6 +59,10 @@ solana-instruction = { workspace = true }
 light-instruction-decoder = { workspace = true }
 solana-account = { workspace = true }
 solana-compute-budget = { workspace = true }
+solana-compute-budget-interface = { workspace = true }
+solana-message = { workspace = true }
+solana-system-interface = { workspace = true }
+solana-sdk-ids = { version = "3.1" }
 rand = { workspace = true }
 bytemuck = { workspace = true }
 serde = { workspace = true }

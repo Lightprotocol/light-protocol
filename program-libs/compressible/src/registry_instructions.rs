@@ -57,7 +57,7 @@ impl CreateCompressibleConfig {
     /// Serialize instruction data including discriminator
     pub fn data(&self) -> Vec<u8> {
         let mut data = Self::discriminator().to_vec();
-        data.extend_from_slice(&AnchorSerialize::try_to_vec(self).unwrap());
+        data.extend_from_slice(&borsh::to_vec(self).unwrap());
         data
     }
 }

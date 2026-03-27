@@ -32,7 +32,7 @@ pub struct CompressAndCloseContext<'info> {
 }
 
 pub fn process_compress_and_close<'c: 'info, 'info>(
-    ctx: &Context<'_, '_, 'c, 'info, CompressAndCloseContext<'info>>,
+    ctx: &Context<'info, CompressAndCloseContext<'info>>,
     authority_index: u8,
     destination_index: u8,
     indices: Vec<CompressAndCloseIndices>,

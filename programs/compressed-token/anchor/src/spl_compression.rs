@@ -11,7 +11,7 @@ use crate::{
 
 pub fn process_compression_or_decompression<'info>(
     inputs: &CompressedTokenInstructionDataTransfer,
-    ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+    ctx: &Context<'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     if inputs.is_compress {
         compress_spl_tokens(inputs, ctx)
@@ -60,7 +60,7 @@ pub fn is_valid_token_pool_pda(
 
 pub fn decompress_spl_tokens<'info>(
     inputs: &CompressedTokenInstructionDataTransfer,
-    ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+    ctx: &Context<'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     let recipient = match ctx.accounts.compress_or_decompress_token_account.as_ref() {
         Some(compression_recipient) => compression_recipient.to_account_info(),
@@ -188,7 +188,7 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
 
 pub fn compress_spl_tokens<'info>(
     inputs: &CompressedTokenInstructionDataTransfer,
-    ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+    ctx: &Context<'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     let recipient_token_pool = match ctx.accounts.token_pool_pda.as_ref() {
         Some(token_pool_pda) => token_pool_pda.to_account_info(),
@@ -234,7 +234,7 @@ pub fn spl_token_transfer_cpi_with_signer<'info>(
         to,
         authority,
     };
-    let cpi_ctx = CpiContext::new_with_signer(token_program, accounts, signer_seeds_ref);
+    let cpi_ctx = CpiContext::new_with_signer(*token_program.key, accounts, signer_seeds_ref);
     anchor_spl::token_interface::transfer(cpi_ctx, amount)
 }
 

@@ -179,7 +179,7 @@ impl CreateMint {
 
         let data = instruction_data
             .data()
-            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+            .map_err(|_| ProgramError::BorshIoError)?;
 
         Ok(Instruction {
             program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),

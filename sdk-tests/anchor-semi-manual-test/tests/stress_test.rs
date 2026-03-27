@@ -162,7 +162,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
         light_token_rent_sponsor: light_token::instruction::LIGHT_TOKEN_RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: light_sdk_types::LIGHT_TOKEN_PROGRAM_ID.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = anchor_semi_manual_test::instruction::CreateAll {

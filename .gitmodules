@@ -1,3 +1,7 @@
 [submodule "external/photon"]
 	path = external/photon
 	url = git@github.com:Lightprotocol/photon.git
+[submodule "external/anchor"]
+	path = external/anchor
+	url = https://github.com/Lightprotocol/anchor.git
+	branch = swen/ctoken-interface

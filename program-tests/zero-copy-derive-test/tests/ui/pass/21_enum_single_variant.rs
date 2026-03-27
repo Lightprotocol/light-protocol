@@ -14,7 +14,7 @@ pub enum SingleVariant {
 fn main() {
     // Test Borsh compatibility
     let ref_enum = SingleVariant::Only;
-    let bytes = ref_enum.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_enum).unwrap();
 
     let (_enum_copy, remaining) = SingleVariant::zero_copy_at(&bytes).unwrap();
     assert!(remaining.is_empty());

@@ -3,7 +3,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{
     compressed_token::transfer2::config::Transfer2Config,

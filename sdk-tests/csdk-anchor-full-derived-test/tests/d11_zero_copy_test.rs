@@ -173,7 +173,7 @@ async fn test_d11_zc_with_vault() {
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D11ZcWithVault {
@@ -346,7 +346,7 @@ async fn test_d11_zc_with_ata() {
         light_token_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D11ZcWithAta {
@@ -505,7 +505,7 @@ async fn test_d11_multiple_zc() {
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         zc_record_1: zc_pda_1,
         zc_record_2: zc_pda_2,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D11MultipleZc {
@@ -713,7 +713,7 @@ async fn test_d11_mixed_zc_borsh() {
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         zc_mixed_record: zc_pda,
         borsh_record: borsh_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D11MixedZcBorsh {
@@ -921,7 +921,7 @@ async fn test_d11_zc_with_ctx_seeds() {
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         authority: authority.pubkey(),
         zc_ctx_record: zc_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D11ZcWithCtxSeeds {
@@ -1070,7 +1070,7 @@ async fn test_d11_zc_with_params_seeds() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         zc_params_record: zc_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D11ZcWithParamsSeeds {
@@ -1223,7 +1223,7 @@ async fn test_d11_zc_with_mint_to() {
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D11ZcWithMintTo {

@@ -5,10 +5,14 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use solana_sdk::{
-    bpf_loader_upgradeable,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
+
+mod bpf_loader_upgradeable {
+    use solana_sdk::pubkey::Pubkey;
+    pub const ID: Pubkey = solana_sdk::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111");
+}
 
 use crate::program_test::TestRpc;
 

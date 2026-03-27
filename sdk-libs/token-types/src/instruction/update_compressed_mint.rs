@@ -5,9 +5,9 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub enum MintAuthorityType {
     /// Authority to mint new tokens
-    MintTokens = 0,
+    MintTokens,
     /// Authority to freeze token accounts
-    FreezeAccount = 1,
+    FreezeAccount,
 }
 
 impl TryFrom<u8> for MintAuthorityType {

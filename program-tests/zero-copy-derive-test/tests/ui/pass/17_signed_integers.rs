@@ -21,7 +21,7 @@ fn main() {
         medium: -1000,
         large: -10000,
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct_copy, _remaining) = SignedIntegers::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct_copy, ref_struct);

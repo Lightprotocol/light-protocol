@@ -7,7 +7,7 @@ use light_token_interface::{
     MINT_ADDRESS_TREE,
 };
 use pinocchio::pubkey::pubkey_eq;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 /// Processes the create mint action by validating parameters and setting up the new address.
 /// Note, the compressed output account creation is unified with other actions in a different function.

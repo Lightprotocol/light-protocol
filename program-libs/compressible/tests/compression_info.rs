@@ -35,7 +35,7 @@ fn test_claim_method() {
         rent_config: test_rent_config(),
     };
 
-    let mut extension_bytes = extension_data.try_to_vec().unwrap();
+    let mut extension_bytes = borsh::to_vec(&extension_data).unwrap();
     let (mut z_extension, _) = CompressionInfo::zero_copy_at_mut(&mut extension_bytes)
         .expect("Failed to create zero-copy extension");
 
@@ -313,7 +313,7 @@ fn test_get_last_paid_epoch() {
             rent_config: test_rent_config(),
         };
 
-        let extension_bytes = extension_data.try_to_vec().unwrap();
+        let extension_bytes = borsh::to_vec(&extension_data).unwrap();
         let (z_extension, _) = CompressionInfo::zero_copy_at(&extension_bytes)
             .expect("Failed to create zero-copy extension");
 

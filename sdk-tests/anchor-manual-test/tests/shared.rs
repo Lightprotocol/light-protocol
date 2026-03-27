@@ -96,7 +96,7 @@ pub async fn create_test_mint(rpc: &mut LightProgramTest, payer: &Keypair) -> Pu
         rent_sponsor: light_token::instruction::rent_sponsor_pda(),
         light_token_program: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
         cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let ix = solana_sdk::instruction::Instruction {

@@ -23,7 +23,7 @@ pub enum ManyVariants {
 fn main() {
     // Test Borsh compatibility
     let ref_enum = ManyVariants::V5;
-    let bytes = ref_enum.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_enum).unwrap();
 
     let (_enum_copy, remaining) = ManyVariants::zero_copy_at(&bytes).unwrap();
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation for enums

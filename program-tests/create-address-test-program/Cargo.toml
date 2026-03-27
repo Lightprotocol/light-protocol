@@ -22,6 +22,7 @@ default = []
 [dependencies]
 light-hasher = { workspace = true, features = ["poseidon"] }
 anchor-lang = { workspace = true }
+borsh = { workspace = true }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
 light-compressed-account = { workspace = true, features = ["anchor"] }

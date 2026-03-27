@@ -17,7 +17,7 @@ fn main() {
         field2: 1337,
         field3: true,
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct_copy, remaining) = BasicStruct::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct_copy, ref_struct);

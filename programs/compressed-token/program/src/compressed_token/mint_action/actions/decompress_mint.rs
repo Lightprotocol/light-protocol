@@ -12,7 +12,7 @@ use pinocchio::{
     sysvars::{clock::Clock, rent::Rent, Sysvar},
 };
 use pinocchio_system::instructions::Transfer;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{
     compressed_token::mint_action::accounts::MintActionAccounts,

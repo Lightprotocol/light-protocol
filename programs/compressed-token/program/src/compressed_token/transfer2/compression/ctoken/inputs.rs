@@ -8,7 +8,7 @@ use light_token_interface::instructions::{
     },
 };
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{extensions::MintExtensionChecks, MAX_COMPRESSIONS};
 

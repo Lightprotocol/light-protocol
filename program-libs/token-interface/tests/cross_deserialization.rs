@@ -114,7 +114,7 @@ fn create_test_ctoken_simple() -> Token {
 #[test]
 fn test_account_type_byte_position() {
     let mint = create_test_mint();
-    let mint_bytes = mint.try_to_vec().unwrap();
+    let mint_bytes = borsh::to_vec(&mint).unwrap();
     assert_eq!(
         mint_bytes[ACCOUNT_TYPE_OFFSET], 1,
         "Mint account_type should be 1"
@@ -122,7 +122,7 @@ fn test_account_type_byte_position() {
 
     // Token with extensions has account_type byte at position 165
     let token = create_test_ctoken_with_extension();
-    let ctoken_bytes = token.try_to_vec().unwrap();
+    let ctoken_bytes = borsh::to_vec(&token).unwrap();
     assert_eq!(
         ctoken_bytes[ACCOUNT_TYPE_OFFSET], 2,
         "Token with extensions account_type should be 2"
@@ -133,7 +133,7 @@ fn test_account_type_byte_position() {
 fn test_ctoken_without_extensions_size() {
     // Token without extensions should be exactly 165 bytes (SPL Token Account size)
     let token = create_test_ctoken_simple();
-    let ctoken_bytes = token.try_to_vec().unwrap();
+    let ctoken_bytes = borsh::to_vec(&token).unwrap();
     assert_eq!(
         ctoken_bytes.len(),
         165,
@@ -144,7 +144,7 @@ fn test_ctoken_without_extensions_size() {
 #[test]
 fn test_mint_bytes_fail_zero_copy_checked_as_ctoken() {
     let mint = create_test_mint();
-    let mint_bytes = mint.try_to_vec().unwrap();
+    let mint_bytes = borsh::to_vec(&mint).unwrap();
 
     // Token zero_copy_at_checked verifies account_type == 2, should fail for Mint bytes
     let result = Token::zero_copy_at_checked(&mint_bytes);
@@ -157,7 +157,7 @@ fn test_mint_bytes_fail_zero_copy_checked_as_ctoken() {
 #[test]
 fn test_ctoken_bytes_fail_zero_copy_checked_as_mint() {
     let token = create_test_ctoken_with_extension();
-    let ctoken_bytes = token.try_to_vec().unwrap();
+    let ctoken_bytes = borsh::to_vec(&token).unwrap();
 
     // Mint zero_copy_at_checked verifies account_type == 1, should fail for Token bytes
     let result = Mint::zero_copy_at_checked(&ctoken_bytes);
@@ -170,7 +170,7 @@ fn test_ctoken_bytes_fail_zero_copy_checked_as_mint() {
 #[test]
 fn test_ctoken_bytes_wrong_account_type_as_mint() {
     let token = create_test_ctoken_with_extension();
-    let ctoken_bytes = token.try_to_vec().unwrap();
+    let ctoken_bytes = borsh::to_vec(&token).unwrap();
 
     // Deserialize as Mint - should succeed but have wrong account_type
     let mint = Mint::try_from_slice(&ctoken_bytes);
@@ -190,7 +190,7 @@ fn test_ctoken_bytes_wrong_account_type_as_mint() {
 #[test]
 fn test_mint_bytes_borsh_as_ctoken() {
     let mint = create_test_mint();
-    let mint_bytes = mint.try_to_vec().unwrap();
+    let mint_bytes = borsh::to_vec(&mint).unwrap();
 
     // Mint has account_type = ACCOUNT_TYPE_MINT (1) at byte 165.
     // Borsh deserialization of Token now rejects non-Token account_type bytes.

@@ -5,7 +5,7 @@ use light_compressed_account::Pubkey;
 use light_program_profiler::profile;
 use light_token_interface::instructions::create_token_account::CreateTokenAccountInstructionData;
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{
     extensions::has_mint_extensions,

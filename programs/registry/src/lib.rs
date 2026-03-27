@@ -123,7 +123,7 @@ pub mod light_registry {
         };
 
         let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            ctx.accounts.account_compression_program.key(),
             accounts,
             signer_seeds,
         );
@@ -144,7 +144,7 @@ pub mod light_registry {
         };
 
         let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            ctx.accounts.account_compression_program.key(),
             accounts,
             signer_seeds,
         );
@@ -194,7 +194,7 @@ pub mod light_registry {
     /// 2. Protocol config is copied.
     /// 3. Epoch account is created if needed.
     pub fn register_forester_epoch<'info>(
-        ctx: Context<'_, '_, '_, 'info, RegisterForesterEpoch<'info>>,
+        ctx: Context<'info, RegisterForesterEpoch<'info>>,
         epoch: u64,
     ) -> Result<()> {
         // Only init if not initialized
@@ -232,7 +232,7 @@ pub mod light_registry {
     /// work instructions during the active phase.
     /// Registration Period must be over.
     pub fn finalize_registration<'info>(
-        ctx: Context<'_, '_, '_, 'info, FinalizeRegistration<'info>>,
+        ctx: Context<'info, FinalizeRegistration<'info>>,
     ) -> Result<()> {
         let current_solana_slot = anchor_lang::solana_program::clock::Clock::get()?.slot;
         let current_active_epoch = ctx
@@ -264,7 +264,7 @@ pub mod light_registry {
         Ok(())
     }
 
-    pub fn report_work<'info>(ctx: Context<'_, '_, '_, 'info, ReportWork<'info>>) -> Result<()> {
+    pub fn report_work<'info>(ctx: Context<'info, ReportWork<'info>>) -> Result<()> {
         let current_solana_slot = anchor_lang::solana_program::clock::Clock::get()?.slot;
         ctx.accounts
             .epoch_pda
@@ -394,7 +394,7 @@ pub mod light_registry {
     }
 
     pub fn nullify<'info>(
-        ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
+        ctx: Context<'info, NullifyLeaves<'info>>,
         bump: u8,
         change_log_indices: Vec<u64>,
         leaves_queue_indices: Vec<u16>,
@@ -457,7 +457,7 @@ pub mod light_registry {
     }
 
     pub fn rollover_address_merkle_tree_and_queue<'info>(
-        ctx: Context<'_, '_, '_, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
+        ctx: Context<'info, RolloverAddressMerkleTreeAndQueue<'info>>,
         bump: u8,
     ) -> Result<()> {
         let metadata = ctx.accounts.old_merkle_tree.load()?.metadata;
@@ -473,7 +473,7 @@ pub mod light_registry {
     }
 
     pub fn rollover_state_merkle_tree_and_queue<'info>(
-        ctx: Context<'_, '_, '_, 'info, RolloverStateMerkleTreeAndQueue<'info>>,
+        ctx: Context<'info, RolloverStateMerkleTreeAndQueue<'info>>,
         bump: u8,
     ) -> Result<()> {
         let metadata = ctx.accounts.old_merkle_tree.load()?.metadata;
@@ -500,7 +500,7 @@ pub mod light_registry {
     }
 
     pub fn initialize_batched_state_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+        ctx: Context<'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
         bump: u8,
         params: Vec<u8>,
     ) -> Result<()> {
@@ -529,7 +529,7 @@ pub mod light_registry {
             &ctx.accounts.protocol_config_pda.config,
         )?;
 
-        process_initialize_batched_state_merkle_tree(&ctx, bump, params.try_to_vec().unwrap())?;
+        process_initialize_batched_state_merkle_tree(&ctx, bump, borsh::to_vec(&params).unwrap())?;
 
         process_initialize_cpi_context(
             bump,
@@ -541,7 +541,7 @@ pub mod light_registry {
     }
 
     pub fn batch_nullify<'info>(
-        ctx: Context<'_, '_, '_, 'info, BatchNullify<'info>>,
+        ctx: Context<'info, BatchNullify<'info>>,
         bump: u8,
         data: Vec<u8>,
     ) -> Result<()> {
@@ -561,7 +561,7 @@ pub mod light_registry {
     }
 
     pub fn batch_append<'info>(
-        ctx: Context<'_, '_, '_, 'info, BatchAppend<'info>>,
+        ctx: Context<'info, BatchAppend<'info>>,
         bump: u8,
         data: Vec<u8>,
     ) -> Result<()> {
@@ -615,11 +615,11 @@ pub mod light_registry {
         if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
             return err!(RegistryError::InvalidSigner);
         }
-        process_initialize_batched_address_merkle_tree(&ctx, bump, params.try_to_vec()?)
+        process_initialize_batched_address_merkle_tree(&ctx, bump, borsh::to_vec(&params)?)
     }
 
     pub fn batch_update_address_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, BatchUpdateAddressTree<'info>>,
+        ctx: Context<'info, BatchUpdateAddressTree<'info>>,
         bump: u8,
         data: Vec<u8>,
     ) -> Result<()> {
@@ -638,7 +638,7 @@ pub mod light_registry {
     }
 
     pub fn rollover_batched_address_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, RolloverBatchedAddressMerkleTree<'info>>,
+        ctx: Context<'info, RolloverBatchedAddressMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
         let account = BatchedMerkleTreeAccount::address_from_account_info(
@@ -656,7 +656,7 @@ pub mod light_registry {
     }
 
     pub fn rollover_batched_state_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, RolloverBatchedStateMerkleTree<'info>>,
+        ctx: Context<'info, RolloverBatchedStateMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
         let account =
@@ -686,7 +686,7 @@ pub mod light_registry {
     }
 
     pub fn migrate_state<'info>(
-        ctx: Context<'_, '_, '_, 'info, MigrateState<'info>>,
+        ctx: Context<'info, MigrateState<'info>>,
         bump: u8,
         inputs: MigrateLeafParams,
     ) -> Result<()> {
@@ -783,7 +783,7 @@ pub mod light_registry {
     }
 
     /// Claims rent from compressible token accounts
-    pub fn claim<'info>(ctx: Context<'_, '_, '_, 'info, ClaimContext<'info>>) -> Result<()> {
+    pub fn claim<'info>(ctx: Context<'info, ClaimContext<'info>>) -> Result<()> {
         // Check forester and track work
         // Using [0u8; 32] as the queue pubkey since claim doesn't have a specific queue
         ForesterEpochPda::check_forester_in_program(
@@ -799,7 +799,7 @@ pub mod light_registry {
 
     /// Compress and close token accounts via transfer2
     pub fn compress_and_close<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, CompressAndCloseContext<'info>>,
+        ctx: Context<'info, CompressAndCloseContext<'info>>,
         authority_index: u8,
         destination_index: u8,
         indices: Vec<CompressAndCloseIndices>,

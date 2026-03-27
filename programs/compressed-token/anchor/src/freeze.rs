@@ -60,7 +60,7 @@ pub fn process_freeze_or_thaw<
     const FROZEN_INPUTS: bool,
     const FROZEN_OUTPUTS: bool,
 >(
-    ctx: Context<'a, 'b, 'c, 'info, FreezeInstruction<'info>>,
+    ctx: Context<'info, FreezeInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     // Use backward-compatible parsing that checks for optional trailing version byte
@@ -336,7 +336,7 @@ pub mod sdk {
             ),
             account_compression_program: account_compression::ID,
             self_program: crate::ID,
-            system_program: solana_sdk::system_program::ID,
+            system_program: anchor_lang::solana_program::system_program::ID,
             mint: inputs.input_token_data[0].mint.into(),
         };
 
@@ -562,7 +562,7 @@ pub mod test_freeze {
         for (token_data, merkle_tree_index) in
             expected_token_data.iter().zip(merkle_tree_indices.iter())
         {
-            let serialized_expected_token_data = token_data.try_to_vec().unwrap();
+            let serialized_expected_token_data = borsh::to_vec(&token_data).unwrap();
             let change_data_struct = CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data: serialized_expected_token_data.clone(),

@@ -954,7 +954,7 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
     };
 
     // Serialize instruction data
-    let serialized = instruction_data.try_to_vec().unwrap();
+    let serialized = borsh::to_vec(&instruction_data).unwrap();
     let mut data = Vec::with_capacity(1 + serialized.len());
     data.push(TRANSFER2);
     data.extend(serialized);

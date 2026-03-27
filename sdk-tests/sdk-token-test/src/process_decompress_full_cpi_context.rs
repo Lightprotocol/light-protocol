@@ -14,7 +14,7 @@ use crate::{
 /// Process decompress_full operation using the new DecompressFull mode with manual indices
 /// This decompresses the full balance of compressed tokens to decompressed ctoken accounts
 pub fn process_decompress_full_cpi_context<'info>(
-    ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+    ctx: Context<'info, Generic<'info>>,
     indices: Vec<DecompressFullIndices>,
     validity_proof: light_token::ValidityProof,
     params: Option<MintCompressedTokensCpiWriteParams>,

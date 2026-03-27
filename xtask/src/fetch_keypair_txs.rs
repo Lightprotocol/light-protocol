@@ -4,10 +4,8 @@ use anyhow::Result;
 use chrono::Utc;
 use clap::Parser;
 use solana_client::rpc_client::{GetConfirmedSignaturesForAddress2Config, RpcClient};
-use solana_sdk::{
-    commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Signature,
-    transaction::TransactionError,
-};
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::TransactionError};
 use tabled::{builder::Builder, settings::Style};
 
 const SYSTEM_PROGRAM_ID: &str = "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7";
@@ -101,11 +99,8 @@ fn shorten_address(addr: &str) -> String {
 
 /// Canonical key for an error: strips the instruction index so the same error
 /// code from different instruction positions groups together.
-fn error_key(err: &TransactionError) -> String {
-    match err {
-        TransactionError::InstructionError(_, inner) => format!("{:?}", inner),
-        other => format!("{:?}", other),
-    }
+fn error_key(err: &impl std::fmt::Debug) -> String {
+    format!("{:?}", err)
 }
 
 /// Parse the N out of a `Custom(N)` string.

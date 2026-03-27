@@ -89,7 +89,7 @@ impl From<ClientError> for RpcError {
         }
 
         // Check for HTTP 429 status directly from reqwest error
-        if let ErrorKind::Reqwest(ref reqwest_err) = e.kind {
+        if let ErrorKind::Reqwest(ref reqwest_err) = *e.kind {
             if let Some(status) = reqwest_err.status() {
                 if status.as_u16() == 429 {
                     return RpcError::RateLimited;

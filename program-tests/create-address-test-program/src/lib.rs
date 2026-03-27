@@ -67,7 +67,7 @@ pub mod system_cpi_test {
     use super::*;
 
     pub fn create_compressed_pda<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+        ctx: Context<'info, CreateCompressedPda<'info>>,
         data: [u8; 31],
         proof: Option<CompressedProof>,
         new_address_parameters: NewAddressParamsPacked,
@@ -80,7 +80,7 @@ pub mod system_cpi_test {
     /// This instruction is for tests only. It is insecure, do not use as
     /// inspiration to build a program with compressed accounts.
     pub fn invoke_cpi<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+        ctx: Context<'info, CreateCompressedPda<'info>>,
         inputs: Vec<u8>,
         bump: u8,
     ) -> Result<()> {
@@ -89,7 +89,7 @@ pub mod system_cpi_test {
 
     /// Test wrapper, for with read-only and with account info instructions.
     pub fn invoke_with_read_only<'info>(
-        ctx: Context<'_, '_, '_, 'info, InvokeCpiReadOnly<'info>>,
+        ctx: Context<'info, InvokeCpiReadOnly<'info>>,
         config: CpiAccountsConfigLocal,
         v2_ix: bool,
         inputs: Vec<u8>,
@@ -152,7 +152,7 @@ pub mod system_cpi_test {
     }
 
     pub fn invoke_cpi_multiple<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+        ctx: Context<'info, CreateCompressedPda<'info>>,
         inputs: Vec<u8>,
         bump: u8,
         num_invocations: u8,
@@ -166,11 +166,11 @@ pub mod system_cpi_test {
 }
 
 pub fn process_invoke_cpi<'info>(
-    ctx: &Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+    ctx: &Context<'info, CreateCompressedPda<'info>>,
     inputs: Vec<u8>,
     bump: u8,
 ) -> Result<()> {
-    anchor_lang::solana_program::log::sol_log_compute_units();
+    anchor_lang::solana_program::msg!("CU");
     let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.cpi_signer.to_account_info(),
@@ -206,7 +206,7 @@ pub fn process_invoke_cpi<'info>(
         data: inputs,
     };
 
-    anchor_lang::solana_program::log::sol_log_compute_units();
+    anchor_lang::solana_program::msg!("CU");
 
     // Invoke the instruction with signer seeds
     anchor_lang::solana_program::program::invoke_signed(

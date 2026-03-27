@@ -292,7 +292,7 @@ async fn test_amm_full_lifecycle() {
         token_0_program: LIGHT_TOKEN_PROGRAM_ID,
         token_1_program: LIGHT_TOKEN_PROGRAM_ID,
         associated_token_program: LIGHT_TOKEN_PROGRAM_ID,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
         rent: solana_sdk::sysvar::rent::ID,
         compression_config: ctx.config_pda,
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
@@ -478,7 +478,7 @@ async fn test_amm_full_lifecycle() {
         lp_mint: pdas.lp_mint,
         token_program: LIGHT_TOKEN_PROGRAM_ID,
         token_program_2022: LIGHT_TOKEN_PROGRAM_ID,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let deposit_instruction_data = csdk_anchor_full_derived_test::instruction::Deposit {
@@ -532,7 +532,7 @@ async fn test_amm_full_lifecycle() {
         lp_mint: pdas.lp_mint,
         token_program: LIGHT_TOKEN_PROGRAM_ID,
         token_program_2022: LIGHT_TOKEN_PROGRAM_ID,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let withdraw_instruction_data = csdk_anchor_full_derived_test::instruction::Withdraw {

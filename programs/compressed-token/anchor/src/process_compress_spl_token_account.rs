@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub fn process_compress_spl_token_account<'info>(
-    ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+    ctx: Context<'info, TransferInstruction<'info>>,
     owner: Pubkey,
     remaining_amount: Option<u64>,
     cpi_context: Option<CompressedCpiContext>,
@@ -103,7 +103,7 @@ pub mod sdk {
             token_pool_pda: Some(token_pool_pda),
             compress_or_decompress_token_account: Some(*token_account),
             token_program,
-            system_program: solana_sdk::system_program::ID,
+            system_program: anchor_lang::solana_program::system_program::ID,
         };
         let remaining_accounts = vec![AccountMeta::new(*output_merkle_tree, false)];
 

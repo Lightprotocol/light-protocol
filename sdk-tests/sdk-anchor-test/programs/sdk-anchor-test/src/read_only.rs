@@ -19,7 +19,7 @@ pub enum ReadOnlyError {
 
 /// Test read-only account validation with SHA256 hasher using LightSystemProgramCpi (v2)
 pub fn process_read_sha256_light_system_cpi<'info>(
-    ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+    ctx: Context<'info, UpdateNestedData<'info>>,
     proof: ValidityProof,
     my_compressed_account: MyCompressedAccount,
     account_meta: CompressedAccountMetaBurn,
@@ -52,7 +52,7 @@ pub fn process_read_sha256_light_system_cpi<'info>(
 
 /// Test read-only account validation with Poseidon hasher using LightSystemProgramCpi (v2)
 pub fn process_read_poseidon_light_system_cpi<'info>(
-    ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+    ctx: Context<'info, UpdateNestedData<'info>>,
     proof: ValidityProof,
     my_compressed_account: MyCompressedAccount,
     account_meta: CompressedAccountMetaBurn,
@@ -86,7 +86,7 @@ pub fn process_read_poseidon_light_system_cpi<'info>(
 
 /// Test read-only account with SHA256 hasher using InstructionDataInvokeCpiWithReadOnly (v2)
 pub fn process_read_sha256_lowlevel<'info>(
-    ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+    ctx: Context<'info, UpdateNestedData<'info>>,
     proof: ValidityProof,
     my_compressed_account: MyCompressedAccount,
     account_meta: CompressedAccountMetaBurn,
@@ -119,7 +119,7 @@ pub fn process_read_sha256_lowlevel<'info>(
 
 /// Test read-only account with Poseidon hasher using InstructionDataInvokeCpiWithReadOnly (v2)
 pub fn process_read_poseidon_lowlevel<'info>(
-    ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+    ctx: Context<'info, UpdateNestedData<'info>>,
     proof: ValidityProof,
     my_compressed_account: MyCompressedAccount,
     account_meta: CompressedAccountMetaBurn,

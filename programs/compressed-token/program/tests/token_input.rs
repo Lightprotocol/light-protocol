@@ -72,7 +72,7 @@ fn test_rnd_create_input_compressed_account() {
         };
 
         // Serialize and get zero-copy reference
-        let input_data = input_token_data.try_to_vec().unwrap();
+        let input_data = borsh::to_vec(&input_token_data).unwrap();
         let (z_input_data, _) = MultiInputTokenDataWithContext::zero_copy_at(&input_data).unwrap();
 
         // Create mock remaining accounts

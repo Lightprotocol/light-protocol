@@ -554,7 +554,7 @@ pub fn extract_context_and_params(fn_item: &ItemFn) -> ExtractResult {
                             // Capture the context parameter name (e.g., ctx, context, anchor_ctx)
                             ctx_ident = Some(pat_ident.ident.clone());
 
-                            // Extract T from Context<'_, '_, '_, 'info, T<'info>> or Context<T>
+                            // Extract T from Context<'info, T<'info>> or Context<T>
                             if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                                 // Find the last type argument (T or T<'info>)
                                 for arg in args.args.iter().rev() {

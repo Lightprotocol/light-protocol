@@ -148,9 +148,8 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
     };
 
     // Serialize instruction data
-    let serialized = instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+    let serialized =
+        borsh::to_vec(&instruction_data).map_err(|_| TokenSdkError::SerializationError)?;
 
     // Build instruction data with discriminator
     let mut data = Vec::with_capacity(1 + serialized.len());

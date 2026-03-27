@@ -129,7 +129,7 @@ pub fn initialize_config(
         address_space: address_space.iter().map(|p| p.to_bytes()).collect(),
         config_bump,
     };
-    let serialized = params.try_to_vec().expect("serialize params");
+    let serialized = borsh::to_vec(&params).expect("serialize params");
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -167,7 +167,7 @@ pub fn update_config(
         new_write_top_up: None,
         new_address_space: new_address_space.map(|v| v.iter().map(|p| p.to_bytes()).collect()),
     };
-    let serialized = params.try_to_vec().expect("serialize params");
+    let serialized = borsh::to_vec(&params).expect("serialize params");
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -279,7 +279,7 @@ where
         output_queue_index: output_state_tree_index,
     };
 
-    let serialized = ix_data.try_to_vec()?;
+    let serialized = borsh::to_vec(&ix_data)?;
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -340,7 +340,7 @@ pub fn build_compress_accounts_idempotent(
         system_accounts_offset: full_offset as u8,
     };
 
-    let serialized = ix_data.try_to_vec()?;
+    let serialized = borsh::to_vec(&ix_data)?;
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);

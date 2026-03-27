@@ -39,6 +39,7 @@ spl-pod = { workspace = true }
 solana-security-txt = "1.1.0"
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-batched-merkle-tree = { workspace = true }
+solana-program = { workspace = true }
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 

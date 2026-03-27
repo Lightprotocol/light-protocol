@@ -139,8 +139,7 @@ pub async fn set_ctoken_withheld_fee(
 
     // Serialize the modified Token back
     use borsh::BorshSerialize;
-    let serialized = ctoken
-        .try_to_vec()
+    let serialized = borsh::to_vec(&ctoken)
         .map_err(|e| RpcError::CustomError(format!("Failed to serialize Token: {:?}", e)))?;
 
     // Update account data

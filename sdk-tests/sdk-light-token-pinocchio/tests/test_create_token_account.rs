@@ -71,7 +71,11 @@ async fn test_create_token_account_invoke() {
         lamports_per_write: 1,
     };
     // Discriminator 2 = CreateTokenAccountInvoke
-    let instruction_data = [vec![2u8], create_token_account_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [
+        vec![2u8],
+        borsh::to_vec(&create_token_account_data).unwrap(),
+    ]
+    .concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
@@ -133,7 +137,11 @@ async fn test_create_token_account_invoke_signed() {
         lamports_per_write: 1,
     };
     // Discriminator 3 = CreateTokenAccountInvokeSigned
-    let instruction_data = [vec![3u8], create_token_account_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [
+        vec![3u8],
+        borsh::to_vec(&create_token_account_data).unwrap(),
+    ]
+    .concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
@@ -189,7 +197,11 @@ async fn test_create_token_account_invoke_with() {
         lamports_per_write: 1,
     };
     // Discriminator 41 = CreateTokenAccountInvokeWith
-    let instruction_data = [vec![41u8], create_token_account_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [
+        vec![41u8],
+        borsh::to_vec(&create_token_account_data).unwrap(),
+    ]
+    .concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
@@ -250,7 +262,11 @@ async fn test_create_token_account_invoke_signed_with() {
         lamports_per_write: 1,
     };
     // Discriminator 42 = CreateTokenAccountInvokeSignedWith
-    let instruction_data = [vec![42u8], create_token_account_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [
+        vec![42u8],
+        borsh::to_vec(&create_token_account_data).unwrap(),
+    ]
+    .concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();

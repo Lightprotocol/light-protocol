@@ -34,7 +34,7 @@ pub mod sdk_anchor_test {
     use super::*;
 
     pub fn create_compressed_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
+        ctx: Context<'info, WithNestedData<'info>>,
         proof: ValidityProof,
         address_tree_info: PackedAddressTreeInfo,
         output_tree_index: u8,
@@ -75,7 +75,7 @@ pub mod sdk_anchor_test {
     }
 
     pub fn update_compressed_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMeta,
@@ -103,7 +103,7 @@ pub mod sdk_anchor_test {
     }
 
     pub fn close_compressed_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMeta,
@@ -129,7 +129,7 @@ pub mod sdk_anchor_test {
     }
 
     pub fn reinit_closed_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         account_meta: CompressedAccountMeta,
     ) -> Result<()> {
@@ -151,7 +151,7 @@ pub mod sdk_anchor_test {
     }
 
     pub fn close_compressed_account_permanent<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         account_meta: CompressedAccountMetaBurn,
     ) -> Result<()> {
@@ -175,7 +175,7 @@ pub mod sdk_anchor_test {
     }
 
     pub fn without_compressed_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, WithoutCompressedAccount<'info>>,
+        ctx: Context<'info, WithoutCompressedAccount<'info>>,
         name: String,
     ) -> Result<()> {
         ctx.accounts.my_regular_account.name = name;
@@ -184,7 +184,7 @@ pub mod sdk_anchor_test {
 
     /// Create compressed account with Poseidon hashing
     pub fn create_compressed_account_poseidon<'info>(
-        ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
+        ctx: Context<'info, WithNestedData<'info>>,
         proof: ValidityProof,
         address_tree_info: PackedAddressTreeInfo,
         output_tree_index: u8,
@@ -226,7 +226,7 @@ pub mod sdk_anchor_test {
 
     // V2 Instructions
     pub fn create_compressed_account_v2<'info>(
-        ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
+        ctx: Context<'info, WithNestedData<'info>>,
         proof: ValidityProof,
         address_tree_info: PackedAddressTreeInfo,
         output_tree_index: u8,
@@ -272,7 +272,7 @@ pub mod sdk_anchor_test {
     }
 
     pub fn update_compressed_account_v2<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMeta,
@@ -299,7 +299,7 @@ pub mod sdk_anchor_test {
     }
 
     pub fn close_compressed_account_v2<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMeta,
@@ -325,7 +325,7 @@ pub mod sdk_anchor_test {
 
     /// Test read-only account with SHA256 hasher using LightSystemProgramCpi
     pub fn read_sha256_light_system_cpi<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMetaBurn,
@@ -340,7 +340,7 @@ pub mod sdk_anchor_test {
 
     /// Test read-only account with Poseidon hasher using LightSystemProgramCpi
     pub fn read_poseidon_light_system_cpi<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMetaBurn,
@@ -355,7 +355,7 @@ pub mod sdk_anchor_test {
 
     /// Test read-only account with SHA256 hasher using InstructionDataInvokeCpiWithReadOnly
     pub fn read_sha256_lowlevel<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMetaBurn,
@@ -365,7 +365,7 @@ pub mod sdk_anchor_test {
 
     /// Test read-only account with Poseidon hasher using InstructionDataInvokeCpiWithReadOnly
     pub fn read_poseidon_lowlevel<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMetaBurn,

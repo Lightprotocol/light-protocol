@@ -31,7 +31,7 @@ fn main() {
         h: -4,
         i: true,
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct_copy, _remaining) = AllPrimitives::zero_copy_at(&bytes).unwrap();
     assert_eq!(ref_struct, struct_copy);

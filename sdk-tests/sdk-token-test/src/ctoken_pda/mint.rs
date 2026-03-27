@@ -11,7 +11,7 @@ use super::CTokenPda;
 use crate::ChainedCtokenInstructionData;
 
 pub fn process_mint_action<'a, 'info>(
-    ctx: &Context<'_, '_, '_, 'info, CTokenPda<'info>>,
+    ctx: &Context<'info, CTokenPda<'info>>,
     input: &ChainedCtokenInstructionData,
     cpi_accounts: &CpiAccounts<'a, 'info>,
 ) -> Result<()> {

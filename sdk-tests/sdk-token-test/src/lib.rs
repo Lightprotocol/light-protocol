@@ -82,7 +82,7 @@ pub mod sdk_token_test {
     use super::*;
 
     pub fn compress_tokens<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         output_tree_index: u8,
         recipient: Pubkey,
         mint: Pubkey,
@@ -92,7 +92,7 @@ pub mod sdk_token_test {
     }
 
     pub fn create_ctoken_with_compress_to_pubkey<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         mint: Pubkey,
         token_account_pubkey: Pubkey,
         compressible_config: Pubkey,
@@ -108,7 +108,7 @@ pub mod sdk_token_test {
     }
 
     pub fn compress_full_and_close<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         recipient_index: u8,
         mint_index: u8,
         source_index: u8,
@@ -132,7 +132,7 @@ pub mod sdk_token_test {
     /// Decompress full balance from compressed accounts with CPI context
     /// This decompresses the entire balance to destination ctoken accounts
     pub fn decompress_full_cpi<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         indices: Vec<
             light_compressed_token_sdk::compressed_token::decompress_full::DecompressFullIndices,
         >,
@@ -144,7 +144,7 @@ pub mod sdk_token_test {
     /// Decompress full balance from compressed accounts with CPI context
     /// This decompresses the entire balance to destination ctoken accounts
     pub fn decompress_full_cpi_with_cpi_context<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         indices: Vec<
             light_compressed_token_sdk::compressed_token::decompress_full::DecompressFullIndices,
         >,
@@ -155,7 +155,7 @@ pub mod sdk_token_test {
     }
 
     pub fn transfer_tokens<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         validity_proof: ValidityProof,
         token_metas: Vec<TokenAccountMeta>,
         output_tree_index: u8,
@@ -173,7 +173,7 @@ pub mod sdk_token_test {
     }
 
     pub fn decompress_tokens<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         validity_proof: ValidityProof,
         token_data: Vec<TokenAccountMeta>,
         output_tree_index: u8,
@@ -183,7 +183,7 @@ pub mod sdk_token_test {
     }
 
     pub fn batch_compress_tokens<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         recipients: Vec<Recipient>,
         token_pool_index: u8,
         token_pool_bump: u8,
@@ -192,7 +192,7 @@ pub mod sdk_token_test {
     }
 
     pub fn deposit<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         proof: LightValidityProof,
         address_tree_info: PackedAddressTreeInfo,
         output_tree_index: u8,
@@ -261,7 +261,7 @@ pub mod sdk_token_test {
     }
 
     pub fn update_deposit<'info>(
-        ctx: Context<'_, '_, '_, 'info, GenericWithAuthority<'info>>,
+        ctx: Context<'info, GenericWithAuthority<'info>>,
         proof: LightValidityProof,
         output_tree_index: u8,
         output_tree_queue_index: u8,
@@ -281,7 +281,7 @@ pub mod sdk_token_test {
     }
 
     pub fn four_invokes<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         output_tree_index: u8,
         proof: LightValidityProof,
         system_accounts_start_offset: u8,
@@ -299,7 +299,7 @@ pub mod sdk_token_test {
     }
 
     pub fn four_transfer2<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         output_tree_index: u8,
         proof: LightValidityProof,
         system_accounts_start_offset: u8,
@@ -319,7 +319,7 @@ pub mod sdk_token_test {
     }
 
     pub fn create_escrow_pda<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         proof: LightValidityProof,
         output_tree_index: u8,
         amount: u64,
@@ -337,14 +337,14 @@ pub mod sdk_token_test {
     }
 
     pub fn pda_ctoken<'info>(
-        ctx: Context<'_, '_, '_, 'info, PdaCToken<'info>>,
+        ctx: Context<'info, PdaCToken<'info>>,
         input: ChainedCtokenInstructionData,
     ) -> Result<()> {
         process_pda_ctoken(ctx, input)
     }
 
     pub fn ctoken_pda<'info>(
-        ctx: Context<'_, '_, '_, 'info, CTokenPda<'info>>,
+        ctx: Context<'info, CTokenPda<'info>>,
         input: ChainedCtokenInstructionData,
     ) -> Result<()> {
         process_ctoken_pda(ctx, input)
@@ -356,7 +356,7 @@ pub mod sdk_token_test {
     /// - N=1: Single CPI (create + decompress)
     /// - N>1: 2N-1 CPIs (N-1 writes + 1 execute with decompress + N-1 decompress)
     pub fn create_mints<'a, 'info>(
-        ctx: Context<'a, '_, 'info, 'info, Generic<'info>>,
+        ctx: Context<'info, Generic<'info>>,
         params: CreateMintsParams,
     ) -> Result<()> {
         process_create_mints(ctx, params)

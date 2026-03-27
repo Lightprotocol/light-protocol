@@ -48,7 +48,7 @@ pub fn process_nullify(
         fee_payer: Some(ctx.accounts.authority.to_account_info()),
     };
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        ctx.accounts.account_compression_program.key(),
         accounts,
         signer_seeds,
     );

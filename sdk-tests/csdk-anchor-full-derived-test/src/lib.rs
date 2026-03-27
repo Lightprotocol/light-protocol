@@ -312,7 +312,7 @@ pub mod csdk_anchor_full_derived_test {
     };
 
     pub fn create_pdas_and_mint_auto<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreatePdasAndMintAuto<'info>>,
+        ctx: Context<'info, CreatePdasAndMintAuto<'info>>,
         params: FullAutoWithMintParams,
     ) -> Result<()> {
         use light_account::{CreateTokenAccountCpi, CreateTokenAtaCpi};
@@ -408,7 +408,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Second instruction to test #[light_program] with multiple instructions.
     /// Delegates to nested processor in separate module.
     pub fn create_single_record<'info>(
-        ctx: Context<'_, '_, '_, 'info, D5RentfreeBare<'info>>,
+        ctx: Context<'info, D5RentfreeBare<'info>>,
         params: D5RentfreeBareParams,
     ) -> Result<()> {
         crate::processors::process_create_single_record(ctx, params)
@@ -419,7 +419,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Also tests dynamic context name detection using "context" instead of "ctx".
     #[allow(unused_variables)]
     pub fn create_two_mints<'info>(
-        context: Context<'_, '_, '_, 'info, CreateTwoMints<'info>>,
+        context: Context<'info, CreateTwoMints<'info>>,
         params: CreateTwoMintsParams,
     ) -> Result<()> {
         // Both mints are created by the RentFree macro in pre_init
@@ -432,7 +432,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Also tests dynamic context name detection using "anchor_ctx" instead of "ctx".
     #[allow(unused_variables)]
     pub fn create_three_mints<'info>(
-        anchor_ctx: Context<'_, '_, '_, 'info, CreateThreeMints<'info>>,
+        anchor_ctx: Context<'info, CreateThreeMints<'info>>,
         params: CreateThreeMintsParams,
     ) -> Result<()> {
         // All 3 mints are created by the RentFree macro in pre_init
@@ -445,7 +445,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Also tests dynamic context name detection using "c" (single letter) instead of "ctx".
     #[allow(unused_variables)]
     pub fn create_mint_with_metadata<'info>(
-        c: Context<'_, '_, '_, 'info, CreateMintWithMetadata<'info>>,
+        c: Context<'info, CreateMintWithMetadata<'info>>,
         params: CreateMintWithMetadataParams,
     ) -> Result<()> {
         // Mint with metadata is created by the RentFree macro in pre_init
@@ -457,7 +457,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Tests: 2x #[light_account(init)], 2x #[light_account(token)], 1x #[light_account(init)],
     /// CreateTokenAccountCpi.rent_free(), CreateTokenAtaCpi.rent_free(), MintToCpi
     pub fn initialize_pool<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializePool<'info>>,
+        ctx: Context<'info, InitializePool<'info>>,
         params: InitializeParams,
     ) -> Result<()> {
         crate::amm_test::process_initialize_pool(ctx, params)
@@ -490,7 +490,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D6: Direct Account<'info, T> type
     pub fn d6_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, D6Account<'info>>,
+        ctx: Context<'info, D6Account<'info>>,
         params: D6AccountParams,
     ) -> Result<()> {
         ctx.accounts.d6_account_record.owner = params.owner;
@@ -499,7 +499,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D6: Box<Account<'info, T>> type
     pub fn d6_boxed<'info>(
-        ctx: Context<'_, '_, '_, 'info, D6Boxed<'info>>,
+        ctx: Context<'info, D6Boxed<'info>>,
         params: D6BoxedParams,
     ) -> Result<()> {
         ctx.accounts.d6_boxed_record.owner = params.owner;
@@ -512,7 +512,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D8: Only #[light_account(init)] fields (no token accounts)
     pub fn d8_pda_only<'info>(
-        ctx: Context<'_, '_, '_, 'info, D8PdaOnly<'info>>,
+        ctx: Context<'info, D8PdaOnly<'info>>,
         params: D8PdaOnlyParams,
     ) -> Result<()> {
         ctx.accounts.d8_pda_only_record.owner = params.owner;
@@ -521,7 +521,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D8: Multiple #[light_account(init)] fields of same type
     pub fn d8_multi_rentfree<'info>(
-        ctx: Context<'_, '_, '_, 'info, D8MultiRentfree<'info>>,
+        ctx: Context<'info, D8MultiRentfree<'info>>,
         params: D8MultiRentfreeParams,
     ) -> Result<()> {
         ctx.accounts.d8_multi_record1.owner = params.owner;
@@ -530,10 +530,7 @@ pub mod csdk_anchor_full_derived_test {
     }
 
     /// D8: Multiple #[light_account(init)] fields of different types
-    pub fn d8_all<'info>(
-        ctx: Context<'_, '_, '_, 'info, D8All<'info>>,
-        params: D8AllParams,
-    ) -> Result<()> {
+    pub fn d8_all<'info>(ctx: Context<'info, D8All<'info>>, params: D8AllParams) -> Result<()> {
         ctx.accounts.d8_all_single.owner = params.owner;
         ctx.accounts.d8_all_multi.owner = params.owner;
         Ok(())
@@ -545,7 +542,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Literal seed expression
     pub fn d9_literal<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9Literal<'info>>,
+        ctx: Context<'info, D9Literal<'info>>,
         _params: D9LiteralParams,
     ) -> Result<()> {
         ctx.accounts.d9_literal_record.owner = ctx.accounts.fee_payer.key();
@@ -554,7 +551,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Constant seed expression
     pub fn d9_constant<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9Constant<'info>>,
+        ctx: Context<'info, D9Constant<'info>>,
         _params: D9ConstantParams,
     ) -> Result<()> {
         ctx.accounts.d9_constant_record.owner = ctx.accounts.fee_payer.key();
@@ -563,7 +560,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Context account seed expression
     pub fn d9_ctx_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9CtxAccount<'info>>,
+        ctx: Context<'info, D9CtxAccount<'info>>,
         _params: D9CtxAccountParams,
     ) -> Result<()> {
         ctx.accounts.d9_ctx_record.owner = ctx.accounts.authority.key();
@@ -572,7 +569,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Param seed expression (Pubkey)
     pub fn d9_param<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9Param<'info>>,
+        ctx: Context<'info, D9Param<'info>>,
         params: D9ParamParams,
     ) -> Result<()> {
         ctx.accounts.d9_param_record.owner = params.owner;
@@ -581,7 +578,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Param bytes seed expression (u64)
     pub fn d9_param_bytes<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ParamBytes<'info>>,
+        ctx: Context<'info, D9ParamBytes<'info>>,
         _params: D9ParamBytesParams,
     ) -> Result<()> {
         ctx.accounts.d9_param_bytes_record.owner = ctx.accounts.fee_payer.key();
@@ -590,7 +587,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Mixed seed expression types
     pub fn d9_mixed<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9Mixed<'info>>,
+        ctx: Context<'info, D9Mixed<'info>>,
         params: D9MixedParams,
     ) -> Result<()> {
         ctx.accounts.d9_mixed_record.owner = params.owner;
@@ -603,7 +600,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D7: "payer" field name variant (instead of fee_payer)
     pub fn d7_payer<'info>(
-        ctx: Context<'_, '_, '_, 'info, D7Payer<'info>>,
+        ctx: Context<'info, D7Payer<'info>>,
         params: D7PayerParams,
     ) -> Result<()> {
         ctx.accounts.d7_payer_record.owner = params.owner;
@@ -612,7 +609,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D7: "creator" field name variant (instead of fee_payer)
     pub fn d7_creator<'info>(
-        ctx: Context<'_, '_, '_, 'info, D7Creator<'info>>,
+        ctx: Context<'info, D7Creator<'info>>,
         params: D7CreatorParams,
     ) -> Result<()> {
         ctx.accounts.d7_creator_record.owner = params.owner;
@@ -621,7 +618,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D7: "light_token_config" naming variant for token accounts
     pub fn d7_light_token_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, D7LightTokenConfig<'info>>,
+        ctx: Context<'info, D7LightTokenConfig<'info>>,
         params: D7LightTokenConfigParams,
     ) -> Result<()> {
         use light_account::CreateTokenAccountCpi;
@@ -651,7 +648,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D7: All naming variants combined (payer + light_token config/sponsor)
     pub fn d7_all_names<'info>(
-        ctx: Context<'_, '_, '_, 'info, D7AllNames<'info>>,
+        ctx: Context<'info, D7AllNames<'info>>,
         params: D7AllNamesParams,
     ) -> Result<()> {
         use light_account::CreateTokenAccountCpi;
@@ -688,7 +685,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Function call seed expression
     pub fn d9_function_call<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9FunctionCall<'info>>,
+        ctx: Context<'info, D9FunctionCall<'info>>,
         params: D9FunctionCallParams,
     ) -> Result<()> {
         ctx.accounts.d9_func_record.owner = params.key_a;
@@ -696,10 +693,7 @@ pub mod csdk_anchor_full_derived_test {
     }
 
     /// D9: All seed expression types (6 PDAs)
-    pub fn d9_all<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9All<'info>>,
-        params: D9AllParams,
-    ) -> Result<()> {
+    pub fn d9_all<'info>(ctx: Context<'info, D9All<'info>>, params: D9AllParams) -> Result<()> {
         ctx.accounts.d9_all_lit.owner = params.owner;
         ctx.accounts.d9_all_const.owner = params.owner;
         ctx.accounts.d9_all_ctx.owner = params.owner;
@@ -715,7 +709,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Bare constant (no path prefix)
     pub fn d9_qualified_bare<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9QualifiedBare<'info>>,
+        ctx: Context<'info, D9QualifiedBare<'info>>,
         _params: D9QualifiedBareParams,
     ) -> Result<()> {
         ctx.accounts.d9_qualified_bare_record.owner = ctx.accounts.fee_payer.key();
@@ -724,7 +718,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: self:: prefix path
     pub fn d9_qualified_self<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9QualifiedSelf<'info>>,
+        ctx: Context<'info, D9QualifiedSelf<'info>>,
         _params: D9QualifiedSelfParams,
     ) -> Result<()> {
         ctx.accounts.d9_qualified_self_record.owner = ctx.accounts.fee_payer.key();
@@ -733,7 +727,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: crate:: prefix path
     pub fn d9_qualified_crate<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9QualifiedCrate<'info>>,
+        ctx: Context<'info, D9QualifiedCrate<'info>>,
         _params: D9QualifiedCrateParams,
     ) -> Result<()> {
         ctx.accounts.d9_qualified_crate_record.owner = ctx.accounts.fee_payer.key();
@@ -742,7 +736,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Deep nested crate path
     pub fn d9_qualified_deep<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9QualifiedDeep<'info>>,
+        ctx: Context<'info, D9QualifiedDeep<'info>>,
         _params: D9QualifiedDeepParams,
     ) -> Result<()> {
         ctx.accounts.d9_qualified_deep_record.owner = ctx.accounts.fee_payer.key();
@@ -751,7 +745,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Mixed qualified and bare paths
     pub fn d9_qualified_mixed<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9QualifiedMixed<'info>>,
+        ctx: Context<'info, D9QualifiedMixed<'info>>,
         params: D9QualifiedMixedParams,
     ) -> Result<()> {
         ctx.accounts.d9_qualified_mixed_record.owner = params.owner;
@@ -764,7 +758,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: constant.as_ref()
     pub fn d9_method_as_ref<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9MethodAsRef<'info>>,
+        ctx: Context<'info, D9MethodAsRef<'info>>,
         _params: D9MethodAsRefParams,
     ) -> Result<()> {
         ctx.accounts.d9_method_as_ref_record.owner = ctx.accounts.fee_payer.key();
@@ -773,7 +767,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: string_constant.as_bytes()
     pub fn d9_method_as_bytes<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9MethodAsBytes<'info>>,
+        ctx: Context<'info, D9MethodAsBytes<'info>>,
         _params: D9MethodAsBytesParams,
     ) -> Result<()> {
         ctx.accounts.d9_method_as_bytes_record.owner = ctx.accounts.fee_payer.key();
@@ -782,7 +776,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: crate::path::CONST.as_bytes()
     pub fn d9_method_qualified_as_bytes<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9MethodQualifiedAsBytes<'info>>,
+        ctx: Context<'info, D9MethodQualifiedAsBytes<'info>>,
         _params: D9MethodQualifiedAsBytesParams,
     ) -> Result<()> {
         ctx.accounts.d9_method_qualified_as_bytes_record.owner = ctx.accounts.fee_payer.key();
@@ -791,7 +785,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: params.field.to_le_bytes().as_ref()
     pub fn d9_method_to_le_bytes<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9MethodToLeBytes<'info>>,
+        ctx: Context<'info, D9MethodToLeBytes<'info>>,
         _params: D9MethodToLeBytesParams,
     ) -> Result<()> {
         ctx.accounts.d9_method_to_le_bytes_record.owner = ctx.accounts.fee_payer.key();
@@ -800,7 +794,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: params.field.to_be_bytes().as_ref()
     pub fn d9_method_to_be_bytes<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9MethodToBeBytes<'info>>,
+        ctx: Context<'info, D9MethodToBeBytes<'info>>,
         _params: D9MethodToBeBytesParams,
     ) -> Result<()> {
         ctx.accounts.d9_method_to_be_bytes_record.owner = ctx.accounts.fee_payer.key();
@@ -809,7 +803,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Mixed methods in seeds
     pub fn d9_method_mixed<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9MethodMixed<'info>>,
+        ctx: Context<'info, D9MethodMixed<'info>>,
         params: D9MethodMixedParams,
     ) -> Result<()> {
         ctx.accounts.d9_method_mixed_record.owner = params.owner;
@@ -822,7 +816,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Literal seed with bump
     pub fn d9_bump_literal<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9BumpLiteral<'info>>,
+        ctx: Context<'info, D9BumpLiteral<'info>>,
         _params: D9BumpLiteralParams,
     ) -> Result<()> {
         ctx.accounts.d9_bump_lit_record.owner = ctx.accounts.fee_payer.key();
@@ -831,7 +825,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Constant seed with bump
     pub fn d9_bump_constant<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9BumpConstant<'info>>,
+        ctx: Context<'info, D9BumpConstant<'info>>,
         _params: D9BumpConstantParams,
     ) -> Result<()> {
         ctx.accounts.d9_bump_const_record.owner = ctx.accounts.fee_payer.key();
@@ -840,7 +834,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Qualified path with bump
     pub fn d9_bump_qualified<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9BumpQualified<'info>>,
+        ctx: Context<'info, D9BumpQualified<'info>>,
         _params: D9BumpQualifiedParams,
     ) -> Result<()> {
         ctx.accounts.d9_bump_qual_record.owner = ctx.accounts.fee_payer.key();
@@ -849,7 +843,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Param seed with bump
     pub fn d9_bump_param<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9BumpParam<'info>>,
+        ctx: Context<'info, D9BumpParam<'info>>,
         params: D9BumpParamParams,
     ) -> Result<()> {
         ctx.accounts.d9_bump_param_record.owner = params.owner;
@@ -858,7 +852,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Ctx account seed with bump
     pub fn d9_bump_ctx<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9BumpCtx<'info>>,
+        ctx: Context<'info, D9BumpCtx<'info>>,
         _params: D9BumpCtxParams,
     ) -> Result<()> {
         ctx.accounts.d9_bump_ctx_record.owner = ctx.accounts.authority.key();
@@ -867,7 +861,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Multiple seeds with bump
     pub fn d9_bump_mixed<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9BumpMixed<'info>>,
+        ctx: Context<'info, D9BumpMixed<'info>>,
         params: D9BumpMixedParams,
     ) -> Result<()> {
         ctx.accounts.d9_bump_mixed_record.owner = params.owner;
@@ -880,7 +874,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Three seeds
     pub fn d9_complex_three<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ComplexThree<'info>>,
+        ctx: Context<'info, D9ComplexThree<'info>>,
         params: D9ComplexThreeParams,
     ) -> Result<()> {
         ctx.accounts.d9_complex_three_record.owner = params.owner;
@@ -889,7 +883,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Four seeds
     pub fn d9_complex_four<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ComplexFour<'info>>,
+        ctx: Context<'info, D9ComplexFour<'info>>,
         params: D9ComplexFourParams,
     ) -> Result<()> {
         ctx.accounts.d9_complex_four_record.owner = params.owner;
@@ -898,7 +892,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Five seeds with ctx account
     pub fn d9_complex_five<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ComplexFive<'info>>,
+        ctx: Context<'info, D9ComplexFive<'info>>,
         params: D9ComplexFiveParams,
     ) -> Result<()> {
         ctx.accounts.d9_complex_five_record.owner = params.owner;
@@ -907,7 +901,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Qualified paths mixed with local
     pub fn d9_complex_qualified_mix<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ComplexQualifiedMix<'info>>,
+        ctx: Context<'info, D9ComplexQualifiedMix<'info>>,
         params: D9ComplexQualifiedMixParams,
     ) -> Result<()> {
         ctx.accounts.d9_complex_qualified_mix_record.owner = params.owner;
@@ -916,7 +910,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Function call combined with other seeds
     pub fn d9_complex_func<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ComplexFunc<'info>>,
+        ctx: Context<'info, D9ComplexFunc<'info>>,
         params: D9ComplexFuncParams,
     ) -> Result<()> {
         ctx.accounts.d9_complex_func_record.owner = params.key_a;
@@ -925,7 +919,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: All qualified paths
     pub fn d9_complex_all_qualified<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ComplexAllQualified<'info>>,
+        ctx: Context<'info, D9ComplexAllQualified<'info>>,
         params: D9ComplexAllQualifiedParams,
     ) -> Result<()> {
         ctx.accounts.d9_complex_all_qualified_record.owner = params.owner;
@@ -934,7 +928,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Program ID as seed
     pub fn d9_complex_program_id<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ComplexProgramId<'info>>,
+        ctx: Context<'info, D9ComplexProgramId<'info>>,
         params: D9ComplexProgramIdParams,
     ) -> Result<()> {
         ctx.accounts.d9_complex_program_id_record.owner = params.owner;
@@ -943,7 +937,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: id() function call as seed
     pub fn d9_complex_id_func<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ComplexIdFunc<'info>>,
+        ctx: Context<'info, D9ComplexIdFunc<'info>>,
         params: D9ComplexIdFuncParams,
     ) -> Result<()> {
         ctx.accounts.d9_complex_id_func_record.owner = params.owner;
@@ -956,7 +950,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Empty literal
     pub fn d9_edge_empty<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9EdgeEmpty<'info>>,
+        ctx: Context<'info, D9EdgeEmpty<'info>>,
         params: D9EdgeEmptyParams,
     ) -> Result<()> {
         ctx.accounts.d9_edge_empty_record.owner = params.owner;
@@ -965,7 +959,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Single byte constant
     pub fn d9_edge_single_byte<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9EdgeSingleByte<'info>>,
+        ctx: Context<'info, D9EdgeSingleByte<'info>>,
         _params: D9EdgeSingleByteParams,
     ) -> Result<()> {
         ctx.accounts.d9_edge_single_byte_record.owner = ctx.accounts.fee_payer.key();
@@ -974,7 +968,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Single letter constant name
     pub fn d9_edge_single_letter<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9EdgeSingleLetter<'info>>,
+        ctx: Context<'info, D9EdgeSingleLetter<'info>>,
         _params: D9EdgeSingleLetterParams,
     ) -> Result<()> {
         ctx.accounts.d9_edge_single_letter_record.owner = ctx.accounts.fee_payer.key();
@@ -983,7 +977,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Constant name with digits
     pub fn d9_edge_digits<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9EdgeDigits<'info>>,
+        ctx: Context<'info, D9EdgeDigits<'info>>,
         _params: D9EdgeDigitsParams,
     ) -> Result<()> {
         ctx.accounts.d9_edge_digits_record.owner = ctx.accounts.fee_payer.key();
@@ -992,7 +986,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Leading underscore constant
     pub fn d9_edge_underscore<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9EdgeUnderscore<'info>>,
+        ctx: Context<'info, D9EdgeUnderscore<'info>>,
         _params: D9EdgeUnderscoreParams,
     ) -> Result<()> {
         ctx.accounts.d9_edge_underscore_record.owner = ctx.accounts.fee_payer.key();
@@ -1001,7 +995,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Many literals in seeds
     pub fn d9_edge_many_literals<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9EdgeManyLiterals<'info>>,
+        ctx: Context<'info, D9EdgeManyLiterals<'info>>,
         _params: D9EdgeManyLiteralsParams,
     ) -> Result<()> {
         ctx.accounts.d9_edge_many_literals_record.owner = ctx.accounts.fee_payer.key();
@@ -1010,7 +1004,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Mixed edge cases
     pub fn d9_edge_mixed<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9EdgeMixed<'info>>,
+        ctx: Context<'info, D9EdgeMixed<'info>>,
         params: D9EdgeMixedParams,
     ) -> Result<()> {
         ctx.accounts.d9_edge_mixed_record.owner = params.owner;
@@ -1023,7 +1017,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: External crate (light_sdk_types)
     pub fn d9_external_sdk_types<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ExternalSdkTypes<'info>>,
+        ctx: Context<'info, D9ExternalSdkTypes<'info>>,
         params: D9ExternalSdkTypesParams,
     ) -> Result<()> {
         ctx.accounts.d9_external_sdk_types_record.owner = params.owner;
@@ -1032,7 +1026,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: External crate (light_ctoken_types)
     pub fn d9_external_ctoken<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ExternalCtoken<'info>>,
+        ctx: Context<'info, D9ExternalCtoken<'info>>,
         params: D9ExternalCtokenParams,
     ) -> Result<()> {
         ctx.accounts.d9_external_ctoken_record.owner = params.owner;
@@ -1041,7 +1035,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Multiple external crates mixed
     pub fn d9_external_mixed<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ExternalMixed<'info>>,
+        ctx: Context<'info, D9ExternalMixed<'info>>,
         params: D9ExternalMixedParams,
     ) -> Result<()> {
         ctx.accounts.d9_external_mixed_record.owner = params.owner;
@@ -1050,7 +1044,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: External with local constant
     pub fn d9_external_with_local<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ExternalWithLocal<'info>>,
+        ctx: Context<'info, D9ExternalWithLocal<'info>>,
         params: D9ExternalWithLocalParams,
     ) -> Result<()> {
         ctx.accounts.d9_external_with_local_record.owner = params.owner;
@@ -1059,7 +1053,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: External constant with bump
     pub fn d9_external_bump<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ExternalBump<'info>>,
+        ctx: Context<'info, D9ExternalBump<'info>>,
         params: D9ExternalBumpParams,
     ) -> Result<()> {
         ctx.accounts.d9_external_bump_record.owner = params.owner;
@@ -1068,7 +1062,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Re-exported external constant
     pub fn d9_external_reexport<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ExternalReexport<'info>>,
+        ctx: Context<'info, D9ExternalReexport<'info>>,
         _params: D9ExternalReexportParams,
     ) -> Result<()> {
         ctx.accounts.d9_external_reexport_record.owner = ctx.accounts.fee_payer.key();
@@ -1081,7 +1075,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Simple nested struct access
     pub fn d9_nested_simple<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9NestedSimple<'info>>,
+        ctx: Context<'info, D9NestedSimple<'info>>,
         params: D9NestedSimpleParams,
     ) -> Result<()> {
         ctx.accounts.d9_nested_simple_record.owner = params.nested.owner;
@@ -1090,7 +1084,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Double nested struct access
     pub fn d9_nested_double<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9NestedDouble<'info>>,
+        ctx: Context<'info, D9NestedDouble<'info>>,
         params: D9NestedDoubleParams,
     ) -> Result<()> {
         ctx.accounts.d9_nested_double_record.owner = params.outer.nested.owner;
@@ -1099,7 +1093,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Nested array field access
     pub fn d9_nested_array_field<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9NestedArrayField<'info>>,
+        ctx: Context<'info, D9NestedArrayField<'info>>,
         params: D9NestedArrayFieldParams,
     ) -> Result<()> {
         ctx.accounts.d9_nested_array_field_record.owner = params.outer.nested.owner;
@@ -1108,7 +1102,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Array indexing params.arrays[2].as_slice()
     pub fn d9_array_index<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ArrayIndex<'info>>,
+        ctx: Context<'info, D9ArrayIndex<'info>>,
         _params: D9ArrayIndexParams,
     ) -> Result<()> {
         ctx.accounts.d9_array_index_record.owner = ctx.accounts.fee_payer.key();
@@ -1117,7 +1111,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Nested struct with bytes conversion
     pub fn d9_nested_bytes<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9NestedBytes<'info>>,
+        ctx: Context<'info, D9NestedBytes<'info>>,
         params: D9NestedBytesParams,
     ) -> Result<()> {
         ctx.accounts.d9_nested_bytes_record.owner = params.nested.owner;
@@ -1126,7 +1120,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Multiple nested seeds combined
     pub fn d9_nested_combined<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9NestedCombined<'info>>,
+        ctx: Context<'info, D9NestedCombined<'info>>,
         params: D9NestedCombinedParams,
     ) -> Result<()> {
         ctx.accounts.d9_nested_combined_record.owner = params.outer.nested.owner;
@@ -1139,7 +1133,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Associated constant
     pub fn d9_assoc_const<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9AssocConst<'info>>,
+        ctx: Context<'info, D9AssocConst<'info>>,
         _params: D9AssocConstParams,
     ) -> Result<()> {
         ctx.accounts.d9_assoc_const_record.owner = ctx.accounts.fee_payer.key();
@@ -1148,7 +1142,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Associated constant with method
     pub fn d9_assoc_const_method<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9AssocConstMethod<'info>>,
+        ctx: Context<'info, D9AssocConstMethod<'info>>,
         _params: D9AssocConstMethodParams,
     ) -> Result<()> {
         ctx.accounts.d9_assoc_const_method_record.owner = ctx.accounts.fee_payer.key();
@@ -1157,7 +1151,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Multiple associated constants
     pub fn d9_multi_assoc_const<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9MultiAssocConst<'info>>,
+        ctx: Context<'info, D9MultiAssocConst<'info>>,
         params: D9MultiAssocConstParams,
     ) -> Result<()> {
         ctx.accounts.d9_multi_assoc_const_record.owner = params.owner;
@@ -1166,7 +1160,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Const fn call
     pub fn d9_const_fn<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ConstFn<'info>>,
+        ctx: Context<'info, D9ConstFn<'info>>,
         _params: D9ConstFnParams,
     ) -> Result<()> {
         ctx.accounts.d9_const_fn_record.owner = ctx.accounts.fee_payer.key();
@@ -1175,7 +1169,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Const fn with generic
     pub fn d9_const_fn_generic<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ConstFnGeneric<'info>>,
+        ctx: Context<'info, D9ConstFnGeneric<'info>>,
         _params: D9ConstFnGenericParams,
     ) -> Result<()> {
         ctx.accounts.d9_const_fn_generic_record.owner = ctx.accounts.fee_payer.key();
@@ -1184,7 +1178,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Trait associated constant
     pub fn d9_trait_assoc_const<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9TraitAssocConst<'info>>,
+        ctx: Context<'info, D9TraitAssocConst<'info>>,
         _params: D9TraitAssocConstParams,
     ) -> Result<()> {
         ctx.accounts.d9_trait_assoc_const_record.owner = ctx.accounts.fee_payer.key();
@@ -1193,7 +1187,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Static variable
     pub fn d9_static<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9Static<'info>>,
+        ctx: Context<'info, D9Static<'info>>,
         _params: D9StaticParams,
     ) -> Result<()> {
         ctx.accounts.d9_static_record.owner = ctx.accounts.fee_payer.key();
@@ -1202,7 +1196,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Qualified const fn
     pub fn d9_qualified_const_fn<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9QualifiedConstFn<'info>>,
+        ctx: Context<'info, D9QualifiedConstFn<'info>>,
         _params: D9QualifiedConstFnParams,
     ) -> Result<()> {
         ctx.accounts.d9_qualified_const_fn_record.owner = ctx.accounts.fee_payer.key();
@@ -1211,7 +1205,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Fully qualified associated constant
     pub fn d9_fully_qualified_assoc<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9FullyQualifiedAssoc<'info>>,
+        ctx: Context<'info, D9FullyQualifiedAssoc<'info>>,
         _params: D9FullyQualifiedAssocParams,
     ) -> Result<()> {
         ctx.accounts.d9_fully_qualified_assoc_record.owner = ctx.accounts.fee_payer.key();
@@ -1220,7 +1214,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Fully qualified trait associated constant
     pub fn d9_fully_qualified_trait<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9FullyQualifiedTrait<'info>>,
+        ctx: Context<'info, D9FullyQualifiedTrait<'info>>,
         _params: D9FullyQualifiedTraitParams,
     ) -> Result<()> {
         ctx.accounts.d9_fully_qualified_trait_record.owner = ctx.accounts.fee_payer.key();
@@ -1229,7 +1223,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Fully qualified const fn with generic
     pub fn d9_fully_qualified_generic<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9FullyQualifiedGeneric<'info>>,
+        ctx: Context<'info, D9FullyQualifiedGeneric<'info>>,
         _params: D9FullyQualifiedGenericParams,
     ) -> Result<()> {
         ctx.accounts.d9_fully_qualified_generic_record.owner = ctx.accounts.fee_payer.key();
@@ -1238,7 +1232,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Combined const patterns
     pub fn d9_const_combined<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9ConstCombined<'info>>,
+        ctx: Context<'info, D9ConstCombined<'info>>,
         params: D9ConstCombinedParams,
     ) -> Result<()> {
         ctx.accounts.d9_const_combined_record.owner = params.owner;
@@ -1251,7 +1245,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Standard params with single Pubkey field
     pub fn d9_instr_single_pubkey<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrSinglePubkey<'info>>,
+        ctx: Context<'info, D9InstrSinglePubkey<'info>>,
         params: D9SinglePubkeyParams,
     ) -> Result<()> {
         ctx.accounts.d9_instr_single_pubkey_record.owner = params.owner;
@@ -1260,7 +1254,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Params with u64 field requiring to_le_bytes
     pub fn d9_instr_u64<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrU64<'info>>,
+        ctx: Context<'info, D9InstrU64<'info>>,
         _params: D9U64Params,
     ) -> Result<()> {
         ctx.accounts.d9_instr_u64_record.owner = ctx.accounts.fee_payer.key();
@@ -1269,7 +1263,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Multiple data fields in seeds (owner + amount)
     pub fn d9_instr_multi_field<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrMultiField<'info>>,
+        ctx: Context<'info, D9InstrMultiField<'info>>,
         params: D9MultiFieldParams,
     ) -> Result<()> {
         ctx.accounts.d9_instr_multi_field_record.owner = params.owner;
@@ -1278,7 +1272,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Mixed params and ctx account in seeds
     pub fn d9_instr_mixed_ctx<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrMixedCtx<'info>>,
+        ctx: Context<'info, D9InstrMixedCtx<'info>>,
         params: D9MixedCtxParams,
     ) -> Result<()> {
         ctx.accounts.d9_instr_mixed_ctx_record.owner = params.data_key;
@@ -1287,7 +1281,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Three data fields with different types
     pub fn d9_instr_triple<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrTriple<'info>>,
+        ctx: Context<'info, D9InstrTriple<'info>>,
         params: D9TripleParams,
     ) -> Result<()> {
         ctx.accounts.d9_instr_triple_record.owner = params.key_a;
@@ -1296,7 +1290,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: to_be_bytes conversion (big endian)
     pub fn d9_instr_big_endian<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrBigEndian<'info>>,
+        ctx: Context<'info, D9InstrBigEndian<'info>>,
         _params: D9BigEndianParams,
     ) -> Result<()> {
         ctx.accounts.d9_instr_big_endian_record.owner = ctx.accounts.fee_payer.key();
@@ -1305,7 +1299,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Multiple u64 fields with to_le_bytes
     pub fn d9_instr_multi_u64<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrMultiU64<'info>>,
+        ctx: Context<'info, D9InstrMultiU64<'info>>,
         _params: D9MultiU64Params,
     ) -> Result<()> {
         ctx.accounts.d9_instr_multi_u64_record.owner = ctx.accounts.fee_payer.key();
@@ -1314,7 +1308,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Pubkey with as_ref chained
     pub fn d9_instr_chained_as_ref<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrChainedAsRef<'info>>,
+        ctx: Context<'info, D9InstrChainedAsRef<'info>>,
         params: D9ChainedAsRefParams,
     ) -> Result<()> {
         ctx.accounts.d9_instr_chained_as_ref_record.owner = params.key;
@@ -1323,7 +1317,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Constant mixed with params
     pub fn d9_instr_const_mixed<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrConstMixed<'info>>,
+        ctx: Context<'info, D9InstrConstMixed<'info>>,
         params: D9ConstMixedParams,
     ) -> Result<()> {
         ctx.accounts.d9_instr_const_mixed_record.owner = params.owner;
@@ -1332,7 +1326,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D9: Complex mixed - literal + constant + ctx + params
     pub fn d9_instr_complex_mixed<'info>(
-        ctx: Context<'_, '_, '_, 'info, D9InstrComplexMixed<'info>>,
+        ctx: Context<'info, D9InstrComplexMixed<'info>>,
         params: D9ComplexMixedParams,
     ) -> Result<()> {
         ctx.accounts.d9_instr_complex_mixed_record.owner = params.data_owner;
@@ -1345,7 +1339,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D5: #[light_account(token)] attribute test
     pub fn d5_light_token<'info>(
-        ctx: Context<'_, '_, '_, 'info, D5LightToken<'info>>,
+        ctx: Context<'info, D5LightToken<'info>>,
         params: D5LightTokenParams,
     ) -> Result<()> {
         use light_account::CreateTokenAccountCpi;
@@ -1375,7 +1369,7 @@ pub mod csdk_anchor_full_derived_test {
 
     /// D5: All markers combined (#[light_account(init)] + #[light_account(token)])
     pub fn d5_all_markers<'info>(
-        ctx: Context<'_, '_, '_, 'info, D5AllMarkers<'info>>,
+        ctx: Context<'info, D5AllMarkers<'info>>,
         params: D5AllMarkersParams,
     ) -> Result<()> {
         use light_account::CreateTokenAccountCpi;
@@ -1416,7 +1410,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Also tests dynamic context name detection using "my_ctx" instead of "ctx".
     #[allow(unused_variables)]
     pub fn d10_single_vault<'info>(
-        my_ctx: Context<'_, '_, '_, 'info, D10SingleVault<'info>>,
+        my_ctx: Context<'info, D10SingleVault<'info>>,
         params: D10SingleVaultParams,
     ) -> Result<()> {
         // Token account creation is handled by the LightFinalize trait implementation
@@ -1431,7 +1425,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Also tests dynamic context name detection using "cx" instead of "ctx".
     #[allow(unused_variables)]
     pub fn d10_single_ata<'info>(
-        cx: Context<'_, '_, '_, 'info, D10SingleAta<'info>>,
+        cx: Context<'info, D10SingleAta<'info>>,
         params: D10SingleAtaParams,
     ) -> Result<()> {
         // ATA creation is handled by the LightFinalize trait implementation
@@ -1444,7 +1438,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Tests that the macro generates seed structs for decompression support while
     /// skipping the CPI call. User manually calls CreateTokenAtaCpi in handler.
     pub fn d10_single_ata_markonly<'info>(
-        ctx: Context<'_, '_, '_, 'info, D10SingleAtaMarkonly<'info>>,
+        ctx: Context<'info, D10SingleAtaMarkonly<'info>>,
         _params: D10SingleAtaMarkonlyParams,
     ) -> Result<()> {
         use light_account::CreateTokenAtaCpi;
@@ -1473,7 +1467,7 @@ pub mod csdk_anchor_full_derived_test {
     /// D10: Non-idempotent ATA — strict creation, fails if ATA already exists.
     #[allow(unused_variables)]
     pub fn d10_single_ata_non_idempotent<'info>(
-        ctx: Context<'_, '_, '_, 'info, D10SingleAtaNonIdempotent<'info>>,
+        ctx: Context<'info, D10SingleAtaNonIdempotent<'info>>,
         params: D10SingleAtaNonIdempotentParams,
     ) -> Result<()> {
         Ok(())
@@ -1487,7 +1481,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Tests `#[light_account(init, zero_copy)]` combined with token vault creation.
     /// Token vault creation is handled automatically by the `#[light_account(init, token, ...)]` macro.
     pub fn d11_zc_with_vault<'info>(
-        ctx: Context<'_, '_, '_, 'info, D11ZcWithVault<'info>>,
+        ctx: Context<'info, D11ZcWithVault<'info>>,
         params: D11ZcWithVaultParams,
     ) -> Result<()> {
         // Initialize zero-copy record
@@ -1503,7 +1497,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Tests `#[light_account(init, zero_copy)]` combined with ATA creation.
     /// ATA creation is handled automatically by the `#[light_account(init, associated_token, ...)]` macro.
     pub fn d11_zc_with_ata<'info>(
-        ctx: Context<'_, '_, '_, 'info, D11ZcWithAta<'info>>,
+        ctx: Context<'info, D11ZcWithAta<'info>>,
         params: D11ZcWithAtaParams,
     ) -> Result<()> {
         // Initialize zero-copy record
@@ -1518,7 +1512,7 @@ pub mod csdk_anchor_full_derived_test {
     /// D11: Multiple zero-copy PDAs
     /// Tests `#[light_account(init, zero_copy)]` with multiple AccountLoader fields.
     pub fn d11_multiple_zc<'info>(
-        ctx: Context<'_, '_, '_, 'info, D11MultipleZc<'info>>,
+        ctx: Context<'info, D11MultipleZc<'info>>,
         params: D11MultipleZcParams,
     ) -> Result<()> {
         let mut record1 = ctx.accounts.zc_record_1.load_init()?;
@@ -1535,7 +1529,7 @@ pub mod csdk_anchor_full_derived_test {
     /// D11: Mixed zero-copy and Borsh accounts
     /// Tests `#[light_account(init, zero_copy)]` alongside regular `#[light_account(init)]`.
     pub fn d11_mixed_zc_borsh<'info>(
-        ctx: Context<'_, '_, '_, 'info, D11MixedZcBorsh<'info>>,
+        ctx: Context<'info, D11MixedZcBorsh<'info>>,
         params: D11MixedZcBorshParams,
     ) -> Result<()> {
         // Initialize zero-copy account
@@ -1553,7 +1547,7 @@ pub mod csdk_anchor_full_derived_test {
     /// D11: Zero-copy with ctx.accounts.* seeds
     /// Tests `#[light_account(init, zero_copy)]` with context account seeds.
     pub fn d11_zc_with_ctx_seeds<'info>(
-        ctx: Context<'_, '_, '_, 'info, D11ZcWithCtxSeeds<'info>>,
+        ctx: Context<'info, D11ZcWithCtxSeeds<'info>>,
         params: D11ZcWithCtxSeedsParams,
     ) -> Result<()> {
         let mut record = ctx.accounts.zc_ctx_record.load_init()?;
@@ -1567,7 +1561,7 @@ pub mod csdk_anchor_full_derived_test {
     /// D11: Zero-copy with params-only seeds
     /// Tests `#[light_account(init, zero_copy)]` with params seeds not on struct.
     pub fn d11_zc_with_params_seeds<'info>(
-        ctx: Context<'_, '_, '_, 'info, D11ZcWithParamsSeeds<'info>>,
+        ctx: Context<'info, D11ZcWithParamsSeeds<'info>>,
         params: D11ZcWithParamsSeedsParams,
     ) -> Result<()> {
         let mut record = ctx.accounts.zc_params_record.load_init()?;
@@ -1581,7 +1575,7 @@ pub mod csdk_anchor_full_derived_test {
     /// Tests `#[light_account(init, zero_copy)]` combined with vault and token minting.
     /// Token vault creation is handled automatically by the `#[light_account(init, token, ...)]` macro.
     pub fn d11_zc_with_mint_to<'info>(
-        ctx: Context<'_, '_, '_, 'info, D11ZcWithMintTo<'info>>,
+        ctx: Context<'info, D11ZcWithMintTo<'info>>,
         params: D11ZcWithMintToParams,
     ) -> Result<()> {
         use light_token::instruction::MintToCpi;
