@@ -265,7 +265,6 @@ where
     fn into_in_token_data(
         &self,
         tree_info: &PackedStateTreeInfo,
-        _output_queue_index: u8,
     ) -> Result<MultiInputTokenDataWithContext, LightSdkTypesError> {
         Ok(MultiInputTokenDataWithContext {
             amount: self.token_data.amount,

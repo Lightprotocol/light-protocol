@@ -21,7 +21,6 @@ use crate::{
 pub fn prepare_token_account_for_decompression<const SEED_COUNT: usize, P, AI>(
     packed: &P,
     tree_info: &PackedStateTreeInfo,
-    output_queue_index: u8,
     token_account_info: &AI,
     ctx: &mut DecompressCtx<'_, AI>,
 ) -> Result<(), LightSdkTypesError>
@@ -30,7 +29,7 @@ where
     P: PackedLightAccountVariantTrait<SEED_COUNT>,
 {
     let packed_accounts = ctx.cpi_accounts.packed_accounts()?;
-    let token_data = packed.into_in_token_data(tree_info, output_queue_index)?;
+    let token_data = packed.into_in_token_data(tree_info)?;
 
     // Get TLV extension early to detect ATA
     let in_tlv: Option<Vec<ExtensionInstructionData>> = packed.into_in_tlv()?;

@@ -104,7 +104,6 @@ pub trait PackedLightAccountVariantTrait<const SEED_COUNT: usize>:
     fn into_in_token_data(
         &self,
         _tree_info: &crate::instruction::PackedStateTreeInfo,
-        _output_queue_index: u8,
     ) -> Result<
         light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext,
         LightSdkTypesError,

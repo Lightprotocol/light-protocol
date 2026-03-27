@@ -123,7 +123,6 @@ impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
     fn into_in_token_data(
         &self,
         _tree_info: &light_account_pinocchio::PackedStateTreeInfo,
-        _output_queue_index: u8,
     ) -> std::result::Result<
         light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext,
         LightSdkTypesError,
@@ -249,7 +248,6 @@ impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
     fn into_in_token_data(
         &self,
         _tree_info: &light_account_pinocchio::PackedStateTreeInfo,
-        _output_queue_index: u8,
     ) -> std::result::Result<
         light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext,
         LightSdkTypesError,
