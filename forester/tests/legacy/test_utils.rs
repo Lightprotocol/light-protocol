@@ -122,6 +122,10 @@ pub fn forester_config() -> ForesterConfig {
         address_tree_data: vec![],
         state_tree_data: vec![],
         compressible_config: None,
+        lookup_table_address: None,
+        min_queue_items: None,
+        enable_v1_multi_nullify: false,
+        work_item_batch_size: 50,
     }
 }
 

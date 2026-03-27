@@ -18,8 +18,8 @@ pub use types::{
     AddressQueueData, AddressWithTree, ColdContext, ColdData, CompressedAccount,
     CompressedTokenAccount, Hash, InputQueueData, InterfaceTreeInfo, MerkleProof,
     MerkleProofWithContext, NewAddressProofWithContext, NextTreeInfo, OutputQueueData,
-    OwnerBalance, ProofOfLeaf, QueueElementsResult, QueueInfo, QueueInfoResult, RootIndex,
-    SignatureWithMetadata, SolanaAccountData, StateMerkleTreeAccounts, StateQueueData,
+    OwnerBalance, ProofOfLeaf, QueueElementsResult, QueueInfo, QueueInfoResult, QueueLeafIndex,
+    RootIndex, SignatureWithMetadata, SolanaAccountData, StateMerkleTreeAccounts, StateQueueData,
     TokenAccountInterface, TokenBalance, TreeInfo, ValidityProofWithContext,
 };
 mod options;

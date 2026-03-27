@@ -89,26 +89,45 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
 
         let mut rpc = self.rpc_pool.get_connection().await?;
 
-        // Pre-check: filter out accounts that no longer exist on-chain
+        // Pre-check: filter out accounts that no longer exist on-chain or are no longer compressible
         let all_pubkeys: Vec<Pubkey> = account_states.iter().map(|a| a.pubkey).collect();
         let on_chain_accounts = rpc
             .get_multiple_accounts(&all_pubkeys)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to pre-check accounts: {:?}", e))?;
 
+        let current_slot = rpc
+            .get_slot()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get current slot: {:?}", e))?;
+
         let account_states: Vec<&CTokenAccountState> = account_states
             .iter()
             .zip(on_chain_accounts.iter())
             .filter_map(|(state, on_chain)| {
-                if on_chain.is_some() {
-                    Some(state)
-                } else {
-                    debug!(
-                        "CToken account {} no longer exists on-chain, removing from tracker",
-                        state.pubkey
-                    );
-                    self.tracker.remove(&state.pubkey);
-                    None
+                let on_chain = on_chain.as_ref()?;
+                // Re-validate compressibility with fresh on-chain data
+                match super::state::revalidate_compressibility(
+                    &on_chain.data,
+                    on_chain.lamports,
+                    current_slot,
+                ) {
+                    Ok(true) => Some(state),
+                    Ok(false) => {
+                        debug!(
+                            "CToken account {} is no longer compressible, skipping",
+                            state.pubkey
+                        );
+                        None
+                    }
+                    Err(e) => {
+                        debug!(
+                            "CToken account {} failed compressibility check: {}, removing",
+                            state.pubkey, e
+                        );
+                        self.tracker.remove(&state.pubkey);
+                        None
+                    }
                 }
             })
             .collect();

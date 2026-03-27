@@ -11,7 +11,7 @@ use super::{
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, IndexerError, IndexerRpcConfig,
     MerkleProof, NewAddressProofWithContext, PaginatedOptions, QueueElementsV2Options, RetryConfig,
 };
-use crate::indexer::QueueElementsResult;
+use crate::indexer::{QueueElementsResult, QueueLeafIndex};
 // TODO: remove all references in input types.
 #[async_trait]
 pub trait Indexer: std::marker::Send + std::marker::Sync {
@@ -180,6 +180,16 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         options: QueueElementsV2Options,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsResult>, IndexerError>;
+
+    /// Returns lightweight (hash, queue_index, leaf_index) tuples for nullifier queue items.
+    /// Used by the forester to sort queue items before grouping for multi-nullify.
+    async fn get_queue_leaf_indices(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        limit: u16,
+        start_index: Option<u64>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Items<QueueLeafIndex>>, IndexerError>;
 
     /// Returns information about all queues in the system.
     /// Includes tree pubkey, queue pubkey, queue type, and queue size for each queue.

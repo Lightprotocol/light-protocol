@@ -38,6 +38,9 @@ use light_compressed_token::process_transfer::{
 use light_hasher::Poseidon;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
+use light_registry::account_compression_cpi::sdk::{
+    forester_lookup_table_accounts, ForesterLookupTableParams,
+};
 use light_test_utils::{
     actions::{create_compressible_token_account, CreateCompressibleTokenAccountInputs},
     conversions::sdk_to_program_token_data,
@@ -189,13 +192,52 @@ fn is_v2_address_test_enabled() -> bool {
     env::var("TEST_V2_ADDRESS").unwrap_or_else(|_| "true".to_string()) == "true"
 }
 
+/// Creates an on-chain Address Lookup Table populated with the accounts
+/// needed for nullify_state_v1_multi instructions. Returns the ALT address.
+async fn create_forester_alt<R: Rpc>(rpc: &mut R, payer: &Keypair, env: &TestAccounts) -> Pubkey {
+    use light_client::rpc::lut::instruction::{create_lookup_table, extend_lookup_table};
+
+    let slot = rpc.get_slot().await.unwrap();
+    let (create_ix, alt_address) = create_lookup_table(payer.pubkey(), payer.pubkey(), slot);
+    rpc.create_and_send_transaction(&[create_ix], &payer.pubkey(), &[payer])
+        .await
+        .unwrap();
+
+    let params = ForesterLookupTableParams {
+        v1_state_trees: env
+            .v1_state_trees
+            .iter()
+            .map(|t| (t.merkle_tree, t.nullifier_queue))
+            .collect(),
+        v1_address_trees: env
+            .v1_address_trees
+            .iter()
+            .map(|t| (t.merkle_tree, t.queue))
+            .collect(),
+        v2_state_trees: env
+            .v2_state_trees
+            .iter()
+            .map(|t| (t.merkle_tree, t.output_queue))
+            .collect(),
+        v2_address_trees: env.v2_address_trees.clone(),
+    };
+    let addresses = forester_lookup_table_accounts(&params);
+    let extend_ix =
+        extend_lookup_table(alt_address, payer.pubkey(), Some(payer.pubkey()), addresses);
+    rpc.create_and_send_transaction(&[extend_ix], &payer.pubkey(), &[payer])
+        .await
+        .unwrap();
+
+    alt_address
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 #[serial]
 async fn e2e_test() {
     let state_tree_params = InitStateTreeAccountsInstructionData::test_default();
     let env = TestAccounts::get_local_test_validator_accounts();
     println!("env {:?}", env);
-    let config = ForesterConfig {
+    let mut config = ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url: get_rpc_url(),
             ws_rpc_url: Some(get_ws_rpc_url()),
@@ -259,6 +301,9 @@ async fn e2e_test() {
             max_concurrent_batches: 10,
             pda_programs: vec![],
         }),
+        min_queue_items: None,
+        enable_v1_multi_nullify: false,
+        work_item_batch_size: 50,
     };
     let test_mode = TestMode::from_env();
 
@@ -294,6 +339,17 @@ async fn e2e_test() {
             LAMPORTS_PER_SOL * 100,
         )
         .await;
+    }
+
+    // Create unified ALT for all forester operations.
+    // v0::Message::try_compile selects relevant entries per instruction automatically.
+    let alt_addr = create_forester_alt(&mut rpc, &env.protocol.forester, &env).await;
+    println!("Created forester ALT: {}", alt_addr);
+    config.lookup_table_address = Some(alt_addr);
+
+    if is_v1_state_test_enabled() {
+        config.min_queue_items = Some(10);
+        config.enable_v1_multi_nullify = true;
     }
 
     // Get initial state for V1 state tree if enabled
@@ -490,12 +546,39 @@ async fn e2e_test() {
     )
     .await;
 
+    // Spawn a slot advancement task so the forester doesn't get stuck waiting
+    // for epoch registration windows (surfpool offline mode doesn't auto-advance slots).
+    let slot_advance_rpc_url = config.external_services.rpc_url.clone();
+    let slot_advance_handle = tokio::spawn(async move {
+        let advance_rpc = LightClient::new(LightClientConfig {
+            url: slot_advance_rpc_url,
+            commitment_config: None,
+            photon_url: None,
+            fetch_active_tree: false,
+        })
+        .await
+        .unwrap();
+        loop {
+            let current_slot = match advance_rpc.get_slot().await {
+                Ok(s) => s,
+                Err(_) => break,
+            };
+            let target = current_slot + 50;
+            if advance_rpc.warp_to_slot(target).await.is_err() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
+    });
+
     wait_for_work_report(
         &mut work_report_receiver,
         &state_tree_params,
         test_iterations,
     )
     .await;
+
+    slot_advance_handle.abort();
 
     // Verify root changes based on enabled tests
     if is_v1_state_test_enabled() {
