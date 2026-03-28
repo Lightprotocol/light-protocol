@@ -1,11 +1,11 @@
 import { SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
-import { assertAccountNotFrozen, getAta } from '../account';
 import type {
     CreateRawRevokeInstructionInput,
     CreateRevokeInstructionsInput,
 } from '../types';
+import { getAtaAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
@@ -46,13 +46,7 @@ export async function createRevokeInstructions({
     owner,
     mint,
 }: CreateRevokeInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({
-        rpc,
-        owner,
-        mint,
-    });
-
-    assertAccountNotFrozen(account, 'revoke');
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
         ...(await createLoadInstructions({
@@ -63,7 +57,7 @@ export async function createRevokeInstructions({
             wrap: true,
         })),
         createRevokeInstruction({
-            tokenAccount: account.address,
+            tokenAccount,
             owner,
             payer,
         }),
@@ -76,11 +70,7 @@ export async function createRevokeInstructionsNowrap({
     owner,
     mint,
 }: CreateRevokeInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({
-        rpc,
-        owner,
-        mint,
-    });
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
         ...(await createLoadInstructions({
@@ -91,7 +81,7 @@ export async function createRevokeInstructionsNowrap({
             wrap: false,
         })),
         createRevokeInstruction({
-            tokenAccount: account.address,
+            tokenAccount,
             owner,
             payer,
         }),

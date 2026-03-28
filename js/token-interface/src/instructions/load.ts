@@ -615,6 +615,7 @@ async function _buildLoadInstructions(
   targetAmount: bigint | undefined,
   authority: PublicKey | undefined,
   decimals: number,
+  allowFrozen: boolean,
 ): Promise<TransactionInstruction[]> {
   if (!ata._isAta || !ata._owner || !ata._mint) {
     throw new Error(
@@ -622,7 +623,9 @@ async function _buildLoadInstructions(
     );
   }
 
-  checkNotFrozen(ata, "load");
+  if (!allowFrozen) {
+    checkNotFrozen(ata, "load");
+  }
 
   const owner = ata._owner;
   const mint = ata._mint;
@@ -869,6 +872,7 @@ export interface CreateLoadInstructionOptions
   extends CreateLoadInstructionsInput {
   authority?: PublicKey;
   wrap?: boolean;
+  allowFrozen?: boolean;
 }
 
 export async function createLoadInstructions({
@@ -878,6 +882,7 @@ export async function createLoadInstructions({
   mint,
   authority,
   wrap = true,
+  allowFrozen = false,
 }: CreateLoadInstructionOptions): Promise<TransactionInstruction[]> {
   const targetAta = getAtaAddress({ owner, mint });
   const loadOptions = toLoadOptions(owner, authority, wrap);
@@ -923,6 +928,7 @@ export async function createLoadInstructions({
     undefined,
     authorityPubkey,
     decimals,
+    allowFrozen,
   );
 
   if (instructions.length === 0) {

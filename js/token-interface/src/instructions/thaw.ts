@@ -1,14 +1,11 @@
 import { TransactionInstruction } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
-import {
-    assertAccountFrozen,
-    getAta,
-} from '../account';
 import type {
     CreateRawThawInstructionInput,
     CreateThawInstructionsInput,
 } from '../types';
+import { getAtaAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
@@ -37,9 +34,7 @@ export async function createThawInstructions({
     mint,
     freezeAuthority,
 }: CreateThawInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({ rpc, owner, mint });
-
-    assertAccountFrozen(account, 'thaw');
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
         ...(await createLoadInstructions({
@@ -48,9 +43,10 @@ export async function createThawInstructions({
             owner,
             mint,
             wrap: true,
+            allowFrozen: true,
         })),
         createThawInstruction({
-            tokenAccount: account.address,
+            tokenAccount,
             mint,
             freezeAuthority,
         }),
@@ -64,9 +60,7 @@ export async function createThawInstructionsNowrap({
     mint,
     freezeAuthority,
 }: CreateThawInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({ rpc, owner, mint });
-
-    assertAccountFrozen(account, 'thaw');
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
         ...(await createLoadInstructions({
@@ -75,9 +69,10 @@ export async function createThawInstructionsNowrap({
             owner,
             mint,
             wrap: false,
+            allowFrozen: true,
         })),
         createThawInstruction({
-            tokenAccount: account.address,
+            tokenAccount,
             mint,
             freezeAuthority,
         }),

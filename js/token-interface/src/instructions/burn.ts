@@ -1,12 +1,12 @@
 import { Buffer } from 'buffer';
 import { SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
-import { assertAccountNotFrozen, getAta } from '../account';
 import type {
     CreateBurnInstructionsInput,
     CreateRawBurnCheckedInstructionInput,
     CreateRawBurnInstructionInput,
 } from '../types';
+import { getAtaAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
@@ -96,15 +96,13 @@ export async function createBurnInstructions({
     amount,
     decimals,
 }: CreateBurnInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({ rpc, owner, mint });
-
-    assertAccountNotFrozen(account, 'burn');
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     const amountBn = toBigIntAmount(amount);
     const burnIx =
         decimals !== undefined
             ? createBurnCheckedInstruction({
-                  source: account.address,
+                  source: tokenAccount,
                   mint,
                   authority,
                   amount: amountBn,
@@ -112,7 +110,7 @@ export async function createBurnInstructions({
                   payer,
               })
             : createBurnInstruction({
-                  source: account.address,
+                  source: tokenAccount,
                   mint,
                   authority,
                   amount: amountBn,
@@ -140,15 +138,13 @@ export async function createBurnInstructionsNowrap({
     amount,
     decimals,
 }: CreateBurnInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({ rpc, owner, mint });
-
-    assertAccountNotFrozen(account, 'burn');
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     const amountBn = toBigIntAmount(amount);
     const burnIx =
         decimals !== undefined
             ? createBurnCheckedInstruction({
-                  source: account.address,
+                  source: tokenAccount,
                   mint,
                   authority,
                   amount: amountBn,
@@ -156,7 +152,7 @@ export async function createBurnInstructionsNowrap({
                   payer,
               })
             : createBurnInstruction({
-                  source: account.address,
+                  source: tokenAccount,
                   mint,
                   authority,
                   amount: amountBn,

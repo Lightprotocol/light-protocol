@@ -1,11 +1,11 @@
 import { SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
-import { assertAccountNotFrozen, getAta } from '../account';
 import type {
     CreateApproveInstructionsInput,
     CreateRawApproveInstructionInput,
 } from '../types';
+import { getAtaAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
@@ -59,13 +59,7 @@ export async function createApproveInstructions({
     delegate,
     amount,
 }: CreateApproveInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({
-        rpc,
-        owner,
-        mint,
-    });
-
-    assertAccountNotFrozen(account, 'approve');
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
         ...(await createLoadInstructions({
@@ -76,7 +70,7 @@ export async function createApproveInstructions({
             wrap: true,
         })),
         createApproveInstruction({
-            tokenAccount: account.address,
+            tokenAccount,
             delegate,
             owner,
             amount: toBigIntAmount(amount),
@@ -93,11 +87,7 @@ export async function createApproveInstructionsNowrap({
     delegate,
     amount,
 }: CreateApproveInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({
-        rpc,
-        owner,
-        mint,
-    });
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
         ...(await createLoadInstructions({
@@ -108,7 +98,7 @@ export async function createApproveInstructionsNowrap({
             wrap: false,
         })),
         createApproveInstruction({
-            tokenAccount: account.address,
+            tokenAccount,
             delegate,
             owner,
             amount: toBigIntAmount(amount),
