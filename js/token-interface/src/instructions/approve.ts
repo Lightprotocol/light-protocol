@@ -5,15 +5,12 @@ import type {
     CreateApproveInstructionsInput,
     CreateRawApproveInstructionInput,
 } from '../types';
+import { toBigIntAmount } from '../helpers';
 import { getAtaAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
 const LIGHT_TOKEN_APPROVE_DISCRIMINATOR = 4;
-
-function toBigIntAmount(amount: number | bigint): bigint {
-    return BigInt(amount.toString());
-}
 
 export function createApproveInstruction({
     tokenAccount,

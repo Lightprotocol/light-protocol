@@ -50,3 +50,7 @@ export function normalizeInstructionBatches(
             !instruction.programId.equals(ComputeBudgetProgram.programId),
     );
 }
+
+export function toBigIntAmount(amount: number | bigint): bigint {
+    return BigInt(amount.toString());
+}

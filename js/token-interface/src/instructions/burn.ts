@@ -6,16 +6,13 @@ import type {
     CreateRawBurnCheckedInstructionInput,
     CreateRawBurnInstructionInput,
 } from '../types';
+import { toBigIntAmount } from '../helpers';
 import { getAtaAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
 const LIGHT_TOKEN_BURN_DISCRIMINATOR = 8;
 const LIGHT_TOKEN_BURN_CHECKED_DISCRIMINATOR = 15;
-
-function toBigIntAmount(amount: number | bigint): bigint {
-    return BigInt(amount.toString());
-}
 
 export function createBurnInstruction({
     source,

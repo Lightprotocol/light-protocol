@@ -116,19 +116,27 @@ function encodeCreateAssociatedLightTokenAccountData(
     params: CreateAssociatedLightTokenAccountParams,
     idempotent: boolean,
 ): Buffer {
-    const buffer = Buffer.alloc(2000);
-    const len = CreateAssociatedTokenAccountInstructionDataLayout.encode(
-        {
-            compressibleConfig: params.compressibleConfig || null,
-        },
-        buffer,
-    );
-
     const discriminator = idempotent
         ? CREATE_ASSOCIATED_TOKEN_ACCOUNT_IDEMPOTENT_DISCRIMINATOR
         : CREATE_ASSOCIATED_TOKEN_ACCOUNT_DISCRIMINATOR;
+    const payload = { compressibleConfig: params.compressibleConfig || null };
+    let size = 64;
 
-    return Buffer.concat([discriminator, buffer.subarray(0, len)]);
+    for (;;) {
+        const buffer = Buffer.alloc(size);
+        try {
+            const len = CreateAssociatedTokenAccountInstructionDataLayout.encode(
+                payload,
+                buffer,
+            );
+            return Buffer.concat([discriminator, buffer.subarray(0, len)]);
+        } catch (error) {
+            if (!(error instanceof RangeError) || size >= 4096) {
+                throw error;
+            }
+            size *= 2;
+        }
+    }
 }
 
 export interface CreateAssociatedLightTokenAccountInstructionParams {
