@@ -1,14 +1,11 @@
 import { TransactionInstruction } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
-import {
-    assertAccountNotFrozen,
-    getAta,
-} from '../account';
 import type {
     CreateFreezeInstructionsInput,
     CreateRawFreezeInstructionInput,
 } from '../types';
+import { getAtaAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
@@ -37,9 +34,7 @@ export async function createFreezeInstructions({
     mint,
     freezeAuthority,
 }: CreateFreezeInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({ rpc, owner, mint });
-
-    assertAccountNotFrozen(account, 'freeze');
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
         ...(await createLoadInstructions({
@@ -50,7 +45,7 @@ export async function createFreezeInstructions({
             wrap: true,
         })),
         createFreezeInstruction({
-            tokenAccount: account.address,
+            tokenAccount,
             mint,
             freezeAuthority,
         }),
@@ -64,9 +59,7 @@ export async function createFreezeInstructionsNowrap({
     mint,
     freezeAuthority,
 }: CreateFreezeInstructionsInput): Promise<TransactionInstruction[]> {
-    const account = await getAta({ rpc, owner, mint });
-
-    assertAccountNotFrozen(account, 'freeze');
+    const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
         ...(await createLoadInstructions({
@@ -77,7 +70,7 @@ export async function createFreezeInstructionsNowrap({
             wrap: false,
         })),
         createFreezeInstruction({
-            tokenAccount: account.address,
+            tokenAccount,
             mint,
             freezeAuthority,
         }),
