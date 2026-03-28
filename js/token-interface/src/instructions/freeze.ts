@@ -47,7 +47,6 @@ export async function createFreezeInstructions({
             payer,
             owner,
             mint,
-            account,
             wrap: true,
         })),
         createFreezeInstruction({
@@ -75,7 +74,6 @@ export async function createFreezeInstructionsNowrap({
             payer,
             owner,
             mint,
-            account,
             wrap: false,
         })),
         createFreezeInstruction({

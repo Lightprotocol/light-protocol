@@ -73,7 +73,6 @@ export async function createApproveInstructions({
             payer,
             owner,
             mint,
-            account,
             wrap: true,
         })),
         createApproveInstruction({
@@ -106,7 +105,6 @@ export async function createApproveInstructionsNowrap({
             payer,
             owner,
             mint,
-            account,
             wrap: false,
         })),
         createApproveInstruction({

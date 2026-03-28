@@ -60,7 +60,6 @@ export async function createRevokeInstructions({
             payer,
             owner,
             mint,
-            account,
             wrap: true,
         })),
         createRevokeInstruction({
@@ -89,7 +88,6 @@ export async function createRevokeInstructionsNowrap({
             payer,
             owner,
             mint,
-            account,
             wrap: false,
         })),
         createRevokeInstruction({
