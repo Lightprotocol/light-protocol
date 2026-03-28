@@ -13,6 +13,9 @@ on:
 
 name: js-token-interface-v2
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -55,6 +58,10 @@ jobs:
         run: |
           cd js/token-interface
           pnpm build:v2
+
+      - name: Build CLI
+        run: |
+          just cli build
 
       - name: Run token-interface unit tests with V2
         run: |
