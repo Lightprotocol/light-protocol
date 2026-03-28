@@ -9,13 +9,16 @@ import { getAtaAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
-const LIGHT_TOKEN_FREEZE_ACCOUNT_DISCRIMINATOR = Buffer.from([10]);
+const LIGHT_TOKEN_FREEZE_ACCOUNT_DISCRIMINATOR = 10;
 
 export function createFreezeInstruction({
     tokenAccount,
     mint,
     freezeAuthority,
 }: CreateRawFreezeInstructionInput): TransactionInstruction {
+    const data = Buffer.alloc(1);
+    data.writeUInt8(LIGHT_TOKEN_FREEZE_ACCOUNT_DISCRIMINATOR, 0);
+
     return new TransactionInstruction({
         programId: LIGHT_TOKEN_PROGRAM_ID,
         keys: [
@@ -23,7 +26,7 @@ export function createFreezeInstruction({
             { pubkey: mint, isSigner: false, isWritable: false },
             { pubkey: freezeAuthority, isSigner: true, isWritable: false },
         ],
-        data: LIGHT_TOKEN_FREEZE_ACCOUNT_DISCRIMINATOR,
+        data,
     });
 }
 

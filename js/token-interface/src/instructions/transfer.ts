@@ -9,7 +9,7 @@ import {
   createCloseAccountInstruction,
   unpackAccount,
 } from "@solana/spl-token";
-import { getMintDecimals } from "../helpers";
+import { getMintDecimals, toBigIntAmount } from "../helpers";
 import { getAtaAddress } from "../read";
 import type {
   CreateRawTransferInstructionInput,
@@ -22,10 +22,6 @@ import { createAtaInstruction } from "./ata";
 const ZERO = BigInt(0);
 
 const LIGHT_TOKEN_TRANSFER_CHECKED_DISCRIMINATOR = 12;
-
-function toBigIntAmount(amount: number | bigint): bigint {
-  return BigInt(amount.toString());
-}
 
 async function getDerivedAtaBalance(
   rpc: CreateTransferInstructionsInput["rpc"],
