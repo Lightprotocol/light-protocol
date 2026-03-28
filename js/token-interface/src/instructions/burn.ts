@@ -7,7 +7,7 @@ import type {
     CreateRawBurnCheckedInstructionInput,
     CreateRawBurnInstructionInput,
 } from '../types';
-import { buildLoadInstructionList } from './load';
+import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
 const LIGHT_TOKEN_BURN_DISCRIMINATOR = 8;
@@ -120,7 +120,7 @@ export async function createBurnInstructions({
               });
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,
@@ -165,7 +165,7 @@ export async function createBurnInstructionsNowrap({
               });
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,

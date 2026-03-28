@@ -53,12 +53,11 @@ import {
   type Transfer2ExtensionData,
 } from "./layout/layout-transfer2";
 import { createSingleCompressedAccountRpc, getAtaOrNull } from "../account";
-import { normalizeInstructionBatches, toLoadOptions } from "../helpers";
+import { toLoadOptions } from "../helpers";
 import { getAtaAddress } from "../read";
 import type {
   CreateLoadInstructionsInput,
   TokenInterfaceAccount,
-  CreateTransferInstructionsInput,
 } from "../types";
 import { toInstructionPlan } from "./_plan";
 
@@ -250,7 +249,7 @@ function buildInputTokenData(
 /**
  * Create decompress instruction using Transfer2.
  *
- * @internal Use createLoadAtaInstructions instead.
+ * @internal Use createLoadInstructions instead.
  *
  * Supports decompressing to both light-token accounts and SPL token accounts:
  * - For light-token destinations: No splInterface needed
@@ -540,66 +539,10 @@ export function createDecompressInstruction({
   });
 }
 
-const MAX_INPUT_ACCOUNTS = 8;
-
-function chunkArray<T>(array: T[], chunkSize: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += chunkSize) {
-    chunks.push(array.slice(i, i + chunkSize));
-  }
-  return chunks;
-}
-
-function selectInputsForAmount(
-  accounts: ParsedTokenAccount[],
-  neededAmount: bigint,
-): ParsedTokenAccount[] {
-  if (accounts.length === 0 || neededAmount <= BigInt(0)) return [];
-
-  const sorted = [...accounts].sort((a, b) => {
-    const amtA = BigInt(a.parsed.amount.toString());
-    const amtB = BigInt(b.parsed.amount.toString());
-    if (amtB > amtA) return 1;
-    if (amtB < amtA) return -1;
-    return 0;
-  });
-
-  let accumulated = BigInt(0);
-  let countNeeded = 0;
-  for (const acc of sorted) {
-    countNeeded++;
-    accumulated += BigInt(acc.parsed.amount.toString());
-    if (accumulated >= neededAmount) break;
-  }
-
-  const selectCount = Math.min(
-    Math.max(countNeeded, MAX_INPUT_ACCOUNTS),
-    sorted.length,
-  );
-
-  return sorted.slice(0, selectCount);
-}
-
-function assertUniqueInputHashes(chunks: ParsedTokenAccount[][]): void {
-  const seen = new Set<string>();
-  for (const chunk of chunks) {
-    for (const acc of chunk) {
-      const hashStr = acc.compressedAccount.hash.toString();
-      if (seen.has(hashStr)) {
-        throw new Error(
-          `Duplicate compressed account hash across chunks: ${hashStr}. ` +
-            `Each compressed account must appear in exactly one chunk.`,
-        );
-      }
-      seen.add(hashStr);
-    }
-  }
-}
-
-function getCompressedTokenAccountsFromAtaSources(
+function getCanonicalCompressedTokenAccountFromAtaSources(
   sources: TokenAccountSource[],
-): ParsedTokenAccount[] {
-  return sources
+): ParsedTokenAccount | null {
+  const candidates = sources
     .filter((source) => source.loadContext !== undefined)
     .filter((source) => COLD_SOURCE_TYPES.has(source.type))
     .map((source) => {
@@ -648,73 +591,24 @@ function getCompressedTokenAccountsFromAtaSources(
         },
       } satisfies ParsedTokenAccount;
     });
-}
 
-export async function createLoadAtaInstructionsInner(
-  rpc: Rpc,
-  ata: PublicKey,
-  owner: PublicKey,
-  mint: PublicKey,
-  decimals: number,
-  payer?: PublicKey,
-  loadOptions?: LoadOptions,
-): Promise<TransactionInstruction[][]> {
-  assertV2Enabled();
-  payer ??= owner;
-  const wrap = loadOptions?.wrap ?? false;
-
-  const effectiveOwner = owner;
-  const authorityPubkey = loadOptions?.delegatePubkey ?? owner;
-
-  let accountView: AccountView;
-  try {
-    accountView = await _getAtaView(
-      rpc,
-      ata,
-      effectiveOwner,
-      mint,
-      undefined,
-      undefined,
-      wrap,
-    );
-  } catch (e) {
-    if (e instanceof TokenAccountNotFoundError) {
-      return [];
-    }
-    throw e;
+  if (candidates.length === 0) {
+    return null;
   }
 
-  const isDelegate = !effectiveOwner.equals(authorityPubkey);
-  if (isDelegate) {
-    if (!isAuthorityForAccount(accountView, authorityPubkey)) {
-      throw new Error("Signer is not the owner or a delegate of the account.");
-    }
-    accountView = filterAccountForAuthority(accountView, authorityPubkey);
-  }
+  candidates.sort((a, b) => {
+    const amountA = BigInt(a.parsed.amount.toString());
+    const amountB = BigInt(b.parsed.amount.toString());
+    if (amountB > amountA) return 1;
+    if (amountB < amountA) return -1;
+    return b.compressedAccount.leafIndex - a.compressedAccount.leafIndex;
+  });
 
-  const internalBatches = await _buildLoadBatches(
-    rpc,
-    payer,
-    accountView,
-    loadOptions,
-    wrap,
-    ata,
-    undefined,
-    authorityPubkey,
-    decimals,
-  );
-
-  return internalBatches.map((batch) => [
-    ComputeBudgetProgram.setComputeUnitLimit({
-      units: calculateLoadBatchComputeUnits(batch),
-    }),
-    ...batch.instructions,
-  ]);
+  return candidates[0];
 }
 
-interface InternalLoadBatch {
-  instructions: TransactionInstruction[];
-  compressedAccounts: ParsedTokenAccount[];
+interface LoadInstructionProfile {
+  compressedAccount: ParsedTokenAccount | null;
   wrapCount: number;
   hasAtaCreation: boolean;
 }
@@ -729,32 +623,25 @@ const CU_BUFFER_FACTOR = 1.3;
 const CU_MIN = 50_000;
 const CU_MAX = 1_400_000;
 
-function rawLoadBatchComputeUnits(batch: InternalLoadBatch): number {
+function rawLoadComputeUnits(profile: LoadInstructionProfile): number {
   let cu = 0;
-  if (batch.hasAtaCreation) cu += CU_ATA_CREATION;
-  cu += batch.wrapCount * CU_WRAP;
-  if (batch.compressedAccounts.length > 0) {
+  if (profile.hasAtaCreation) cu += CU_ATA_CREATION;
+  cu += profile.wrapCount * CU_WRAP;
+  if (profile.compressedAccount) {
     cu += CU_DECOMPRESS_BASE;
-    const needsFullProof = batch.compressedAccounts.some(
-      (acc) => !(acc.compressedAccount.proveByIndex ?? false),
-    );
-    if (needsFullProof) cu += CU_FULL_PROOF;
-    for (const acc of batch.compressedAccounts) {
-      cu +=
-        (acc.compressedAccount.proveByIndex ?? false)
-          ? CU_PER_ACCOUNT_PROVE_BY_INDEX
-          : CU_PER_ACCOUNT_FULL_PROOF;
-    }
+    cu += (profile.compressedAccount.compressedAccount.proveByIndex ?? false)
+      ? CU_PER_ACCOUNT_PROVE_BY_INDEX
+      : CU_FULL_PROOF + CU_PER_ACCOUNT_FULL_PROOF;
   }
   return cu;
 }
 
-function calculateLoadBatchComputeUnits(batch: InternalLoadBatch): number {
-  const cu = Math.ceil(rawLoadBatchComputeUnits(batch) * CU_BUFFER_FACTOR);
+function calculateLoadComputeUnits(profile: LoadInstructionProfile): number {
+  const cu = Math.ceil(rawLoadComputeUnits(profile) * CU_BUFFER_FACTOR);
   return Math.max(CU_MIN, Math.min(CU_MAX, cu));
 }
 
-async function _buildLoadBatches(
+async function _buildLoadInstructions(
   rpc: Rpc,
   payer: PublicKey,
   ata: AccountView,
@@ -764,7 +651,10 @@ async function _buildLoadBatches(
   targetAmount: bigint | undefined,
   authority: PublicKey | undefined,
   decimals: number,
-): Promise<InternalLoadBatch[]> {
+): Promise<{
+  instructions: TransactionInstruction[];
+  profile: LoadInstructionProfile;
+}> {
   if (!ata._isAta || !ata._owner || !ata._mint) {
     throw new Error(
       "AccountView must be from getAtaView (requires _isAta, _owner, _mint)",
@@ -777,8 +667,8 @@ async function _buildLoadBatches(
   const mint = ata._mint;
   const sources = ata._sources ?? [];
 
-  const allCompressedAccounts =
-    getCompressedTokenAccountsFromAtaSources(sources);
+  const canonicalCompressedAccount =
+    getCanonicalCompressedTokenAccountFromAtaSources(sources);
 
   const lightTokenAtaAddress = getAssociatedTokenAddress(mint, owner);
   const splAta = getAssociatedTokenAddressSync(
@@ -808,18 +698,25 @@ async function _buildLoadBatches(
   const splSource = sources.find((s) => s.type === "spl");
   const t22Source = sources.find((s) => s.type === "token2022");
   const lightTokenHotSource = sources.find((s) => s.type === "light-token-hot");
-  const coldSources = sources.filter((s) => COLD_SOURCE_TYPES.has(s.type));
-
   const splBalance = splSource?.amount ?? BigInt(0);
   const t22Balance = t22Source?.amount ?? BigInt(0);
-  const coldBalance = coldSources.reduce((sum, s) => sum + s.amount, BigInt(0));
+  const coldBalance = canonicalCompressedAccount
+    ? BigInt(canonicalCompressedAccount.parsed.amount.toString())
+    : BigInt(0);
 
   if (
     splBalance === BigInt(0) &&
     t22Balance === BigInt(0) &&
     coldBalance === BigInt(0)
   ) {
-    return [];
+    return {
+      instructions: [],
+      profile: {
+        compressedAccount: null,
+        wrapCount: 0,
+        hasAtaCreation: false,
+      },
+    };
   }
 
   let splInterface: SplInterface | undefined;
@@ -952,12 +849,12 @@ async function _buildLoadBatches(
     }
   }
 
-  let accountsToLoad = allCompressedAccounts;
+  let accountToLoad = canonicalCompressedAccount;
 
   if (
     targetAmount !== undefined &&
     canDecompress &&
-    allCompressedAccounts.length > 0
+    canonicalCompressedAccount
   ) {
     const isDelegate = authority !== undefined && !authority.equals(owner);
     const hotBalance = (() => {
@@ -989,130 +886,54 @@ async function _buildLoadBatches(
         : BigInt(0);
 
     if (neededFromCold === BigInt(0)) {
-      accountsToLoad = [];
-    } else {
-      accountsToLoad = selectInputsForAmount(
-        allCompressedAccounts,
-        neededFromCold,
-      );
+      accountToLoad = null;
     }
   }
 
-  if (!canDecompress || accountsToLoad.length === 0) {
-    if (setupInstructions.length === 0) return [];
-    return [
-      {
-        instructions: setupInstructions,
-        compressedAccounts: [],
+  if (!canDecompress || !accountToLoad) {
+    return {
+      instructions: setupInstructions,
+      profile: {
+        compressedAccount: null,
         wrapCount,
         hasAtaCreation: needsAtaCreation,
       },
-    ];
+    };
   }
 
-  const chunks = chunkArray(accountsToLoad, MAX_INPUT_ACCOUNTS);
-  assertUniqueInputHashes(chunks);
+  const proof = await rpc.getValidityProofV0([
+    {
+      hash: accountToLoad.compressedAccount.hash,
+      tree: accountToLoad.compressedAccount.treeInfo.tree,
+      queue: accountToLoad.compressedAccount.treeInfo.queue,
+    },
+  ]);
+  const authorityForDecompress = authority ?? owner;
+  const amountToDecompress = BigInt(accountToLoad.parsed.amount.toString());
 
-  const proofs = await Promise.all(
-    chunks.map(async (chunk) => {
-      const proofInputs = chunk.map((acc) => ({
-        hash: acc.compressedAccount.hash,
-        tree: acc.compressedAccount.treeInfo.tree,
-        queue: acc.compressedAccount.treeInfo.queue,
-      }));
-      return rpc.getValidityProofV0(proofInputs);
-    }),
-  );
-
-  const idempotentAtaIx = (() => {
-    if (wrap || ataType === "light-token") {
-      return createAtaIdempotent({
-        payer,
-        associatedToken: lightTokenAtaAddress,
-        owner,
-        mint,
-        programId: LIGHT_TOKEN_PROGRAM_ID,
-      });
-    } else if (ataType === "spl") {
-      return createAssociatedTokenAccountIdempotentInstruction(
-        payer,
-        splAta,
-        owner,
-        mint,
-        TOKEN_PROGRAM_ID,
-      );
-    } else {
-      return createAssociatedTokenAccountIdempotentInstruction(
-        payer,
-        t22Ata,
-        owner,
-        mint,
-        TOKEN_2022_PROGRAM_ID,
-      );
-    }
-  })();
-
-  const batches: InternalLoadBatch[] = [];
-
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    const proof = proofs[i];
-    const chunkAmount = chunk.reduce(
-      (sum, acc) => sum + BigInt(acc.parsed.amount.toString()),
-      BigInt(0),
-    );
-
-    const batchIxs: TransactionInstruction[] = [];
-    let batchWrapCount = 0;
-    let batchHasAtaCreation = false;
-
-    if (i === 0) {
-      batchIxs.push(...setupInstructions);
-      batchWrapCount = wrapCount;
-      batchHasAtaCreation = needsAtaCreation;
-    } else {
-      batchIxs.push(idempotentAtaIx);
-      batchHasAtaCreation = true;
-    }
-
-    const authorityForDecompress = authority ?? owner;
-    batchIxs.push(
+  return {
+    instructions: [
+      ...setupInstructions,
       createDecompressInstruction({
         payer,
-        inputCompressedTokenAccounts: chunk,
+        inputCompressedTokenAccounts: [accountToLoad],
         toAddress: decompressTarget,
-        amount: chunkAmount,
+        amount: amountToDecompress,
         validityProof: proof,
         splInterface: decompressSplInfo,
         decimals,
         authority: authorityForDecompress,
       }),
-    );
-
-    batches.push({
-      instructions: batchIxs,
-      compressedAccounts: chunk,
-      wrapCount: batchWrapCount,
-      hasAtaCreation: batchHasAtaCreation,
-    });
-  }
-
-  return batches;
+    ],
+    profile: {
+      compressedAccount: accountToLoad,
+      wrapCount,
+      hasAtaCreation: needsAtaCreation,
+    },
+  };
 }
 
-/**
- * Build load/decompress instruction batches for a specific associated token account.
- *
- * @param input             Load ATA instruction input.
- * @param input.rpc         RPC connection.
- * @param input.ata         Target associated token account address.
- * @param input.owner       Owner of the target token account.
- * @param input.mint        Mint address.
- * @param input.payer       Optional fee payer.
- * @param input.loadOptions Optional load options.
- * @returns Instruction batches that can require multiple transactions.
- */
-export async function createLoadAtaInstructions({
+async function createLoadInstructionsForAta({
   rpc,
   ata,
   owner,
@@ -1126,37 +947,80 @@ export async function createLoadAtaInstructions({
   mint: PublicKey;
   payer?: PublicKey;
   loadOptions?: LoadOptions;
-}): Promise<TransactionInstruction[][]> {
+}): Promise<TransactionInstruction[]> {
   const mintInfo = await getMint(rpc, mint);
-  return createLoadAtaInstructionsInner(
+  const decimals = mintInfo.mint.decimals;
+
+  assertV2Enabled();
+  payer ??= owner;
+  const wrap = loadOptions?.wrap ?? false;
+  const authorityPubkey = loadOptions?.delegatePubkey ?? owner;
+
+  let accountView: AccountView;
+  try {
+    accountView = await _getAtaView(
+      rpc,
+      ata,
+      owner,
+      mint,
+      undefined,
+      undefined,
+      wrap,
+    );
+  } catch (e) {
+    if (e instanceof TokenAccountNotFoundError) {
+      return [];
+    }
+    throw e;
+  }
+
+  if (!owner.equals(authorityPubkey)) {
+    if (!isAuthorityForAccount(accountView, authorityPubkey)) {
+      throw new Error("Signer is not the owner or a delegate of the account.");
+    }
+    accountView = filterAccountForAuthority(accountView, authorityPubkey);
+  }
+
+  const { instructions, profile } = await _buildLoadInstructions(
     rpc,
-    ata,
-    owner,
-    mint,
-    mintInfo.mint.decimals,
     payer,
+    accountView,
     loadOptions,
+    wrap,
+    ata,
+    undefined,
+    authorityPubkey,
+    decimals,
   );
+
+  if (instructions.length === 0) {
+    return [];
+  }
+
+  return [
+    ComputeBudgetProgram.setComputeUnitLimit({
+      units: calculateLoadComputeUnits(profile),
+    }),
+    ...instructions,
+  ];
 }
 
-interface CreateLoadInstructionInternalInput
+export interface CreateLoadInstructionOptions
   extends CreateLoadInstructionsInput {
   authority?: PublicKey;
   account?: TokenInterfaceAccount | null;
   wrap?: boolean;
 }
 
-export async function createLoadInstructionInternal({
+export async function createLoadInstructions({
   rpc,
   payer,
   owner,
   mint,
   authority,
   account,
-  wrap = false,
-}: CreateLoadInstructionInternalInput): Promise<{
-  instructions: TransactionInstruction[];
-} | null> {
+  wrap = true,
+}: CreateLoadInstructionOptions): Promise<TransactionInstruction[]> {
   const resolvedAccount =
     account ??
     (await getAtaOrNull({
@@ -1175,72 +1039,21 @@ export async function createLoadInstructionInternal({
           resolvedAccount.compressedAccount,
         )
       : rpc;
-  const instructions = normalizeInstructionBatches(
-    "createLoadInstruction",
-    await createLoadAtaInstructions({
+  const instructions = (
+    await createLoadInstructionsForAta({
       rpc: effectiveRpc,
       ata: targetAta,
       owner,
       mint,
       payer,
       loadOptions: toLoadOptions(owner, authority, wrap),
-    }),
+    })
+  ).filter(
+    (instruction) =>
+      !instruction.programId.equals(ComputeBudgetProgram.programId),
   );
 
-  if (instructions.length === 0) {
-    return null;
-  }
-
-  return {
-    instructions,
-  };
-}
-
-export async function buildLoadInstructionList(
-  input: CreateLoadInstructionsInput & {
-    authority?: CreateTransferInstructionsInput["authority"];
-    account?: TokenInterfaceAccount | null;
-    wrap?: boolean;
-  },
-): Promise<TransactionInstruction[]> {
-  const load = await createLoadInstructionInternal(input);
-
-  if (!load) {
-    return [];
-  }
-
-  return load.instructions;
-}
-
-export async function createLoadInstruction({
-  rpc,
-  payer,
-  owner,
-  mint,
-}: CreateLoadInstructionsInput): Promise<TransactionInstruction | null> {
-  const load = await createLoadInstructionInternal({
-    rpc,
-    payer,
-    owner,
-    mint,
-  });
-
-  return load?.instructions[load.instructions.length - 1] ?? null;
-}
-
-export async function createLoadInstructions({
-  rpc,
-  payer,
-  owner,
-  mint,
-}: CreateLoadInstructionsInput): Promise<TransactionInstruction[]> {
-  return buildLoadInstructionList({
-    rpc,
-    payer,
-    owner,
-    mint,
-    wrap: true,
-  });
+  return instructions;
 }
 
 export async function createLoadInstructionPlan(
