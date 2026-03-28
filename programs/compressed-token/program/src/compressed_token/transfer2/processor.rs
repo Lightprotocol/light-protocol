@@ -258,25 +258,20 @@ fn process_with_system_program_cpi<'a>(
     )?;
 
     // ATA decompress is permissionless and idempotent.
-    // Detect from Decompress mode + CompressedOnly extension with is_ata=true.
-    let is_ata_decompress = inputs
-        .compressions
-        .as_ref()
-        .is_some_and(|c| c.iter().any(|c| c.mode.is_decompress()))
+    // Detect from: exactly 1 input, 1 Decompress compression, CompressedOnly with is_ata=true.
+    // Multi-input batches (including mixed ATA + non-ATA) are not idempotent.
+    let is_ata_decompress = inputs.in_token_data.len() == 1
+        && inputs
+            .compressions
+            .as_ref()
+            .is_some_and(|c| c.len() == 1 && c.iter().any(|c| c.mode.is_decompress()))
         && inputs.in_tlv.as_ref().is_some_and(|tlvs| {
             tlvs.iter().flatten().any(|ext| {
-            matches!(ext, ZExtensionInstructionData::CompressedOnly(data) if data.is_ata())
-        })
+                matches!(ext, ZExtensionInstructionData::CompressedOnly(data) if data.is_ata())
+            })
         });
 
     if is_ata_decompress {
-        // Single-input constraint: permissionless decompress must be atomic.
-        if inputs.in_token_data.len() != 1
-            || inputs.compressions.as_ref().map_or(0, |c| c.len()) != 1
-        {
-            msg!("ATA decompress requires exactly 1 input and 1 compression");
-            return Err(TokenError::InvalidInstructionData.into());
-        }
         let input_data = &inputs.in_token_data[0];
         let merkle_context = &input_data.merkle_context;
         let input_account = cpi_instruction_struct
