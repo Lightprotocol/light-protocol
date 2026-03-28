@@ -849,7 +849,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const item = res.result.value;
 
         return createCompressedAccountWithMerkleContextLegacy(
-            createMerkleContextLegacy(stateTreeInfo, item.hash, item.leafIndex),
+            createMerkleContextLegacy(
+                stateTreeInfo,
+                item.hash,
+                item.leafIndex,
+                featureFlags.isV2() ? (item as any).proveByIndex : false,
+            ),
             item.owner,
             bn(item.lamports),
             item.data ? parseAccountData(item.data) : undefined,
@@ -1024,6 +1029,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     stateTreeInfo,
                     bn(item.hash.toArray('be', 32)),
                     item.leafIndex,
+                    featureFlags.isV2() ? item.proveByIndex : false,
                 ),
                 item.owner,
                 bn(item.lamports),
