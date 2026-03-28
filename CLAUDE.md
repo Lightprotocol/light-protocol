@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Light Protocol - AI Assistant Reference Guide
 
 ## Repository Overview
@@ -32,11 +36,13 @@ light-protocol/
 │   ├── verifier/                 # ZKP verification logic in Solana programs
 │   ├── zero-copy/                # Zero-copy serialization for efficient account access
 │   └── zero-copy-derive/         # Derive macros for zero-copy serialization
-├── programs/                  # Light Protocol Solana programs
+├── programs/                  # Light Protocol Solana programs (pinocchio-based)
 │   ├── account-compression/      # Core compression program (owns Merkle tree accounts)
 │   ├── system/                   # Light system program (compressed account validation)
 │   ├── compressed-token/         # Compressed token implementation (similar to SPL Token)
 │   └── registry/                 # Protocol configuration and forester access control
+├── anchor-programs/           # Anchor-based program variants
+│   └── system/                   # Anchor variant of the system program
 ├── sdk-libs/                  #  Rust libraries used in custom programs and clients
 │   ├── client/                   # RPC client for querying compressed accounts
 │   ├── sdk/                      # Core SDK for Rust/Anchor programs
@@ -73,10 +79,27 @@ light-protocol/
 
 ## Development Workflow
 
+### Setup
+```bash
+./scripts/install.sh        # Install dependencies into .local/
+./scripts/devenv.sh         # Activate development environment (uses .local/ toolchain)
+solana-keygen new -o ~/.config/solana/id.json  # Generate keypair (required before testing)
+```
+
 ### Build Commands
 ```bash
-# Build entire monorepo (uses Nx)
-./scripts/build.sh
+# Build with just (preferred)
+just build                  # Build programs + JS + CLI
+just programs::build        # Build only Solana programs
+
+# Or with scripts
+./scripts/build.sh          # Build entire monorepo (uses Nx)
+```
+
+### Format and Lint
+```bash
+just format                 # cargo +nightly fmt --all + JS formatting
+just lint                   # Rust fmt check + clippy + README checks + JS lint
 ```
 
 ### Testing Patterns
@@ -121,6 +144,7 @@ cargo test-sbf -p compressed-token-test
 
 #### 3. SDK Tests (sdk-tests/)
 SDK integration tests for various SDK implementations (native, Anchor, Pinocchio, token).
+V1 = concurrent Merkle trees (height 26, separate queue/tree accounts). V2 = batched Merkle trees (state height 32, address height 40, combined queue/tree accounts).
 
 ```bash
 # Run with: cargo test-sbf -p <package-name>
@@ -186,13 +210,11 @@ TEST_MODE=local cargo test --package forester e2e_test -- --nocapture
 - `REDIS_URL=redis://localhost:6379`
 
 #### 7. Linting
-Format and clippy checks across the entire codebase.
-
 ```bash
-./scripts/lint.sh
+just lint                   # Preferred: fmt check + clippy + README checks + JS lint
+./scripts/lint.sh           # Alternative: shell script
 ```
-
-**Note:** This requires nightly Rust toolchain and clippy components.
+Requires nightly Rust toolchain and clippy components.
 
 ### Test Organization Principles
 
