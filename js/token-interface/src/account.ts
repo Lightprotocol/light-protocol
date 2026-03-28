@@ -221,32 +221,3 @@ export function assertAccountFrozen(
     }
 }
 
-export function createSingleCompressedAccountRpc(
-    rpc: Rpc,
-    owner: PublicKey,
-    mint: PublicKey,
-    selected: ParsedTokenAccount,
-): Rpc {
-    const filteredRpc = Object.create(rpc) as Rpc;
-
-    filteredRpc.getCompressedTokenAccountsByOwner = async (
-        queryOwner,
-        options,
-    ) => {
-        const result = await rpc.getCompressedTokenAccountsByOwner(
-            queryOwner,
-            options,
-        );
-
-        if (queryOwner.equals(owner) && options?.mint?.equals(mint)) {
-            return {
-                ...result,
-                items: [selected],
-            };
-        }
-
-        return result;
-    };
-
-    return filteredRpc;
-}

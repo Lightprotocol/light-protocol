@@ -47,7 +47,6 @@ export async function createThawInstructions({
             payer,
             owner,
             mint,
-            account,
             wrap: true,
         })),
         createThawInstruction({
@@ -75,7 +74,6 @@ export async function createThawInstructionsNowrap({
             payer,
             owner,
             mint,
-            account,
             wrap: false,
         })),
         createThawInstruction({
