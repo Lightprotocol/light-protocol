@@ -43,4 +43,5 @@ light-compressible = { workspace = true }
 light-token-client = { workspace = true }
 light-token-interface = { workspace = true }
 light-zero-copy = { workspace = true }
+light-merkle-tree-metadata = { workspace = true }
 borsh = { workspace = true }

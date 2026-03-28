@@ -286,6 +286,11 @@ pub mod account_compression {
         process_rollover_batched_state_merkle_tree(ctx, additional_bytes, network_fee)
     }
 
+    /// Claim excess accumulated fees from a tree or queue account.
+    pub fn claim_fees(ctx: Context<ClaimFees>) -> Result<()> {
+        process_claim_fees(ctx)
+    }
+
     /// Migrate state from a v1 state Merkle tree
     /// to a v2 state Merkle tree.
     pub fn migrate_state<'a, 'b, 'c: 'info, 'info>(

@@ -5959,6 +5959,7 @@ dependencies = [
  "light-compressed-token-sdk",
  "light-compressible",
  "light-hasher",
+ "light-merkle-tree-metadata",
  "light-program-test",
  "light-prover-client",
  "light-registry",
