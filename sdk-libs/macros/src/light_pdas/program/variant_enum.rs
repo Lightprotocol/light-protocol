@@ -669,7 +669,6 @@ impl<'a> LightVariantBuilder<'a> {
                         >(
                             packed_data,
                             tree_info,
-                            output_queue_index,
                             pda_account,
                             ctx,
                         )

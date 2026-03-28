@@ -210,7 +210,6 @@ impl PackedLightAccountVariantTrait<4> for PackedMinimalRecordVariant {
     fn into_in_token_data(
         &self,
         _tree_info: &light_account_pinocchio::PackedStateTreeInfo,
-        _output_queue_index: u8,
     ) -> std::result::Result<
         light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext,
         LightSdkTypesError,

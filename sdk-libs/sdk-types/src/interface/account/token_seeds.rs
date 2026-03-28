@@ -265,7 +265,6 @@ where
     fn into_in_token_data(
         &self,
         tree_info: &PackedStateTreeInfo,
-        output_queue_index: u8,
     ) -> Result<MultiInputTokenDataWithContext, LightSdkTypesError> {
         Ok(MultiInputTokenDataWithContext {
             amount: self.token_data.amount,
@@ -277,7 +276,7 @@ where
             root_index: tree_info.root_index,
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-                queue_pubkey_index: output_queue_index,
+                queue_pubkey_index: tree_info.queue_pubkey_index,
                 leaf_index: tree_info.leaf_index,
                 prove_by_index: tree_info.prove_by_index,
             },

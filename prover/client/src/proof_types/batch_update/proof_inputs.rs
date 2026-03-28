@@ -175,7 +175,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         index_bytes[28..].copy_from_slice(&(*index).to_be_bytes());
         let nullifier = Poseidon::hashv(&[leaf, &index_bytes, &tx_hashes[i]]).unwrap();
         let (root, changelog_entry) =
-            compute_root_from_merkle_proof(nullifier, &merkle_proof_array, *index)?;
+            compute_root_from_merkle_proof(nullifier, &merkle_proof_array, *index as usize)?;
         new_root = root;
         changelog.push(changelog_entry);
         circuit_merkle_proofs.push(
