@@ -37,4 +37,27 @@ describe('ata creation and reads', () => {
         expect(account.parsed.mint.toBase58()).toBe(fixture.mint.toBase58());
         expect(account.parsed.amount).toBe(0n);
     });
+
+    it('replays ATA creation idempotently', async () => {
+        const fixture = await createMintFixture();
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+
+        const instructions = await createAtaInstructions({
+            payer: fixture.payer.publicKey,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+
+        await sendInstructions(fixture.rpc, fixture.payer, instructions);
+        await sendInstructions(fixture.rpc, fixture.payer, instructions);
+
+        const account = await getAta({
+            rpc: fixture.rpc,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+
+        expect(account.parsed.owner.toBase58()).toBe(owner.publicKey.toBase58());
+        expect(account.parsed.amount).toBe(0n);
+    });
 });

@@ -22,6 +22,27 @@ import {
 } from './helpers';
 
 describe('transfer instructions', () => {
+    it('rejects transfer build for signer that is neither owner nor delegate', async () => {
+        const fixture = await createMintFixture();
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+        const unauthorized = await newAccountWithLamports(fixture.rpc, 1e9);
+        const recipient = Keypair.generate();
+
+        await mintCompressedToOwner(fixture, owner.publicKey, 500n);
+
+        await expect(
+            createTransferInstructions({
+                rpc: fixture.rpc,
+                payer: fixture.payer.publicKey,
+                mint: fixture.mint,
+                sourceOwner: owner.publicKey,
+                authority: unauthorized.publicKey,
+                recipient: recipient.publicKey,
+                amount: 100n,
+            }),
+        ).rejects.toThrow('Signer is not the owner or a delegate of the account.');
+    });
+
     it('builds a single-transaction transfer flow without compute budget instructions', async () => {
         const fixture = await createMintFixture();
         const sender = await newAccountWithLamports(fixture.rpc, 1e9);
@@ -241,5 +262,42 @@ describe('transfer instructions', () => {
 
         expect(recipientAta.parsed.amount).toBe(250n);
         expect(await getHotBalance(fixture.rpc, ownerAta)).toBe(250n);
+    });
+
+    it('rejects delegated transfer above delegated allowance', async () => {
+        const fixture = await createMintFixture();
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+        const delegate = await newAccountWithLamports(fixture.rpc, 1e9);
+        const recipient = Keypair.generate();
+
+        await mintCompressedToOwner(fixture, owner.publicKey, 500n);
+
+        const approveInstructions = await createApproveInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+            delegate: delegate.publicKey,
+            amount: 100n,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, approveInstructions, [
+            owner,
+        ]);
+
+        const transferInstructions = await createTransferInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            mint: fixture.mint,
+            sourceOwner: owner.publicKey,
+            recipient: recipient.publicKey,
+            amount: 150n,
+            authority: delegate.publicKey,
+        });
+
+        await expect(
+            sendInstructions(fixture.rpc, fixture.payer, transferInstructions, [
+                delegate,
+            ]),
+        ).rejects.toThrow('custom program error');
     });
 });
