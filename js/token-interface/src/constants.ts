@@ -23,7 +23,7 @@ export const COMPRESSED_TOKEN_PROGRAM_ID = new PublicKey(
     'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
 );
 
-export function deriveSplPoolPdaWithIndex(
+export function deriveSplInterfacePdaWithIndex(
     mint: PublicKey,
     index: number,
 ): [PublicKey, number] {

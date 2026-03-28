@@ -135,7 +135,7 @@ export interface CreateAssociatedLightTokenAccountInstructionParams {
     feePayer: PublicKey;
     owner: PublicKey;
     mint: PublicKey;
-    compressibleConfig?: CompressibleConfig;
+    compressibleConfig?: CompressibleConfig | null;
     configAccount?: PublicKey;
     rentPayerPda?: PublicKey;
 }
@@ -144,20 +144,23 @@ export interface CreateAssociatedLightTokenAccountInstructionParams {
  * Create instruction for creating an associated light-token account.
  * Uses the default rent sponsor PDA by default.
  *
- * @param feePayer          Fee payer public key.
- * @param owner             Owner of the associated token account.
- * @param mint              Mint address.
- * @param compressibleConfig Compressible configuration (defaults to rent sponsor config).
- * @param configAccount     Config account (defaults to LIGHT_TOKEN_CONFIG).
- * @param rentPayerPda      Rent payer PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR).
+ * @param input                    Associated light-token account input.
+ * @param input.feePayer           Fee payer public key.
+ * @param input.owner              Owner of the associated token account.
+ * @param input.mint               Mint address.
+ * @param input.compressibleConfig Compressible configuration (defaults to rent sponsor config).
+ * @param input.configAccount      Config account (defaults to LIGHT_TOKEN_CONFIG).
+ * @param input.rentPayerPda       Rent payer PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR).
  */
 export function createAssociatedLightTokenAccountInstruction(
-    feePayer: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    compressibleConfig: CompressibleConfig | null = DEFAULT_COMPRESSIBLE_CONFIG,
-    configAccount: PublicKey = LIGHT_TOKEN_CONFIG,
-    rentPayerPda: PublicKey = LIGHT_TOKEN_RENT_SPONSOR,
+    {
+        feePayer,
+        owner,
+        mint,
+        compressibleConfig = DEFAULT_COMPRESSIBLE_CONFIG,
+        configAccount = LIGHT_TOKEN_CONFIG,
+        rentPayerPda = LIGHT_TOKEN_RENT_SPONSOR,
+    }: CreateAssociatedLightTokenAccountInstructionParams,
 ): TransactionInstruction {
     const associatedTokenAccount = getAssociatedLightTokenAddress(owner, mint);
 
@@ -215,20 +218,23 @@ export function createAssociatedLightTokenAccountInstruction(
  * Create idempotent instruction for creating an associated light-token account.
  * Uses the default rent sponsor PDA by default.
  *
- * @param feePayer          Fee payer public key.
- * @param owner             Owner of the associated token account.
- * @param mint              Mint address.
- * @param compressibleConfig Compressible configuration (defaults to rent sponsor config).
- * @param configAccount     Config account (defaults to LIGHT_TOKEN_CONFIG).
- * @param rentPayerPda      Rent payer PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR).
+ * @param input                    Associated light-token account input.
+ * @param input.feePayer           Fee payer public key.
+ * @param input.owner              Owner of the associated token account.
+ * @param input.mint               Mint address.
+ * @param input.compressibleConfig Compressible configuration (defaults to rent sponsor config).
+ * @param input.configAccount      Config account (defaults to LIGHT_TOKEN_CONFIG).
+ * @param input.rentPayerPda       Rent payer PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR).
  */
 export function createAssociatedLightTokenAccountIdempotentInstruction(
-    feePayer: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    compressibleConfig: CompressibleConfig | null = DEFAULT_COMPRESSIBLE_CONFIG,
-    configAccount: PublicKey = LIGHT_TOKEN_CONFIG,
-    rentPayerPda: PublicKey = LIGHT_TOKEN_RENT_SPONSOR,
+    {
+        feePayer,
+        owner,
+        mint,
+        compressibleConfig = DEFAULT_COMPRESSIBLE_CONFIG,
+        configAccount = LIGHT_TOKEN_CONFIG,
+        rentPayerPda = LIGHT_TOKEN_RENT_SPONSOR,
+    }: CreateAssociatedLightTokenAccountInstructionParams,
 ): TransactionInstruction {
     const associatedTokenAccount = getAssociatedLightTokenAddress(owner, mint);
 
@@ -282,40 +288,50 @@ export interface LightTokenConfig {
     rentPayerPda?: PublicKey;
 }
 
+export interface CreateAssociatedTokenAccountInstructionInput {
+    payer: PublicKey;
+    associatedToken: PublicKey;
+    owner: PublicKey;
+    mint: PublicKey;
+    programId?: PublicKey;
+    associatedTokenProgramId?: PublicKey;
+    lightTokenConfig?: LightTokenConfig;
+}
+
 /**
  * Create instruction for creating an associated token account (SPL, Token-2022,
- * or light-token). Follows SPL Token API signature with optional light-token config at the
- * end.
+ * or light-token).
  *
- * @param payer                    Fee payer public key.
- * @param associatedToken          Associated token account address.
- * @param owner                    Owner of the associated token account.
- * @param mint                     Mint address.
- * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
- * @param associatedTokenProgramId Associated token program ID.
- * @param lightTokenConfig             Optional light-token-specific configuration.
+ * @param input                          Associated token account input.
+ * @param input.payer                    Fee payer public key.
+ * @param input.associatedToken          Associated token account address.
+ * @param input.owner                    Owner of the associated token account.
+ * @param input.mint                     Mint address.
+ * @param input.programId                Token program ID (default: TOKEN_PROGRAM_ID).
+ * @param input.associatedTokenProgramId Associated token program ID.
+ * @param input.lightTokenConfig         Optional light-token-specific configuration.
  */
-function createAssociatedTokenAccountInstruction(
-    payer: PublicKey,
-    associatedToken: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    programId: PublicKey = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId?: PublicKey,
-    lightTokenConfig?: LightTokenConfig,
-): TransactionInstruction {
+function createAssociatedTokenAccountInstruction({
+    payer,
+    associatedToken,
+    owner,
+    mint,
+    programId = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId,
+    lightTokenConfig,
+}: CreateAssociatedTokenAccountInstructionInput): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        return createAssociatedLightTokenAccountInstruction(
-            payer,
+        return createAssociatedLightTokenAccountInstruction({
+            feePayer: payer,
             owner,
             mint,
-            lightTokenConfig?.compressibleConfig,
-            lightTokenConfig?.configAccount,
-            lightTokenConfig?.rentPayerPda,
-        );
+            compressibleConfig: lightTokenConfig?.compressibleConfig,
+            configAccount: lightTokenConfig?.configAccount,
+            rentPayerPda: lightTokenConfig?.rentPayerPda,
+        });
     } else {
         return createSplAssociatedTokenAccountInstruction(
             payer,
@@ -330,38 +346,38 @@ function createAssociatedTokenAccountInstruction(
 
 /**
  * Create idempotent instruction for creating an associated token account (SPL,
- * Token-2022, or light-token). Follows SPL Token API signature with optional light-token
- * config at the end.
+ * Token-2022, or light-token).
  *
- * @param payer                    Fee payer public key.
- * @param associatedToken          Associated token account address.
- * @param owner                    Owner of the associated token account.
- * @param mint                     Mint address.
- * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
- * @param associatedTokenProgramId Associated token program ID.
- * @param lightTokenConfig             Optional light-token-specific configuration.
+ * @param input                          Associated token account input.
+ * @param input.payer                    Fee payer public key.
+ * @param input.associatedToken          Associated token account address.
+ * @param input.owner                    Owner of the associated token account.
+ * @param input.mint                     Mint address.
+ * @param input.programId                Token program ID (default: TOKEN_PROGRAM_ID).
+ * @param input.associatedTokenProgramId Associated token program ID.
+ * @param input.lightTokenConfig         Optional light-token-specific configuration.
  */
-function createAssociatedTokenAccountIdempotentInstruction(
-    payer: PublicKey,
-    associatedToken: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    programId: PublicKey = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId?: PublicKey,
-    lightTokenConfig?: LightTokenConfig,
-): TransactionInstruction {
+function createAssociatedTokenAccountIdempotentInstruction({
+    payer,
+    associatedToken,
+    owner,
+    mint,
+    programId = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId,
+    lightTokenConfig,
+}: CreateAssociatedTokenAccountInstructionInput): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        return createAssociatedLightTokenAccountIdempotentInstruction(
-            payer,
+        return createAssociatedLightTokenAccountIdempotentInstruction({
+            feePayer: payer,
             owner,
             mint,
-            lightTokenConfig?.compressibleConfig,
-            lightTokenConfig?.configAccount,
-            lightTokenConfig?.rentPayerPda,
-        );
+            compressibleConfig: lightTokenConfig?.compressibleConfig,
+            configAccount: lightTokenConfig?.configAccount,
+            rentPayerPda: lightTokenConfig?.rentPayerPda,
+        });
     } else {
         return createSplAssociatedTokenAccountIdempotentInstruction(
             payer,
@@ -391,13 +407,13 @@ export function createAtaInstruction({
         programId: targetProgramId,
     });
 
-    return createAtaIdempotent(
+    return createAtaIdempotent({
         payer,
         associatedToken,
         owner,
         mint,
-        targetProgramId,
-    );
+        programId: targetProgramId,
+    });
 }
 
 export async function createAtaInstructions({

@@ -1,66 +1,66 @@
 import {
-    Rpc,
-    LIGHT_TOKEN_PROGRAM_ID,
-    ParsedTokenAccount,
-    bn,
-    assertV2Enabled,
-    LightSystemProgram,
-    defaultStaticAccountsStruct,
-    ValidityProofWithContext,
-} from '@lightprotocol/stateless.js';
+  Rpc,
+  LIGHT_TOKEN_PROGRAM_ID,
+  ParsedTokenAccount,
+  bn,
+  assertV2Enabled,
+  LightSystemProgram,
+  defaultStaticAccountsStruct,
+  ValidityProofWithContext,
+} from "@lightprotocol/stateless.js";
 import {
-    ComputeBudgetProgram,
-    PublicKey,
-    TransactionInstruction,
-    SystemProgram,
-} from '@solana/web3.js';
+  ComputeBudgetProgram,
+  PublicKey,
+  TransactionInstruction,
+  SystemProgram,
+} from "@solana/web3.js";
 import {
-    TOKEN_PROGRAM_ID,
-    TOKEN_2022_PROGRAM_ID,
-    getAssociatedTokenAddressSync,
-    createAssociatedTokenAccountIdempotentInstruction,
-    TokenAccountNotFoundError,
-} from '@solana/spl-token';
-import { Buffer } from 'buffer';
+  TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountIdempotentInstruction,
+  TokenAccountNotFoundError,
+} from "@solana/spl-token";
+import { Buffer } from "buffer";
 import {
-    AccountView,
-    checkNotFrozen,
-    COLD_SOURCE_TYPES,
-    getAtaView as _getAtaView,
-    TokenAccountSource,
-    isAuthorityForAccount,
-    filterAccountForAuthority,
-} from '../read/get-account';
-import { getAssociatedTokenAddress } from '../read/associated-token-address';
-import { createAtaIdempotent } from './ata';
-import { createWrapInstruction } from './wrap';
-import { getSplPoolInfos, type SplPoolInfo } from '../spl-interface';
-import { getAtaProgramId, checkAtaAddress, AtaType } from '../read/ata-utils';
-import type { LoadOptions } from '../load-options';
-import { getMint } from '../read/get-mint';
+  AccountView,
+  checkNotFrozen,
+  COLD_SOURCE_TYPES,
+  getAtaView as _getAtaView,
+  TokenAccountSource,
+  isAuthorityForAccount,
+  filterAccountForAuthority,
+} from "../read/get-account";
+import { getAssociatedTokenAddress } from "../read/associated-token-address";
+import { createAtaIdempotent } from "./ata";
+import { createWrapInstruction } from "./wrap";
+import { getSplInterfaces, type SplInterface } from "../spl-interface";
+import { getAtaProgramId, checkAtaAddress, AtaType } from "../read/ata-utils";
+import type { LoadOptions } from "../load-options";
+import { getMint } from "../read/get-mint";
 import {
-    COMPRESSED_TOKEN_PROGRAM_ID,
-    deriveCpiAuthorityPda,
-    MAX_TOP_UP,
-    TokenDataVersion,
-} from '../constants';
+  COMPRESSED_TOKEN_PROGRAM_ID,
+  deriveCpiAuthorityPda,
+  MAX_TOP_UP,
+  TokenDataVersion,
+} from "../constants";
 import {
-    encodeTransfer2InstructionData,
-    type Transfer2InstructionData,
-    type MultiInputTokenDataWithContext,
-    COMPRESSION_MODE_DECOMPRESS,
-    type Compression,
-    type Transfer2ExtensionData,
-} from './layout/layout-transfer2';
-import { createSingleCompressedAccountRpc, getAtaOrNull } from '../account';
-import { normalizeInstructionBatches, toLoadOptions } from '../helpers';
-import { getAtaAddress } from '../read';
+  encodeTransfer2InstructionData,
+  type Transfer2InstructionData,
+  type MultiInputTokenDataWithContext,
+  COMPRESSION_MODE_DECOMPRESS,
+  type Compression,
+  type Transfer2ExtensionData,
+} from "./layout/layout-transfer2";
+import { createSingleCompressedAccountRpc, getAtaOrNull } from "../account";
+import { normalizeInstructionBatches, toLoadOptions } from "../helpers";
+import { getAtaAddress } from "../read";
 import type {
-    CreateLoadInstructionsInput,
-    TokenInterfaceAccount,
-    CreateTransferInstructionsInput,
-} from '../types';
-import { toInstructionPlan } from './_plan';
+  CreateLoadInstructionsInput,
+  TokenInterfaceAccount,
+  CreateTransferInstructionsInput,
+} from "../types";
+import { toInstructionPlan } from "./_plan";
 
 const COMPRESSED_ONLY_DISC = 31;
 const COMPRESSED_ONLY_SIZE = 17; // u64 + u64 + u8
@@ -253,31 +253,42 @@ function buildInputTokenData(
  * @internal Use createLoadAtaInstructions instead.
  *
  * Supports decompressing to both light-token accounts and SPL token accounts:
- * - For light-token destinations: No splPoolInfo needed
- * - For SPL destinations: Provide splPoolInfo and decimals
+ * - For light-token destinations: No splInterface needed
+ * - For SPL destinations: Provide splInterface and decimals
  *
- * @param payer                        Fee payer public key
- * @param inputCompressedTokenAccounts Input light-token accounts
- * @param toAddress                    Destination token account address (light-token or SPL associated token account)
- * @param amount                       Amount to decompress
- * @param validityProof                Validity proof (contains compressedProof and rootIndices)
- * @param splPoolInfo                  Optional: SPL pool info for SPL destinations
- * @param decimals                     Mint decimals (required for SPL destinations)
- * @param maxTopUp                     Optional cap on rent top-up (units of 1k lamports; default no cap)
- * @param authority                    Optional signer (owner or delegate). When omitted, owner is the signer.
+ * @param input                             Decompress instruction input.
+ * @param input.payer                       Fee payer public key.
+ * @param input.inputCompressedTokenAccounts Input light-token accounts.
+ * @param input.toAddress                   Destination token account address (light-token or SPL associated token account).
+ * @param input.amount                      Amount to decompress.
+ * @param input.validityProof               Validity proof (contains compressedProof and rootIndices).
+ * @param input.splInterface                 Optional SPL pool info for SPL destinations.
+ * @param input.decimals                    Mint decimals (required for SPL destinations).
+ * @param input.maxTopUp                    Optional cap on rent top-up (units of 1k lamports; default no cap).
+ * @param input.authority                   Optional signer (owner or delegate). When omitted, owner is the signer.
  * @returns TransactionInstruction
  */
-export function createDecompressInstruction(
-  payer: PublicKey,
-  inputCompressedTokenAccounts: ParsedTokenAccount[],
-  toAddress: PublicKey,
-  amount: bigint,
-  validityProof: ValidityProofWithContext,
-  splPoolInfo: SplPoolInfo | undefined,
-  decimals: number,
-  maxTopUp?: number,
-  authority?: PublicKey,
-): TransactionInstruction {
+export function createDecompressInstruction({
+  payer,
+  inputCompressedTokenAccounts,
+  toAddress,
+  amount,
+  validityProof,
+  splInterface,
+  decimals,
+  maxTopUp,
+  authority,
+}: {
+  payer: PublicKey;
+  inputCompressedTokenAccounts: ParsedTokenAccount[];
+  toAddress: PublicKey;
+  amount: bigint;
+  validityProof: ValidityProofWithContext;
+  splInterface?: SplInterface;
+  decimals: number;
+  maxTopUp?: number;
+  authority?: PublicKey;
+}): TransactionInstruction {
   if (inputCompressedTokenAccounts.length === 0) {
     throw new Error("No input light-token accounts provided");
   }
@@ -347,25 +358,25 @@ export function createDecompressInstruction(
   let poolBump = 0;
   let tokenProgramIndex = 0;
 
-  if (splPoolInfo) {
+  if (splInterface) {
     // Add SPL interface PDA (token pool)
     poolAccountIndex = packedAccounts.length;
     packedAccountIndices.set(
-      splPoolInfo.splPoolPda.toBase58(),
+      splInterface.poolPda.toBase58(),
       poolAccountIndex,
     );
-    packedAccounts.push(splPoolInfo.splPoolPda);
+    packedAccounts.push(splInterface.poolPda);
 
     // Add SPL token program
     tokenProgramIndex = packedAccounts.length;
     packedAccountIndices.set(
-      splPoolInfo.tokenProgram.toBase58(),
+      splInterface.tokenProgramId.toBase58(),
       tokenProgramIndex,
     );
-    packedAccounts.push(splPoolInfo.tokenProgram);
+    packedAccounts.push(splInterface.tokenProgramId);
 
-    poolIndex = splPoolInfo.poolIndex;
-    poolBump = splPoolInfo.bump;
+    poolIndex = splInterface.derivationIndex;
+    poolBump = splInterface.bump;
   }
 
   // Build input token data
@@ -416,9 +427,9 @@ export function createDecompressInstruction(
       mint: mintIndex,
       sourceOrRecipient: destinationIndex,
       authority: 0, // Not needed for decompress
-      poolAccountIndex: splPoolInfo ? poolAccountIndex : 0,
-      poolIndex: splPoolInfo ? poolIndex : 0,
-      bump: splPoolInfo ? poolBump : 0,
+      poolAccountIndex: splInterface ? poolAccountIndex : 0,
+      poolIndex: splInterface ? poolIndex : 0,
+      bump: splInterface ? poolBump : 0,
       decimals,
     },
   ];
@@ -513,7 +524,7 @@ export function createDecompressInstruction(
       const isTreeOrQueue = i < treeSet.size + queueSet.size;
       const isDestination = pubkey.equals(toAddress);
       const isPool =
-        splPoolInfo !== undefined && pubkey.equals(splPoolInfo.splPoolPda);
+        splInterface !== undefined && pubkey.equals(splInterface.poolPda);
       return {
         pubkey,
         isSigner: i === signerIndex,
@@ -811,7 +822,7 @@ async function _buildLoadBatches(
     return [];
   }
 
-  let splPoolInfo: SplPoolInfo | undefined;
+  let splInterface: SplInterface | undefined;
   const needsSplInfo =
     wrap ||
     ataType === "spl" ||
@@ -820,10 +831,10 @@ async function _buildLoadBatches(
     t22Balance > BigInt(0);
   if (needsSplInfo) {
     try {
-      const splPoolInfos =
-        options?.splPoolInfos ?? (await getSplPoolInfos(rpc, mint));
-      splPoolInfo = splPoolInfos.find(
-        (info: SplPoolInfo) => info.isInitialized,
+      const splInterfaces =
+        options?.splInterfaces ?? (await getSplInterfaces(rpc, mint));
+      splInterface = splInterfaces.find(
+        (info: SplInterface) => info.isInitialized,
       );
     } catch (e) {
       if (splBalance > BigInt(0) || t22Balance > BigInt(0)) {
@@ -837,7 +848,7 @@ async function _buildLoadBatches(
   let needsAtaCreation = false;
 
   let decompressTarget: PublicKey = lightTokenAtaAddress;
-  let decompressSplInfo: SplPoolInfo | undefined;
+  let decompressSplInfo: SplInterface | undefined;
   let canDecompress = false;
 
   if (wrap) {
@@ -848,44 +859,44 @@ async function _buildLoadBatches(
     if (!lightTokenHotSource) {
       needsAtaCreation = true;
       setupInstructions.push(
-        createAtaIdempotent(
+        createAtaIdempotent({
           payer,
-          lightTokenAtaAddress,
+          associatedToken: lightTokenAtaAddress,
           owner,
           mint,
-          LIGHT_TOKEN_PROGRAM_ID,
-        ),
+          programId: LIGHT_TOKEN_PROGRAM_ID,
+        }),
       );
     }
 
-    if (splBalance > BigInt(0) && splPoolInfo) {
+    if (splBalance > BigInt(0) && splInterface) {
       setupInstructions.push(
-        createWrapInstruction(
-          splAta,
-          lightTokenAtaAddress,
+        createWrapInstruction({
+          source: splAta,
+          destination: lightTokenAtaAddress,
           owner,
           mint,
-          splBalance,
-          splPoolInfo,
+          amount: splBalance,
+          splInterface,
           decimals,
           payer,
-        ),
+        }),
       );
       wrapCount++;
     }
 
-    if (t22Balance > BigInt(0) && splPoolInfo) {
+    if (t22Balance > BigInt(0) && splInterface) {
       setupInstructions.push(
-        createWrapInstruction(
-          t22Ata,
-          lightTokenAtaAddress,
+        createWrapInstruction({
+          source: t22Ata,
+          destination: lightTokenAtaAddress,
           owner,
           mint,
-          t22Balance,
-          splPoolInfo,
+          amount: t22Balance,
+          splInterface,
           decimals,
           payer,
-        ),
+        }),
       );
       wrapCount++;
     }
@@ -897,18 +908,18 @@ async function _buildLoadBatches(
       if (!lightTokenHotSource) {
         needsAtaCreation = true;
         setupInstructions.push(
-          createAtaIdempotent(
+          createAtaIdempotent({
             payer,
-            lightTokenAtaAddress,
+            associatedToken: lightTokenAtaAddress,
             owner,
             mint,
-            LIGHT_TOKEN_PROGRAM_ID,
-          ),
+            programId: LIGHT_TOKEN_PROGRAM_ID,
+          }),
         );
       }
-    } else if (ataType === "spl" && splPoolInfo) {
+    } else if (ataType === "spl" && splInterface) {
       decompressTarget = splAta;
-      decompressSplInfo = splPoolInfo;
+      decompressSplInfo = splInterface;
       canDecompress = true;
       if (!splSource) {
         needsAtaCreation = true;
@@ -922,9 +933,9 @@ async function _buildLoadBatches(
           ),
         );
       }
-    } else if (ataType === "token2022" && splPoolInfo) {
+    } else if (ataType === "token2022" && splInterface) {
       decompressTarget = t22Ata;
-      decompressSplInfo = splPoolInfo;
+      decompressSplInfo = splInterface;
       canDecompress = true;
       if (!t22Source) {
         needsAtaCreation = true;
@@ -1015,13 +1026,13 @@ async function _buildLoadBatches(
 
   const idempotentAtaIx = (() => {
     if (wrap || ataType === "light-token") {
-      return createAtaIdempotent(
+      return createAtaIdempotent({
         payer,
-        lightTokenAtaAddress,
+        associatedToken: lightTokenAtaAddress,
         owner,
         mint,
-        LIGHT_TOKEN_PROGRAM_ID,
-      );
+        programId: LIGHT_TOKEN_PROGRAM_ID,
+      });
     } else if (ataType === "spl") {
       return createAssociatedTokenAccountIdempotentInstruction(
         payer,
@@ -1066,17 +1077,16 @@ async function _buildLoadBatches(
 
     const authorityForDecompress = authority ?? owner;
     batchIxs.push(
-      createDecompressInstruction(
+      createDecompressInstruction({
         payer,
-        chunk,
-        decompressTarget,
-        chunkAmount,
-        proof,
-        decompressSplInfo,
+        inputCompressedTokenAccounts: chunk,
+        toAddress: decompressTarget,
+        amount: chunkAmount,
+        validityProof: proof,
+        splInterface: decompressSplInfo,
         decimals,
-        undefined,
-        authorityForDecompress,
-      ),
+        authority: authorityForDecompress,
+      }),
     );
 
     batches.push({
@@ -1090,14 +1100,33 @@ async function _buildLoadBatches(
   return batches;
 }
 
-export async function createLoadAtaInstructions(
-  rpc: Rpc,
-  ata: PublicKey,
-  owner: PublicKey,
-  mint: PublicKey,
-  payer?: PublicKey,
-  loadOptions?: LoadOptions,
-): Promise<TransactionInstruction[][]> {
+/**
+ * Build load/decompress instruction batches for a specific associated token account.
+ *
+ * @param input             Load ATA instruction input.
+ * @param input.rpc         RPC connection.
+ * @param input.ata         Target associated token account address.
+ * @param input.owner       Owner of the target token account.
+ * @param input.mint        Mint address.
+ * @param input.payer       Optional fee payer.
+ * @param input.loadOptions Optional load options.
+ * @returns Instruction batches that can require multiple transactions.
+ */
+export async function createLoadAtaInstructions({
+  rpc,
+  ata,
+  owner,
+  mint,
+  payer,
+  loadOptions,
+}: {
+  rpc: Rpc;
+  ata: PublicKey;
+  owner: PublicKey;
+  mint: PublicKey;
+  payer?: PublicKey;
+  loadOptions?: LoadOptions;
+}): Promise<TransactionInstruction[][]> {
   const mintInfo = await getMint(rpc, mint);
   return createLoadAtaInstructionsInner(
     rpc,
@@ -1110,111 +1139,112 @@ export async function createLoadAtaInstructions(
   );
 }
 
-interface CreateLoadInstructionInternalInput extends CreateLoadInstructionsInput {
-    authority?: PublicKey;
-    account?: TokenInterfaceAccount | null;
-    wrap?: boolean;
+interface CreateLoadInstructionInternalInput
+  extends CreateLoadInstructionsInput {
+  authority?: PublicKey;
+  account?: TokenInterfaceAccount | null;
+  wrap?: boolean;
 }
 
 export async function createLoadInstructionInternal({
-    rpc,
-    payer,
-    owner,
-    mint,
-    authority,
-    account,
-    wrap = false,
+  rpc,
+  payer,
+  owner,
+  mint,
+  authority,
+  account,
+  wrap = false,
 }: CreateLoadInstructionInternalInput): Promise<{
-    instructions: TransactionInstruction[];
+  instructions: TransactionInstruction[];
 } | null> {
-    const resolvedAccount =
-        account ??
-        (await getAtaOrNull({
-            rpc,
-            owner,
-            mint,
-        }));
-    const targetAta = getAtaAddress({ owner, mint });
+  const resolvedAccount =
+    account ??
+    (await getAtaOrNull({
+      rpc,
+      owner,
+      mint,
+    }));
+  const targetAta = getAtaAddress({ owner, mint });
 
-    const effectiveRpc =
-        resolvedAccount && resolvedAccount.compressedAccount
-            ? createSingleCompressedAccountRpc(
-                  rpc,
-                  owner,
-                  mint,
-                  resolvedAccount.compressedAccount,
-              )
-            : rpc;
-    const instructions = normalizeInstructionBatches(
-        'createLoadInstruction',
-        await createLoadAtaInstructions(
-            effectiveRpc,
-            targetAta,
-            owner,
-            mint,
-            payer,
-            toLoadOptions(owner, authority, wrap),
-        ),
-    );
+  const effectiveRpc =
+    resolvedAccount && resolvedAccount.compressedAccount
+      ? createSingleCompressedAccountRpc(
+          rpc,
+          owner,
+          mint,
+          resolvedAccount.compressedAccount,
+        )
+      : rpc;
+  const instructions = normalizeInstructionBatches(
+    "createLoadInstruction",
+    await createLoadAtaInstructions({
+      rpc: effectiveRpc,
+      ata: targetAta,
+      owner,
+      mint,
+      payer,
+      loadOptions: toLoadOptions(owner, authority, wrap),
+    }),
+  );
 
-    if (instructions.length === 0) {
-        return null;
-    }
+  if (instructions.length === 0) {
+    return null;
+  }
 
-    return {
-        instructions,
-    };
+  return {
+    instructions,
+  };
 }
 
 export async function buildLoadInstructionList(
-    input: CreateLoadInstructionsInput & {
-        authority?: CreateTransferInstructionsInput['authority'];
-        account?: TokenInterfaceAccount | null;
-        wrap?: boolean;
-    },
+  input: CreateLoadInstructionsInput & {
+    authority?: CreateTransferInstructionsInput["authority"];
+    account?: TokenInterfaceAccount | null;
+    wrap?: boolean;
+  },
 ): Promise<TransactionInstruction[]> {
-    const load = await createLoadInstructionInternal(input);
+  const load = await createLoadInstructionInternal(input);
 
-    if (!load) {
-        return [];
-    }
+  if (!load) {
+    return [];
+  }
 
-    return load.instructions;
+  return load.instructions;
 }
 
 export async function createLoadInstruction({
+  rpc,
+  payer,
+  owner,
+  mint,
+}: CreateLoadInstructionsInput): Promise<TransactionInstruction | null> {
+  const load = await createLoadInstructionInternal({
     rpc,
     payer,
     owner,
     mint,
-}: CreateLoadInstructionsInput): Promise<TransactionInstruction | null> {
-    const load = await createLoadInstructionInternal({
-        rpc,
-        payer,
-        owner,
-        mint,
-    });
+  });
 
-    return load?.instructions[load.instructions.length - 1] ?? null;
+  return load?.instructions[load.instructions.length - 1] ?? null;
 }
 
 export async function createLoadInstructions({
+  rpc,
+  payer,
+  owner,
+  mint,
+}: CreateLoadInstructionsInput): Promise<TransactionInstruction[]> {
+  return buildLoadInstructionList({
     rpc,
     payer,
     owner,
     mint,
-}: CreateLoadInstructionsInput): Promise<TransactionInstruction[]> {
-    return buildLoadInstructionList({
-        rpc,
-        payer,
-        owner,
-        mint,
-        wrap: true,
-    });
+    wrap: true,
+  });
 }
 
 export async function createLoadInstructionPlan(
-    input: CreateLoadInstructionsInput,
+  input: CreateLoadInstructionsInput,
 ) {
-    return toInstructionPlan(await createLoadInstructions(input));
+  return toInstructionPlan(await createLoadInstructions(input));
 }
