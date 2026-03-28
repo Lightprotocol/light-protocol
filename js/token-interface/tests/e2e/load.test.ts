@@ -15,6 +15,20 @@ import {
 } from './helpers';
 
 describe('load instructions', () => {
+    it('returns no instructions when account has no hot or cold balance', async () => {
+        const fixture = await createMintFixture();
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+
+        const instructions = await createLoadInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+
+        expect(instructions).toEqual([]);
+    });
+
     it('getAta only exposes the biggest compressed balance and tracks the ignored ones', async () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
