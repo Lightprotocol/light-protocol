@@ -9,7 +9,7 @@ import type {
     CreateFreezeInstructionsInput,
     CreateRawFreezeInstructionInput,
 } from '../types';
-import { buildLoadInstructionList } from './load';
+import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
 const LIGHT_TOKEN_FREEZE_ACCOUNT_DISCRIMINATOR = Buffer.from([10]);
@@ -42,7 +42,7 @@ export async function createFreezeInstructions({
     assertAccountNotFrozen(account, 'freeze');
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,
@@ -70,7 +70,7 @@ export async function createFreezeInstructionsNowrap({
     assertAccountNotFrozen(account, 'freeze');
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,

@@ -15,7 +15,7 @@ import type {
   CreateRawTransferInstructionInput,
   CreateTransferInstructionsInput,
 } from "../types";
-import { buildLoadInstructionList } from "./load";
+import { createLoadInstructions } from "./load";
 import { toInstructionPlan } from "./_plan";
 import { createAtaInstruction } from "./ata";
 
@@ -93,7 +93,7 @@ export async function buildTransferInstructions({
   amount,
 }: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
   const amountBigInt = toBigIntAmount(amount);
-  const senderLoadInstructions = await buildLoadInstructionList({
+  const senderLoadInstructions = await createLoadInstructions({
     rpc,
     payer,
     owner: sourceOwner,
@@ -212,7 +212,7 @@ export async function buildTransferInstructionsNowrap({
   amount,
 }: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
   const amountBigInt = toBigIntAmount(amount);
-  const senderLoadInstructions = await buildLoadInstructionList({
+  const senderLoadInstructions = await createLoadInstructions({
     rpc,
     payer,
     owner: sourceOwner,

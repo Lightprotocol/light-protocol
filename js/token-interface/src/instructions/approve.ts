@@ -6,7 +6,7 @@ import type {
     CreateApproveInstructionsInput,
     CreateRawApproveInstructionInput,
 } from '../types';
-import { buildLoadInstructionList } from './load';
+import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
 const LIGHT_TOKEN_APPROVE_DISCRIMINATOR = 4;
@@ -68,7 +68,7 @@ export async function createApproveInstructions({
     assertAccountNotFrozen(account, 'approve');
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,
@@ -101,7 +101,7 @@ export async function createApproveInstructionsNowrap({
     });
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,

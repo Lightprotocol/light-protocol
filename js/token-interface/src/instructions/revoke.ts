@@ -6,7 +6,7 @@ import type {
     CreateRawRevokeInstructionInput,
     CreateRevokeInstructionsInput,
 } from '../types';
-import { buildLoadInstructionList } from './load';
+import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
 const LIGHT_TOKEN_REVOKE_DISCRIMINATOR = 5;
@@ -55,7 +55,7 @@ export async function createRevokeInstructions({
     assertAccountNotFrozen(account, 'revoke');
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,
@@ -84,7 +84,7 @@ export async function createRevokeInstructionsNowrap({
     });
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,

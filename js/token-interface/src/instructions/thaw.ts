@@ -9,7 +9,7 @@ import type {
     CreateRawThawInstructionInput,
     CreateThawInstructionsInput,
 } from '../types';
-import { buildLoadInstructionList } from './load';
+import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
 const LIGHT_TOKEN_THAW_ACCOUNT_DISCRIMINATOR = Buffer.from([11]);
@@ -42,7 +42,7 @@ export async function createThawInstructions({
     assertAccountFrozen(account, 'thaw');
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,
@@ -70,7 +70,7 @@ export async function createThawInstructionsNowrap({
     assertAccountFrozen(account, 'thaw');
 
     return [
-        ...(await buildLoadInstructionList({
+        ...(await createLoadInstructions({
             rpc,
             payer,
             owner,
