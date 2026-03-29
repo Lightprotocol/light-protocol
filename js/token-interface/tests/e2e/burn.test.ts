@@ -69,4 +69,21 @@ describe('burn instructions', () => {
             }),
         ).rejects.toThrow('Signer is not the owner or a delegate of the account.');
     });
+
+    it('builds burn instructions when payer is omitted', async () => {
+        const fixture = await createMintFixture();
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+
+        await mintCompressedToOwner(fixture, owner.publicKey, 500n);
+
+        const burnInstructions = await createBurnInstructions({
+            rpc: fixture.rpc,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+            authority: owner.publicKey,
+            amount: 100n,
+        });
+
+        expect(burnInstructions.length).toBeGreaterThan(0);
+    });
 });

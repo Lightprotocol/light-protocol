@@ -69,4 +69,40 @@ describe('approve and revoke instructions', () => {
         expect(revoked.delegate).toBeNull();
         expect(revoked.delegatedAmount).toBe(0n);
     });
+
+    it('defaults payer to owner when omitted', async () => {
+        const fixture = await createMintFixture();
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+        const delegate = Keypair.generate();
+        const tokenAccount = getAtaAddress({
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+
+        await mintCompressedToOwner(fixture, owner.publicKey, 2_000n);
+
+        const approveInstructions = await createApproveInstructions({
+            rpc: fixture.rpc,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+            delegate: delegate.publicKey,
+            amount: 500n,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, approveInstructions, [owner]);
+
+        const delegated = await getHotDelegate(fixture.rpc, tokenAccount);
+        expect(delegated.delegate?.toBase58()).toBe(delegate.publicKey.toBase58());
+        expect(delegated.delegatedAmount).toBe(500n);
+
+        const revokeInstructions = await createRevokeInstructions({
+            rpc: fixture.rpc,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, revokeInstructions, [owner]);
+
+        const revoked = await getHotDelegate(fixture.rpc, tokenAccount);
+        expect(revoked.delegate).toBeNull();
+        expect(revoked.delegatedAmount).toBe(0n);
+    });
 });

@@ -39,18 +39,18 @@ export interface GetAtaInput extends AtaOwnerInput {
 }
 
 export interface CreateAtaInstructionsInput extends AtaOwnerInput {
-    payer: PublicKey;
+    payer?: PublicKey;
     programId?: PublicKey;
 }
 
 export interface CreateLoadInstructionsInput extends AtaOwnerInput {
     rpc: Rpc;
-    payer: PublicKey;
+    payer?: PublicKey;
 }
 
 export interface CreateTransferInstructionsInput {
     rpc: Rpc;
-    payer: PublicKey;
+    payer?: PublicKey;
     mint: PublicKey;
     sourceOwner: PublicKey;
     authority: PublicKey;
@@ -61,19 +61,19 @@ export interface CreateTransferInstructionsInput {
 
 export interface CreateApproveInstructionsInput extends AtaOwnerInput {
     rpc: Rpc;
-    payer: PublicKey;
+    payer?: PublicKey;
     delegate: PublicKey;
     amount: number | bigint;
 }
 
 export interface CreateRevokeInstructionsInput extends AtaOwnerInput {
     rpc: Rpc;
-    payer: PublicKey;
+    payer?: PublicKey;
 }
 
 export interface CreateBurnInstructionsInput extends AtaOwnerInput {
     rpc: Rpc;
-    payer: PublicKey;
+    payer?: PublicKey;
     authority: PublicKey;
     amount: number | bigint;
     /** When set, emits BurnChecked; otherwise Burn. */
@@ -96,13 +96,13 @@ export interface CreateRawThawInstructionInput {
 
 export interface CreateFreezeInstructionsInput extends AtaOwnerInput {
     rpc: Rpc;
-    payer: PublicKey;
+    payer?: PublicKey;
     freezeAuthority: PublicKey;
 }
 
 export interface CreateThawInstructionsInput extends AtaOwnerInput {
     rpc: Rpc;
-    payer: PublicKey;
+    payer?: PublicKey;
     freezeAuthority: PublicKey;
 }
 
@@ -114,7 +114,7 @@ export interface CreateRawTransferInstructionInput {
     destination: PublicKey;
     mint: PublicKey;
     authority: PublicKey;
-    payer: PublicKey;
+    payer?: PublicKey;
     amount: number | bigint;
     decimals: number;
 }

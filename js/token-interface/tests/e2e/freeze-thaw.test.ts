@@ -137,4 +137,45 @@ describe('freeze and thaw instructions', () => {
         });
         expect(recipientAta.parsed.amount).toBe(100n);
     });
+
+    it('defaults payer to owner when omitted for freeze/thaw builders', async () => {
+        const fixture = await createMintFixture({ withFreezeAuthority: true });
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+        const tokenAccount = getAtaAddress({
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+
+        await mintCompressedToOwner(fixture, owner.publicKey, 1_000n);
+
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            await createFreezeInstructions({
+                rpc: fixture.rpc,
+                owner: owner.publicKey,
+                mint: fixture.mint,
+                freezeAuthority: fixture.freezeAuthority!.publicKey,
+            }),
+            [owner, fixture.freezeAuthority!],
+        );
+        expect(await getHotState(fixture.rpc, tokenAccount)).toBe(
+            AccountState.Frozen,
+        );
+
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            await createThawInstructions({
+                rpc: fixture.rpc,
+                owner: owner.publicKey,
+                mint: fixture.mint,
+                freezeAuthority: fixture.freezeAuthority!.publicKey,
+            }),
+            [fixture.freezeAuthority!],
+        );
+        expect(await getHotState(fixture.rpc, tokenAccount)).toBe(
+            AccountState.Initialized,
+        );
+    });
 });
