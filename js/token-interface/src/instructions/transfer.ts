@@ -108,7 +108,10 @@ export async function createTransferInstructions({
       decimals,
     });
   } else {
-    const splInterface = transferSplInterfaces!.find(
+    if (!transferSplInterfaces) {
+      throw new Error("Missing SPL interfaces for non-light transfer path.");
+    }
+    const splInterface = transferSplInterfaces.find(
       (info) =>
         info.isInitialized && info.tokenProgramId.equals(recipientTokenProgramId),
     );
@@ -196,7 +199,10 @@ export async function createTransferInstructionsNowrap({
       decimals,
     });
   } else {
-    const splInterface = transferSplInterfaces!.find(
+    if (!transferSplInterfaces) {
+      throw new Error("Missing SPL interfaces for non-light transfer path.");
+    }
+    const splInterface = transferSplInterfaces.find(
       (info) =>
         info.isInitialized && info.tokenProgramId.equals(recipientTokenProgramId),
     );

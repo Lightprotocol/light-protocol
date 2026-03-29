@@ -72,6 +72,10 @@ export interface AccountView {
     _mint?: PublicKey;
 }
 
+type CompressedByOwnerResult = Awaited<
+    ReturnType<Rpc['getCompressedTokenAccountsByOwner']>
+>;
+
 function toErrorMessage(error: unknown): string {
     if (error instanceof Error) return error.message;
     return String(error);
@@ -276,14 +280,25 @@ function convertTokenDataToAccount(
     };
 }
 
+function requireCompressedAccountData(
+    compressedAccount: CompressedAccountWithMerkleContext,
+): NonNullable<CompressedAccountWithMerkleContext['data']> {
+    const data = compressedAccount.data;
+    if (!data) {
+        throw new Error('Compressed account is missing token data');
+    }
+    return data;
+}
+
 /** Convert compressed account to AccountInfo */
 function toAccountInfo(
     compressedAccount: CompressedAccountWithMerkleContext,
 ): AccountInfo<Buffer> {
+    const compressedData = requireCompressedAccountData(compressedAccount);
     const dataDiscriminatorBuffer: Buffer = Buffer.from(
-        compressedAccount.data!.discriminator,
+        compressedData.discriminator,
     );
-    const dataBuffer: Buffer = Buffer.from(compressedAccount.data!.data);
+    const dataBuffer: Buffer = Buffer.from(compressedData.data);
     const data: Buffer = Buffer.concat([dataDiscriminatorBuffer, dataBuffer]);
 
     return {
@@ -331,7 +346,7 @@ export function parseLightTokenCold(
     parsed: Account;
     isCold: true;
 } {
-    const parsed = parseTokenData(compressedAccount.data!.data);
+    const parsed = parseTokenData(requireCompressedAccountData(compressedAccount).data);
     if (!parsed) throw new Error('Invalid token data');
     return {
         accountInfo: toAccountInfo(compressedAccount),
@@ -544,16 +559,26 @@ async function getUnifiedAccountView(
     fetchByOwner: { owner: PublicKey; mint: PublicKey } | undefined,
     wrap: boolean,
 ): Promise<AccountView> {
+    if (!address && !fetchByOwner) {
+        throw new Error(ERR_FETCH_BY_OWNER_REQUIRED);
+    }
+
     // Canonical address for unified mode is always the light-token associated token account
-    const lightTokenAta =
-        address ??
-        getAssociatedTokenAddressSync(
-            fetchByOwner!.mint,
-            fetchByOwner!.owner,
+    let lightTokenAta: PublicKey;
+    if (address) {
+        lightTokenAta = address;
+    } else {
+        if (!fetchByOwner) {
+            throw new Error(ERR_FETCH_BY_OWNER_REQUIRED);
+        }
+        lightTokenAta = getAssociatedTokenAddressSync(
+            fetchByOwner.mint,
+            fetchByOwner.owner,
             false,
             LIGHT_TOKEN_PROGRAM_ID,
             getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
         );
+    }
 
     const fetchPromises: Promise<{
         accountInfo: AccountInfo<Buffer>;
@@ -607,7 +632,7 @@ async function getUnifiedAccountView(
         ? rpc.getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
               mint: fetchByOwner.mint,
           })
-        : rpc.getCompressedTokenAccountsByOwner(address!);
+        : rpc.getCompressedTokenAccountsByOwner(lightTokenAta);
 
     const hotResults = await Promise.allSettled(fetchPromises);
     const ownerMismatchErrors: TokenInvalidAccountOwnerError[] = [];
@@ -849,7 +874,7 @@ async function getSplOrToken2022AccountView(
             ? rpc.getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
                   mint: fetchByOwner.mint,
               })
-            : Promise.resolve({ items: [] as any[] }),
+            : Promise.resolve(null as CompressedByOwnerResult | null),
     ]);
 
     const sources: TokenAccountSource[] = [];
@@ -860,9 +885,7 @@ async function getSplOrToken2022AccountView(
     if (hotResult.status === 'rejected')
         unexpectedErrors.push(hotResult.reason);
     const coldAccounts =
-        coldResult.status === 'fulfilled'
-            ? coldResult.value
-            : ({ items: [] as any[] } as const);
+        coldResult.status === 'fulfilled' ? coldResult.value : null;
     if (coldResult.status === 'rejected')
         unexpectedErrors.push(coldResult.reason);
 
@@ -887,7 +910,7 @@ async function getSplOrToken2022AccountView(
     }
 
     // Cold (compressed) accounts
-    for (const item of coldAccounts.items) {
+    for (const item of coldAccounts?.items ?? []) {
         const compressedAccount = item.compressedAccount;
         if (
             compressedAccount &&
@@ -975,10 +998,13 @@ function buildAccountViewFromSources(
     } else if (coldDelegatedSources.length > 0) {
         // No hot delegate: canonical delegate is taken from the most recent
         // delegated cold source in source order (source[0] is most recent).
-        canonicalDelegate = coldDelegatedSources[0].parsed.delegate!;
-        canonicalDelegatedAmount = sumForDelegate(canonicalDelegate, src =>
-            isColdSourceType(src.type),
-        );
+        const firstColdDelegate = coldDelegatedSources[0].parsed.delegate;
+        if (firstColdDelegate) {
+            canonicalDelegate = firstColdDelegate;
+            canonicalDelegatedAmount = sumForDelegate(canonicalDelegate, src =>
+                isColdSourceType(src.type),
+            );
+        }
     }
 
     const unifiedAccount: Account = {
@@ -993,7 +1019,7 @@ function buildAccountViewFromSources(
     };
 
     return {
-        accountInfo: primarySource.accountInfo!,
+        accountInfo: primarySource.accountInfo,
         parsed: unifiedAccount,
         isCold: isColdSourceType(primarySource.type),
         loadContext: primarySource.loadContext,
@@ -1080,7 +1106,7 @@ export function filterAccountForAuthority(
         ...iface,
         ...(primary
             ? {
-                  accountInfo: primary.accountInfo!,
+                  accountInfo: primary.accountInfo,
                   isCold: isColdSourceType(primary.type),
                   loadContext: primary.loadContext,
               }

@@ -3,6 +3,7 @@ import {
     parseLightTokenCold,
     parseLightTokenHot,
 } from './read/get-account';
+import { Buffer } from 'buffer';
 import {
     LIGHT_TOKEN_PROGRAM_ID,
     type ParsedTokenAccount,
@@ -17,6 +18,18 @@ import type {
 } from './types';
 
 const ZERO = BigInt(0);
+
+function toBufferAccountInfo<T extends { data: Buffer | Uint8Array }>(
+    accountInfo: T,
+): Omit<T, 'data'> & { data: Buffer } {
+    if (Buffer.isBuffer(accountInfo.data)) {
+        return accountInfo as Omit<T, 'data'> & { data: Buffer };
+    }
+    return {
+        ...accountInfo,
+        data: Buffer.from(accountInfo.data),
+    };
+}
 
 function toBigIntAmount(account: ParsedTokenAccount): bigint {
     return BigInt(account.parsed.amount.toString());
@@ -135,7 +148,7 @@ export async function getAtaOrNull({
 
     const hotParsed =
         hotInfo && hotInfo.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
-            ? parseLightTokenHot(address, hotInfo as any).parsed
+            ? parseLightTokenHot(address, toBufferAccountInfo(hotInfo)).parsed
             : null;
 
     const { selected, ignored } = selectPrimaryCompressedAccount(

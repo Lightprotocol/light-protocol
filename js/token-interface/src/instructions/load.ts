@@ -541,55 +541,57 @@ export function createDecompressInstruction({
 function getCanonicalCompressedTokenAccountFromAtaSources(
   sources: TokenAccountSource[],
 ): ParsedTokenAccount | null {
-  const candidates = sources
-    .filter((source) => source.loadContext !== undefined)
-    .filter((source) => COLD_SOURCE_TYPES.has(source.type))
-    .map((source) => {
-      const fullData = source.accountInfo.data;
-      const discriminatorBytes = fullData.subarray(
-        0,
-        Math.min(8, fullData.length),
-      );
-      const accountDataBytes =
-        fullData.length > 8 ? fullData.subarray(8) : Buffer.alloc(0);
+  const candidates: ParsedTokenAccount[] = [];
+  for (const source of sources) {
+    if (!COLD_SOURCE_TYPES.has(source.type) || !source.loadContext) {
+      continue;
+    }
+    const loadContext = source.loadContext;
+    const fullData = source.accountInfo.data;
+    const discriminatorBytes = fullData.subarray(
+      0,
+      Math.min(8, fullData.length),
+    );
+    const accountDataBytes =
+      fullData.length > 8 ? fullData.subarray(8) : Buffer.alloc(0);
 
-      const compressedAccount = {
-        treeInfo: source.loadContext!.treeInfo,
-        hash: source.loadContext!.hash,
-        leafIndex: source.loadContext!.leafIndex,
-        proveByIndex: source.loadContext!.proveByIndex,
-        owner: source.accountInfo.owner,
-        lamports: bn(source.accountInfo.lamports),
-        address: null,
-        data:
-          fullData.length === 0
-            ? null
-            : {
-                discriminator: Array.from(discriminatorBytes),
-                data: Buffer.from(accountDataBytes),
-                dataHash: new Array(32).fill(0),
-              },
-        readOnly: false,
-      };
+    const compressedAccount = {
+      treeInfo: loadContext.treeInfo,
+      hash: loadContext.hash,
+      leafIndex: loadContext.leafIndex,
+      proveByIndex: loadContext.proveByIndex,
+      owner: source.accountInfo.owner,
+      lamports: bn(source.accountInfo.lamports),
+      address: null,
+      data:
+        fullData.length === 0
+          ? null
+          : {
+              discriminator: Array.from(discriminatorBytes),
+              data: Buffer.from(accountDataBytes),
+              dataHash: new Array(32).fill(0),
+            },
+      readOnly: false,
+    } satisfies ParsedTokenAccount["compressedAccount"];
 
-      const state = !source.parsed.isInitialized
-        ? 0
-        : source.parsed.isFrozen
-          ? 2
-          : 1;
+    const state = !source.parsed.isInitialized
+      ? 0
+      : source.parsed.isFrozen
+        ? 2
+        : 1;
 
-      return {
-        compressedAccount: compressedAccount as any,
-        parsed: {
-          mint: source.parsed.mint,
-          owner: source.parsed.owner,
-          amount: bn(source.parsed.amount.toString()),
-          delegate: source.parsed.delegate,
-          state,
-          tlv: source.parsed.tlvData.length > 0 ? source.parsed.tlvData : null,
-        },
-      } satisfies ParsedTokenAccount;
+    candidates.push({
+      compressedAccount,
+      parsed: {
+        mint: source.parsed.mint,
+        owner: source.parsed.owner,
+        amount: bn(source.parsed.amount.toString()),
+        delegate: source.parsed.delegate,
+        state,
+        tlv: source.parsed.tlvData.length > 0 ? source.parsed.tlvData : null,
+      },
     });
+  }
 
   if (candidates.length === 0) {
     return null;

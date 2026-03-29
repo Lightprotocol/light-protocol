@@ -54,7 +54,13 @@ export async function getSplInterfaces(
       `SPL interface not found for mint ${mint.toBase58()}.`,
     );
   }
-  const tokenProgramId = accountInfos[anchorIndex]!.owner;
+  const anchorAccountInfo = accountInfos[anchorIndex];
+  if (!anchorAccountInfo) {
+    throw new TokenAccountNotFoundError(
+      `SPL interface not found for mint ${mint.toBase58()}.`,
+    );
+  }
+  const tokenProgramId = anchorAccountInfo.owner;
   if (!isSupportedTokenProgramId(tokenProgramId)) {
     throw new TokenInvalidAccountOwnerError(
       `Invalid token program owner for SPL interface mint ${mint.toBase58()}: ${tokenProgramId.toBase58()}`,
