@@ -26,8 +26,12 @@ describe('burn instructions', () => {
         });
 
         await expect(
-            sendInstructions(fixture.rpc, fixture.payer, burnInstructions, [owner]),
-        ).rejects.toThrow('instruction modified data of an account it does not own');
+            sendInstructions(fixture.rpc, fixture.payer, burnInstructions, [
+                owner,
+            ]),
+        ).rejects.toThrow(
+            'instruction modified data of an account it does not own',
+        );
     });
 
     it('fails checked burn with wrong mint decimals', async () => {
@@ -47,7 +51,9 @@ describe('burn instructions', () => {
         });
 
         await expect(
-            sendInstructions(fixture.rpc, fixture.payer, burnInstructions, [owner]),
+            sendInstructions(fixture.rpc, fixture.payer, burnInstructions, [
+                owner,
+            ]),
         ).rejects.toThrow();
     });
 
@@ -67,7 +73,9 @@ describe('burn instructions', () => {
                 authority: unauthorized.publicKey,
                 amount: 250n,
             }),
-        ).rejects.toThrow('Signer is not the owner or a delegate of the account.');
+        ).rejects.toThrow(
+            'Signer is not the owner or a delegate of the account.',
+        );
     });
 
     it('builds burn instructions when payer is omitted', async () => {

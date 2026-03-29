@@ -349,5 +349,4 @@ describe('instruction builders', () => {
         expect(instruction.keys[2].pubkey.equals(owner)).toBe(true);
         expect(instruction.keys[2].isSigner).toBe(true);
     });
-
 });

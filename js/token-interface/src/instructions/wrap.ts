@@ -1,33 +1,33 @@
 import {
-  PublicKey,
-  TransactionInstruction,
-  SystemProgram,
-} from "@solana/web3.js";
-import { LIGHT_TOKEN_PROGRAM_ID } from "@lightprotocol/stateless.js";
+    PublicKey,
+    TransactionInstruction,
+    SystemProgram,
+} from '@solana/web3.js';
+import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import {
-  COMPRESSED_TOKEN_PROGRAM_ID,
-  deriveCpiAuthorityPda,
-  MAX_TOP_UP,
-} from "../constants";
-import type { SplInterface } from "../spl-interface";
+    COMPRESSED_TOKEN_PROGRAM_ID,
+    deriveCpiAuthorityPda,
+    MAX_TOP_UP,
+} from '../constants';
+import type { SplInterface } from '../spl-interface';
 import {
-  encodeTransfer2InstructionData,
-  createCompressSpl,
-  createDecompressLightToken,
-  type Transfer2InstructionData,
-  type Compression,
-} from "./layout/layout-transfer2";
+    encodeTransfer2InstructionData,
+    createCompressSpl,
+    createDecompressLightToken,
+    type Transfer2InstructionData,
+    type Compression,
+} from './layout/layout-transfer2';
 
 export interface CreateWrapInstructionInput {
-  source: PublicKey;
-  destination: PublicKey;
-  owner: PublicKey;
-  mint: PublicKey;
-  amount: bigint;
-  splInterface: SplInterface;
-  decimals: number;
-  payer?: PublicKey;
-  maxTopUp?: number;
+    source: PublicKey;
+    destination: PublicKey;
+    owner: PublicKey;
+    mint: PublicKey;
+    amount: bigint;
+    splInterface: SplInterface;
+    decimals: number;
+    payer?: PublicKey;
+    maxTopUp?: number;
 }
 
 /**
@@ -47,100 +47,100 @@ export interface CreateWrapInstructionInput {
  * @returns Instruction to wrap tokens
  */
 export function createWrapInstruction({
-  source,
-  destination,
-  owner,
-  mint,
-  amount,
-  splInterface,
-  decimals,
-  payer = owner,
-  maxTopUp,
+    source,
+    destination,
+    owner,
+    mint,
+    amount,
+    splInterface,
+    decimals,
+    payer = owner,
+    maxTopUp,
 }: CreateWrapInstructionInput): TransactionInstruction {
-  const MINT_INDEX = 0;
-  const OWNER_INDEX = 1;
-  const SOURCE_INDEX = 2;
-  const DESTINATION_INDEX = 3;
-  const POOL_INDEX = 4;
-  const _SPL_TOKEN_PROGRAM_INDEX = 5;
-  const LIGHT_TOKEN_PROGRAM_INDEX = 6;
+    const MINT_INDEX = 0;
+    const OWNER_INDEX = 1;
+    const SOURCE_INDEX = 2;
+    const DESTINATION_INDEX = 3;
+    const POOL_INDEX = 4;
+    const _SPL_TOKEN_PROGRAM_INDEX = 5;
+    const LIGHT_TOKEN_PROGRAM_INDEX = 6;
 
-  const compressions: Compression[] = [
-    createCompressSpl(
-      amount,
-      MINT_INDEX,
-      SOURCE_INDEX,
-      OWNER_INDEX,
-      POOL_INDEX,
-      splInterface.derivationIndex,
-      splInterface.bump,
-      decimals,
-    ),
-    createDecompressLightToken(
-      amount,
-      MINT_INDEX,
-      DESTINATION_INDEX,
-      LIGHT_TOKEN_PROGRAM_INDEX,
-    ),
-  ];
+    const compressions: Compression[] = [
+        createCompressSpl(
+            amount,
+            MINT_INDEX,
+            SOURCE_INDEX,
+            OWNER_INDEX,
+            POOL_INDEX,
+            splInterface.derivationIndex,
+            splInterface.bump,
+            decimals,
+        ),
+        createDecompressLightToken(
+            amount,
+            MINT_INDEX,
+            DESTINATION_INDEX,
+            LIGHT_TOKEN_PROGRAM_INDEX,
+        ),
+    ];
 
-  const instructionData: Transfer2InstructionData = {
-    withTransactionHash: false,
-    withLamportsChangeAccountMerkleTreeIndex: false,
-    lamportsChangeAccountMerkleTreeIndex: 0,
-    lamportsChangeAccountOwnerIndex: 0,
-    outputQueue: 0,
-    maxTopUp: maxTopUp ?? MAX_TOP_UP,
-    cpiContext: null,
-    compressions,
-    proof: null,
-    inTokenData: [],
-    outTokenData: [],
-    inLamports: null,
-    outLamports: null,
-    inTlv: null,
-    outTlv: null,
-  };
+    const instructionData: Transfer2InstructionData = {
+        withTransactionHash: false,
+        withLamportsChangeAccountMerkleTreeIndex: false,
+        lamportsChangeAccountMerkleTreeIndex: 0,
+        lamportsChangeAccountOwnerIndex: 0,
+        outputQueue: 0,
+        maxTopUp: maxTopUp ?? MAX_TOP_UP,
+        cpiContext: null,
+        compressions,
+        proof: null,
+        inTokenData: [],
+        outTokenData: [],
+        inLamports: null,
+        outLamports: null,
+        inTlv: null,
+        outTlv: null,
+    };
 
-  const data = encodeTransfer2InstructionData(instructionData);
+    const data = encodeTransfer2InstructionData(instructionData);
 
-  const keys = [
-    {
-      pubkey: deriveCpiAuthorityPda(),
-      isSigner: false,
-      isWritable: false,
-    },
-    { pubkey: payer, isSigner: true, isWritable: true },
-    { pubkey: mint, isSigner: false, isWritable: false },
-    { pubkey: owner, isSigner: true, isWritable: false },
-    { pubkey: source, isSigner: false, isWritable: true },
-    { pubkey: destination, isSigner: false, isWritable: true },
-    {
-      pubkey: splInterface.poolPda,
-      isSigner: false,
-      isWritable: true,
-    },
-    {
-      pubkey: splInterface.tokenProgramId,
-      isSigner: false,
-      isWritable: false,
-    },
-    {
-      pubkey: LIGHT_TOKEN_PROGRAM_ID,
-      isSigner: false,
-      isWritable: false,
-    },
-    // System program needed for top-up CPIs when destination has compressible extension
-    {
-      pubkey: SystemProgram.programId,
-      isSigner: false,
-      isWritable: false,
-    },
-  ];
+    const keys = [
+        {
+            pubkey: deriveCpiAuthorityPda(),
+            isSigner: false,
+            isWritable: false,
+        },
+        { pubkey: payer, isSigner: true, isWritable: true },
+        { pubkey: mint, isSigner: false, isWritable: false },
+        { pubkey: owner, isSigner: true, isWritable: false },
+        { pubkey: source, isSigner: false, isWritable: true },
+        { pubkey: destination, isSigner: false, isWritable: true },
+        {
+            pubkey: splInterface.poolPda,
+            isSigner: false,
+            isWritable: true,
+        },
+        {
+            pubkey: splInterface.tokenProgramId,
+            isSigner: false,
+            isWritable: false,
+        },
+        {
+            pubkey: LIGHT_TOKEN_PROGRAM_ID,
+            isSigner: false,
+            isWritable: false,
+        },
+        // System program needed for top-up CPIs when destination has compressible extension
+        {
+            pubkey: SystemProgram.programId,
+            isSigner: false,
+            isWritable: false,
+        },
+    ];
 
-  return new TransactionInstruction({
-    programId: COMPRESSED_TOKEN_PROGRAM_ID,
-    keys,
-    data,
-  });
+    return new TransactionInstruction({
+        programId: COMPRESSED_TOKEN_PROGRAM_ID,
+        keys,
+        data,
+    });
 }

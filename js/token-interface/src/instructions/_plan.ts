@@ -5,7 +5,9 @@ import {
 } from '@solana/instruction-plans';
 import type { TransactionInstruction } from '@solana/web3.js';
 
-export type KitInstruction = ReturnType<typeof fromLegacyTransactionInstruction>;
+export type KitInstruction = ReturnType<
+    typeof fromLegacyTransactionInstruction
+>;
 
 export function toKitInstructions(
     instructions: TransactionInstruction[],

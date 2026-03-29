@@ -125,10 +125,11 @@ function encodeCreateAssociatedLightTokenAccountData(
     for (;;) {
         const buffer = Buffer.alloc(size);
         try {
-            const len = CreateAssociatedTokenAccountInstructionDataLayout.encode(
-                payload,
-                buffer,
-            );
+            const len =
+                CreateAssociatedTokenAccountInstructionDataLayout.encode(
+                    payload,
+                    buffer,
+                );
             return Buffer.concat([discriminator, buffer.subarray(0, len)]);
         } catch (error) {
             if (!(error instanceof RangeError) || size >= 4096) {
@@ -160,16 +161,14 @@ export interface CreateAssociatedLightTokenAccountInstructionParams {
  * @param input.configAccount      Config account (defaults to LIGHT_TOKEN_CONFIG).
  * @param input.rentPayerPda       Rent payer PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR).
  */
-export function createAssociatedLightTokenAccountInstruction(
-    {
-        feePayer,
-        owner,
-        mint,
-        compressibleConfig = DEFAULT_COMPRESSIBLE_CONFIG,
-        configAccount = LIGHT_TOKEN_CONFIG,
-        rentPayerPda = LIGHT_TOKEN_RENT_SPONSOR,
-    }: CreateAssociatedLightTokenAccountInstructionParams,
-): TransactionInstruction {
+export function createAssociatedLightTokenAccountInstruction({
+    feePayer,
+    owner,
+    mint,
+    compressibleConfig = DEFAULT_COMPRESSIBLE_CONFIG,
+    configAccount = LIGHT_TOKEN_CONFIG,
+    rentPayerPda = LIGHT_TOKEN_RENT_SPONSOR,
+}: CreateAssociatedLightTokenAccountInstructionParams): TransactionInstruction {
     const effectiveFeePayer = feePayer ?? owner;
     const associatedTokenAccount = getAssociatedLightTokenAddress(owner, mint);
 
@@ -235,16 +234,14 @@ export function createAssociatedLightTokenAccountInstruction(
  * @param input.configAccount      Config account (defaults to LIGHT_TOKEN_CONFIG).
  * @param input.rentPayerPda       Rent payer PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR).
  */
-export function createAssociatedLightTokenAccountIdempotentInstruction(
-    {
-        feePayer,
-        owner,
-        mint,
-        compressibleConfig = DEFAULT_COMPRESSIBLE_CONFIG,
-        configAccount = LIGHT_TOKEN_CONFIG,
-        rentPayerPda = LIGHT_TOKEN_RENT_SPONSOR,
-    }: CreateAssociatedLightTokenAccountInstructionParams,
-): TransactionInstruction {
+export function createAssociatedLightTokenAccountIdempotentInstruction({
+    feePayer,
+    owner,
+    mint,
+    compressibleConfig = DEFAULT_COMPRESSIBLE_CONFIG,
+    configAccount = LIGHT_TOKEN_CONFIG,
+    rentPayerPda = LIGHT_TOKEN_RENT_SPONSOR,
+}: CreateAssociatedLightTokenAccountInstructionParams): TransactionInstruction {
     const effectiveFeePayer = feePayer ?? owner;
     const associatedTokenAccount = getAssociatedLightTokenAddress(owner, mint);
 

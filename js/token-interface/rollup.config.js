@@ -66,9 +66,6 @@ export default [
     jsConfig('cjs'),
     jsConfig('es'),
     dtsEntry('src/index.ts', 'dist/types/index.d.ts'),
-    dtsEntry(
-        'src/instructions/index.ts',
-        'dist/types/instructions/index.d.ts',
-    ),
+    dtsEntry('src/instructions/index.ts', 'dist/types/instructions/index.d.ts'),
     dtsEntry('src/kit/index.ts', 'dist/types/kit/index.d.ts'),
 ];

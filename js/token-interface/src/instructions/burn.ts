@@ -37,7 +37,11 @@ export function createBurnInstruction({
                 isSigner: true,
                 isWritable: effectivePayer.equals(authority),
             },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            {
+                pubkey: SystemProgram.programId,
+                isSigner: false,
+                isWritable: false,
+            },
             {
                 pubkey: effectivePayer,
                 isSigner: !effectivePayer.equals(authority),
@@ -73,7 +77,11 @@ export function createBurnCheckedInstruction({
                 isSigner: true,
                 isWritable: effectivePayer.equals(authority),
             },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            {
+                pubkey: SystemProgram.programId,
+                isSigner: false,
+                isWritable: false,
+            },
             {
                 pubkey: effectivePayer,
                 isSigner: !effectivePayer.equals(authority),

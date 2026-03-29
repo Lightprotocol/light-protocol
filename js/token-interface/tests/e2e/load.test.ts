@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ComputeBudgetProgram } from '@solana/web3.js';
 import { newAccountWithLamports } from '@lightprotocol/stateless.js';
-import {
-    createLoadInstructions,
-    getAta,
-    getAtaAddress,
-} from '../../src';
+import { createLoadInstructions, getAta, getAtaAddress } from '../../src';
 import {
     createMintFixture,
     getCompressedAmounts,
@@ -126,7 +122,9 @@ describe('load instructions', () => {
             mint: fixture.mint,
         });
 
-        await sendInstructions(fixture.rpc, fixture.payer, instructions, [owner]);
+        await sendInstructions(fixture.rpc, fixture.payer, instructions, [
+            owner,
+        ]);
 
         expect(await getHotBalance(fixture.rpc, tokenAccount)).toBe(250n);
     });

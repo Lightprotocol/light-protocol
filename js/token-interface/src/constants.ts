@@ -27,7 +27,8 @@ export function deriveSplInterfacePdaWithIndex(
     mint: PublicKey,
     index: number,
 ): [PublicKey, number] {
-    const indexSeed = index === 0 ? Buffer.from([]) : Buffer.from([index & 0xff]);
+    const indexSeed =
+        index === 0 ? Buffer.from([]) : Buffer.from([index & 0xff]);
     return PublicKey.findProgramAddressSync(
         [POOL_SEED, mint.toBuffer(), indexSeed],
         COMPRESSED_TOKEN_PROGRAM_ID,

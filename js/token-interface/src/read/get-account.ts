@@ -346,7 +346,9 @@ export function parseLightTokenCold(
     parsed: Account;
     isCold: true;
 } {
-    const parsed = parseTokenData(requireCompressedAccountData(compressedAccount).data);
+    const parsed = parseTokenData(
+        requireCompressedAccountData(compressedAccount).data,
+    );
     if (!parsed) throw new Error('Invalid token data');
     return {
         accountInfo: toAccountInfo(compressedAccount),
@@ -445,12 +447,7 @@ async function _getAccountView(
     }
 
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        return getLightTokenAccountView(
-            rpc,
-            address,
-            commitment,
-            fetchByOwner,
-        );
+        return getLightTokenAccountView(rpc, address, commitment, fetchByOwner);
     }
 
     if (
@@ -549,7 +546,6 @@ async function _tryFetchLightTokenHot(
     }
     return parseLightTokenHot(address, info);
 }
-
 
 /** @internal */
 async function getUnifiedAccountView(

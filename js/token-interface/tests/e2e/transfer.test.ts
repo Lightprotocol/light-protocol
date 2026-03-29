@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ComputeBudgetProgram, Keypair, TransactionInstruction } from '@solana/web3.js';
+import {
+    ComputeBudgetProgram,
+    Keypair,
+    TransactionInstruction,
+} from '@solana/web3.js';
 import {
     createTransferCheckedInstruction as createSplTransferCheckedInstruction,
     TOKEN_PROGRAM_ID,
-  TOKEN_2022_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
     unpackAccount,
 } from '@solana/spl-token';
@@ -52,7 +56,9 @@ describe('transfer instructions', () => {
                 recipient: recipient.publicKey,
                 amount: 100n,
             }),
-        ).rejects.toThrow('Signer is not the owner or a delegate of the account.');
+        ).rejects.toThrow(
+            'Signer is not the owner or a delegate of the account.',
+        );
     });
 
     it('builds a single-transaction transfer flow without compute budget instructions', async () => {
@@ -114,7 +120,9 @@ describe('transfer instructions', () => {
             amount: 400n,
         });
 
-        await sendInstructions(fixture.rpc, fixture.payer, instructions, [sender]);
+        await sendInstructions(fixture.rpc, fixture.payer, instructions, [
+            sender,
+        ]);
 
         const recipientAta = await getAta({
             rpc: fixture.rpc,
@@ -148,9 +156,12 @@ describe('transfer instructions', () => {
             amount: 1_250n,
         });
 
-        await sendInstructions(fixture.rpc, fixture.payer, instructions, [sender]);
+        await sendInstructions(fixture.rpc, fixture.payer, instructions, [
+            sender,
+        ]);
 
-        const recipientSplInfo = await fixture.rpc.getAccountInfo(recipientSplAta);
+        const recipientSplInfo =
+            await fixture.rpc.getAccountInfo(recipientSplAta);
         expect(recipientSplInfo).not.toBeNull();
         const recipientSpl = unpackAccount(
             recipientSplAta,
@@ -180,7 +191,9 @@ describe('transfer instructions', () => {
         });
 
         await expect(
-            sendInstructions(fixture.rpc, fixture.payer, instructions, [sender]),
+            sendInstructions(fixture.rpc, fixture.payer, instructions, [
+                sender,
+            ]),
         ).rejects.toThrow('custom program error');
     });
 
@@ -205,7 +218,9 @@ describe('transfer instructions', () => {
             amount: 0n,
         });
 
-        await sendInstructions(fixture.rpc, fixture.payer, instructions, [sender]);
+        await sendInstructions(fixture.rpc, fixture.payer, instructions, [
+            sender,
+        ]);
         expect(await getHotBalance(fixture.rpc, senderAta)).toBe(500n);
     });
 
@@ -235,7 +250,9 @@ describe('transfer instructions', () => {
             sender,
         ]);
 
-        expect(await getHotBalance(fixture.rpc, recipientAtaAddress)).toBe(200n);
+        expect(await getHotBalance(fixture.rpc, recipientAtaAddress)).toBe(
+            200n,
+        );
         expect(
             await getCompressedAmounts(
                 fixture.rpc,
@@ -275,9 +292,12 @@ describe('transfer instructions', () => {
             amount: 300n,
         });
 
-        await sendInstructions(fixture.rpc, fixture.payer, approveInstructions, [
-            owner,
-        ]);
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            approveInstructions,
+            [owner],
+        );
 
         const transferInstructions = await createTransferInstructions({
             rpc: fixture.rpc,
@@ -289,9 +309,12 @@ describe('transfer instructions', () => {
             authority: delegate.publicKey,
         });
 
-        await sendInstructions(fixture.rpc, fixture.payer, transferInstructions, [
-            delegate,
-        ]);
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            transferInstructions,
+            [delegate],
+        );
 
         const recipientAta = await getAta({
             rpc: fixture.rpc,
@@ -319,9 +342,12 @@ describe('transfer instructions', () => {
             delegate: delegate.publicKey,
             amount: 100n,
         });
-        await sendInstructions(fixture.rpc, fixture.payer, approveInstructions, [
-            owner,
-        ]);
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            approveInstructions,
+            [owner],
+        );
 
         const transferInstructions = await createTransferInstructions({
             rpc: fixture.rpc,
@@ -364,9 +390,12 @@ describe('transfer instructions', () => {
             tokenProgram: TOKEN_PROGRAM_ID,
             amount: 1_500n,
         });
-        await sendInstructions(fixture.rpc, fixture.payer, toSenderSplInstructions, [
-            sender,
-        ]);
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            toSenderSplInstructions,
+            [sender],
+        );
 
         const senderSplInfo = await fixture.rpc.getAccountInfo(senderSplAta);
         expect(senderSplInfo).not.toBeNull();
@@ -388,7 +417,9 @@ describe('transfer instructions', () => {
             amount: 1_000n,
         });
         await expect(
-            sendInstructions(fixture.rpc, fixture.payer, nowrapInstructions, [sender]),
+            sendInstructions(fixture.rpc, fixture.payer, nowrapInstructions, [
+                sender,
+            ]),
         ).rejects.toThrow('custom program error');
 
         // Canonical transfer wraps SPL first, then succeeds.
@@ -401,9 +432,12 @@ describe('transfer instructions', () => {
             recipient: recipient.publicKey,
             amount: 1_000n,
         });
-        await sendInstructions(fixture.rpc, fixture.payer, canonicalInstructions, [
-            sender,
-        ]);
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            canonicalInstructions,
+            [sender],
+        );
 
         const recipientAta = await getAta({
             rpc: fixture.rpc,
@@ -445,7 +479,9 @@ describe('transfer instructions', () => {
             tokenProgram: TOKEN_PROGRAM_ID,
             amount: 1_000n,
         });
-        await sendInstructions(fixture.rpc, fixture.payer, senderToSpl, [sender]);
+        await sendInstructions(fixture.rpc, fixture.payer, senderToSpl, [
+            sender,
+        ]);
 
         // Stage 2: fund donor SPL ATA with 500.
         const donorToSpl = await createTransferInstructions({
@@ -482,10 +518,17 @@ describe('transfer instructions', () => {
             [],
             TOKEN_PROGRAM_ID,
         );
-        await sendInstructions(fixture.rpc, fixture.payer, [injectAfterBuild], [donor]);
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            [injectAfterBuild],
+            [donor],
+        );
 
         // Wrapped transfer should still succeed.
-        await sendInstructions(fixture.rpc, fixture.payer, wrappedTransfer, [sender]);
+        await sendInstructions(fixture.rpc, fixture.payer, wrappedTransfer, [
+            sender,
+        ]);
 
         // Recipient receives transfer amount.
         const recipientAta = await getAta({
