@@ -67,18 +67,8 @@ export async function getMint(
         const [tokenResult, token2022Result, compressedResult] =
             await Promise.allSettled([
                 getMint(rpc, address, commitment, TOKEN_PROGRAM_ID),
-                getMint(
-                    rpc,
-                    address,
-                    commitment,
-                    TOKEN_2022_PROGRAM_ID,
-                ),
-                getMint(
-                    rpc,
-                    address,
-                    commitment,
-                    LIGHT_TOKEN_PROGRAM_ID,
-                ),
+                getMint(rpc, address, commitment, TOKEN_2022_PROGRAM_ID),
+                getMint(rpc, address, commitment, LIGHT_TOKEN_PROGRAM_ID),
             ]);
 
         if (tokenResult.status === 'fulfilled') {

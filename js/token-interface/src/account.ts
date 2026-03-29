@@ -1,8 +1,5 @@
 import { getAssociatedTokenAddress } from './read/associated-token-address';
-import {
-    parseLightTokenCold,
-    parseLightTokenHot,
-} from './read/get-account';
+import { parseLightTokenCold, parseLightTokenHot } from './read/get-account';
 import { Buffer } from 'buffer';
 import {
     LIGHT_TOKEN_PROGRAM_ID,
@@ -64,12 +61,8 @@ function buildParsedAta(
     address: PublicKey,
     owner: PublicKey,
     mint: PublicKey,
-    hotParsed:
-        | ReturnType<typeof parseLightTokenHot>['parsed']
-        | null,
-    coldParsed:
-        | ReturnType<typeof parseLightTokenCold>['parsed']
-        | null,
+    hotParsed: ReturnType<typeof parseLightTokenHot>['parsed'] | null,
+    coldParsed: ReturnType<typeof parseLightTokenCold>['parsed'] | null,
 ): TokenInterfaceParsedAta {
     const hotAmount = hotParsed?.amount ?? ZERO;
     const compressedAmount = coldParsed?.amount ?? ZERO;
@@ -103,23 +96,21 @@ function buildParsedAta(
         amount,
         delegate,
         delegatedAmount: clampDelegatedAmount(amount, delegatedAmount),
-        isInitialized:
-            hotParsed?.isInitialized === true || coldParsed !== null,
-        isFrozen:
-            hotParsed?.isFrozen === true || coldParsed?.isFrozen === true,
+        isInitialized: hotParsed?.isInitialized === true || coldParsed !== null,
+        isFrozen: hotParsed?.isFrozen === true || coldParsed?.isFrozen === true,
     };
 }
 
-function selectPrimaryCompressedAccount(
-    accounts: ParsedTokenAccount[],
-): {
+function selectPrimaryCompressedAccount(accounts: ParsedTokenAccount[]): {
     selected: ParsedTokenAccount | null;
     ignored: ParsedTokenAccount[];
 } {
     const candidates = sortCompressedAccounts(
         accounts.filter(account => {
             return (
-                account.compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID) &&
+                account.compressedAccount.owner.equals(
+                    LIGHT_TOKEN_PROGRAM_ID,
+                ) &&
                 account.compressedAccount.data !== null &&
                 account.compressedAccount.data.data.length > 0 &&
                 toBigIntAmount(account) > ZERO
@@ -184,7 +175,9 @@ export async function getAtaOrNull({
     };
 }
 
-export async function getAta(input: GetAtaInput): Promise<TokenInterfaceAccount> {
+export async function getAta(
+    input: GetAtaInput,
+): Promise<TokenInterfaceAccount> {
     const account = await getAtaOrNull(input);
 
     if (!account) {
@@ -206,7 +199,10 @@ export function getSpendableAmount(
         account.parsed.delegate !== null &&
         authority.equals(account.parsed.delegate)
     ) {
-        return clampDelegatedAmount(account.amount, account.parsed.delegatedAmount);
+        return clampDelegatedAmount(
+            account.amount,
+            account.parsed.delegatedAmount,
+        );
     }
 
     return ZERO;
@@ -217,9 +213,7 @@ export function assertAccountNotFrozen(
     operation: 'load' | 'transfer' | 'approve' | 'revoke' | 'burn' | 'freeze',
 ): void {
     if (account.parsed.isFrozen) {
-        throw new Error(
-            `Account is frozen; ${operation} is not allowed.`,
-        );
+        throw new Error(`Account is frozen; ${operation} is not allowed.`);
     }
 }
 
@@ -228,9 +222,6 @@ export function assertAccountFrozen(
     operation: 'thaw',
 ): void {
     if (!account.parsed.isFrozen) {
-        throw new Error(
-            `Account is not frozen; ${operation} is not allowed.`,
-        );
+        throw new Error(`Account is not frozen; ${operation} is not allowed.`);
     }
 }
-

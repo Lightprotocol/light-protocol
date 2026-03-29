@@ -16,9 +16,11 @@ describe('public api', () => {
         const owner = Keypair.generate().publicKey;
         const mint = Keypair.generate().publicKey;
 
-        expect(getAtaAddress({ owner, mint }).equals(
-            getAssociatedTokenAddress(mint, owner),
-        )).toBe(true);
+        expect(
+            getAtaAddress({ owner, mint }).equals(
+                getAssociatedTokenAddress(mint, owner),
+            ),
+        ).toBe(true);
     });
 
     it('builds one canonical ata instruction', async () => {

@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newAccountWithLamports } from '@lightprotocol/stateless.js';
-import {
-    createAtaInstructions,
-    getAta,
-    getAtaAddress,
-} from '../../src';
+import { createAtaInstructions, getAta, getAtaAddress } from '../../src';
 import { createMintFixture, sendInstructions } from './helpers';
 
 describe('ata creation and reads', () => {
@@ -33,7 +29,9 @@ describe('ata creation and reads', () => {
         });
 
         expect(account.parsed.address.toBase58()).toBe(ata.toBase58());
-        expect(account.parsed.owner.toBase58()).toBe(owner.publicKey.toBase58());
+        expect(account.parsed.owner.toBase58()).toBe(
+            owner.publicKey.toBase58(),
+        );
         expect(account.parsed.mint.toBase58()).toBe(fixture.mint.toBase58());
         expect(account.parsed.amount).toBe(0n);
     });
@@ -57,7 +55,9 @@ describe('ata creation and reads', () => {
             mint: fixture.mint,
         });
 
-        expect(account.parsed.owner.toBase58()).toBe(owner.publicKey.toBase58());
+        expect(account.parsed.owner.toBase58()).toBe(
+            owner.publicKey.toBase58(),
+        );
         expect(account.parsed.amount).toBe(0n);
     });
 });

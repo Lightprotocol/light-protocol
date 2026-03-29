@@ -126,9 +126,12 @@ describe('freeze and thaw instructions', () => {
             recipient: recipient.publicKey,
             amount: 100n,
         });
-        await sendInstructions(fixture.rpc, fixture.payer, transferInstructions, [
-            owner,
-        ]);
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            transferInstructions,
+            [owner],
+        );
 
         const recipientAta = await getAta({
             rpc: fixture.rpc,

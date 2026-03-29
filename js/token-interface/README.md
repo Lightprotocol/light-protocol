@@ -3,6 +3,7 @@
 Payments-focused helpers for Light rent-free token flows.
 
 Use this when you want SPL-style transfers with unified sender handling:
+
 - sender side auto wraps/loads into light ATA
 - recipient ATA can be light (default), SPL, or Token-2022 via `tokenProgram`
 

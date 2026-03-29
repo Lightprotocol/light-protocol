@@ -40,12 +40,17 @@ describe('approve and revoke instructions', () => {
             ),
         ).toBe(false);
 
-        await sendInstructions(fixture.rpc, fixture.payer, approveInstructions, [
-            owner,
-        ]);
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            approveInstructions,
+            [owner],
+        );
 
         const delegated = await getHotDelegate(fixture.rpc, tokenAccount);
-        expect(delegated.delegate?.toBase58()).toBe(delegate.publicKey.toBase58());
+        expect(delegated.delegate?.toBase58()).toBe(
+            delegate.publicKey.toBase58(),
+        );
         expect(delegated.delegatedAmount).toBe(1_500n);
 
         const revokeInstructions = await createRevokeInstructions({
@@ -88,10 +93,17 @@ describe('approve and revoke instructions', () => {
             delegate: delegate.publicKey,
             amount: 500n,
         });
-        await sendInstructions(fixture.rpc, fixture.payer, approveInstructions, [owner]);
+        await sendInstructions(
+            fixture.rpc,
+            fixture.payer,
+            approveInstructions,
+            [owner],
+        );
 
         const delegated = await getHotDelegate(fixture.rpc, tokenAccount);
-        expect(delegated.delegate?.toBase58()).toBe(delegate.publicKey.toBase58());
+        expect(delegated.delegate?.toBase58()).toBe(
+            delegate.publicKey.toBase58(),
+        );
         expect(delegated.delegatedAmount).toBe(500n);
 
         const revokeInstructions = await createRevokeInstructions({
@@ -99,7 +111,9 @@ describe('approve and revoke instructions', () => {
             owner: owner.publicKey,
             mint: fixture.mint,
         });
-        await sendInstructions(fixture.rpc, fixture.payer, revokeInstructions, [owner]);
+        await sendInstructions(fixture.rpc, fixture.payer, revokeInstructions, [
+            owner,
+        ]);
 
         const revoked = await getHotDelegate(fixture.rpc, tokenAccount);
         expect(revoked.delegate).toBeNull();
