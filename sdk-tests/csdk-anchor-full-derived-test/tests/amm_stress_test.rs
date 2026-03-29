@@ -565,11 +565,7 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
             .expect("create_load_instructions should succeed");
 
     ctx.rpc
-        .create_and_send_transaction(
-            &decompress_ixs,
-            &ctx.payer.pubkey(),
-            &[&ctx.payer],
-        )
+        .create_and_send_transaction(&decompress_ixs, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .expect("Decompression should succeed");
 
