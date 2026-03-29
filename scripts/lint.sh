@@ -8,6 +8,7 @@ RUSTFMT_NIGHTLY_TOOLCHAIN="${RUSTFMT_NIGHTLY_TOOLCHAIN:-nightly-2025-10-26}"
 # JS linting (use subshells to avoid directory issues)
 (cd js/stateless.js && pnpm prettier --write . && pnpm lint)
 (cd js/compressed-token && pnpm prettier --write . && pnpm lint)
+(cd js/token-interface && pnpm prettier --write . && pnpm lint)
 
 # Rust linting
 cargo +"$RUSTFMT_NIGHTLY_TOOLCHAIN" fmt --all -- --check
