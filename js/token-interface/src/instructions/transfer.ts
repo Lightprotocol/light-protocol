@@ -66,6 +66,11 @@ export async function buildTransferInstructions({
   amount,
 }: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
   const amountBigInt = toBigIntAmount(amount);
+  const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
+  const decimals = await getMintDecimals(rpc, mint);
+  const transferSplInterfaces = recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)
+    ? undefined
+    : await getSplInterfaces(rpc, mint);
   const senderLoadInstructions = await createLoadInstructions({
     rpc,
     payer,
@@ -73,14 +78,14 @@ export async function buildTransferInstructions({
     mint,
     authority,
     wrap: true,
+    decimals,
+    splInterfaces: transferSplInterfaces,
   });
-  const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
   const recipientAta = getAtaAddress({
     owner: recipient,
     mint,
     programId: recipientTokenProgramId,
   });
-  const decimals = await getMintDecimals(rpc, mint);
   const recipientLoadInstructions: TransactionInstruction[] = [];
   const senderAta = getAtaAddress({
     owner: sourceOwner,
@@ -98,8 +103,7 @@ export async function buildTransferInstructions({
       decimals,
     });
   } else {
-    const splInterfaces = await getSplInterfaces(rpc, mint);
-    const splInterface = splInterfaces.find(
+    const splInterface = transferSplInterfaces!.find(
       (info) =>
         info.isInitialized && info.tokenProgramId.equals(recipientTokenProgramId),
     );
@@ -147,6 +151,11 @@ export async function buildTransferInstructionsNowrap({
   amount,
 }: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
   const amountBigInt = toBigIntAmount(amount);
+  const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
+  const decimals = await getMintDecimals(rpc, mint);
+  const transferSplInterfaces = recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)
+    ? undefined
+    : await getSplInterfaces(rpc, mint);
   const senderLoadInstructions = await createLoadInstructions({
     rpc,
     payer,
@@ -154,15 +163,14 @@ export async function buildTransferInstructionsNowrap({
     mint,
     authority,
     wrap: false,
+    decimals,
+    splInterfaces: transferSplInterfaces,
   });
-
-  const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
   const recipientAta = getAtaAddress({
     owner: recipient,
     mint,
     programId: recipientTokenProgramId,
   });
-  const decimals = await getMintDecimals(rpc, mint);
   const senderAta = getAtaAddress({
     owner: sourceOwner,
     mint,
@@ -180,8 +188,7 @@ export async function buildTransferInstructionsNowrap({
       decimals,
     });
   } else {
-    const splInterfaces = await getSplInterfaces(rpc, mint);
-    const splInterface = splInterfaces.find(
+    const splInterface = transferSplInterfaces!.find(
       (info) =>
         info.isInitialized && info.tokenProgramId.equals(recipientTokenProgramId),
     );
