@@ -873,6 +873,21 @@ export interface CreateLoadInstructionOptions
   authority?: PublicKey;
   wrap?: boolean;
   allowFrozen?: boolean;
+  splInterfaces?: SplInterface[];
+  decimals?: number;
+}
+
+function buildLoadOptions(
+  owner: PublicKey,
+  authority: PublicKey | undefined,
+  wrap: boolean,
+  splInterfaces: SplInterface[] | undefined,
+): LoadOptions | undefined {
+  const options = toLoadOptions(owner, authority, wrap) ?? {};
+  if (splInterfaces) {
+    options.splInterfaces = splInterfaces;
+  }
+  return Object.keys(options).length === 0 ? undefined : options;
 }
 
 export async function createLoadInstructions({
@@ -883,15 +898,16 @@ export async function createLoadInstructions({
   authority,
   wrap = true,
   allowFrozen = false,
+  splInterfaces,
+  decimals,
 }: CreateLoadInstructionOptions): Promise<TransactionInstruction[]> {
   const targetAta = getAtaAddress({ owner, mint });
-  const loadOptions = toLoadOptions(owner, authority, wrap);
+  const loadOptions = buildLoadOptions(owner, authority, wrap, splInterfaces);
 
   assertV2Enabled();
   payer ??= owner;
   const authorityPubkey = loadOptions?.delegatePubkey ?? owner;
 
-  const mintInfoPromise = getMint(rpc, mint);
   let accountView: AccountView;
   try {
     accountView = await _getAtaView(
@@ -909,7 +925,8 @@ export async function createLoadInstructions({
     }
     throw e;
   }
-  const decimals = (await mintInfoPromise).mint.decimals;
+
+  const resolvedDecimals = decimals ?? (await getMint(rpc, mint)).mint.decimals;
 
   if (!owner.equals(authorityPubkey)) {
     if (!isAuthorityForAccount(accountView, authorityPubkey)) {
@@ -927,7 +944,7 @@ export async function createLoadInstructions({
     targetAta,
     undefined,
     authorityPubkey,
-    decimals,
+    resolvedDecimals,
     allowFrozen,
   );
 
