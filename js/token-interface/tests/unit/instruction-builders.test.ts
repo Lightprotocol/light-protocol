@@ -80,6 +80,28 @@ describe('instruction builders', () => {
         expect(instruction.keys[5].isWritable).toBe(true);
     });
 
+    it('defaults transfer payer to authority when omitted', () => {
+        const source = Keypair.generate().publicKey;
+        const destination = Keypair.generate().publicKey;
+        const mint = Keypair.generate().publicKey;
+        const authority = Keypair.generate().publicKey;
+
+        const instruction = createTransferCheckedInstruction({
+            source,
+            destination,
+            mint,
+            authority,
+            amount: 1n,
+            decimals: 9,
+        });
+
+        expect(instruction.keys[3].pubkey.equals(authority)).toBe(true);
+        expect(instruction.keys[3].isSigner).toBe(true);
+        expect(instruction.keys[3].isWritable).toBe(true);
+        expect(instruction.keys[5].pubkey.equals(authority)).toBe(true);
+        expect(instruction.keys[5].isSigner).toBe(false);
+    });
+
     it('creates approve, revoke, freeze, and thaw instructions', () => {
         const tokenAccount = Keypair.generate().publicKey;
         const owner = Keypair.generate().publicKey;
@@ -193,6 +215,20 @@ describe('instruction builders', () => {
         expect(instruction.keys[5].pubkey.equals(TOKEN_PROGRAM_ID)).toBe(true);
     });
 
+    it('defaults ATA payer to owner when omitted', () => {
+        const owner = Keypair.generate().publicKey;
+        const mint = Keypair.generate().publicKey;
+
+        const instruction = createAtaInstruction({
+            owner,
+            mint,
+        });
+
+        expect(instruction.programId.equals(LIGHT_TOKEN_PROGRAM_ID)).toBe(true);
+        expect(instruction.keys[2].pubkey.equals(owner)).toBe(true);
+        expect(instruction.keys[2].isSigner).toBe(true);
+    });
+
     it('omits light-token config/rent keys when compressible config is null', () => {
         const feePayer = Keypair.generate().publicKey;
         const owner = Keypair.generate().publicKey;
@@ -207,6 +243,20 @@ describe('instruction builders', () => {
 
         expect(instruction.programId.equals(LIGHT_TOKEN_PROGRAM_ID)).toBe(true);
         expect(instruction.keys).toHaveLength(5);
+    });
+
+    it('defaults associated light-token fee payer to owner when omitted', () => {
+        const owner = Keypair.generate().publicKey;
+        const mint = Keypair.generate().publicKey;
+
+        const instruction = createAssociatedLightTokenAccountInstruction({
+            owner,
+            mint,
+        });
+
+        expect(instruction.programId.equals(LIGHT_TOKEN_PROGRAM_ID)).toBe(true);
+        expect(instruction.keys[2].pubkey.equals(owner)).toBe(true);
+        expect(instruction.keys[2].isSigner).toBe(true);
     });
 
 });

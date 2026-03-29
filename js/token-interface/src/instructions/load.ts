@@ -254,7 +254,7 @@ function buildInputTokenData(
  * - For SPL destinations: Provide splInterface and decimals
  *
  * @param input                             Decompress instruction input.
- * @param input.payer                       Fee payer public key.
+ * @param input.payer                       Optional payer public key. Defaults to authority, then owner.
  * @param input.inputCompressedTokenAccounts Input light-token accounts.
  * @param input.toAddress                   Destination token account address (light-token or SPL associated token account).
  * @param input.amount                      Amount to decompress.
@@ -276,7 +276,7 @@ export function createDecompressInstruction({
   maxTopUp,
   authority,
 }: {
-  payer: PublicKey;
+  payer?: PublicKey;
   inputCompressedTokenAccounts: ParsedTokenAccount[];
   toAddress: PublicKey;
   amount: bigint;
@@ -476,6 +476,7 @@ export function createDecompressInstruction({
     }
     return authorityIndex;
   })();
+  const effectivePayer = payer ?? authority ?? owner;
 
   const keys = [
     // 0: light_system_program (non-mutable)
@@ -485,7 +486,7 @@ export function createDecompressInstruction({
       isWritable: false,
     },
     // 1: fee_payer (signer, mutable)
-    { pubkey: payer, isSigner: true, isWritable: true },
+    { pubkey: effectivePayer, isSigner: true, isWritable: true },
     // 2: cpi_authority_pda
     {
       pubkey: deriveCpiAuthorityPda(),

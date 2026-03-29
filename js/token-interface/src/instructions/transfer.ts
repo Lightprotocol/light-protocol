@@ -29,6 +29,8 @@ export function createTransferCheckedInstruction({
   data.writeBigUInt64LE(BigInt(amount), 1);
   data.writeUInt8(decimals, 9);
 
+  const effectivePayer = payer ?? authority;
+
   return new TransactionInstruction({
     programId: LIGHT_TOKEN_PROGRAM_ID,
     keys: [
@@ -38,12 +40,12 @@ export function createTransferCheckedInstruction({
       {
         pubkey: authority,
         isSigner: true,
-        isWritable: payer.equals(authority),
+        isWritable: effectivePayer.equals(authority),
       },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       {
-        pubkey: payer,
-        isSigner: !payer.equals(authority),
+        pubkey: effectivePayer,
+        isSigner: !effectivePayer.equals(authority),
         isWritable: true,
       },
     ],
@@ -65,6 +67,7 @@ export async function createTransferInstructions({
   tokenProgram,
   amount,
 }: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
+  const effectivePayer = payer ?? authority;
   const amountBigInt = toBigIntAmount(amount);
   const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
   const [decimals, transferSplInterfaces] = await Promise.all([
@@ -75,7 +78,7 @@ export async function createTransferInstructions({
   ]);
   const senderLoadInstructions = await createLoadInstructions({
     rpc,
-    payer,
+    payer: effectivePayer,
     owner: sourceOwner,
     mint,
     authority,
@@ -100,7 +103,7 @@ export async function createTransferInstructions({
       destination: recipientAta,
       mint,
       authority,
-      payer,
+      payer: effectivePayer,
       amount: amountBigInt,
       decimals,
     });
@@ -122,14 +125,14 @@ export async function createTransferInstructions({
       amount: amountBigInt,
       splInterface,
       decimals,
-      payer,
+      payer: effectivePayer,
     });
   }
 
   return [
     ...senderLoadInstructions,
     createAtaInstruction({
-      payer,
+      payer: effectivePayer,
       owner: recipient,
       mint,
       programId: recipientTokenProgramId,
@@ -152,6 +155,7 @@ export async function createTransferInstructionsNowrap({
   tokenProgram,
   amount,
 }: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
+  const effectivePayer = payer ?? authority;
   const amountBigInt = toBigIntAmount(amount);
   const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
   const [decimals, transferSplInterfaces] = await Promise.all([
@@ -162,7 +166,7 @@ export async function createTransferInstructionsNowrap({
   ]);
   const senderLoadInstructions = await createLoadInstructions({
     rpc,
-    payer,
+    payer: effectivePayer,
     owner: sourceOwner,
     mint,
     authority,
@@ -187,7 +191,7 @@ export async function createTransferInstructionsNowrap({
       destination: recipientAta,
       mint,
       authority,
-      payer,
+      payer: effectivePayer,
       amount: amountBigInt,
       decimals,
     });
@@ -209,7 +213,7 @@ export async function createTransferInstructionsNowrap({
       amount: amountBigInt,
       splInterface,
       decimals,
-      payer,
+      payer: effectivePayer,
     });
   }
 

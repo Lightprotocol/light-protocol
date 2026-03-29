@@ -109,4 +109,25 @@ describe('load instructions', () => {
             ),
         ).toEqual([200n]);
     });
+
+    it('defaults payer to owner when omitted', async () => {
+        const fixture = await createMintFixture();
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+        const tokenAccount = getAtaAddress({
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+
+        await mintCompressedToOwner(fixture, owner.publicKey, 250n);
+
+        const instructions = await createLoadInstructions({
+            rpc: fixture.rpc,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+
+        await sendInstructions(fixture.rpc, fixture.payer, instructions, [owner]);
+
+        expect(await getHotBalance(fixture.rpc, tokenAccount)).toBe(250n);
+    });
 });

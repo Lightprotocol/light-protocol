@@ -98,6 +98,32 @@ describe('transfer instructions', () => {
         expect(await getHotBalance(fixture.rpc, senderAta)).toBe(3_000n);
     });
 
+    it('defaults payer to authority when omitted', async () => {
+        const fixture = await createMintFixture();
+        const sender = await newAccountWithLamports(fixture.rpc, 1e9);
+        const recipient = Keypair.generate();
+
+        await mintCompressedToOwner(fixture, sender.publicKey, 1_000n);
+
+        const instructions = await createTransferInstructions({
+            rpc: fixture.rpc,
+            mint: fixture.mint,
+            sourceOwner: sender.publicKey,
+            authority: sender.publicKey,
+            recipient: recipient.publicKey,
+            amount: 400n,
+        });
+
+        await sendInstructions(fixture.rpc, fixture.payer, instructions, [sender]);
+
+        const recipientAta = await getAta({
+            rpc: fixture.rpc,
+            owner: recipient.publicKey,
+            mint: fixture.mint,
+        });
+        expect(recipientAta.parsed.amount).toBe(400n);
+    });
+
     it('supports non-light destination path with SPL ATA recipient', async () => {
         const fixture = await createMintFixture();
         const sender = await newAccountWithLamports(fixture.rpc, 1e9);

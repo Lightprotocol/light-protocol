@@ -140,7 +140,7 @@ function encodeCreateAssociatedLightTokenAccountData(
 }
 
 export interface CreateAssociatedLightTokenAccountInstructionParams {
-    feePayer: PublicKey;
+    feePayer?: PublicKey;
     owner: PublicKey;
     mint: PublicKey;
     compressibleConfig?: CompressibleConfig | null;
@@ -153,7 +153,7 @@ export interface CreateAssociatedLightTokenAccountInstructionParams {
  * Uses the default rent sponsor PDA by default.
  *
  * @param input                    Associated light-token account input.
- * @param input.feePayer           Fee payer public key.
+ * @param input.feePayer           Optional fee payer public key. Defaults to owner.
  * @param input.owner              Owner of the associated token account.
  * @param input.mint               Mint address.
  * @param input.compressibleConfig Compressible configuration (defaults to rent sponsor config).
@@ -170,6 +170,7 @@ export function createAssociatedLightTokenAccountInstruction(
         rentPayerPda = LIGHT_TOKEN_RENT_SPONSOR,
     }: CreateAssociatedLightTokenAccountInstructionParams,
 ): TransactionInstruction {
+    const effectiveFeePayer = feePayer ?? owner;
     const associatedTokenAccount = getAssociatedLightTokenAddress(owner, mint);
 
     const data = encodeCreateAssociatedLightTokenAccountData(
@@ -195,7 +196,7 @@ export function createAssociatedLightTokenAccountInstruction(
     }[] = [
         { pubkey: owner, isSigner: false, isWritable: false },
         { pubkey: mint, isSigner: false, isWritable: false },
-        { pubkey: feePayer, isSigner: true, isWritable: true },
+        { pubkey: effectiveFeePayer, isSigner: true, isWritable: true },
         {
             pubkey: associatedTokenAccount,
             isSigner: false,
@@ -227,7 +228,7 @@ export function createAssociatedLightTokenAccountInstruction(
  * Uses the default rent sponsor PDA by default.
  *
  * @param input                    Associated light-token account input.
- * @param input.feePayer           Fee payer public key.
+ * @param input.feePayer           Optional fee payer public key. Defaults to owner.
  * @param input.owner              Owner of the associated token account.
  * @param input.mint               Mint address.
  * @param input.compressibleConfig Compressible configuration (defaults to rent sponsor config).
@@ -244,6 +245,7 @@ export function createAssociatedLightTokenAccountIdempotentInstruction(
         rentPayerPda = LIGHT_TOKEN_RENT_SPONSOR,
     }: CreateAssociatedLightTokenAccountInstructionParams,
 ): TransactionInstruction {
+    const effectiveFeePayer = feePayer ?? owner;
     const associatedTokenAccount = getAssociatedLightTokenAddress(owner, mint);
 
     const data = encodeCreateAssociatedLightTokenAccountData(
@@ -260,7 +262,7 @@ export function createAssociatedLightTokenAccountIdempotentInstruction(
     }[] = [
         { pubkey: owner, isSigner: false, isWritable: false },
         { pubkey: mint, isSigner: false, isWritable: false },
-        { pubkey: feePayer, isSigner: true, isWritable: true },
+        { pubkey: effectiveFeePayer, isSigner: true, isWritable: true },
         {
             pubkey: associatedTokenAccount,
             isSigner: false,
@@ -297,7 +299,7 @@ export interface LightTokenConfig {
 }
 
 export interface CreateAssociatedTokenAccountInstructionInput {
-    payer: PublicKey;
+    payer?: PublicKey;
     associatedToken: PublicKey;
     owner: PublicKey;
     mint: PublicKey;
@@ -328,12 +330,13 @@ function createAssociatedTokenAccountInstruction({
     associatedTokenProgramId,
     lightTokenConfig,
 }: CreateAssociatedTokenAccountInstructionInput): TransactionInstruction {
+    const effectivePayer = payer ?? owner;
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         return createAssociatedLightTokenAccountInstruction({
-            feePayer: payer,
+            feePayer: effectivePayer,
             owner,
             mint,
             compressibleConfig: lightTokenConfig?.compressibleConfig,
@@ -342,7 +345,7 @@ function createAssociatedTokenAccountInstruction({
         });
     } else {
         return createSplAssociatedTokenAccountInstruction(
-            payer,
+            effectivePayer,
             associatedToken,
             owner,
             mint,
@@ -374,12 +377,13 @@ function createAssociatedTokenAccountIdempotentInstruction({
     associatedTokenProgramId,
     lightTokenConfig,
 }: CreateAssociatedTokenAccountInstructionInput): TransactionInstruction {
+    const effectivePayer = payer ?? owner;
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         return createAssociatedLightTokenAccountIdempotentInstruction({
-            feePayer: payer,
+            feePayer: effectivePayer,
             owner,
             mint,
             compressibleConfig: lightTokenConfig?.compressibleConfig,
@@ -388,7 +392,7 @@ function createAssociatedTokenAccountIdempotentInstruction({
         });
     } else {
         return createSplAssociatedTokenAccountIdempotentInstruction(
-            payer,
+            effectivePayer,
             associatedToken,
             owner,
             mint,
