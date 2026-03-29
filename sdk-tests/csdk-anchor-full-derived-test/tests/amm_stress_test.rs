@@ -568,7 +568,7 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         .create_and_send_transaction(
             &decompress_ixs,
             &ctx.payer.pubkey(),
-            &[&ctx.payer, &ctx.creator],
+            &[&ctx.payer],
         )
         .await
         .expect("Decompression should succeed");
