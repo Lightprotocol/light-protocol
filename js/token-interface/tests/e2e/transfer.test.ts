@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ComputeBudgetProgram, Keypair } from '@solana/web3.js';
 import {
     TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
     unpackAccount,
 } from '@solana/spl-token';
@@ -22,6 +23,14 @@ import {
 } from './helpers';
 
 describe('transfer instructions', () => {
+    const isSplOrT22CloseInstruction = (
+        instruction: { programId: { equals: (other: unknown) => boolean }; data: Uint8Array },
+    ): boolean =>
+        (instruction.programId.equals(TOKEN_PROGRAM_ID) ||
+            instruction.programId.equals(TOKEN_2022_PROGRAM_ID)) &&
+        instruction.data.length > 0 &&
+        instruction.data[0] === 9;
+
     it('rejects transfer build for signer that is neither owner nor delegate', async () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
@@ -66,6 +75,7 @@ describe('transfer instructions', () => {
                 instruction.programId.equals(ComputeBudgetProgram.programId),
             ),
         ).toBe(false);
+        expect(instructions.some(isSplOrT22CloseInstruction)).toBe(false);
 
         await sendInstructions(fixture.rpc, fixture.payer, instructions, [
             sender,
