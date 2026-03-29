@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ComputeBudgetProgram, Keypair, TransactionInstruction } from '@solana/web3.js';
 import {
+    createTransferCheckedInstruction as createSplTransferCheckedInstruction,
     TOKEN_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
@@ -21,6 +22,7 @@ import {
     getHotBalance,
     mintCompressedToOwner,
     sendInstructions,
+    TEST_TOKEN_DECIMALS,
 } from './helpers';
 
 describe('transfer instructions', () => {
@@ -383,5 +385,98 @@ describe('transfer instructions', () => {
             mint: fixture.mint,
         });
         expect(recipientAta.parsed.amount).toBe(1_000n);
+    });
+
+    it('wrapped transfer uses build-time SPL balance and leaves post-build SPL top-up as remainder', async () => {
+        const fixture = await createMintFixture();
+        const sender = await newAccountWithLamports(fixture.rpc, 1e9);
+        const donor = await newAccountWithLamports(fixture.rpc, 1e9);
+        const recipient = Keypair.generate();
+        const senderSplAta = getAssociatedTokenAddressSync(
+            fixture.mint,
+            sender.publicKey,
+            false,
+            TOKEN_PROGRAM_ID,
+        );
+        const donorSplAta = getAssociatedTokenAddressSync(
+            fixture.mint,
+            donor.publicKey,
+            false,
+            TOKEN_PROGRAM_ID,
+        );
+
+        await mintCompressedToOwner(fixture, sender.publicKey, 3_000n);
+        await mintCompressedToOwner(fixture, donor.publicKey, 1_000n);
+
+        // Stage 1: move 1_000 into sender SPL ATA.
+        const senderToSpl = await createTransferInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            mint: fixture.mint,
+            sourceOwner: sender.publicKey,
+            authority: sender.publicKey,
+            recipient: sender.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            amount: 1_000n,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, senderToSpl, [sender]);
+
+        // Stage 2: fund donor SPL ATA with 500.
+        const donorToSpl = await createTransferInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            mint: fixture.mint,
+            sourceOwner: donor.publicKey,
+            authority: donor.publicKey,
+            recipient: donor.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            amount: 500n,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, donorToSpl, [donor]);
+
+        // Build wrapped transfer now (captures sender SPL balance = 1_000).
+        const wrappedTransfer = await createTransferInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            mint: fixture.mint,
+            sourceOwner: sender.publicKey,
+            authority: sender.publicKey,
+            recipient: recipient.publicKey,
+            amount: 800n,
+        });
+
+        // Race injection: send +300 to sender SPL ATA AFTER wrapped tx is built.
+        const injectAfterBuild = createSplTransferCheckedInstruction(
+            donorSplAta,
+            fixture.mint,
+            senderSplAta,
+            donor.publicKey,
+            300n,
+            TEST_TOKEN_DECIMALS,
+            [],
+            TOKEN_PROGRAM_ID,
+        );
+        await sendInstructions(fixture.rpc, fixture.payer, [injectAfterBuild], [donor]);
+
+        // Wrapped transfer should still succeed.
+        await sendInstructions(fixture.rpc, fixture.payer, wrappedTransfer, [sender]);
+
+        // Recipient receives transfer amount.
+        const recipientAta = await getAta({
+            rpc: fixture.rpc,
+            owner: recipient.publicKey,
+            mint: fixture.mint,
+        });
+        expect(recipientAta.parsed.amount).toBe(800n);
+
+        // Sender SPL ATA keeps the post-build top-up remainder (300).
+        const senderSplInfo = await fixture.rpc.getAccountInfo(senderSplAta);
+        expect(senderSplInfo).not.toBeNull();
+        const senderSpl = unpackAccount(
+            senderSplAta,
+            senderSplInfo!,
+            TOKEN_PROGRAM_ID,
+        );
+        expect(senderSpl.amount).toBe(300n);
     });
 });
