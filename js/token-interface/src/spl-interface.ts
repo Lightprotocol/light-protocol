@@ -2,6 +2,8 @@ import { Commitment, PublicKey } from "@solana/web3.js";
 import {
   TOKEN_2022_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
+  TokenAccountNotFoundError,
+  TokenInvalidAccountOwnerError,
   unpackAccount,
 } from "@solana/spl-token";
 import { bn, Rpc } from "@lightprotocol/stateless.js";
@@ -48,11 +50,13 @@ export async function getSplInterfaces(
     (accountInfo) => accountInfo !== null,
   );
   if (anchorIndex === -1) {
-    throw new Error(`SPL interface not found for mint ${mint.toBase58()}.`);
+    throw new TokenAccountNotFoundError(
+      `SPL interface not found for mint ${mint.toBase58()}.`,
+    );
   }
   const tokenProgramId = accountInfos[anchorIndex]!.owner;
   if (!isSupportedTokenProgramId(tokenProgramId)) {
-    throw new Error(
+    throw new TokenInvalidAccountOwnerError(
       `Invalid token program owner for SPL interface mint ${mint.toBase58()}: ${tokenProgramId.toBase58()}`,
     );
   }
