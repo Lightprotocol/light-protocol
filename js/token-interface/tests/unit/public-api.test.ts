@@ -3,7 +3,7 @@ import { Keypair } from '@solana/web3.js';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { getAssociatedTokenAddress } from '../../src/read';
 import {
-    buildTransferInstructions,
+    createTransferInstructions,
     MultiTransactionNotSupportedError,
     createAtaInstructions,
     createFreezeInstruction,
@@ -70,6 +70,6 @@ describe('public api', () => {
     });
 
     it('exports canonical transfer builder', () => {
-        expect(typeof buildTransferInstructions).toBe('function');
+        expect(typeof createTransferInstructions).toBe('function');
     });
 });

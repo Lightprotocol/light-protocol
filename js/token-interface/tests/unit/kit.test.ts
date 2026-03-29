@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Keypair } from '@solana/web3.js';
 import { createAtaInstruction } from '../../src/instructions';
 import {
-    buildTransferInstructions,
+    createTransferInstructions,
     createAtaInstructions,
     createTransferInstructionPlan,
     toKitInstructions,
@@ -35,7 +35,7 @@ describe('kit adapter', () => {
     });
 
     it('exports transfer builder and plan builder', () => {
-        expect(typeof buildTransferInstructions).toBe('function');
+        expect(typeof createTransferInstructions).toBe('function');
         expect(typeof createTransferInstructionPlan).toBe('function');
     });
 });

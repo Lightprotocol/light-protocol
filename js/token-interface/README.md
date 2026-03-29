@@ -41,17 +41,17 @@ const transferPlan = await createTransferInstructionPlan({
 If you prefer Kit instruction arrays instead of plans:
 
 ```ts
-import { buildTransferInstructions } from '@lightprotocol/token-interface/kit';
+import { createTransferInstructions } from '@lightprotocol/token-interface/kit';
 ```
 
 ## Canonical for web3.js users
 
-Use `buildTransferInstructions` from the root export.
+Use `createTransferInstructions` from the root export.
 
 ```ts
-import { buildTransferInstructions } from '@lightprotocol/token-interface';
+import { createTransferInstructions } from '@lightprotocol/token-interface';
 
-const instructions = await buildTransferInstructions({
+const instructions = await createTransferInstructions({
     rpc,
     payer: payer.publicKey,
     mint,
@@ -62,12 +62,6 @@ const instructions = await buildTransferInstructions({
 });
 
 // add memo if needed, then build/sign/send transaction
-```
-
-Backwards-compatible alias:
-
-```ts
-import { createTransferInstructions } from '@lightprotocol/token-interface';
 ```
 
 ## Raw single-instruction helpers
@@ -87,7 +81,7 @@ import {
 If you explicitly want to disable automatic sender wrapping, use:
 
 ```ts
-import { buildTransferInstructionsNowrap } from '@lightprotocol/token-interface/instructions';
+import { createTransferInstructionsNowrap } from '@lightprotocol/token-interface/instructions';
 ```
 
 ## Read account
@@ -103,7 +97,7 @@ console.log(account.amount, account.hotAmount, account.compressedAmount);
 
 - Only one compressed sender account is loaded per call; smaller ones are ignored for that call.
 - Transfer always builds checked semantics.
-- Canonical builders always use wrap-enabled sender setup (`buildTransferInstructions`, `createLoadInstructions`, `createApproveInstructions`, `createRevokeInstructions`).
-- If sender SPL/T22 balances were wrapped by the flow, source SPL/T22 ATAs are closed afterward.
+- Canonical builders always use wrap-enabled sender setup (`createTransferInstructions`, `createLoadInstructions`, `createApproveInstructions`, `createRevokeInstructions`).
+- If sender SPL/T22 balances are wrapped by the flow, source SPL/T22 ATAs are not auto-closed.
 - Recipient ATA is derived from `(recipient, mint, tokenProgram)`; default is light token program.
 - Recipient-side load is still intentionally disabled.

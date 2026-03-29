@@ -10,7 +10,7 @@ import {
 import { newAccountWithLamports } from '@lightprotocol/stateless.js';
 import {
     createApproveInstructions,
-    buildTransferInstructionsNowrap,
+    createTransferInstructionsNowrap,
     createAtaInstructions,
     createTransferInstructions,
     getAta,
@@ -352,7 +352,7 @@ describe('transfer instructions', () => {
         expect(senderSpl.amount).toBe(1_500n);
 
         // Nowrap does not wrap SPL/T22 balances, so transfer should fail.
-        const nowrapInstructions = await buildTransferInstructionsNowrap({
+        const nowrapInstructions = await createTransferInstructionsNowrap({
             rpc: fixture.rpc,
             payer: fixture.payer.publicKey,
             mint: fixture.mint,
