@@ -67,10 +67,12 @@ export async function buildTransferInstructions({
 }: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
   const amountBigInt = toBigIntAmount(amount);
   const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
-  const decimals = await getMintDecimals(rpc, mint);
-  const transferSplInterfaces = recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)
-    ? undefined
-    : await getSplInterfaces(rpc, mint);
+  const [decimals, transferSplInterfaces] = await Promise.all([
+    getMintDecimals(rpc, mint),
+    recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)
+      ? Promise.resolve(undefined)
+      : getSplInterfaces(rpc, mint),
+  ]);
   const senderLoadInstructions = await createLoadInstructions({
     rpc,
     payer,
@@ -152,10 +154,12 @@ export async function buildTransferInstructionsNowrap({
 }: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
   const amountBigInt = toBigIntAmount(amount);
   const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
-  const decimals = await getMintDecimals(rpc, mint);
-  const transferSplInterfaces = recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)
-    ? undefined
-    : await getSplInterfaces(rpc, mint);
+  const [decimals, transferSplInterfaces] = await Promise.all([
+    getMintDecimals(rpc, mint),
+    recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)
+      ? Promise.resolve(undefined)
+      : getSplInterfaces(rpc, mint),
+  ]);
   const senderLoadInstructions = await createLoadInstructions({
     rpc,
     payer,
