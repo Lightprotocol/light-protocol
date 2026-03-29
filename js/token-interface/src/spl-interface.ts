@@ -1,5 +1,9 @@
 import { Commitment, PublicKey } from "@solana/web3.js";
-import { unpackAccount } from "@solana/spl-token";
+import {
+  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+  unpackAccount,
+} from "@solana/spl-token";
 import { bn, Rpc } from "@lightprotocol/stateless.js";
 import BN from "bn.js";
 import { deriveSplInterfacePdaWithIndex } from "./constants";
@@ -19,6 +23,13 @@ export type SplInterface = {
   bump: number;
 };
 
+function isSupportedTokenProgramId(programId: PublicKey): boolean {
+  return (
+    programId.equals(TOKEN_PROGRAM_ID) ||
+    programId.equals(TOKEN_2022_PROGRAM_ID)
+  );
+}
+
 export async function getSplInterfaces(
   rpc: Rpc,
   mint: PublicKey,
@@ -33,8 +44,17 @@ export async function getSplInterfaces(
     commitment,
   );
 
-  if (accountInfos[0] === null) {
+  const anchorIndex = accountInfos.findIndex(
+    (accountInfo) => accountInfo !== null,
+  );
+  if (anchorIndex === -1) {
     throw new Error(`SPL interface not found for mint ${mint.toBase58()}.`);
+  }
+  const tokenProgramId = accountInfos[anchorIndex]!.owner;
+  if (!isSupportedTokenProgramId(tokenProgramId)) {
+    throw new Error(
+      `Invalid token program owner for SPL interface mint ${mint.toBase58()}: ${tokenProgramId.toBase58()}`,
+    );
   }
 
   const parsedInfos = addressesAndBumps.map(([address], i) =>
@@ -42,8 +62,6 @@ export async function getSplInterfaces(
       ? unpackAccount(address, accountInfos[i], accountInfos[i].owner)
       : null,
   );
-
-  const tokenProgramId = accountInfos[0].owner;
 
   return parsedInfos.map((parsedInfo, i) => {
     if (!parsedInfo) {
