@@ -59,14 +59,14 @@
         "@typescript-eslint/eslint-plugin": "^8.44.0",
         "@typescript-eslint/parser": "^8.44.0",
         "eslint": "^9.36.0",
-        "eslint-plugin-vitest": "^0.5.4",
+        "@cucumber/cucumber": "^11.0.0",
         "prettier": "^3.3.3",
         "rimraf": "^6.0.1",
         "rollup": "^4.21.3",
         "rollup-plugin-dts": "^6.1.1",
         "tslib": "^2.7.0",
-        "typescript": "^5.6.2",
-        "vitest": "^2.1.1"
+        "tsx": "^4.19.0",
+        "typescript": "^5.6.2"
     },
     "scripts": {
         "build": "pnpm build:v2",
@@ -74,8 +74,8 @@
         "build:deps:v2": "pnpm --dir ../stateless.js build:v2",
         "build:bundle": "rimraf dist && rollup -c",
         "test": "pnpm test:unit:all && pnpm test:e2e:all",
-        "test:unit:all": "pnpm build:deps:v2 && LIGHT_PROTOCOL_VERSION=V2 EXCLUDE_E2E=true vitest run tests/unit --reporter=verbose",
-        "test:e2e:all": "pnpm build:deps:v2 && pnpm test-validator && LIGHT_PROTOCOL_VERSION=V2 vitest run tests/e2e --reporter=verbose --bail=1",
+        "test:unit:all": "pnpm build:deps:v2 && LIGHT_PROTOCOL_VERSION=V2 pnpm exec cucumber-js --profile unit",
+        "test:e2e:all": "pnpm build:deps:v2 && pnpm test-validator && LIGHT_PROTOCOL_VERSION=V2 pnpm exec cucumber-js --profile e2e",
         "test-validator": "./../../cli/test_bin/run test-validator",
         "lint": "eslint .",
         "format": "prettier --write ."

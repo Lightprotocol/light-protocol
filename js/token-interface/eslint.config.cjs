@@ -36,9 +36,7 @@ module.exports = [
     {
         files: [
             'tests/**/*.ts',
-            '**/*.test.ts',
-            '**/*.spec.ts',
-            'vitest.config.ts',
+            '**/*.steps.ts',
         ],
         languageOptions: {
             parser: tsParser,
@@ -52,15 +50,6 @@ module.exports = [
                 __dirname: 'readonly',
                 __filename: 'readonly',
                 Buffer: 'readonly',
-                describe: 'readonly',
-                it: 'readonly',
-                expect: 'readonly',
-                beforeEach: 'readonly',
-                afterEach: 'readonly',
-                beforeAll: 'readonly',
-                afterAll: 'readonly',
-                jest: 'readonly',
-                test: 'readonly',
             },
         },
         plugins: {
