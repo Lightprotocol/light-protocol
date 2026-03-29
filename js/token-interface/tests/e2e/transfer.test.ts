@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ComputeBudgetProgram, Keypair } from '@solana/web3.js';
+import { ComputeBudgetProgram, Keypair, TransactionInstruction } from '@solana/web3.js';
 import {
     TOKEN_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID,
@@ -9,6 +9,7 @@ import {
 import { newAccountWithLamports } from '@lightprotocol/stateless.js';
 import {
     createApproveInstructions,
+    buildTransferInstructionsNowrap,
     createAtaInstructions,
     createTransferInstructions,
     getAta,
@@ -24,7 +25,7 @@ import {
 
 describe('transfer instructions', () => {
     const isSplOrT22CloseInstruction = (
-        instruction: { programId: { equals: (other: unknown) => boolean }; data: Uint8Array },
+        instruction: TransactionInstruction,
     ): boolean =>
         (instruction.programId.equals(TOKEN_PROGRAM_ID) ||
             instruction.programId.equals(TOKEN_2022_PROGRAM_ID)) &&
@@ -309,5 +310,78 @@ describe('transfer instructions', () => {
                 delegate,
             ]),
         ).rejects.toThrow('custom program error');
+    });
+
+    it('nowrap path fails when balance exists only in SPL ATA, canonical path succeeds', async () => {
+        const fixture = await createMintFixture();
+        const sender = await newAccountWithLamports(fixture.rpc, 1e9);
+        const recipient = Keypair.generate();
+        const senderSplAta = getAssociatedTokenAddressSync(
+            fixture.mint,
+            sender.publicKey,
+            false,
+            TOKEN_PROGRAM_ID,
+        );
+
+        await mintCompressedToOwner(fixture, sender.publicKey, 2_000n);
+
+        // Stage funds into sender SPL ATA.
+        const toSenderSplInstructions = await createTransferInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            mint: fixture.mint,
+            sourceOwner: sender.publicKey,
+            authority: sender.publicKey,
+            recipient: sender.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            amount: 1_500n,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, toSenderSplInstructions, [
+            sender,
+        ]);
+
+        const senderSplInfo = await fixture.rpc.getAccountInfo(senderSplAta);
+        expect(senderSplInfo).not.toBeNull();
+        const senderSpl = unpackAccount(
+            senderSplAta,
+            senderSplInfo!,
+            TOKEN_PROGRAM_ID,
+        );
+        expect(senderSpl.amount).toBe(1_500n);
+
+        // Nowrap does not wrap SPL/T22 balances, so transfer should fail.
+        const nowrapInstructions = await buildTransferInstructionsNowrap({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            mint: fixture.mint,
+            sourceOwner: sender.publicKey,
+            authority: sender.publicKey,
+            recipient: recipient.publicKey,
+            amount: 1_000n,
+        });
+        await expect(
+            sendInstructions(fixture.rpc, fixture.payer, nowrapInstructions, [sender]),
+        ).rejects.toThrow('custom program error');
+
+        // Canonical transfer wraps SPL first, then succeeds.
+        const canonicalInstructions = await createTransferInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            mint: fixture.mint,
+            sourceOwner: sender.publicKey,
+            authority: sender.publicKey,
+            recipient: recipient.publicKey,
+            amount: 1_000n,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, canonicalInstructions, [
+            sender,
+        ]);
+
+        const recipientAta = await getAta({
+            rpc: fixture.rpc,
+            owner: recipient.publicKey,
+            mint: fixture.mint,
+        });
+        expect(recipientAta.parsed.amount).toBe(1_000n);
     });
 });
