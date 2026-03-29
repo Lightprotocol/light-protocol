@@ -678,7 +678,6 @@ async function _buildLoadInstructions(
 
   let splInterface: SplInterface | undefined;
   const needsSplInfo =
-    wrap ||
     ataType === "spl" ||
     ataType === "token2022" ||
     splBalance > BigInt(0) ||
