@@ -3,12 +3,6 @@ import { SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import { LIGHT_TOKEN_PROGRAM_ID } from "@lightprotocol/stateless.js";
 import { getSplInterfaces } from "../spl-interface";
 import { createUnwrapInstruction } from "./unwrap";
-import {
-  TOKEN_2022_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-  createCloseAccountInstruction,
-  unpackAccount,
-} from "@solana/spl-token";
 import { getMintDecimals, toBigIntAmount } from "../helpers";
 import { getAtaAddress } from "../read";
 import type {
@@ -19,24 +13,7 @@ import { createLoadInstructions } from "./load";
 import { toInstructionPlan } from "./_plan";
 import { createAtaInstruction } from "./ata";
 
-const ZERO = BigInt(0);
-
 const LIGHT_TOKEN_TRANSFER_CHECKED_DISCRIMINATOR = 12;
-
-async function getDerivedAtaBalance(
-  rpc: CreateTransferInstructionsInput["rpc"],
-  owner: CreateTransferInstructionsInput["sourceOwner"],
-  mint: CreateTransferInstructionsInput["mint"],
-  programId: typeof TOKEN_PROGRAM_ID | typeof TOKEN_2022_PROGRAM_ID,
-): Promise<bigint> {
-  const ata = getAtaAddress({ owner, mint, programId });
-  const info = await rpc.getAccountInfo(ata);
-  if (!info || !info.owner.equals(programId)) {
-    return ZERO;
-  }
-
-  return unpackAccount(ata, info, programId).amount;
-}
 
 export function createTransferCheckedInstruction({
   source,
@@ -104,43 +81,6 @@ export async function buildTransferInstructions({
     programId: recipientTokenProgramId,
   });
   const decimals = await getMintDecimals(rpc, mint);
-  const [senderSplBalance, senderT22Balance] = await Promise.all([
-    getDerivedAtaBalance(rpc, sourceOwner, mint, TOKEN_PROGRAM_ID),
-    getDerivedAtaBalance(rpc, sourceOwner, mint, TOKEN_2022_PROGRAM_ID),
-  ]);
-
-  const closeWrappedSourceInstructions: TransactionInstruction[] = [];
-  if (authority.equals(sourceOwner) && senderSplBalance > ZERO) {
-    closeWrappedSourceInstructions.push(
-      createCloseAccountInstruction(
-        getAtaAddress({
-          owner: sourceOwner,
-          mint,
-          programId: TOKEN_PROGRAM_ID,
-        }),
-        sourceOwner,
-        sourceOwner,
-        [],
-        TOKEN_PROGRAM_ID,
-      ),
-    );
-  }
-  if (authority.equals(sourceOwner) && senderT22Balance > ZERO) {
-    closeWrappedSourceInstructions.push(
-      createCloseAccountInstruction(
-        getAtaAddress({
-          owner: sourceOwner,
-          mint,
-          programId: TOKEN_2022_PROGRAM_ID,
-        }),
-        sourceOwner,
-        sourceOwner,
-        [],
-        TOKEN_2022_PROGRAM_ID,
-      ),
-    );
-  }
-
   const recipientLoadInstructions: TransactionInstruction[] = [];
   const senderAta = getAtaAddress({
     owner: sourceOwner,
@@ -182,7 +122,6 @@ export async function buildTransferInstructions({
 
   return [
     ...senderLoadInstructions,
-    ...closeWrappedSourceInstructions,
     createAtaInstruction({
       payer,
       owner: recipient,
