@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Keypair } from '@solana/web3.js';
-import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { Buffer } from 'buffer';
+import { LIGHT_TOKEN_PROGRAM_ID, bn } from '@lightprotocol/stateless.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
     createApproveInstruction,
@@ -12,9 +13,54 @@ import {
     createRevokeInstruction,
     createThawInstruction,
     createTransferCheckedInstruction,
+    createDecompressInstruction,
 } from '../../src/instructions';
 
 describe('instruction builders', () => {
+    function buildParsedCompressedAccount(params?: {
+        amount?: bigint;
+        owner?: ReturnType<typeof Keypair.generate>['publicKey'];
+        mint?: ReturnType<typeof Keypair.generate>['publicKey'];
+        tree?: ReturnType<typeof Keypair.generate>['publicKey'];
+        queue?: ReturnType<typeof Keypair.generate>['publicKey'];
+        leafIndex?: number;
+    }) {
+        const owner = params?.owner ?? Keypair.generate().publicKey;
+        const mint = params?.mint ?? Keypair.generate().publicKey;
+        const tree = params?.tree ?? Keypair.generate().publicKey;
+        const queue = params?.queue ?? Keypair.generate().publicKey;
+        const amount = params?.amount ?? 10n;
+        const leafIndex = params?.leafIndex ?? 1;
+        return {
+            compressedAccount: {
+                treeInfo: {
+                    tree,
+                    queue,
+                },
+                hash: new Array(32).fill(0),
+                leafIndex,
+                proveByIndex: false,
+                owner: LIGHT_TOKEN_PROGRAM_ID,
+                lamports: bn(0),
+                address: null,
+                data: {
+                    discriminator: [2, 0, 0, 0, 0, 0, 0, 0],
+                    data: Buffer.alloc(0),
+                    dataHash: new Array(32).fill(0),
+                },
+                readOnly: false,
+            },
+            parsed: {
+                mint,
+                owner,
+                amount: bn(amount.toString()),
+                delegate: null,
+                state: 1,
+                tlv: null,
+            },
+        } as any;
+    }
+
     it('creates a canonical light-token ata instruction', () => {
         const payer = Keypair.generate().publicKey;
         const owner = Keypair.generate().publicKey;
@@ -213,6 +259,51 @@ describe('instruction builders', () => {
 
         expect(instruction.programId.equals(TOKEN_PROGRAM_ID)).toBe(false);
         expect(instruction.keys[5].pubkey.equals(TOKEN_PROGRAM_ID)).toBe(true);
+    });
+
+    it('throws when decompress amount exceeds total input amount', () => {
+        const account = buildParsedCompressedAccount({ amount: 5n });
+        const owner = account.parsed.owner;
+        const destination = Keypair.generate().publicKey;
+        const validityProof = {
+            compressedProof: null,
+            rootIndices: [0],
+        } as any;
+
+        expect(() =>
+            createDecompressInstruction({
+                payer: owner,
+                inputCompressedTokenAccounts: [account],
+                toAddress: destination,
+                amount: 6n,
+                validityProof,
+                decimals: 9,
+                authority: owner,
+            }),
+        ).toThrow(/exceeds total input amount/i);
+    });
+
+    it('throws when decompress inputs have mixed owners', () => {
+        const mint = Keypair.generate().publicKey;
+        const accountA = buildParsedCompressedAccount({ mint });
+        const accountB = buildParsedCompressedAccount({ mint });
+        const destination = Keypair.generate().publicKey;
+        const validityProof = {
+            compressedProof: null,
+            rootIndices: [0, 0],
+        } as any;
+
+        expect(() =>
+            createDecompressInstruction({
+                payer: accountA.parsed.owner,
+                inputCompressedTokenAccounts: [accountA, accountB],
+                toAddress: destination,
+                amount: 1n,
+                validityProof,
+                decimals: 9,
+                authority: accountA.parsed.owner,
+            }),
+        ).toThrow(/same owner/i);
     });
 
     it('defaults ATA payer to owner when omitted', () => {
