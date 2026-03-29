@@ -1,7 +1,7 @@
 import type { TransactionInstruction } from '@solana/web3.js';
 import {
-    buildTransferInstructions as buildTransferInstructionsTx,
-    buildTransferInstructionsNowrap as buildTransferInstructionsNowrapTx,
+    createTransferInstructions as createTransferInstructionsTx,
+    createTransferInstructionsNowrap as createTransferInstructionsNowrapTx,
     createApproveInstructions as createApproveInstructionsTx,
     createApproveInstructionsNowrap as createApproveInstructionsNowrapTx,
     createAtaInstructions as createAtaInstructionsTx,
@@ -61,16 +61,16 @@ export async function createLoadInstructions(
     return wrap(createLoadInstructionsTx(input));
 }
 
-export async function buildTransferInstructions(
+export async function createTransferInstructions(
     input: CreateTransferInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return wrap(buildTransferInstructionsTx(input));
+    return wrap(createTransferInstructionsTx(input));
 }
 
-export async function buildTransferInstructionsNowrap(
+export async function createTransferInstructionsNowrap(
     input: CreateTransferInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return wrap(buildTransferInstructionsNowrapTx(input));
+    return wrap(createTransferInstructionsNowrapTx(input));
 }
 
 export async function createApproveInstructions(

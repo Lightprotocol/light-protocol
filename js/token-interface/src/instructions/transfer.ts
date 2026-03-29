@@ -55,7 +55,7 @@ export function createTransferCheckedInstruction({
  * Canonical web3.js transfer flow builder.
  * Returns an instruction array for a single transfer flow (setup + transfer).
  */
-export async function buildTransferInstructions({
+export async function createTransferInstructions({
   rpc,
   payer,
   mint,
@@ -142,7 +142,7 @@ export async function buildTransferInstructions({
 /**
  * No-wrap transfer flow builder (advanced).
  */
-export async function buildTransferInstructionsNowrap({
+export async function createTransferInstructionsNowrap({
   rpc,
   payer,
   mint,
@@ -219,7 +219,5 @@ export async function buildTransferInstructionsNowrap({
 export async function createTransferInstructionPlan(
   input: CreateTransferInstructionsInput,
 ) {
-  return toInstructionPlan(await buildTransferInstructions(input));
+  return toInstructionPlan(await createTransferInstructions(input));
 }
-
-export { buildTransferInstructions as createTransferInstructions };
