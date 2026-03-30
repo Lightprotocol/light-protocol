@@ -46,7 +46,6 @@ export function createWrapInstruction(
     const SOURCE_INDEX = 2;
     const DESTINATION_INDEX = 3;
     const POOL_INDEX = 4;
-    const _SPL_TOKEN_PROGRAM_INDEX = 5;
     const LIGHT_TOKEN_PROGRAM_INDEX = 6;
 
     const compressions: Compression[] = [

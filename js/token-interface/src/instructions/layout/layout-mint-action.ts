@@ -25,6 +25,7 @@ import {
 import { bn } from '@lightprotocol/stateless.js';
 
 export const MINT_ACTION_DISCRIMINATOR = Buffer.from([103]);
+const MINT_ACTION_ENCODE_BUFFER_SIZE = 8 * 1024;
 
 export const RecipientLayout = struct([publicKey('recipient'), u64('amount')]);
 
@@ -326,8 +327,6 @@ export function encodeMintActionInstructionData(
         return action;
     });
 
-    const buffer = Buffer.alloc(10000);
-
     const encodableData = {
         ...data,
         actions: convertedActions,
@@ -338,11 +337,11 @@ export function encodeMintActionInstructionData(
               }
             : null,
     };
+    const buffer = Buffer.alloc(MINT_ACTION_ENCODE_BUFFER_SIZE);
     const len = MintActionCompressedInstructionDataLayout.encode(
         encodableData,
         buffer,
     );
-
     return Buffer.concat([MINT_ACTION_DISCRIMINATOR, buffer.subarray(0, len)]);
 }
 

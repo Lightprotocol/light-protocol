@@ -485,7 +485,9 @@ describe('LightToken approve/revoke - E2E', () => {
         const { blockhash } = await rpc.getLatestBlockhash();
         const tx = buildAndSignTx([ix], payer, blockhash, [wrongSigner]);
 
-        await expect(sendAndConfirmTx(rpc, tx)).rejects.toThrow();
+        await expect(sendAndConfirmTx(rpc, tx)).rejects.toThrow(
+            /owner|authority|custom program error|instruction error/i,
+        );
     }, 60_000);
 
     it('should work with separate fee payer', async () => {

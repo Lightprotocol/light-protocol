@@ -425,17 +425,17 @@ export function createAtaInstruction({
     });
 }
 
-export async function createAtaInstructions({
+export function createAtaInstructions({
     payer,
     owner,
     mint,
     programId,
-}: CreateRawAtaInstructionInput): Promise<TransactionInstruction[]> {
+}: CreateRawAtaInstructionInput): TransactionInstruction[] {
     return [createAtaInstruction({ payer, owner, mint, programId })];
 }
 
-export async function createAtaInstructionPlan(
+export function createAtaInstructionPlan(
     input: CreateRawAtaInstructionInput,
 ) {
-    return toInstructionPlan(await createAtaInstructions(input));
+    return toInstructionPlan(createAtaInstructions(input));
 }

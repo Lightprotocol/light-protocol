@@ -52,7 +52,7 @@ function wrap(
 export async function createAtaInstructions(
     input: CreateAtaInstructionsInput,
 ): Promise<KitInstruction[]> {
-    return wrap(createAtaInstructionsTx(input));
+    return toKitInstructions(createAtaInstructionsTx(input));
 }
 
 export async function createLoadInstructions(

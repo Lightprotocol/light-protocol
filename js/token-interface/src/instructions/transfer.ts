@@ -95,7 +95,6 @@ export async function createTransferInstructions({
         mint,
         programId: recipientTokenProgramId,
     });
-    const recipientLoadInstructions: TransactionInstruction[] = [];
     const senderAta = getAtaAddress({
         owner: sourceOwner,
         mint,
@@ -147,7 +146,6 @@ export async function createTransferInstructions({
             mint,
             programId: recipientTokenProgramId,
         }),
-        ...recipientLoadInstructions,
         transferInstruction,
     ];
 }

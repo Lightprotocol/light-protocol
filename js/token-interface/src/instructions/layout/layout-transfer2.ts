@@ -21,6 +21,8 @@ import {
 
 // Transfer2 discriminator = 101
 export const TRANSFER2_DISCRIMINATOR = Buffer.from([101]);
+const EXTENSION_ENCODE_BUFFER_SIZE = 8 * 1024;
+const TRANSFER2_BASE_ENCODE_BUFFER_SIZE = 8 * 1024;
 
 // Extension discriminant values (matching Rust enum)
 export const EXTENSION_DISCRIMINANT_TOKEN_METADATA = 19;
@@ -191,7 +193,7 @@ const CompressionInfoLayout = struct([
 function serializeExtensionInstructionData(
     ext: Transfer2ExtensionData,
 ): Uint8Array {
-    const buffer = Buffer.alloc(1024);
+    const buffer = Buffer.alloc(EXTENSION_ENCODE_BUFFER_SIZE);
     let offset = 0;
 
     // Write discriminant
@@ -210,11 +212,7 @@ function serializeExtensionInstructionData(
                   }))
                 : null,
         };
-        offset += TokenMetadataInstructionDataLayout.encode(
-            data,
-            buffer,
-            offset,
-        );
+        offset += TokenMetadataInstructionDataLayout.encode(data, buffer, offset);
     } else if (ext.type === 'CompressedOnly') {
         buffer.writeUInt8(EXTENSION_DISCRIMINANT_COMPRESSED_ONLY, offset);
         offset += 1;
@@ -240,9 +238,7 @@ function serializeExtensionInstructionData(
             compressToPubkey: ext.data.compressToPubkey,
             accountVersion: ext.data.accountVersion,
             lamportsPerWrite: ext.data.lamportsPerWrite,
-            compressionAuthority: Array.from(
-                ext.data.compressionAuthority.toBytes(),
-            ),
+            compressionAuthority: Array.from(ext.data.compressionAuthority.toBytes()),
             rentSponsor: Array.from(ext.data.rentSponsor.toBytes()),
             lastClaimedSlot: bn(ext.data.lastClaimedSlot.toString()),
             rentExemptionPaid: ext.data.rentExemptionPaid,
@@ -386,8 +382,7 @@ export function encodeTransfer2InstructionData(
         outLamports: data.outLamports?.map(v => bn(v.toString())) ?? null,
     };
 
-    // Encode base layout
-    const baseBuffer = Buffer.alloc(4000);
+    const baseBuffer = Buffer.alloc(TRANSFER2_BASE_ENCODE_BUFFER_SIZE);
     const baseLen = Transfer2InstructionDataBaseLayout.encode(
         baseData,
         baseBuffer,

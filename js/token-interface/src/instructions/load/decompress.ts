@@ -148,27 +148,33 @@ function buildInTlv(
 function getVersionFromDiscriminator(
     discriminator: number[] | undefined,
 ): number {
-    if (!discriminator || discriminator.length < 8) {
+    if (!discriminator) {
         // Default to ShaFlat for new accounts without discriminator
         return TokenDataVersion.ShaFlat;
     }
 
-    // V1 has discriminator[0] = 2
-    if (discriminator[0] === 2) {
-        return TokenDataVersion.V1;
+    if (discriminator.length !== 8) {
+        throw new Error(
+            `Invalid token data discriminator length: expected 8 bytes, got ${discriminator.length}.`,
+        );
     }
 
-    // V2 and ShaFlat have version in discriminator[7]
-    const versionByte = discriminator[7];
-    if (versionByte === 3) {
+    const discriminatorKey = discriminator.join(',');
+
+    // Match Rust TokenDataVersion::from_discriminator exactly.
+    if (discriminatorKey === '2,0,0,0,0,0,0,0') {
+        return TokenDataVersion.V1;
+    }
+    if (discriminatorKey === '0,0,0,0,0,0,0,3') {
         return TokenDataVersion.V2;
     }
-    if (versionByte === 4) {
+    if (discriminatorKey === '0,0,0,0,0,0,0,4') {
         return TokenDataVersion.ShaFlat;
     }
 
-    // Default to ShaFlat
-    return TokenDataVersion.ShaFlat;
+    throw new Error(
+        `Unknown token data discriminator: [${discriminator.join(',')}].`,
+    );
 }
 
 /**
