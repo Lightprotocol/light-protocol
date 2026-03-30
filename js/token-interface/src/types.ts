@@ -1,5 +1,11 @@
-import type { ParsedTokenAccount, Rpc } from '@lightprotocol/stateless.js';
-import type { Commitment, PublicKey } from '@solana/web3.js';
+import type {
+    AddressTreeInfo,
+    ParsedTokenAccount,
+    Rpc,
+    TreeInfo,
+    ValidityProofWithContext,
+} from '@lightprotocol/stateless.js';
+import type { Commitment, PublicKey, Signer } from '@solana/web3.js';
 
 export interface TokenInterfaceParsedAta {
     address: PublicKey;
@@ -156,12 +162,21 @@ export interface CreateRawMintInstructionInput {
     tokenProgramId?: PublicKey;
 }
 
-export interface CreateMintInstructionsInput extends CreateRawMintInstructionInput {
+export interface CreateMintInstructionsInput {
     rpc: Rpc;
     payer: PublicKey;
+    keypair: PublicKey | Signer;
+    decimals: number;
+    mintAuthority: PublicKey;
+    freezeAuthority?: PublicKey | null;
+    tokenProgramId?: PublicKey;
     mintSize?: number;
     rentExemptBalance?: number;
     splInterfaceIndex?: number;
+    tokenMetadata?: TokenMetadataInput;
+    outputStateTreeInfo?: TreeInfo;
+    addressTreeInfo?: AddressTreeInfo;
+    maxTopUp?: number;
 }
 
 export interface CreateRawMintToInstructionInput {
@@ -177,6 +192,26 @@ export interface CreateRawMintToInstructionInput {
 
 export interface CreateMintToInstructionsInput
     extends Omit<CreateRawMintToInstructionInput, 'tokenProgramId'> {
-    rpc: Rpc;
     tokenProgramId?: PublicKey;
+}
+
+export interface TokenMetadataInput {
+    name: string;
+    symbol: string;
+    uri: string;
+    updateAuthority?: PublicKey | null;
+    additionalMetadata?: { key: string; value: string }[] | null;
+}
+
+export interface CreateRawLightMintInstructionInput {
+    mintSigner: PublicKey;
+    decimals: number;
+    mintAuthority: PublicKey;
+    freezeAuthority?: PublicKey | null;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    addressTreeInfo: AddressTreeInfo;
+    outputStateTreeInfo: TreeInfo;
+    tokenMetadata?: TokenMetadataInput;
+    maxTopUp?: number;
 }

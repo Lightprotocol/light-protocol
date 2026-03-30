@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/token-interface",
-    "version": "0.23.0",
+    "version": "0.1.0",
     "description": "JS SDK helpers for SPL-token that reduces the cost of ATA creation",
     "sideEffects": false,
     "main": "dist/cjs/index.cjs",

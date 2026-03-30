@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Keypair, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { LIGHT_TOKEN_PROGRAM_ID, bn } from '@lightprotocol/stateless.js';
+import {
+    LIGHT_TOKEN_PROGRAM_ID,
+    bn,
+    getDefaultAddressTreeInfo,
+} from '@lightprotocol/stateless.js';
 import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import {
     createApproveInstruction,
@@ -16,6 +20,7 @@ import {
     createDecompressInstruction,
     createSplInterfaceInstruction,
     createMintInstruction,
+    createMintInstructions,
     createMintToInstruction,
 } from '../../src/instructions';
 import {
@@ -456,6 +461,7 @@ describe('instruction builders', () => {
             authority,
             amount: 123n,
             payer,
+            tokenProgramId: LIGHT_TOKEN_PROGRAM_ID,
             maxTopUp: 10,
         });
 
@@ -483,5 +489,75 @@ describe('instruction builders', () => {
 
         expect(instruction.programId.equals(TOKEN_PROGRAM_ID)).toBe(true);
         expect(instruction.keys).toHaveLength(3);
+    });
+
+    it('defaults mint-to instruction program to SPL', () => {
+        const mint = Keypair.generate().publicKey;
+        const destination = Keypair.generate().publicKey;
+        const authority = Keypair.generate().publicKey;
+
+        const instruction = createMintToInstruction({
+            mint,
+            destination,
+            authority,
+            amount: 1n,
+        });
+
+        expect(instruction.programId.equals(TOKEN_PROGRAM_ID)).toBe(true);
+    });
+
+    it('defaults createMintInstructions to SPL flow', async () => {
+        const keypair = Keypair.generate().publicKey;
+        const payer = Keypair.generate().publicKey;
+        const mintAuthority = Keypair.generate().publicKey;
+        const rpc = {
+            getMinimumBalanceForRentExemption: async () => 1_461_600,
+        } as any;
+
+        const instructions = await createMintInstructions({
+            rpc,
+            payer,
+            keypair,
+            decimals: 9,
+            mintAuthority,
+        });
+
+        expect(instructions).toHaveLength(3);
+        expect(instructions[1].programId.equals(TOKEN_PROGRAM_ID)).toBe(true);
+    });
+
+    it('creates light mint flow when LIGHT program is requested', async () => {
+        const mintSigner = Keypair.generate().publicKey;
+        const payer = Keypair.generate().publicKey;
+        const mintAuthority = Keypair.generate().publicKey;
+        const freezeAuthority = Keypair.generate().publicKey;
+        const defaultAddressTreeInfo = getDefaultAddressTreeInfo();
+        const outputStateTreeInfo = {
+            queue: Keypair.generate().publicKey,
+        } as any;
+        const rpc = {
+            getValidityProofV2: async () => ({
+                compressedProof: null,
+                rootIndices: [0],
+            }),
+        } as any;
+
+        const instructions = await createMintInstructions({
+            rpc,
+            payer,
+            keypair: mintSigner,
+            decimals: 9,
+            mintAuthority,
+            freezeAuthority,
+            tokenProgramId: LIGHT_TOKEN_PROGRAM_ID,
+            addressTreeInfo: defaultAddressTreeInfo,
+            outputStateTreeInfo,
+        });
+
+        expect(instructions).toHaveLength(1);
+        expect(instructions[0].programId.equals(LIGHT_TOKEN_PROGRAM_ID)).toBe(
+            true,
+        );
+        expect(instructions[0].data[0]).toBe(103);
     });
 });

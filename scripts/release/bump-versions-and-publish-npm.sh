@@ -2,6 +2,7 @@
 # Examples: 
 #    ./scripts/bump-versions-and-publish-npm.sh minor
 #    ./scripts/bump-versions-and-publish-npm.sh patch @lightprotocol/stateless.js @lightprotocol/compressed-token
+#    ./scripts/bump-versions-and-publish-npm.sh patch @lightprotocol/token-interface
 #    ./scripts/bump-versions-and-publish-npm.sh alpha @lightprotocol/stateless.js 
 #    ./scripts/bump-versions-and-publish-npm.sh beta @lightprotocol/stateless.js @lightprotocol/compressed-token
 
@@ -16,6 +17,7 @@ get_package_dir() {
     case "$1" in
         "@lightprotocol/stateless.js") echo "js/stateless.js" ;;
         "@lightprotocol/compressed-token") echo "js/compressed-token" ;;
+        "@lightprotocol/token-interface") echo "js/token-interface" ;;
         "@lightprotocol/zk-compression-cli") echo "cli" ;;
         *) echo "" ;;
     esac
