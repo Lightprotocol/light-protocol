@@ -49,7 +49,10 @@ export async function createRevokeInstructions({
     return _createRevokeInstructions({ rpc, payer, owner, mint }, true);
 }
 
-export async function _createRevokeInstructions(
+/**
+ * @internal
+ */
+async function _createRevokeInstructions(
     { rpc, payer, owner, mint }: CreateRevokeInstructionsInput,
     wrap: boolean,
 ): Promise<TransactionInstruction[]> {

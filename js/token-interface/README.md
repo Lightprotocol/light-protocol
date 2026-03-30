@@ -72,17 +72,18 @@ Use these when you want manual orchestration:
 ```ts
 import {
     createAtaInstruction,
-    createLoadInstruction,
+    createLoadInstructions,
     createTransferCheckedInstruction,
 } from '@lightprotocol/token-interface/instructions';
 ```
 
 ## No-wrap instruction-flow builders (advanced)
 
-If you explicitly want to disable automatic sender wrapping, use:
+If you explicitly want to disable automatic sender wrapping, use the dedicated
+`/nowrap` entrypoint with the same function names:
 
 ```ts
-import { createTransferInstructionsNowrap } from '@lightprotocol/token-interface/instructions';
+import { createTransferInstructions } from '@lightprotocol/token-interface/nowrap';
 ```
 
 ## Read account

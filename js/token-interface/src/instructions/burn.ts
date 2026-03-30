@@ -107,7 +107,10 @@ export async function createBurnInstructions({
     );
 }
 
-export async function _createBurnInstructions(
+/**
+ * @internal
+ */
+async function _createBurnInstructions(
     {
         rpc,
         payer,

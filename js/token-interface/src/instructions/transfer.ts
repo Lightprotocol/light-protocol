@@ -87,9 +87,11 @@ export async function createTransferInstructions({
 }
 
 /**
- * No-wrap transfer flow builder (advanced).
+ * Shared transfer flow builder implementation.
+ *
+ * @internal
  */
-export async function _createTransferInstructions(
+async function _createTransferInstructions(
     {
         rpc,
         payer,

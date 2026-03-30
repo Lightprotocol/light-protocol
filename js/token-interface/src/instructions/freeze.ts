@@ -43,7 +43,10 @@ export async function createFreezeInstructions({
     );
 }
 
-export async function _createFreezeInstructions(
+/**
+ * @internal
+ */
+async function _createFreezeInstructions(
     { rpc, payer, owner, mint, freezeAuthority }: CreateFreezeInstructionsInput,
     wrap: boolean,
 ): Promise<TransactionInstruction[]> {

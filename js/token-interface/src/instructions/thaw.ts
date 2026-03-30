@@ -43,7 +43,10 @@ export async function createThawInstructions({
     );
 }
 
-export async function _createThawInstructions(
+/**
+ * @internal
+ */
+async function _createThawInstructions(
     { rpc, payer, owner, mint, freezeAuthority }: CreateThawInstructionsInput,
     wrap: boolean,
 ): Promise<TransactionInstruction[]> {

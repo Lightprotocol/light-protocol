@@ -62,7 +62,10 @@ export async function createApproveInstructions({
     );
 }
 
-export async function _createApproveInstructions(
+/**
+ * @internal
+ */
+async function _createApproveInstructions(
     {
         rpc,
         payer,
