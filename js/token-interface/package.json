@@ -20,6 +20,11 @@
             "require": "./dist/cjs/kit/index.cjs",
             "import": "./dist/es/kit/index.js",
             "types": "./dist/types/kit/index.d.ts"
+        },
+        "./nowrap": {
+            "require": "./dist/cjs/nowrap/index.cjs",
+            "import": "./dist/es/nowrap/index.js",
+            "types": "./dist/types/nowrap/index.d.ts"
         }
     },
     "types": "./dist/types/index.d.ts",

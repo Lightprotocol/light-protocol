@@ -7,6 +7,7 @@ const inputs = {
     index: 'src/index.ts',
     'instructions/index': 'src/instructions/index.ts',
     'kit/index': 'src/kit/index.ts',
+    'nowrap/index': 'src/nowrap/index.ts',
 };
 
 const external = [
@@ -68,4 +69,5 @@ export default [
     dtsEntry('src/index.ts', 'dist/types/index.d.ts'),
     dtsEntry('src/instructions/index.ts', 'dist/types/instructions/index.d.ts'),
     dtsEntry('src/kit/index.ts', 'dist/types/kit/index.d.ts'),
+    dtsEntry('src/nowrap/index.ts', 'dist/types/nowrap/index.d.ts'),
 ];

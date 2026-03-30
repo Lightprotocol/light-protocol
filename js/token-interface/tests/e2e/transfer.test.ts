@@ -14,12 +14,12 @@ import {
 import { newAccountWithLamports } from '@lightprotocol/stateless.js';
 import {
     createApproveInstructions,
-    createTransferInstructionsNowrap,
     createAtaInstructions,
     createTransferInstructions,
     getAta,
     getAtaAddress,
 } from '../../src';
+import { createTransferInstructions as createTransferInstructionsNowrap } from '../../src/nowrap';
 import {
     createMintFixture,
     getCompressedAmounts,
