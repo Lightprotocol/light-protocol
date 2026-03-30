@@ -193,7 +193,7 @@ async fn attempt_decompress_with_tlv(
             amount,
             pool_index: None,
             decimals: 9,
-            in_tlv: Some(in_tlv),
+            in_tlv: Some(in_tlv.clone()),
         })],
         payer.pubkey(),
         true,
@@ -203,7 +203,20 @@ async fn attempt_decompress_with_tlv(
         RpcError::CustomError(format!("Failed to create decompress instruction: {:?}", e))
     })?;
 
-    rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[payer, owner])
+    // ATA decompress is permissionless (only payer signs).
+    // Non-ATA decompress still requires owner to sign.
+    let is_ata = in_tlv
+        .iter()
+        .flatten()
+        .any(|ext| matches!(ext, ExtensionInstructionData::CompressedOnly(data) if data.is_ata));
+
+    let signers: Vec<&Keypair> = if !is_ata && payer.pubkey() != owner.pubkey() {
+        vec![payer, owner]
+    } else {
+        vec![payer]
+    };
+
+    rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &signers)
         .await
 }
 
@@ -1271,8 +1284,8 @@ async fn test_ata_multiple_compress_decompress_cycles() {
     .await
     .unwrap();
 
-    // For ATA decompress, wallet owner signs (not ATA pubkey)
-    rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer, &wallet])
+    // ATA decompress is permissionless -- only payer needs to sign
+    rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
 
@@ -1517,4 +1530,392 @@ async fn test_non_ata_compress_only_decompress() {
         .unwrap();
     let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
     assert_eq!(dest_ctoken.amount, mint_amount);
+}
+
+/// Test that regular Decompress with is_ata=true in TLV
+/// succeeds permissionlessly -- only payer signs, not the owner.
+#[tokio::test]
+#[serial]
+async fn test_permissionless_ata_decompress() {
+    let mut context = setup_ata_compressed_token(&[ExtensionType::Pausable], None, false)
+        .await
+        .unwrap();
+
+    // Create destination ATA
+    let create_dest_ix = CreateAssociatedTokenAccount::new(
+        context.payer.pubkey(),
+        context.owner.pubkey(),
+        context.mint_pubkey,
+    )
+    .with_compressible(CompressibleParams {
+        compressible_config: context
+            .rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: context
+            .rpc
+            .test_accounts
+            .funding_pool_config
+            .rent_sponsor_pda,
+        pre_pay_num_epochs: 2,
+        lamports_per_write: Some(100),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: true,
+    })
+    .idempotent()
+    .instruction()
+    .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[create_dest_ix],
+            &context.payer.pubkey(),
+            &[&context.payer],
+        )
+        .await
+        .unwrap();
+
+    // Build regular Decompress with is_ata=true TLV
+    let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
+        CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: true,
+            bump: context.ata_bump,
+            owner_index: 0, // Will be updated by create_generic_transfer2_instruction
+        },
+    )]];
+
+    let ix = create_generic_transfer2_instruction(
+        &mut context.rpc,
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
+            compressed_token_account: vec![context.compressed_account.clone()],
+            decompress_amount: context.amount,
+            solana_token_account: context.ata_pubkey,
+            amount: context.amount,
+            pool_index: None,
+            decimals: 9,
+            in_tlv: Some(in_tlv),
+        })],
+        context.payer.pubkey(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    // Only payer signs -- owner does NOT sign (permissionless ATA decompress)
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[ix], &context.payer.pubkey(), &[&context.payer])
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "Permissionless ATA decompress should succeed with only payer signing: {:?}",
+        result.err()
+    );
+
+    // Verify ATA has the correct balance
+    use borsh::BorshDeserialize;
+    use light_token_interface::state::Token;
+    let dest_account = context
+        .rpc
+        .get_account(context.ata_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
+    assert_eq!(
+        dest_ctoken.amount, context.amount,
+        "Decompressed amount should match original amount"
+    );
+}
+
+/// Test that regular Decompress without owner signer fails for non-ATA compressed tokens.
+/// Non-ATA tokens require the owner to sign; a third-party payer alone is insufficient.
+#[tokio::test]
+#[serial]
+async fn test_permissionless_non_ata_decompress_fails() {
+    // Set up a non-ATA compressed token using the same pattern as decompress_restrictions.rs
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let extensions = &[ExtensionType::Pausable];
+    let (mint_keypair, _) =
+        create_mint_22_with_extension_types(&mut rpc, &payer, 9, extensions).await;
+    let mint_pubkey = mint_keypair.pubkey();
+
+    let spl_account =
+        create_token_22_account(&mut rpc, &payer, &mint_pubkey, &payer.pubkey()).await;
+    let mint_amount = 1_000_000_000u64;
+    mint_spl_tokens_22(&mut rpc, &payer, &mint_pubkey, &spl_account, mint_amount).await;
+
+    // Create regular (non-ATA) Light Token account with compression_only=true
+    let owner = Keypair::new();
+    let account_keypair = Keypair::new();
+    let ctoken_account = account_keypair.pubkey();
+
+    let create_ix =
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+            .with_compressible(CompressibleParams {
+                compressible_config: rpc
+                    .test_accounts
+                    .funding_pool_config
+                    .compressible_config_pda,
+                rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+                pre_pay_num_epochs: 0,
+                lamports_per_write: Some(100),
+                compress_to_account_pubkey: None,
+                token_account_version: TokenDataVersion::ShaFlat,
+                compression_only: true,
+            })
+            .instruction()
+            .unwrap();
+
+    rpc.create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &account_keypair])
+        .await
+        .unwrap();
+
+    // Transfer tokens to the Light Token account
+    let has_restricted = extensions
+        .iter()
+        .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
+
+    let transfer_ix = TransferFromSpl {
+        amount: mint_amount,
+        spl_interface_pda_bump,
+        decimals: 9,
+        source_spl_token_account: spl_account,
+        destination: ctoken_account,
+        authority: payer.pubkey(),
+        mint: mint_pubkey,
+        payer: payer.pubkey(),
+        spl_interface_pda,
+        spl_token_program: spl_token_2022::ID,
+    }
+    .instruction()
+    .unwrap();
+
+    rpc.create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // Warp epoch to trigger forester compression
+    rpc.warp_epoch_forward(30).await.unwrap();
+
+    // Get compressed token accounts
+    let compressed_accounts = rpc
+        .get_compressed_token_accounts_by_owner(&owner.pubkey(), None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+
+    assert_eq!(
+        compressed_accounts.len(),
+        1,
+        "Should have 1 compressed account"
+    );
+
+    // Create destination Light Token account for decompress
+    let dest_keypair = Keypair::new();
+    let create_dest_ix = CreateTokenAccount::new(
+        payer.pubkey(),
+        dest_keypair.pubkey(),
+        mint_pubkey,
+        owner.pubkey(),
+    )
+    .with_compressible(CompressibleParams {
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+        pre_pay_num_epochs: 2,
+        lamports_per_write: Some(100),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: true,
+    })
+    .instruction()
+    .unwrap();
+
+    rpc.create_and_send_transaction(&[create_dest_ix], &payer.pubkey(), &[&payer, &dest_keypair])
+        .await
+        .unwrap();
+
+    // Build Decompress instruction with is_ata=false (non-ATA)
+    let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
+        CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: false,
+            bump: 0,
+            owner_index: 0,
+        },
+    )]];
+
+    let ix = create_generic_transfer2_instruction(
+        &mut rpc,
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
+            compressed_token_account: vec![compressed_accounts[0].clone()],
+            decompress_amount: mint_amount,
+            solana_token_account: dest_keypair.pubkey(),
+            amount: mint_amount,
+            pool_index: None,
+            decimals: 9,
+            in_tlv: Some(in_tlv),
+        })],
+        payer.pubkey(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    // Only payer signs -- owner does NOT sign. For non-ATA this should fail
+    // at the transaction signing level (owner is marked as signer in the instruction
+    // but no keypair provided) -- proving non-ATA decompress is not permissionless.
+    let result = rpc
+        .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
+        .await;
+
+    assert!(
+        result.is_err(),
+        "Non-ATA decompress without owner signer should fail"
+    );
+}
+
+/// Test that ATA decompress with an already-spent compressed account
+/// is a no-op (returns Ok without modifying the CToken balance).
+/// The bloom filter in the V2 tree catches the already-nullified account.
+#[tokio::test]
+#[serial]
+async fn test_ata_decompress_already_spent_is_noop() {
+    let mut context = setup_ata_compressed_token(&[ExtensionType::Pausable], None, false)
+        .await
+        .unwrap();
+
+    // Create destination ATA
+    let create_dest_ix = CreateAssociatedTokenAccount::new(
+        context.payer.pubkey(),
+        context.owner.pubkey(),
+        context.mint_pubkey,
+    )
+    .with_compressible(CompressibleParams {
+        compressible_config: context
+            .rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: context
+            .rpc
+            .test_accounts
+            .funding_pool_config
+            .rent_sponsor_pda,
+        pre_pay_num_epochs: 2,
+        lamports_per_write: Some(100),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: true,
+    })
+    .idempotent()
+    .instruction()
+    .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[create_dest_ix],
+            &context.payer.pubkey(),
+            &[&context.payer],
+        )
+        .await
+        .unwrap();
+
+    // First decompress: spend the compressed account normally
+    let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
+        CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: true,
+            bump: context.ata_bump,
+            owner_index: 0,
+        },
+    )]];
+
+    let first_ix = create_generic_transfer2_instruction(
+        &mut context.rpc,
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
+            compressed_token_account: vec![context.compressed_account.clone()],
+            decompress_amount: context.amount,
+            solana_token_account: context.ata_pubkey,
+            amount: context.amount,
+            pool_index: None,
+            decimals: 9,
+            in_tlv: Some(in_tlv.clone()),
+        })],
+        context.payer.pubkey(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    let second_ix = first_ix.clone();
+
+    context
+        .rpc
+        .create_and_send_transaction(&[first_ix], &context.payer.pubkey(), &[&context.payer])
+        .await
+        .unwrap();
+
+    // Verify ATA has the tokens after first decompress
+    use borsh::BorshDeserialize;
+    use light_token_interface::state::Token;
+    let dest_account = context
+        .rpc
+        .get_account(context.ata_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
+    assert_eq!(dest_ctoken.amount, context.amount);
+
+    // Second decompress: reuse the same instruction (the proof won't be
+    // verified because the bloom filter check short-circuits before the CPI).
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[second_ix], &context.payer.pubkey(), &[&context.payer])
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "ATA decompress with already-spent account should be no-op: {:?}",
+        result.err()
+    );
+
+    // Verify CToken balance is unchanged (still the original amount, not doubled)
+    let dest_account = context
+        .rpc
+        .get_account(context.ata_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
+    assert_eq!(
+        dest_ctoken.amount, context.amount,
+        "CToken balance should be unchanged after idempotent no-op"
+    );
 }

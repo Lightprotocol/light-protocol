@@ -443,7 +443,7 @@ fn build_transfer2(
             },
         )?;
 
-        let owner_idx = packed.insert_or_get_config(ctx.wallet_owner, true, false);
+        let owner_idx = packed.insert_or_get(ctx.wallet_owner);
         let ata_idx = packed.insert_or_get(derive_token_ata(&ctx.wallet_owner, &ctx.mint));
         let mint_idx = packed.insert_or_get(token.mint);
         let delegate_idx = token.delegate.map(|d| packed.insert_or_get(d)).unwrap_or(0);

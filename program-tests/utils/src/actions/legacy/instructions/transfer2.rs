@@ -333,7 +333,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 }
                 token_accounts.push(token_account);
             }
-            Transfer2InstructionType::Decompress(input) => {
+            Transfer2InstructionType::Decompress(ref input) => {
                 // Collect in_tlv data if provided
                 if let Some(ref tlv_data) = input.in_tlv {
                     has_any_tlv = true;
@@ -346,7 +346,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 }
 
                 // Check if any input has is_ata=true in the TLV
-                // If so, we need to use the destination Light Token's owner as the signer
                 let is_ata = input.in_tlv.as_ref().is_some_and(|tlv| {
                     tlv.iter().flatten().any(|ext| {
                         matches!(ext, ExtensionInstructionData::CompressedOnly(data) if data.is_ata)
@@ -363,19 +362,14 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .unwrap();
                 let recipient_account_owner = recipient_account.owner;
 
-                // For is_ata, the compressed account owner is the ATA pubkey (stored during compress_and_close)
-                // We keep that for hash calculation. The wallet owner signs instead of ATA pubkey.
-                // Get the wallet owner from the destination Light Token account and add as signer.
+                // For is_ata, get the wallet owner from the destination Light Token account.
+                // ATA decompress is permissionless -- wallet_owner is not a signer.
                 if is_ata && recipient_account_owner.to_bytes() == LIGHT_TOKEN_PROGRAM_ID {
-                    // Deserialize Token to get wallet owner
                     use borsh::BorshDeserialize;
                     use light_token_interface::state::Token;
                     if let Ok(ctoken) = Token::deserialize(&mut &recipient_account.data[..]) {
                         let wallet_owner = Pubkey::from(ctoken.owner.to_bytes());
-                        // Add wallet owner as signer and get its index
-                        let wallet_owner_index =
-                            packed_tree_accounts.insert_or_get_config(wallet_owner, true, false);
-                        // Update the owner_index in collected_in_tlv for CompressedOnly extensions
+                        let wallet_owner_index = packed_tree_accounts.insert_or_get(wallet_owner);
                         for tlv in collected_in_tlv.iter_mut() {
                             for ext in tlv.iter_mut() {
                                 if let ExtensionInstructionData::CompressedOnly(data) = ext {
@@ -405,13 +399,13 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             rpc_account,
                             &mut packed_tree_accounts,
                             &mut in_lamports,
-                            false, // Decompress is always owner-signed
+                            false,
                             TokenDataVersion::from_discriminator(
                                 account.account.data.as_ref().unwrap().discriminator,
                             )
                             .unwrap(),
-                            None,   // No override - use stored owner (ATA pubkey for is_ata)
-                            is_ata, // For ATA: owner (ATA pubkey) is not signer
+                            None,
+                            is_ata,
                         )
                     })
                     .collect::<Vec<_>>();
@@ -419,20 +413,13 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let mut token_account = CTokenAccount2::new(token_data)?;
 
                 if recipient_account_owner.to_bytes() != LIGHT_TOKEN_PROGRAM_ID {
-                    // For SPL decompression, get mint first
                     let mint = input.compressed_token_account[0].token.mint;
-
-                    // Add the SPL Token program that owns the account
                     let _token_program_index =
                         packed_tree_accounts.insert_or_get_read_only(recipient_account_owner);
-
-                    // Use pool_index from input, default to 0
                     let pool_index = input.pool_index.unwrap_or(0);
                     let (spl_interface_pda, bump) =
                         find_spl_interface_pda_with_index(&mint, pool_index, false);
                     let pool_account_index = packed_tree_accounts.insert_or_get(spl_interface_pda);
-
-                    // Use the new SPL-specific decompress method
                     token_account.decompress_spl(
                         input.decompress_amount,
                         recipient_index,
@@ -442,7 +429,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         input.decimals,
                     )?;
                 } else {
-                    // Use the new SPL-specific decompress method
                     token_account.decompress(input.decompress_amount, recipient_index)?;
                 }
 

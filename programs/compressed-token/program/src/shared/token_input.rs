@@ -80,18 +80,22 @@ pub fn set_input_compressed_account<'a>(
     // For ATA decompress (is_ata=true), verify the wallet owner from owner_index instead
     // of the compressed account owner (which is the ATA pubkey that can't sign).
     // Also verify that owner_account (the ATA) matches the derived ATA from wallet_owner + mint + bump.
-    let signer_account = if let Some(exts) = tlv_data {
+    let (signer_account, is_ata_decompress) = if let Some(exts) = tlv_data {
         resolve_ata_signer(exts, packed_accounts, mint_account, owner_account)?
     } else {
-        owner_account
+        (owner_account, false)
     };
 
-    verify_owner_or_delegate_signer(
-        signer_account,
-        delegate_account,
-        permanent_delegate,
-        all_accounts,
-    )?;
+    // ATA decompress is permissionless -- the destination is a deterministic PDA,
+    // so there is no griefing vector. ATA derivation is still validated above.
+    if !is_ata_decompress {
+        verify_owner_or_delegate_signer(
+            signer_account,
+            delegate_account,
+            permanent_delegate,
+            all_accounts,
+        )?;
+    }
     let token_version = TokenDataVersion::try_from(input_token_data.version)?;
 
     let data_hash = {
@@ -193,7 +197,7 @@ fn resolve_ata_signer<'a>(
     packed_accounts: &'a [AccountInfo],
     mint_account: &AccountInfo,
     owner_account: &'a AccountInfo,
-) -> Result<&'a AccountInfo, ProgramError> {
+) -> Result<(&'a AccountInfo, bool), ProgramError> {
     for ext in exts.iter() {
         if let ZExtensionInstructionData::CompressedOnly(data) = ext {
             if data.is_ata() {
@@ -229,12 +233,12 @@ fn resolve_ata_signer<'a>(
                     return Err(TokenError::InvalidAtaDerivation.into());
                 }
 
-                return Ok(wallet_owner);
+                return Ok((wallet_owner, true));
             }
         }
     }
 
-    Ok(owner_account)
+    Ok((owner_account, false))
 }
 
 #[cold]

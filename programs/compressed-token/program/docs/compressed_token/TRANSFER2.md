@@ -26,9 +26,11 @@
    - SPL tokens when compressed are backed by tokens stored in ctoken pool PDAs
 
 3. Compression modes:
-   - `Compress`: Move tokens from Solana account (ctoken or SPL) to compressed state
-   - `Decompress`: Move tokens from compressed state to Solana account (ctoken or SPL)
-   - `CompressAndClose`: Compress full ctoken balance and close the account (authority: compression_authority only, requires compressible extension, **ctoken accounts only - NOT supported for SPL tokens**)
+   - `Compress` (0): Move tokens from Solana account (ctoken or SPL) to compressed state
+   - `Decompress` (1): Move tokens from compressed state to Solana account (ctoken or SPL)
+   - `CompressAndClose` (2): Compress full ctoken balance and close the account (authority: compression_authority only, requires compressible extension, **ctoken accounts only - NOT supported for SPL tokens**)
+
+   **Permissionless ATA decompress:** When the input has CompressedOnly extension with `is_ata=true`, Decompress skips the owner/delegate signer check (permissionless). This is safe because the destination is a deterministic PDA (ATA derivation is still validated). ATA decompress also enforces a single-input constraint (exactly 1 input and 1 compression) and includes a bloom filter idempotency check -- if the compressed account is already spent, the transaction returns Ok as a no-op.
 
 4. Global sum check enforces transaction balance:
    - Input sum = compressed inputs + compress operations (tokens entering compressed state)
@@ -59,7 +61,7 @@
    - `out_tlv`: Optional TLV data for output accounts (used for CompressedOnly extension during CompressAndClose)
 
 2. Compression struct fields (path: program-libs/token-interface/src/instructions/transfer2/compression.rs):
-   - `mode`: CompressionMode enum (Compress, Decompress, CompressAndClose)
+   - `mode`: CompressionMode enum (Compress=0, Decompress=1, CompressAndClose=2)
    - `amount`: u64 - Amount to compress/decompress
    - `mint`: u8 - Index of mint account in packed accounts
    - `source_or_recipient`: u8 - Index of source (compress) or recipient (decompress) account
