@@ -102,7 +102,9 @@ describe('public api', () => {
     });
 
     it('does not expose legacy *Nowrap names on main entrypoint', () => {
-        expect('createTransferInstructionsNowrap' in tokenInterface).toBe(false);
+        expect('createTransferInstructionsNowrap' in tokenInterface).toBe(
+            false,
+        );
         expect('createApproveInstructionsNowrap' in tokenInterface).toBe(false);
         expect('createRevokeInstructionsNowrap' in tokenInterface).toBe(false);
         expect('createBurnInstructionsNowrap' in tokenInterface).toBe(false);

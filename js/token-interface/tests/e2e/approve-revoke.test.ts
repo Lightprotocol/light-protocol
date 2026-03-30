@@ -159,7 +159,9 @@ describe('approve and revoke instructions', () => {
             amount: 700n,
         });
         await expect(
-            sendInstructions(fixture.rpc, fixture.payer, nowrapApprove, [owner]),
+            sendInstructions(fixture.rpc, fixture.payer, nowrapApprove, [
+                owner,
+            ]),
         ).rejects.toThrow(/custom program error|instruction error|invalid/i);
 
         // Canonical approve wraps first, then approves.
@@ -188,7 +190,9 @@ describe('approve and revoke instructions', () => {
             owner: owner.publicKey,
             mint: fixture.mint,
         });
-        await sendInstructions(fixture.rpc, fixture.payer, nowrapRevoke, [owner]);
+        await sendInstructions(fixture.rpc, fixture.payer, nowrapRevoke, [
+            owner,
+        ]);
 
         const revoked = await getHotDelegate(fixture.rpc, tokenAccount);
         expect(revoked.delegate).toBeNull();

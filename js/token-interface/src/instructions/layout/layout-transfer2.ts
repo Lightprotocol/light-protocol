@@ -212,7 +212,11 @@ function serializeExtensionInstructionData(
                   }))
                 : null,
         };
-        offset += TokenMetadataInstructionDataLayout.encode(data, buffer, offset);
+        offset += TokenMetadataInstructionDataLayout.encode(
+            data,
+            buffer,
+            offset,
+        );
     } else if (ext.type === 'CompressedOnly') {
         buffer.writeUInt8(EXTENSION_DISCRIMINANT_COMPRESSED_ONLY, offset);
         offset += 1;
@@ -238,7 +242,9 @@ function serializeExtensionInstructionData(
             compressToPubkey: ext.data.compressToPubkey,
             accountVersion: ext.data.accountVersion,
             lamportsPerWrite: ext.data.lamportsPerWrite,
-            compressionAuthority: Array.from(ext.data.compressionAuthority.toBytes()),
+            compressionAuthority: Array.from(
+                ext.data.compressionAuthority.toBytes(),
+            ),
             rentSponsor: Array.from(ext.data.rentSponsor.toBytes()),
             lastClaimedSlot: bn(ext.data.lastClaimedSlot.toString()),
             rentExemptionPaid: ext.data.rentExemptionPaid,

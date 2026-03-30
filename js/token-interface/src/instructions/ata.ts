@@ -434,8 +434,6 @@ export function createAtaInstructions({
     return [createAtaInstruction({ payer, owner, mint, programId })];
 }
 
-export function createAtaInstructionPlan(
-    input: CreateRawAtaInstructionInput,
-) {
+export function createAtaInstructionPlan(input: CreateRawAtaInstructionInput) {
     return toInstructionPlan(createAtaInstructions(input));
 }

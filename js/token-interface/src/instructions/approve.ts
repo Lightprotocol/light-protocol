@@ -56,11 +56,21 @@ export async function createApproveInstructions({
     delegate,
     amount,
 }: CreateApproveInstructionsInput): Promise<TransactionInstruction[]> {
-    return _createApproveInstructions({ rpc, payer, owner, mint, delegate, amount }, true);
+    return _createApproveInstructions(
+        { rpc, payer, owner, mint, delegate, amount },
+        true,
+    );
 }
 
 export async function _createApproveInstructions(
-    { rpc, payer, owner, mint, delegate, amount }: CreateApproveInstructionsInput,
+    {
+        rpc,
+        payer,
+        owner,
+        mint,
+        delegate,
+        amount,
+    }: CreateApproveInstructionsInput,
     wrap: boolean,
 ): Promise<TransactionInstruction[]> {
     const tokenAccount = getAtaAddress({ owner, mint });

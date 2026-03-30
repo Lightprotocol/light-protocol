@@ -108,7 +108,15 @@ export async function createBurnInstructions({
 }
 
 export async function _createBurnInstructions(
-    { rpc, payer, owner, mint, authority, amount, decimals }: CreateBurnInstructionsInput,
+    {
+        rpc,
+        payer,
+        owner,
+        mint,
+        authority,
+        amount,
+        decimals,
+    }: CreateBurnInstructionsInput,
     wrap: boolean,
 ): Promise<TransactionInstruction[]> {
     const tokenAccount = getAtaAddress({ owner, mint });

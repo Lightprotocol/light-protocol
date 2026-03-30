@@ -88,7 +88,9 @@ export async function createRevokeInstructionPlan(
     return toInstructionPlan(await createRevokeInstructions(input));
 }
 
-export async function createBurnInstructionPlan(input: CreateBurnInstructionsInput) {
+export async function createBurnInstructionPlan(
+    input: CreateBurnInstructionsInput,
+) {
     return toInstructionPlan(await createBurnInstructions(input));
 }
 
@@ -98,6 +100,8 @@ export async function createFreezeInstructionPlan(
     return toInstructionPlan(await createFreezeInstructions(input));
 }
 
-export async function createThawInstructionPlan(input: CreateThawInstructionsInput) {
+export async function createThawInstructionPlan(
+    input: CreateThawInstructionsInput,
+) {
     return toInstructionPlan(await createThawInstructions(input));
 }
