@@ -37,31 +37,16 @@ export async function createFreezeInstructions({
     mint,
     freezeAuthority,
 }: CreateFreezeInstructionsInput): Promise<TransactionInstruction[]> {
-    const tokenAccount = getAtaAddress({ owner, mint });
-
-    return [
-        ...(await createLoadInstructions({
-            rpc,
-            payer,
-            owner,
-            mint,
-            wrap: true,
-        })),
-        createFreezeInstruction({
-            tokenAccount,
-            mint,
-            freezeAuthority,
-        }),
-    ];
+    return _createFreezeInstructions(
+        { rpc, payer, owner, mint, freezeAuthority },
+        true,
+    );
 }
 
-export async function createFreezeInstructionsNowrap({
-    rpc,
-    payer,
-    owner,
-    mint,
-    freezeAuthority,
-}: CreateFreezeInstructionsInput): Promise<TransactionInstruction[]> {
+export async function _createFreezeInstructions(
+    { rpc, payer, owner, mint, freezeAuthority }: CreateFreezeInstructionsInput,
+    wrap: boolean,
+): Promise<TransactionInstruction[]> {
     const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
@@ -70,7 +55,7 @@ export async function createFreezeInstructionsNowrap({
             payer,
             owner,
             mint,
-            wrap: false,
+            wrap,
         })),
         createFreezeInstruction({
             tokenAccount,

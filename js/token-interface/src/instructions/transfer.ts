@@ -71,6 +71,37 @@ export async function createTransferInstructions({
     tokenProgram,
     amount,
 }: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
+    return _createTransferInstructions(
+        {
+            rpc,
+            payer,
+            mint,
+            sourceOwner,
+            authority,
+            recipient,
+            tokenProgram,
+            amount,
+        },
+        true,
+    );
+}
+
+/**
+ * No-wrap transfer flow builder (advanced).
+ */
+export async function _createTransferInstructions(
+    {
+        rpc,
+        payer,
+        mint,
+        sourceOwner,
+        authority,
+        recipient,
+        tokenProgram,
+        amount,
+    }: CreateTransferInstructionsInput,
+    wrap: boolean,
+): Promise<TransactionInstruction[]> {
     const effectivePayer = payer ?? authority;
     const amountBigInt = toBigIntAmount(amount);
     const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
@@ -86,7 +117,7 @@ export async function createTransferInstructions({
         owner: sourceOwner,
         mint,
         authority,
-        wrap: true,
+        wrap,
         decimals,
         splInterfaces: transferSplInterfaces,
     });
@@ -99,6 +130,7 @@ export async function createTransferInstructions({
         owner: sourceOwner,
         mint,
     });
+
     let transferInstruction: TransactionInstruction;
     if (recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         transferInstruction = createTransferCheckedInstruction({
@@ -136,6 +168,10 @@ export async function createTransferInstructions({
             decimals,
             payer: effectivePayer,
         });
+    }
+
+    if (!wrap) {
+        return [...senderLoadInstructions, transferInstruction];
     }
 
     return [
@@ -148,90 +184,6 @@ export async function createTransferInstructions({
         }),
         transferInstruction,
     ];
-}
-
-/**
- * No-wrap transfer flow builder (advanced).
- */
-export async function createTransferInstructionsNowrap({
-    rpc,
-    payer,
-    mint,
-    sourceOwner,
-    authority,
-    recipient,
-    tokenProgram,
-    amount,
-}: CreateTransferInstructionsInput): Promise<TransactionInstruction[]> {
-    const effectivePayer = payer ?? authority;
-    const amountBigInt = toBigIntAmount(amount);
-    const recipientTokenProgramId = tokenProgram ?? LIGHT_TOKEN_PROGRAM_ID;
-    const [decimals, transferSplInterfaces] = await Promise.all([
-        getMintDecimals(rpc, mint),
-        recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)
-            ? Promise.resolve(undefined)
-            : getSplInterfaces(rpc, mint),
-    ]);
-    const senderLoadInstructions = await createLoadInstructions({
-        rpc,
-        payer: effectivePayer,
-        owner: sourceOwner,
-        mint,
-        authority,
-        wrap: false,
-        decimals,
-        splInterfaces: transferSplInterfaces,
-    });
-    const recipientAta = getAtaAddress({
-        owner: recipient,
-        mint,
-        programId: recipientTokenProgramId,
-    });
-    const senderAta = getAtaAddress({
-        owner: sourceOwner,
-        mint,
-    });
-
-    let transferInstruction: TransactionInstruction;
-    if (recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        transferInstruction = createTransferCheckedInstruction({
-            source: senderAta,
-            destination: recipientAta,
-            mint,
-            authority,
-            payer: effectivePayer,
-            amount: amountBigInt,
-            decimals,
-        });
-    } else {
-        if (!transferSplInterfaces) {
-            throw new Error(
-                'Missing SPL interfaces for non-light transfer path.',
-            );
-        }
-        const splInterface = transferSplInterfaces.find(
-            info =>
-                info.isInitialized &&
-                info.tokenProgramId.equals(recipientTokenProgramId),
-        );
-        if (!splInterface) {
-            throw new Error(
-                `No initialized SPL pool found for tokenProgram ${recipientTokenProgramId.toBase58()}.`,
-            );
-        }
-        transferInstruction = createUnwrapInstruction({
-            source: senderAta,
-            destination: recipientAta,
-            owner: authority,
-            mint,
-            amount: amountBigInt,
-            splInterface,
-            decimals,
-            payer: effectivePayer,
-        });
-    }
-
-    return [...senderLoadInstructions, transferInstruction];
 }
 
 export async function createTransferInstructionPlan(

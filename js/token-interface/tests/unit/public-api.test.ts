@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { Keypair } from '@solana/web3.js';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { getAssociatedTokenAddress } from '../../src/read';
+import * as tokenInterface from '../../src';
+import * as tokenInterfaceNowrap from '../../src/nowrap';
 import {
     createTransferInstructions,
     MultiTransactionNotSupportedError,
@@ -73,5 +75,38 @@ describe('public api', () => {
 
     it('exports canonical transfer builder', () => {
         expect(typeof createTransferInstructions).toBe('function');
+    });
+
+    it('exports dedicated nowrap builders with canonical names', () => {
+        expect(typeof tokenInterfaceNowrap.createLoadInstructions).toBe(
+            'function',
+        );
+        expect(typeof tokenInterfaceNowrap.createTransferInstructions).toBe(
+            'function',
+        );
+        expect(typeof tokenInterfaceNowrap.createApproveInstructions).toBe(
+            'function',
+        );
+        expect(typeof tokenInterfaceNowrap.createRevokeInstructions).toBe(
+            'function',
+        );
+        expect(typeof tokenInterfaceNowrap.createBurnInstructions).toBe(
+            'function',
+        );
+        expect(typeof tokenInterfaceNowrap.createFreezeInstructions).toBe(
+            'function',
+        );
+        expect(typeof tokenInterfaceNowrap.createThawInstructions).toBe(
+            'function',
+        );
+    });
+
+    it('does not expose legacy *Nowrap names on main entrypoint', () => {
+        expect('createTransferInstructionsNowrap' in tokenInterface).toBe(false);
+        expect('createApproveInstructionsNowrap' in tokenInterface).toBe(false);
+        expect('createRevokeInstructionsNowrap' in tokenInterface).toBe(false);
+        expect('createBurnInstructionsNowrap' in tokenInterface).toBe(false);
+        expect('createFreezeInstructionsNowrap' in tokenInterface).toBe(false);
+        expect('createThawInstructionsNowrap' in tokenInterface).toBe(false);
     });
 });

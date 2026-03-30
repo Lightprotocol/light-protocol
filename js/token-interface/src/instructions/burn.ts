@@ -101,49 +101,16 @@ export async function createBurnInstructions({
     amount,
     decimals,
 }: CreateBurnInstructionsInput): Promise<TransactionInstruction[]> {
-    const tokenAccount = getAtaAddress({ owner, mint });
-
-    const amountBn = toBigIntAmount(amount);
-    const burnIx =
-        decimals !== undefined
-            ? createBurnCheckedInstruction({
-                  source: tokenAccount,
-                  mint,
-                  authority,
-                  amount: amountBn,
-                  decimals,
-                  payer,
-              })
-            : createBurnInstruction({
-                  source: tokenAccount,
-                  mint,
-                  authority,
-                  amount: amountBn,
-                  payer,
-              });
-
-    return [
-        ...(await createLoadInstructions({
-            rpc,
-            payer,
-            owner,
-            mint,
-            authority,
-            wrap: true,
-        })),
-        burnIx,
-    ];
+    return _createBurnInstructions(
+        { rpc, payer, owner, mint, authority, amount, decimals },
+        true,
+    );
 }
 
-export async function createBurnInstructionsNowrap({
-    rpc,
-    payer,
-    owner,
-    mint,
-    authority,
-    amount,
-    decimals,
-}: CreateBurnInstructionsInput): Promise<TransactionInstruction[]> {
+export async function _createBurnInstructions(
+    { rpc, payer, owner, mint, authority, amount, decimals }: CreateBurnInstructionsInput,
+    wrap: boolean,
+): Promise<TransactionInstruction[]> {
     const tokenAccount = getAtaAddress({ owner, mint });
 
     const amountBn = toBigIntAmount(amount);
@@ -172,7 +139,7 @@ export async function createBurnInstructionsNowrap({
             owner,
             mint,
             authority,
-            wrap: false,
+            wrap,
         })),
         burnIx,
     ];

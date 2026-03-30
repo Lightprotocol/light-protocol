@@ -9,6 +9,8 @@ import {
     getAta,
     getAtaAddress,
 } from '../../src';
+import { createFreezeInstructions as createFreezeInstructionsNowrap } from '../../src/nowrap';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
     createMintFixture,
     getHotState,
@@ -180,5 +182,47 @@ describe('freeze and thaw instructions', () => {
         expect(await getHotState(fixture.rpc, tokenAccount)).toBe(
             AccountState.Initialized,
         );
+    });
+
+    it('dedicated nowrap freeze builder does not inject wrap instructions', async () => {
+        const fixture = await createMintFixture({ withFreezeAuthority: true });
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+
+        await mintCompressedToOwner(fixture, owner.publicKey, 2_000n);
+
+        // Move all balance into SPL ATA so canonical freeze needs wrap.
+        const stageToSpl = await createTransferInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            mint: fixture.mint,
+            sourceOwner: owner.publicKey,
+            authority: owner.publicKey,
+            recipient: owner.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            amount: 2_000n,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, stageToSpl, [owner]);
+
+        const nowrapIxs = await createFreezeInstructionsNowrap({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+            freezeAuthority: fixture.freezeAuthority!.publicKey,
+        });
+        const canonicalIxs = await createFreezeInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+            freezeAuthority: fixture.freezeAuthority!.publicKey,
+        });
+
+        // Transfer2 discriminator (101) appears when a wrap/decompress path is injected.
+        const hasTransfer2 = (ixs: Awaited<typeof nowrapIxs>) =>
+            ixs.some(ix => ix.data.length > 0 && ix.data[0] === 101);
+
+        expect(hasTransfer2(nowrapIxs)).toBe(false);
+        expect(hasTransfer2(canonicalIxs)).toBe(true);
     });
 });

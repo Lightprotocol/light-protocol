@@ -46,30 +46,13 @@ export async function createRevokeInstructions({
     owner,
     mint,
 }: CreateRevokeInstructionsInput): Promise<TransactionInstruction[]> {
-    const tokenAccount = getAtaAddress({ owner, mint });
-
-    return [
-        ...(await createLoadInstructions({
-            rpc,
-            payer,
-            owner,
-            mint,
-            wrap: true,
-        })),
-        createRevokeInstruction({
-            tokenAccount,
-            owner,
-            payer,
-        }),
-    ];
+    return _createRevokeInstructions({ rpc, payer, owner, mint }, true);
 }
 
-export async function createRevokeInstructionsNowrap({
-    rpc,
-    payer,
-    owner,
-    mint,
-}: CreateRevokeInstructionsInput): Promise<TransactionInstruction[]> {
+export async function _createRevokeInstructions(
+    { rpc, payer, owner, mint }: CreateRevokeInstructionsInput,
+    wrap: boolean,
+): Promise<TransactionInstruction[]> {
     const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
@@ -78,7 +61,7 @@ export async function createRevokeInstructionsNowrap({
             payer,
             owner,
             mint,
-            wrap: false,
+            wrap,
         })),
         createRevokeInstruction({
             tokenAccount,

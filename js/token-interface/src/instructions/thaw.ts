@@ -37,32 +37,16 @@ export async function createThawInstructions({
     mint,
     freezeAuthority,
 }: CreateThawInstructionsInput): Promise<TransactionInstruction[]> {
-    const tokenAccount = getAtaAddress({ owner, mint });
-
-    return [
-        ...(await createLoadInstructions({
-            rpc,
-            payer,
-            owner,
-            mint,
-            wrap: true,
-            allowFrozen: true,
-        })),
-        createThawInstruction({
-            tokenAccount,
-            mint,
-            freezeAuthority,
-        }),
-    ];
+    return _createThawInstructions(
+        { rpc, payer, owner, mint, freezeAuthority },
+        true,
+    );
 }
 
-export async function createThawInstructionsNowrap({
-    rpc,
-    payer,
-    owner,
-    mint,
-    freezeAuthority,
-}: CreateThawInstructionsInput): Promise<TransactionInstruction[]> {
+export async function _createThawInstructions(
+    { rpc, payer, owner, mint, freezeAuthority }: CreateThawInstructionsInput,
+    wrap: boolean,
+): Promise<TransactionInstruction[]> {
     const tokenAccount = getAtaAddress({ owner, mint });
 
     return [
@@ -71,7 +55,7 @@ export async function createThawInstructionsNowrap({
             payer,
             owner,
             mint,
-            wrap: false,
+            wrap,
             allowFrozen: true,
         })),
         createThawInstruction({
