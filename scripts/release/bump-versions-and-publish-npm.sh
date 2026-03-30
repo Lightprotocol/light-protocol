@@ -1,12 +1,39 @@
 #!/usr/bin/env bash
-# Examples: 
-#    ./scripts/bump-versions-and-publish-npm.sh minor
-#    ./scripts/bump-versions-and-publish-npm.sh patch @lightprotocol/stateless.js @lightprotocol/compressed-token
-#    ./scripts/bump-versions-and-publish-npm.sh patch @lightprotocol/token-interface
-#    ./scripts/bump-versions-and-publish-npm.sh alpha @lightprotocol/stateless.js 
-#    ./scripts/bump-versions-and-publish-npm.sh beta @lightprotocol/stateless.js @lightprotocol/compressed-token
+# Examples:
+#    ./scripts/release/bump-versions-and-publish-npm.sh minor
+#    ./scripts/release/bump-versions-and-publish-npm.sh patch @lightprotocol/stateless.js @lightprotocol/compressed-token
+#    ./scripts/release/bump-versions-and-publish-npm.sh patch @lightprotocol/token-interface
+#    ./scripts/release/bump-versions-and-publish-npm.sh alpha @lightprotocol/stateless.js
+#    ./scripts/release/bump-versions-and-publish-npm.sh beta @lightprotocol/stateless.js @lightprotocol/compressed-token
+#    ./scripts/release/bump-versions-and-publish-npm.sh patch --otp 123456 @lightprotocol/stateless.js
 
 cd "$(git rev-parse --show-toplevel)"
+
+npm_otp=""
+remaining_args=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --otp)
+            shift
+            if [ -z "${1:-}" ]; then
+                echo "Error: --otp requires a value (npm 2FA one-time password)."
+                exit 1
+            fi
+            npm_otp="$1"
+            shift
+            ;;
+        *)
+            remaining_args+=("$1")
+            shift
+            ;;
+    esac
+done
+set -- "${remaining_args[@]}"
+
+publish_otp_args=()
+if [ -n "$npm_otp" ]; then
+    publish_otp_args=(--otp "$npm_otp")
+fi
 
 if ! command -v pnpm &> /dev/null; then
     echo "pnpm is not installed. Please install pnpm first."
@@ -40,17 +67,17 @@ publish_package() {
 
     sleep 5
     if [ "$version_type" == "alpha" ]; then
-        if ! (cd "${package_dir}" && pnpm version prerelease --preid alpha && pnpm publish --tag alpha --access private --no-git-checks --verbose); then
+        if ! (cd "${package_dir}" && pnpm version prerelease --preid alpha && pnpm publish --tag alpha --access private --no-git-checks --verbose "${publish_otp_args[@]}"); then
             echo "Error occurred while publishing ${package_name}."
             return 1
         fi
     elif [ "$version_type" == "beta" ]; then
-        if ! (cd "${package_dir}" && pnpm version prerelease --preid beta && pnpm publish --tag beta --access public --no-git-checks --verbose); then
+        if ! (cd "${package_dir}" && pnpm version prerelease --preid beta && pnpm publish --tag beta --access public --no-git-checks --verbose "${publish_otp_args[@]}"); then
             echo "Error occurred while publishing ${package_name}."
             return 1
         fi
     else
-        if ! (cd "${package_dir}" && pnpm version "${version_type}" && pnpm publish --access public --no-git-checks --verbose); then
+        if ! (cd "${package_dir}" && pnpm version "${version_type}" && pnpm publish --access public --no-git-checks --verbose "${publish_otp_args[@]}"); then
             echo "Error occurred while publishing ${package_name}."
             return 1
         fi
@@ -66,17 +93,17 @@ error_occurred=0
 if [ "$#" -eq 0 ]; then
     echo "Bumping ${version_type} version for all packages..."
     if [ "$version_type" == "alpha" ]; then
-        if ! pnpm -r exec -- pnpm version prerelease --preid alpha || ! pnpm -r exec -- pnpm publish --tag alpha --access private --verbose; then
+        if ! pnpm -r exec -- pnpm version prerelease --preid alpha || ! pnpm -r exec -- pnpm publish --tag alpha --access private --verbose "${publish_otp_args[@]}"; then
             echo "Error occurred during bulk version bump and publish."
             error_occurred=1
         fi
     elif [ "$version_type" == "beta" ]; then
-        if ! pnpm -r exec -- pnpm version prerelease --preid beta || ! pnpm -r exec -- pnpm publish --tag beta --access public --verbose; then
+        if ! pnpm -r exec -- pnpm version prerelease --preid beta || ! pnpm -r exec -- pnpm publish --tag beta --access public --verbose "${publish_otp_args[@]}"; then
             echo "Error occurred during bulk version bump and publish."
             error_occurred=1
         fi
     else
-        if ! pnpm -r exec -- pnpm version "${version_type}" || ! pnpm -r exec -- pnpm publish --access public --verbose; then
+        if ! pnpm -r exec -- pnpm version "${version_type}" || ! pnpm -r exec -- pnpm publish --access public --verbose "${publish_otp_args[@]}"; then
             echo "Error occurred during bulk version bump and publish."
             error_occurred=1
         fi
