@@ -99,7 +99,9 @@ export async function createTransferInstructions(
         });
     } else {
         if (!transferSplInterfaces) {
-            throw new Error('Missing SPL interfaces for non-light transfer path.');
+            throw new Error(
+                'Missing SPL interfaces for non-light transfer path.',
+            );
         }
         const splInterface = transferSplInterfaces.find(
             info =>

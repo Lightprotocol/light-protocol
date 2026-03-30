@@ -188,7 +188,9 @@ describe('transfer instructions', () => {
             false,
             TOKEN_PROGRAM_ID,
         );
-        const splInterface = fixture.tokenPoolInfos.find(info => info.isInitialized);
+        const splInterface = fixture.tokenPoolInfos.find(
+            info => info.isInitialized,
+        );
         if (!splInterface) {
             throw new Error('No initialized SPL interface info found.');
         }
@@ -223,7 +225,11 @@ describe('transfer instructions', () => {
 
         const splInfo = await fixture.rpc.getAccountInfo(ownerSplAta);
         expect(splInfo).not.toBeNull();
-        const splAccount = unpackAccount(ownerSplAta, splInfo!, TOKEN_PROGRAM_ID);
+        const splAccount = unpackAccount(
+            ownerSplAta,
+            splInfo!,
+            TOKEN_PROGRAM_ID,
+        );
         expect(splAccount.amount).toBe(350n);
 
         const account = await getAta({
@@ -247,20 +253,23 @@ describe('transfer instructions', () => {
             false,
             TOKEN_PROGRAM_ID,
         );
-        const splInterface = fixture.tokenPoolInfos.find(info => info.isInitialized);
+        const splInterface = fixture.tokenPoolInfos.find(
+            info => info.isInitialized,
+        );
         if (!splInterface) {
             throw new Error('No initialized SPL interface info found.');
         }
 
         await mintCompressedToOwner(fixture, owner.publicKey, 1_000n);
 
-        const ensureSplAtaIx = createAssociatedTokenAccountIdempotentInstruction(
-            fixture.payer.publicKey,
-            ownerSplAta,
-            owner.publicKey,
-            fixture.mint,
-            TOKEN_PROGRAM_ID,
-        );
+        const ensureSplAtaIx =
+            createAssociatedTokenAccountIdempotentInstruction(
+                fixture.payer.publicKey,
+                ownerSplAta,
+                owner.publicKey,
+                fixture.mint,
+                TOKEN_PROGRAM_ID,
+            );
         await sendInstructions(fixture.rpc, fixture.payer, [ensureSplAtaIx]);
 
         const loadInstructions = await createLoadInstructions({
@@ -270,7 +279,9 @@ describe('transfer instructions', () => {
             mint: fixture.mint,
             authority: owner.publicKey,
         });
-        await sendInstructions(fixture.rpc, fixture.payer, loadInstructions, [owner]);
+        await sendInstructions(fixture.rpc, fixture.payer, loadInstructions, [
+            owner,
+        ]);
 
         const unwrapIx = createUnwrapInstruction({
             source: lightAta,
@@ -286,7 +297,11 @@ describe('transfer instructions', () => {
 
         const splInfo = await fixture.rpc.getAccountInfo(ownerSplAta);
         expect(splInfo).not.toBeNull();
-        const splAccount = unpackAccount(ownerSplAta, splInfo!, TOKEN_PROGRAM_ID);
+        const splAccount = unpackAccount(
+            ownerSplAta,
+            splInfo!,
+            TOKEN_PROGRAM_ID,
+        );
         expect(splAccount.amount).toBe(300n);
 
         const account = await getAta({

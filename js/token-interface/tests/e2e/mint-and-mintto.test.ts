@@ -70,7 +70,10 @@ describe('mint and mintTo instructions', () => {
         expect(mintInfo.programId.equals(TOKEN_PROGRAM_ID)).toBe(true);
         expect(mintInfo.mint.decimals).toBe(9);
 
-        const [indexZeroPda] = deriveSplInterfacePdaWithIndex(keypair.publicKey, 0);
+        const [indexZeroPda] = deriveSplInterfacePdaWithIndex(
+            keypair.publicKey,
+            0,
+        );
         expect(await rpc.getAccountInfo(indexZeroPda)).not.toBeNull();
     });
 
@@ -96,9 +99,12 @@ describe('mint and mintTo instructions', () => {
             null,
             TOKEN_PROGRAM_ID,
         );
-        await sendInstructions(rpc, payer, [createMintAccount, initMint], [
-            mintKeypair,
-        ]);
+        await sendInstructions(
+            rpc,
+            payer,
+            [createMintAccount, initMint],
+            [mintKeypair],
+        );
 
         await sendInstructions(rpc, payer, [
             createSplInterfaceInstruction({
@@ -166,7 +172,10 @@ describe('mint and mintTo instructions', () => {
         expect(plan).toBeDefined();
 
         const instructions = await createMintInstructions(input);
-        await sendInstructions(rpc, payer, instructions, [mintSigner, mintAuthority]);
+        await sendInstructions(rpc, payer, instructions, [
+            mintSigner,
+            mintAuthority,
+        ]);
 
         const lightMint = deriveLightMintAddress(mintSigner.publicKey);
         const mintInfo = await getMint(
@@ -206,13 +215,14 @@ describe('mint and mintTo instructions', () => {
             false,
             TOKEN_PROGRAM_ID,
         );
-        const createRecipientAta = createAssociatedTokenAccountIdempotentInstruction(
-            payer.publicKey,
-            recipientAta,
-            recipient.publicKey,
-            mintKeypair.publicKey,
-            TOKEN_PROGRAM_ID,
-        );
+        const createRecipientAta =
+            createAssociatedTokenAccountIdempotentInstruction(
+                payer.publicKey,
+                recipientAta,
+                recipient.publicKey,
+                mintKeypair.publicKey,
+                TOKEN_PROGRAM_ID,
+            );
         await sendInstructions(rpc, payer, [createRecipientAta]);
 
         const input = {
@@ -229,7 +239,11 @@ describe('mint and mintTo instructions', () => {
 
         const accountInfo = await rpc.getAccountInfo(recipientAta);
         expect(accountInfo).not.toBeNull();
-        const token = unpackAccount(recipientAta, accountInfo!, TOKEN_PROGRAM_ID);
+        const token = unpackAccount(
+            recipientAta,
+            accountInfo!,
+            TOKEN_PROGRAM_ID,
+        );
         expect(token.amount).toBe(777n);
     });
 
@@ -260,13 +274,14 @@ describe('mint and mintTo instructions', () => {
             false,
             TOKEN_2022_PROGRAM_ID,
         );
-        const createRecipientAta = createAssociatedTokenAccountIdempotentInstruction(
-            payer.publicKey,
-            recipientAta,
-            recipient.publicKey,
-            mintKeypair.publicKey,
-            TOKEN_2022_PROGRAM_ID,
-        );
+        const createRecipientAta =
+            createAssociatedTokenAccountIdempotentInstruction(
+                payer.publicKey,
+                recipientAta,
+                recipient.publicKey,
+                mintKeypair.publicKey,
+                TOKEN_2022_PROGRAM_ID,
+            );
         await sendInstructions(rpc, payer, [createRecipientAta]);
 
         const mintToIxs = await createMintToInstructions({
@@ -280,7 +295,11 @@ describe('mint and mintTo instructions', () => {
 
         const accountInfo = await rpc.getAccountInfo(recipientAta);
         expect(accountInfo).not.toBeNull();
-        const token = unpackAccount(recipientAta, accountInfo!, TOKEN_2022_PROGRAM_ID);
+        const token = unpackAccount(
+            recipientAta,
+            accountInfo!,
+            TOKEN_2022_PROGRAM_ID,
+        );
         expect(token.amount).toBe(555n);
     });
 

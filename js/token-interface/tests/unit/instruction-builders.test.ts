@@ -413,9 +413,9 @@ describe('instruction builders', () => {
             tokenProgramId: TOKEN_2022_PROGRAM_ID,
         });
 
-        expect(
-            instruction.keys[4].pubkey.equals(TOKEN_2022_PROGRAM_ID),
-        ).toBe(true);
+        expect(instruction.keys[4].pubkey.equals(TOKEN_2022_PROGRAM_ID)).toBe(
+            true,
+        );
     });
 
     it('throws when spl interface index is out of range', () => {
@@ -611,7 +611,9 @@ describe('instruction builders', () => {
                 mintAuthority,
                 tokenProgramId: unsupportedProgramId,
             }),
-        ).rejects.toThrow(/Unsupported token program .*createMintInstructions/i);
+        ).rejects.toThrow(
+            /Unsupported token program .*createMintInstructions/i,
+        );
     });
 
     it('throws when light mint addressTreeInfo does not match default tree', async () => {

@@ -106,10 +106,18 @@ function deriveLightMintAddress(
     );
 }
 
-function validateProofArrays(proof: ValidityProof | null): ValidityProof | null {
+function validateProofArrays(
+    proof: ValidityProof | null,
+): ValidityProof | null {
     if (!proof) return null;
-    if (proof.a.length !== 32 || proof.b.length !== 64 || proof.c.length !== 32) {
-        throw new Error('Invalid compressed proof shape for light mint creation.');
+    if (
+        proof.a.length !== 32 ||
+        proof.b.length !== 64 ||
+        proof.c.length !== 32
+    ) {
+        throw new Error(
+            'Invalid compressed proof shape for light mint creation.',
+        );
     }
     return proof;
 }
@@ -199,7 +207,9 @@ export function createLightMintInstruction({
             },
             mintAuthority,
             freezeAuthority,
-            extensions: metadataLayout ? [{ tokenMetadata: metadataLayout }] : null,
+            extensions: metadataLayout
+                ? [{ tokenMetadata: metadataLayout }]
+                : null,
         },
     };
 
@@ -226,7 +236,11 @@ export function createLightMintInstruction({
                 isSigner: false,
                 isWritable: false,
             },
-            { pubkey: sys.registeredProgramPda, isSigner: false, isWritable: false },
+            {
+                pubkey: sys.registeredProgramPda,
+                isSigner: false,
+                isWritable: false,
+            },
             {
                 pubkey: sys.accountCompressionAuthority,
                 isSigner: false,
@@ -281,7 +295,8 @@ export async function createMintInstructions({
     const keypairPubkey = keypair.publicKey;
 
     if (tokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        const resolvedAddressTreeInfo = addressTreeInfo ?? getBatchAddressTreeInfo();
+        const resolvedAddressTreeInfo =
+            addressTreeInfo ?? getBatchAddressTreeInfo();
         const defaultAddressTreeInfo = getDefaultAddressTreeInfo();
         if (!resolvedAddressTreeInfo.tree.equals(defaultAddressTreeInfo.tree)) {
             throw new Error(
@@ -290,7 +305,8 @@ export async function createMintInstructions({
         }
 
         const resolvedOutputStateTreeInfo =
-            outputStateTreeInfo ?? selectStateTreeInfo(await rpc.getStateTreeInfos());
+            outputStateTreeInfo ??
+            selectStateTreeInfo(await rpc.getStateTreeInfos());
 
         const compressedMintAddress = deriveLightMintAddress(
             keypairPubkey,
@@ -423,7 +439,11 @@ export function createMintToInstruction({
         keys: [
             { pubkey: mint, isSigner: false, isWritable: true },
             { pubkey: destination, isSigner: false, isWritable: true },
-            { pubkey: authority, isSigner: true, isWritable: authorityWritable },
+            {
+                pubkey: authority,
+                isSigner: true,
+                isWritable: authorityWritable,
+            },
             {
                 pubkey: SystemProgram.programId,
                 isSigner: false,
@@ -465,7 +485,9 @@ export async function createMintToInstructions({
     ];
 }
 
-export async function createMintInstructionPlan(input: CreateMintInstructionsInput) {
+export async function createMintInstructionPlan(
+    input: CreateMintInstructionsInput,
+) {
     return toInstructionPlan(await createMintInstructions(input));
 }
 
