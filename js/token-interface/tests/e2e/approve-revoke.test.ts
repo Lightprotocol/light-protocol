@@ -126,7 +126,7 @@ describe('approve and revoke instructions', () => {
         expect(revoked.delegatedAmount).toBe(0n);
     });
 
-    it('dedicated nowrap path does not auto-wrap SPL balances for approve, but can revoke once hot account exists', async () => {
+    it('dedicated nowrap path approves/revokes using existing hot account state', async () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
         const delegate = Keypair.generate();
@@ -158,13 +158,17 @@ describe('approve and revoke instructions', () => {
             delegate: delegate.publicKey,
             amount: 700n,
         });
-        await expect(
-            sendInstructions(fixture.rpc, fixture.payer, nowrapApprove, [
-                owner,
-            ]),
-        ).rejects.toThrow(/custom program error|instruction error|invalid/i);
+        expect(nowrapApprove.length).toBe(1);
+        await sendInstructions(fixture.rpc, fixture.payer, nowrapApprove, [
+            owner,
+        ]);
+        const nowrapDelegated = await getHotDelegate(fixture.rpc, tokenAccount);
+        expect(nowrapDelegated.delegate?.toBase58()).toBe(
+            delegate.publicKey.toBase58(),
+        );
+        expect(nowrapDelegated.delegatedAmount).toBe(700n);
 
-        // Canonical approve wraps first, then approves.
+        // Canonical approve also succeeds and keeps expected delegate state.
         const canonicalApprove = await createApproveInstructions({
             rpc: fixture.rpc,
             payer: fixture.payer.publicKey,
