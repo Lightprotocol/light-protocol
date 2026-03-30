@@ -15,6 +15,8 @@ import {
     createMintToInstruction,
     createThawInstruction,
     createSplInterfaceInstruction,
+    getSplInterface,
+    getSplInterfaces,
     getAtaAddress,
 } from '../../src';
 
@@ -118,6 +120,10 @@ describe('public api', () => {
     });
     it('exports createSplInterfaceInstruction builder', () => {
         expect(typeof createSplInterfaceInstruction).toBe('function');
+    });
+    it('exports SPL interface readers on root entrypoint', () => {
+        expect(typeof getSplInterfaces).toBe('function');
+        expect(typeof getSplInterface).toBe('function');
     });
 
     it('exports mint and mint-to builders', () => {

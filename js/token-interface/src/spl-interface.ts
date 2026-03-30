@@ -99,3 +99,21 @@ export async function getSplInterfaces(
         };
     });
 }
+
+/**
+ * Returns the first initialized SPL interface for a mint.
+ */
+export async function getSplInterface(
+    rpc: Rpc,
+    mint: PublicKey,
+    commitment?: Commitment,
+): Promise<SplInterface> {
+    const infos = await getSplInterfaces(rpc, mint, commitment);
+    const info = infos.find(candidate => candidate.isInitialized);
+    if (!info) {
+        throw new TokenAccountNotFoundError(
+            `No initialized SPL interface for mint ${mint.toBase58()}.`,
+        );
+    }
+    return info;
+}
