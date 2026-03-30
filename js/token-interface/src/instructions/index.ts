@@ -17,6 +17,8 @@ export {
     createTransferInstructionPlan,
 } from './transfer';
 export * from './load';
+export { createWrapInstruction } from './wrap';
+export { createUnwrapInstruction } from './unwrap';
 export {
     createBurnInstruction,
     createBurnCheckedInstruction,

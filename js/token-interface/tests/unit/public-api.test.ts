@@ -9,6 +9,8 @@ import {
     MultiTransactionNotSupportedError,
     createAtaInstructions,
     createFreezeInstruction,
+    createUnwrapInstruction,
+    createWrapInstruction,
     createMintInstruction,
     createMintToInstruction,
     createThawInstruction,
@@ -121,5 +123,10 @@ describe('public api', () => {
     it('exports mint and mint-to builders', () => {
         expect(typeof createMintInstruction).toBe('function');
         expect(typeof createMintToInstruction).toBe('function');
+    });
+
+    it('exports standalone wrap and unwrap instruction builders', () => {
+        expect(typeof createWrapInstruction).toBe('function');
+        expect(typeof createUnwrapInstruction).toBe('function');
     });
 });

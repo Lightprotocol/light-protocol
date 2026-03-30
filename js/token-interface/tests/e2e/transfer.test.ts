@@ -5,6 +5,7 @@ import {
     TransactionInstruction,
 } from '@solana/web3.js';
 import {
+    createAssociatedTokenAccountIdempotentInstruction,
     createTransferCheckedInstruction as createSplTransferCheckedInstruction,
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
@@ -15,7 +16,10 @@ import { newAccountWithLamports } from '@lightprotocol/stateless.js';
 import {
     createApproveInstructions,
     createAtaInstructions,
+    createLoadInstructions,
     createTransferInstructions,
+    createUnwrapInstruction,
+    createWrapInstruction,
     getAta,
     getAtaAddress,
 } from '../../src';
@@ -169,6 +173,128 @@ describe('transfer instructions', () => {
             TOKEN_PROGRAM_ID,
         );
         expect(recipientSpl.amount).toBe(1_250n);
+    });
+
+    it('supports standalone createWrapInstruction flow', async () => {
+        const fixture = await createMintFixture();
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+        const lightAta = getAtaAddress({
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+        const ownerSplAta = getAssociatedTokenAddressSync(
+            fixture.mint,
+            owner.publicKey,
+            false,
+            TOKEN_PROGRAM_ID,
+        );
+        const splInterface = fixture.tokenPoolInfos.find(info => info.isInitialized);
+        if (!splInterface) {
+            throw new Error('No initialized SPL interface info found.');
+        }
+
+        await mintCompressedToOwner(fixture, owner.publicKey, 1_000n);
+
+        const toSplInstructions = await createTransferInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            mint: fixture.mint,
+            sourceOwner: owner.publicKey,
+            authority: owner.publicKey,
+            recipient: owner.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            amount: 600n,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, toSplInstructions, [
+            owner,
+        ]);
+
+        const wrapIx = createWrapInstruction({
+            source: ownerSplAta,
+            destination: lightAta,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+            amount: 250n,
+            splInterface,
+            decimals: TEST_TOKEN_DECIMALS,
+            payer: fixture.payer.publicKey,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, [wrapIx], [owner]);
+
+        const splInfo = await fixture.rpc.getAccountInfo(ownerSplAta);
+        expect(splInfo).not.toBeNull();
+        const splAccount = unpackAccount(ownerSplAta, splInfo!, TOKEN_PROGRAM_ID);
+        expect(splAccount.amount).toBe(350n);
+
+        const account = await getAta({
+            rpc: fixture.rpc,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+        expect(account.parsed.amount).toBe(650n);
+    });
+
+    it('supports standalone createUnwrapInstruction flow', async () => {
+        const fixture = await createMintFixture();
+        const owner = await newAccountWithLamports(fixture.rpc, 1e9);
+        const lightAta = getAtaAddress({
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+        const ownerSplAta = getAssociatedTokenAddressSync(
+            fixture.mint,
+            owner.publicKey,
+            false,
+            TOKEN_PROGRAM_ID,
+        );
+        const splInterface = fixture.tokenPoolInfos.find(info => info.isInitialized);
+        if (!splInterface) {
+            throw new Error('No initialized SPL interface info found.');
+        }
+
+        await mintCompressedToOwner(fixture, owner.publicKey, 1_000n);
+
+        const ensureSplAtaIx = createAssociatedTokenAccountIdempotentInstruction(
+            fixture.payer.publicKey,
+            ownerSplAta,
+            owner.publicKey,
+            fixture.mint,
+            TOKEN_PROGRAM_ID,
+        );
+        await sendInstructions(fixture.rpc, fixture.payer, [ensureSplAtaIx]);
+
+        const loadInstructions = await createLoadInstructions({
+            rpc: fixture.rpc,
+            payer: fixture.payer.publicKey,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+            authority: owner.publicKey,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, loadInstructions, [owner]);
+
+        const unwrapIx = createUnwrapInstruction({
+            source: lightAta,
+            destination: ownerSplAta,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+            amount: 300n,
+            splInterface,
+            decimals: TEST_TOKEN_DECIMALS,
+            payer: fixture.payer.publicKey,
+        });
+        await sendInstructions(fixture.rpc, fixture.payer, [unwrapIx], [owner]);
+
+        const splInfo = await fixture.rpc.getAccountInfo(ownerSplAta);
+        expect(splInfo).not.toBeNull();
+        const splAccount = unpackAccount(ownerSplAta, splInfo!, TOKEN_PROGRAM_ID);
+        expect(splAccount.amount).toBe(300n);
+
+        const account = await getAta({
+            rpc: fixture.rpc,
+            owner: owner.publicKey,
+            mint: fixture.mint,
+        });
+        expect(account.parsed.amount).toBe(700n);
     });
 
     it('passes through on-chain insufficient-funds error for transfer', async () => {
