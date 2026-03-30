@@ -6,7 +6,7 @@ import {
     createApproveInstructions,
     createRevokeInstructions,
     createTransferInstructions,
-    getAtaAddress,
+    getAssociatedTokenAddress,
 } from '../../src';
 import {
     createApproveInstructions as createApproveInstructionsNowrap,
@@ -24,10 +24,11 @@ describe('approve and revoke instructions', () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
         const delegate = Keypair.generate();
-        const tokenAccount = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const tokenAccount = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
 
         await mintCompressedToOwner(fixture, owner.publicKey, 4_000n);
 
@@ -85,10 +86,11 @@ describe('approve and revoke instructions', () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
         const delegate = Keypair.generate();
-        const tokenAccount = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const tokenAccount = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
 
         await mintCompressedToOwner(fixture, owner.publicKey, 2_000n);
 
@@ -130,10 +132,11 @@ describe('approve and revoke instructions', () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
         const delegate = Keypair.generate();
-        const tokenAccount = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const tokenAccount = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
 
         await mintCompressedToOwner(fixture, owner.publicKey, 2_000n);
 

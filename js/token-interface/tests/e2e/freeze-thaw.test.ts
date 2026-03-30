@@ -7,7 +7,7 @@ import {
     createThawInstructions,
     createTransferInstructions,
     getAta,
-    getAtaAddress,
+    getAssociatedTokenAddress,
 } from '../../src';
 import { createFreezeInstructions as createFreezeInstructionsNowrap } from '../../src/nowrap';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -22,10 +22,11 @@ describe('freeze and thaw instructions', () => {
     it('freezes and thaws a loaded hot account', async () => {
         const fixture = await createMintFixture({ withFreezeAuthority: true });
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
-        const tokenAccount = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const tokenAccount = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
 
         await sendInstructions(
             fixture.rpc,
@@ -146,10 +147,11 @@ describe('freeze and thaw instructions', () => {
     it('defaults payer to owner when omitted for freeze/thaw builders', async () => {
         const fixture = await createMintFixture({ withFreezeAuthority: true });
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
-        const tokenAccount = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const tokenAccount = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
 
         await mintCompressedToOwner(fixture, owner.publicKey, 1_000n);
 

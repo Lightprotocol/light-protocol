@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { newAccountWithLamports } from '@lightprotocol/stateless.js';
-import { createAtaInstructions, getAta, getAtaAddress } from '../../src';
+import { createAtaInstructions, getAta, getAssociatedTokenAddress } from '../../src';
 import { createMintFixture, sendInstructions } from './helpers';
 
 describe('ata creation and reads', () => {
     it('creates the canonical ata and reads it back', async () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
-        const ata = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const ata = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
 
         const instructions = await createAtaInstructions({
             payer: fixture.payer.publicKey,

@@ -570,7 +570,7 @@ async function getUnifiedAccountView(
         lightTokenAta = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
             fetchByOwner.owner,
-            false,
+            true,
             LIGHT_TOKEN_PROGRAM_ID,
             getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
         );
@@ -602,14 +602,14 @@ async function getUnifiedAccountView(
         const splTokenAta = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
             fetchByOwner.owner,
-            false,
+            true,
             TOKEN_PROGRAM_ID,
             getAtaProgramId(TOKEN_PROGRAM_ID),
         );
         const token2022Ata = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
             fetchByOwner.owner,
-            false,
+            true,
             TOKEN_2022_PROGRAM_ID,
             getAtaProgramId(TOKEN_2022_PROGRAM_ID),
         );
@@ -737,7 +737,7 @@ async function getLightTokenAccountView(
         address = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
             fetchByOwner.owner,
-            false,
+            true,
             LIGHT_TOKEN_PROGRAM_ID,
             getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
         );
@@ -845,7 +845,7 @@ async function getSplOrToken2022AccountView(
         address = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
             fetchByOwner.owner,
-            false,
+            true,
             programId,
             getAtaProgramId(programId),
         );

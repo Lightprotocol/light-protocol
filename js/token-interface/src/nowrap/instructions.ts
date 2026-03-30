@@ -11,7 +11,7 @@ import type {
 } from '../types';
 import { toInstructionPlan } from '../instructions/_plan';
 import { createLoadInstructions as createLoadInstructionsDefault } from '../instructions/load';
-import { getAtaAddress } from '../read';
+import { getAssociatedTokenAddress } from '../read';
 import { toBigIntAmount, getMintDecimals } from '../helpers';
 import { createTransferCheckedInstruction } from '../instructions/transfer';
 import { getSplInterfaces } from '../spl-interface';
@@ -76,15 +76,13 @@ export async function createTransferInstructions(
         splInterfaces: transferSplInterfaces,
     });
 
-    const recipientAta = getAtaAddress({
-        owner: recipient,
+    const recipientAta = getAssociatedTokenAddress(
         mint,
-        programId: recipientTokenProgramId,
-    });
-    const senderAta = getAtaAddress({
-        owner: sourceOwner,
-        mint,
-    });
+        recipient,
+        true,
+        recipientTokenProgramId,
+    );
+    const senderAta = getAssociatedTokenAddress(mint, sourceOwner, true);
 
     let transferInstruction: TransactionInstruction;
     if (recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
@@ -132,7 +130,7 @@ export async function createApproveInstructions(
     input: CreateApproveInstructionsInput,
 ): Promise<TransactionInstruction[]> {
     const { rpc, payer, owner, mint, delegate, amount } = input;
-    const tokenAccount = getAtaAddress({ owner, mint });
+    const tokenAccount = getAssociatedTokenAddress(mint, owner, true);
 
     return [
         ...(await createLoadInstructionsDefault({
@@ -156,7 +154,7 @@ export async function createRevokeInstructions(
     input: CreateRevokeInstructionsInput,
 ): Promise<TransactionInstruction[]> {
     const { rpc, payer, owner, mint } = input;
-    const tokenAccount = getAtaAddress({ owner, mint });
+    const tokenAccount = getAssociatedTokenAddress(mint, owner, true);
 
     return [
         ...(await createLoadInstructionsDefault({
@@ -178,7 +176,7 @@ export async function createBurnInstructions(
     input: CreateBurnInstructionsInput,
 ): Promise<TransactionInstruction[]> {
     const { rpc, payer, owner, mint, authority, amount, decimals } = input;
-    const tokenAccount = getAtaAddress({ owner, mint });
+    const tokenAccount = getAssociatedTokenAddress(mint, owner, true);
 
     const amountBn = toBigIntAmount(amount);
     const burnIx =
@@ -216,7 +214,7 @@ export async function createFreezeInstructions(
     input: CreateFreezeInstructionsInput,
 ): Promise<TransactionInstruction[]> {
     const { rpc, payer, owner, mint, freezeAuthority } = input;
-    const tokenAccount = getAtaAddress({ owner, mint });
+    const tokenAccount = getAssociatedTokenAddress(mint, owner, true);
 
     return [
         ...(await createLoadInstructionsDefault({
@@ -238,7 +236,7 @@ export async function createThawInstructions(
     input: CreateThawInstructionsInput,
 ): Promise<TransactionInstruction[]> {
     const { rpc, payer, owner, mint, freezeAuthority } = input;
-    const tokenAccount = getAtaAddress({ owner, mint });
+    const tokenAccount = getAssociatedTokenAddress(mint, owner, true);
 
     return [
         ...(await createLoadInstructionsDefault({

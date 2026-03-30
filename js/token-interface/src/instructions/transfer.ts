@@ -4,7 +4,7 @@ import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { getSplInterfaces } from '../spl-interface';
 import { createUnwrapInstruction } from './unwrap';
 import { getMintDecimals, toBigIntAmount } from '../helpers';
-import { getAtaAddress } from '../read';
+import { getAssociatedTokenAddress } from '../read';
 import type {
     CreateRawTransferInstructionInput,
     CreateTransferInstructionsInput,
@@ -123,15 +123,13 @@ async function _createTransferInstructions(
         decimals,
         splInterfaces: transferSplInterfaces,
     });
-    const recipientAta = getAtaAddress({
-        owner: recipient,
+    const recipientAta = getAssociatedTokenAddress(
         mint,
-        programId: recipientTokenProgramId,
-    });
-    const senderAta = getAtaAddress({
-        owner: sourceOwner,
-        mint,
-    });
+        recipient,
+        true,
+        recipientTokenProgramId,
+    );
+    const senderAta = getAssociatedTokenAddress(mint, sourceOwner, true);
 
     let transferInstruction: TransactionInstruction;
     if (recipientTokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {

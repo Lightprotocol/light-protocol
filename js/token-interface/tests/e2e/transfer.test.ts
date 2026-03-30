@@ -21,7 +21,7 @@ import {
     createUnwrapInstruction,
     createWrapInstruction,
     getAta,
-    getAtaAddress,
+    getAssociatedTokenAddress,
 } from '../../src';
 import { createTransferInstructions as createTransferInstructionsNowrap } from '../../src/nowrap';
 import {
@@ -99,10 +99,11 @@ describe('transfer instructions', () => {
             owner: recipient.publicKey,
             mint: fixture.mint,
         });
-        const senderAta = getAtaAddress({
-            owner: sender.publicKey,
-            mint: fixture.mint,
-        });
+        const senderAta = getAssociatedTokenAddress(
+            fixture.mint,
+            sender.publicKey,
+            true,
+        );
 
         expect(recipientAta.parsed.amount).toBe(2_000n);
         expect(await getHotBalance(fixture.rpc, senderAta)).toBe(3_000n);
@@ -178,10 +179,11 @@ describe('transfer instructions', () => {
     it('supports standalone createWrapInstruction flow', async () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
-        const lightAta = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const lightAta = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
         const ownerSplAta = getAssociatedTokenAddressSync(
             fixture.mint,
             owner.publicKey,
@@ -243,10 +245,11 @@ describe('transfer instructions', () => {
     it('supports standalone createUnwrapInstruction flow', async () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
-        const lightAta = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const lightAta = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
         const ownerSplAta = getAssociatedTokenAddressSync(
             fixture.mint,
             owner.publicKey,
@@ -342,10 +345,11 @@ describe('transfer instructions', () => {
         const fixture = await createMintFixture();
         const sender = await newAccountWithLamports(fixture.rpc, 1e9);
         const recipient = Keypair.generate();
-        const senderAta = getAtaAddress({
-            owner: sender.publicKey,
-            mint: fixture.mint,
-        });
+        const senderAta = getAssociatedTokenAddress(
+            fixture.mint,
+            sender.publicKey,
+            true,
+        );
 
         await mintCompressedToOwner(fixture, sender.publicKey, 500n);
 
@@ -369,10 +373,11 @@ describe('transfer instructions', () => {
         const fixture = await createMintFixture();
         const sender = await newAccountWithLamports(fixture.rpc, 1e9);
         const recipient = await newAccountWithLamports(fixture.rpc, 1e9);
-        const recipientAtaAddress = getAtaAddress({
-            owner: recipient.publicKey,
-            mint: fixture.mint,
-        });
+        const recipientAtaAddress = getAssociatedTokenAddress(
+            fixture.mint,
+            recipient.publicKey,
+            true,
+        );
 
         await mintCompressedToOwner(fixture, sender.publicKey, 400n);
         await mintCompressedToOwner(fixture, recipient.publicKey, 300n);
@@ -417,10 +422,11 @@ describe('transfer instructions', () => {
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
         const delegate = await newAccountWithLamports(fixture.rpc, 1e9);
         const recipient = Keypair.generate();
-        const ownerAta = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const ownerAta = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
 
         await mintCompressedToOwner(fixture, owner.publicKey, 500n);
 

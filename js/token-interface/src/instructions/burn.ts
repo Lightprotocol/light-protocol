@@ -7,7 +7,7 @@ import type {
     CreateRawBurnInstructionInput,
 } from '../types';
 import { toBigIntAmount } from '../helpers';
-import { getAtaAddress } from '../read';
+import { getAssociatedTokenAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
@@ -122,7 +122,7 @@ async function _createBurnInstructions(
     }: CreateBurnInstructionsInput,
     wrap: boolean,
 ): Promise<TransactionInstruction[]> {
-    const tokenAccount = getAtaAddress({ owner, mint });
+    const tokenAccount = getAssociatedTokenAddress(mint, owner, true);
 
     const amountBn = toBigIntAmount(amount);
     const burnIx =

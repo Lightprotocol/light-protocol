@@ -30,7 +30,6 @@ import { getAtaProgramId, checkAtaAddress, AtaType } from '../read/ata-utils';
 import type { LoadOptions } from '../load-options';
 import { getMint } from '../read/get-mint';
 import { toLoadOptions } from '../helpers';
-import { getAtaAddress } from '../read';
 import type { CreateLoadInstructionsInput } from '../types';
 import { toInstructionPlan } from './_plan';
 import { createDecompressInstruction } from './load/decompress';
@@ -66,24 +65,24 @@ async function _buildLoadInstructions(
     const primaryColdCompressedAccount =
         selectPrimaryColdCompressedAccountForLoad(sources);
 
-    const lightTokenAtaAddress = getAssociatedTokenAddress(mint, owner);
+    const lightTokenAtaAddress = getAssociatedTokenAddress(mint, owner, true);
     const splAta = getAssociatedTokenAddressSync(
         mint,
         owner,
-        false,
+        true,
         TOKEN_PROGRAM_ID,
         getAtaProgramId(TOKEN_PROGRAM_ID),
     );
     const t22Ata = getAssociatedTokenAddressSync(
         mint,
         owner,
-        false,
+        true,
         TOKEN_2022_PROGRAM_ID,
         getAtaProgramId(TOKEN_2022_PROGRAM_ID),
     );
 
     let ataType: AtaType = 'light-token';
-    const validation = checkAtaAddress(targetAta, mint, owner);
+    const validation = checkAtaAddress(targetAta, mint, owner, undefined, true);
     ataType = validation.type;
     if (wrap && ataType !== 'light-token') {
         throw new Error(
@@ -344,7 +343,7 @@ export async function createLoadInstructions({
     splInterfaces,
     decimals,
 }: CreateLoadInstructionOptions): Promise<TransactionInstruction[]> {
-    const targetAta = getAtaAddress({ owner, mint });
+    const targetAta = getAssociatedTokenAddress(mint, owner, true);
     const loadOptions = buildLoadOptions(owner, authority, wrap, splInterfaces);
 
     assertV2Enabled();
@@ -361,6 +360,7 @@ export async function createLoadInstructions({
             undefined,
             undefined,
             wrap,
+            true,
         );
     } catch (e) {
         if (e instanceof TokenAccountNotFoundError) {

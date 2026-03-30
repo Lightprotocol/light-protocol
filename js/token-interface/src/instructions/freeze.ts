@@ -5,7 +5,7 @@ import type {
     CreateFreezeInstructionsInput,
     CreateRawFreezeInstructionInput,
 } from '../types';
-import { getAtaAddress } from '../read';
+import { getAssociatedTokenAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
@@ -50,7 +50,7 @@ async function _createFreezeInstructions(
     { rpc, payer, owner, mint, freezeAuthority }: CreateFreezeInstructionsInput,
     wrap: boolean,
 ): Promise<TransactionInstruction[]> {
-    const tokenAccount = getAtaAddress({ owner, mint });
+    const tokenAccount = getAssociatedTokenAddress(mint, owner, true);
 
     return [
         ...(await createLoadInstructions({

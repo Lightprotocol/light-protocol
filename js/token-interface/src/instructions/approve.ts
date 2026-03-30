@@ -6,7 +6,7 @@ import type {
     CreateRawApproveInstructionInput,
 } from '../types';
 import { toBigIntAmount } from '../helpers';
-import { getAtaAddress } from '../read';
+import { getAssociatedTokenAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
@@ -76,7 +76,7 @@ async function _createApproveInstructions(
     }: CreateApproveInstructionsInput,
     wrap: boolean,
 ): Promise<TransactionInstruction[]> {
-    const tokenAccount = getAtaAddress({ owner, mint });
+    const tokenAccount = getAssociatedTokenAddress(mint, owner, true);
 
     return [
         ...(await createLoadInstructions({

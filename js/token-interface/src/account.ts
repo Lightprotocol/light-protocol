@@ -130,7 +130,7 @@ export async function getAtaOrNull({
     mint,
     commitment,
 }: GetAtaInput): Promise<TokenInterfaceAccount | null> {
-    const address = getAssociatedTokenAddress(mint, owner);
+    const address = getAssociatedTokenAddress(mint, owner, true);
 
     const [hotInfo, compressedResult] = await Promise.all([
         rpc.getAccountInfo(address, commitment),

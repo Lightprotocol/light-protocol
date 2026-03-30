@@ -13,7 +13,7 @@ import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { struct, u8, u32, option, vec, array } from '@coral-xyz/borsh';
 import { LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR } from '../constants';
 import { getAtaProgramId } from '../read/ata-utils';
-import { getAtaAddress } from '../read';
+import { getAssociatedTokenAddress } from '../read';
 import type { CreateRawAtaInstructionInput } from '../types';
 import { toInstructionPlan } from './_plan';
 
@@ -410,11 +410,12 @@ export function createAtaInstruction({
     programId,
 }: CreateRawAtaInstructionInput): TransactionInstruction {
     const targetProgramId = programId ?? LIGHT_TOKEN_PROGRAM_ID;
-    const associatedToken = getAtaAddress({
-        owner,
+    const associatedToken = getAssociatedTokenAddress(
         mint,
-        programId: targetProgramId,
-    });
+        owner,
+        true,
+        targetProgramId,
+    );
 
     return createAtaIdempotent({
         payer,

@@ -5,7 +5,7 @@ import type {
     CreateRawThawInstructionInput,
     CreateThawInstructionsInput,
 } from '../types';
-import { getAtaAddress } from '../read';
+import { getAssociatedTokenAddress } from '../read';
 import { createLoadInstructions } from './load';
 import { toInstructionPlan } from './_plan';
 
@@ -50,7 +50,7 @@ async function _createThawInstructions(
     { rpc, payer, owner, mint, freezeAuthority }: CreateThawInstructionsInput,
     wrap: boolean,
 ): Promise<TransactionInstruction[]> {
-    const tokenAccount = getAtaAddress({ owner, mint });
+    const tokenAccount = getAssociatedTokenAddress(mint, owner, true);
 
     return [
         ...(await createLoadInstructions({

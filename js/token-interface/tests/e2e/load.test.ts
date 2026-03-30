@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ComputeBudgetProgram } from '@solana/web3.js';
 import { newAccountWithLamports } from '@lightprotocol/stateless.js';
-import { createLoadInstructions, getAta, getAtaAddress } from '../../src';
+import {
+    createLoadInstructions,
+    getAta,
+    getAssociatedTokenAddress,
+} from '../../src';
 import {
     createMintFixture,
     getCompressedAmounts,
@@ -49,10 +53,11 @@ describe('load instructions', () => {
     it('loads one compressed balance per call and leaves the smaller ones untouched', async () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
-        const tokenAccount = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const tokenAccount = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
 
         await mintCompressedToOwner(fixture, owner.publicKey, 500n);
         await mintCompressedToOwner(fixture, owner.publicKey, 300n);
@@ -109,10 +114,11 @@ describe('load instructions', () => {
     it('defaults payer to owner when omitted', async () => {
         const fixture = await createMintFixture();
         const owner = await newAccountWithLamports(fixture.rpc, 1e9);
-        const tokenAccount = getAtaAddress({
-            owner: owner.publicKey,
-            mint: fixture.mint,
-        });
+        const tokenAccount = getAssociatedTokenAddress(
+            fixture.mint,
+            owner.publicKey,
+            true,
+        );
 
         await mintCompressedToOwner(fixture, owner.publicKey, 250n);
 

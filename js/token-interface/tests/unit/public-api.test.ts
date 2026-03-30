@@ -17,7 +17,7 @@ import {
     createSplInterfaceInstruction,
     getSplInterface,
     getSplInterfaces,
-    getAtaAddress,
+    getAssociatedTokenAddress as getAssociatedTokenAddressFromRoot,
 } from '../../src';
 
 describe('public api', () => {
@@ -26,8 +26,8 @@ describe('public api', () => {
         const mint = Keypair.generate().publicKey;
 
         expect(
-            getAtaAddress({ owner, mint }).equals(
-                getAssociatedTokenAddress(mint, owner),
+            getAssociatedTokenAddressFromRoot(mint, owner, true).equals(
+                getAssociatedTokenAddress(mint, owner, true),
             ),
         ).toBe(true);
     });
