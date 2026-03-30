@@ -4,6 +4,7 @@ import { createAtaInstruction } from '../../src/instructions';
 import {
     createTransferInstructions,
     createAtaInstructions,
+    createSplInterfaceInstruction,
     createTransferInstructionPlan,
     toKitInstructions,
 } from '../../src/kit';
@@ -37,5 +38,16 @@ describe('kit adapter', () => {
     it('exports transfer builder and plan builder', () => {
         expect(typeof createTransferInstructions).toBe('function');
         expect(typeof createTransferInstructionPlan).toBe('function');
+    });
+
+    it('adapts createSplInterfaceInstruction to kit format', () => {
+        const instruction = createSplInterfaceInstruction({
+            feePayer: Keypair.generate().publicKey,
+            mint: Keypair.generate().publicKey,
+            index: 0,
+        });
+
+        expect(instruction).toBeDefined();
+        expect(typeof instruction).toBe('object');
     });
 });

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { LIGHT_TOKEN_PROGRAM_ID, bn } from '@lightprotocol/stateless.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import {
     createApproveInstruction,
     createAtaInstruction,
@@ -14,7 +14,13 @@ import {
     createThawInstruction,
     createTransferCheckedInstruction,
     createDecompressInstruction,
+    createSplInterfaceInstruction,
 } from '../../src/instructions';
+import {
+    COMPRESSED_TOKEN_PROGRAM_ID,
+    deriveCpiAuthorityPda,
+    deriveSplInterfacePdaWithIndex,
+} from '../../src/constants';
 
 describe('instruction builders', () => {
     function buildParsedCompressedAccount(params?: {
@@ -348,5 +354,73 @@ describe('instruction builders', () => {
         expect(instruction.programId.equals(LIGHT_TOKEN_PROGRAM_ID)).toBe(true);
         expect(instruction.keys[2].pubkey.equals(owner)).toBe(true);
         expect(instruction.keys[2].isSigner).toBe(true);
+    });
+
+    it('creates spl interface instruction with required index', () => {
+        const feePayer = Keypair.generate().publicKey;
+        const mint = Keypair.generate().publicKey;
+        const index = 0;
+
+        const instruction = createSplInterfaceInstruction({
+            feePayer,
+            mint,
+            index,
+        });
+
+        const [splInterfacePda] = deriveSplInterfacePdaWithIndex(mint, index);
+
+        expect(instruction.programId.equals(COMPRESSED_TOKEN_PROGRAM_ID)).toBe(
+            true,
+        );
+        expect(
+            instruction.data.equals(
+                Buffer.from([23, 169, 27, 122, 147, 169, 209, 152]),
+            ),
+        ).toBe(true);
+        expect(instruction.keys).toHaveLength(6);
+        expect(instruction.keys[0].pubkey.equals(feePayer)).toBe(true);
+        expect(instruction.keys[0].isSigner).toBe(true);
+        expect(instruction.keys[0].isWritable).toBe(true);
+        expect(instruction.keys[1].pubkey.equals(splInterfacePda)).toBe(true);
+        expect(instruction.keys[1].isWritable).toBe(true);
+        expect(instruction.keys[2].pubkey.equals(SystemProgram.programId)).toBe(
+            true,
+        );
+        expect(instruction.keys[3].pubkey.equals(mint)).toBe(true);
+        expect(instruction.keys[3].isWritable).toBe(true);
+        expect(instruction.keys[4].pubkey.equals(TOKEN_PROGRAM_ID)).toBe(true);
+        expect(instruction.keys[5].pubkey.equals(deriveCpiAuthorityPda())).toBe(
+            true,
+        );
+    });
+
+    it('creates spl interface instruction with custom token program', () => {
+        const feePayer = Keypair.generate().publicKey;
+        const mint = Keypair.generate().publicKey;
+        const index = 1;
+
+        const instruction = createSplInterfaceInstruction({
+            feePayer,
+            mint,
+            index,
+            tokenProgramId: TOKEN_2022_PROGRAM_ID,
+        });
+
+        expect(
+            instruction.keys[4].pubkey.equals(TOKEN_2022_PROGRAM_ID),
+        ).toBe(true);
+    });
+
+    it('throws when spl interface index is out of range', () => {
+        const feePayer = Keypair.generate().publicKey;
+        const mint = Keypair.generate().publicKey;
+
+        expect(() =>
+            createSplInterfaceInstruction({
+                feePayer,
+                mint,
+                index: 256,
+            }),
+        ).toThrow(/integer in \[0, 255\]/i);
     });
 });

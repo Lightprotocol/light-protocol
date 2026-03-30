@@ -1,5 +1,6 @@
 export * from './_plan';
 export * from './ata';
+export * from './spl-interface';
 export {
     createApproveInstruction,
     createApproveInstructions,

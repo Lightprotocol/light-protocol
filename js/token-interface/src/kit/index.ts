@@ -7,10 +7,12 @@ import {
     createFreezeInstructions as createFreezeInstructionsTx,
     createLoadInstructions as createLoadInstructionsTx,
     createRevokeInstructions as createRevokeInstructionsTx,
+    createSplInterfaceInstruction as createSplInterfaceInstructionTx,
     createThawInstructions as createThawInstructionsTx,
 } from '../instructions';
 import type { KitInstruction } from '../instructions/_plan';
 import { toKitInstructions } from '../instructions/_plan';
+import type { CreateSplInterfaceInstructionInput } from '../instructions/spl-interface';
 import type {
     CreateApproveInstructionsInput,
     CreateAtaInstructionsInput,
@@ -91,6 +93,12 @@ export async function createBurnInstructions(
     return wrap(createBurnInstructionsTx(input));
 }
 
+export function createSplInterfaceInstruction(
+    input: CreateSplInterfaceInstructionInput,
+): KitInstruction {
+    return toKitInstructions([createSplInterfaceInstructionTx(input)])[0];
+}
+
 export type {
     CreateApproveInstructionsInput,
     CreateAtaInstructionsInput,
@@ -98,6 +106,7 @@ export type {
     CreateFreezeInstructionsInput,
     CreateLoadInstructionsInput,
     CreateRevokeInstructionsInput,
+    CreateSplInterfaceInstructionInput,
     CreateThawInstructionsInput,
     CreateTransferInstructionsInput,
 };

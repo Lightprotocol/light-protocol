@@ -10,6 +10,7 @@ import {
     createAtaInstructions,
     createFreezeInstruction,
     createThawInstruction,
+    createSplInterfaceInstruction,
     getAtaAddress,
 } from '../../src';
 
@@ -110,5 +111,8 @@ describe('public api', () => {
         expect('createBurnInstructionsNowrap' in tokenInterface).toBe(false);
         expect('createFreezeInstructionsNowrap' in tokenInterface).toBe(false);
         expect('createThawInstructionsNowrap' in tokenInterface).toBe(false);
+    });
+    it('exports createSplInterfaceInstruction builder', () => {
+        expect(typeof createSplInterfaceInstruction).toBe('function');
     });
 });

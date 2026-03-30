@@ -17,7 +17,7 @@ import {
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
-import { createMint, mintTo } from '@lightprotocol/compressed-token';
+import { createMint, mintTo } from '../../../compressed-token/src';
 import { parseLightTokenHot } from '../../src/read';
 import { getSplInterfaces } from '../../src/spl-interface';
 
