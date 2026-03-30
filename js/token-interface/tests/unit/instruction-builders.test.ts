@@ -15,6 +15,8 @@ import {
     createTransferCheckedInstruction,
     createDecompressInstruction,
     createSplInterfaceInstruction,
+    createMintInstruction,
+    createMintToInstruction,
 } from '../../src/instructions';
 import {
     COMPRESSED_TOKEN_PROGRAM_ID,
@@ -422,5 +424,64 @@ describe('instruction builders', () => {
                 index: 256,
             }),
         ).toThrow(/integer in \[0, 255\]/i);
+    });
+
+    it('creates initialize mint instruction for SPL/T22', () => {
+        const mint = Keypair.generate().publicKey;
+        const mintAuthority = Keypair.generate().publicKey;
+        const freezeAuthority = Keypair.generate().publicKey;
+
+        const instruction = createMintInstruction({
+            mint,
+            decimals: 9,
+            mintAuthority,
+            freezeAuthority,
+            tokenProgramId: TOKEN_2022_PROGRAM_ID,
+        });
+
+        expect(instruction.programId.equals(TOKEN_2022_PROGRAM_ID)).toBe(true);
+        expect(instruction.keys[0].pubkey.equals(mint)).toBe(true);
+        expect(instruction.keys[0].isWritable).toBe(true);
+    });
+
+    it('creates light-token mint-to with optional fee payer and maxTopUp', () => {
+        const mint = Keypair.generate().publicKey;
+        const destination = Keypair.generate().publicKey;
+        const authority = Keypair.generate().publicKey;
+        const payer = Keypair.generate().publicKey;
+
+        const instruction = createMintToInstruction({
+            mint,
+            destination,
+            authority,
+            amount: 123n,
+            payer,
+            maxTopUp: 10,
+        });
+
+        expect(instruction.programId.equals(LIGHT_TOKEN_PROGRAM_ID)).toBe(true);
+        expect(instruction.data[0]).toBe(7);
+        expect(instruction.data.length).toBe(11);
+        expect(instruction.keys).toHaveLength(5);
+        expect(instruction.keys[4].pubkey.equals(payer)).toBe(true);
+        expect(instruction.keys[4].isSigner).toBe(true);
+        expect(instruction.keys[4].isWritable).toBe(true);
+    });
+
+    it('creates spl mint-to when SPL token program is requested', () => {
+        const mint = Keypair.generate().publicKey;
+        const destination = Keypair.generate().publicKey;
+        const authority = Keypair.generate().publicKey;
+
+        const instruction = createMintToInstruction({
+            mint,
+            destination,
+            authority,
+            amount: 50n,
+            tokenProgramId: TOKEN_PROGRAM_ID,
+        });
+
+        expect(instruction.programId.equals(TOKEN_PROGRAM_ID)).toBe(true);
+        expect(instruction.keys).toHaveLength(3);
     });
 });

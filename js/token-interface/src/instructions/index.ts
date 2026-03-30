@@ -33,3 +33,4 @@ export {
     createThawInstructions,
     createThawInstructionPlan,
 } from './thaw';
+export * from './mint';

@@ -1,7 +1,7 @@
 {
     "name": "@lightprotocol/token-interface",
     "version": "0.23.0",
-    "description": "JS enhancement layer for SPL and Token-2022 flows using Light rent-free token accounts",
+    "description": "JS SDK helpers for SPL-token that reduces the cost of ATA creation",
     "sideEffects": false,
     "main": "dist/cjs/index.cjs",
     "type": "module",

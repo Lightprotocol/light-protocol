@@ -147,3 +147,36 @@ export interface CreateRawRevokeInstructionInput {
     owner: PublicKey;
     payer?: PublicKey;
 }
+
+export interface CreateRawMintInstructionInput {
+    mint: PublicKey;
+    decimals: number;
+    mintAuthority: PublicKey;
+    freezeAuthority?: PublicKey | null;
+    tokenProgramId?: PublicKey;
+}
+
+export interface CreateMintInstructionsInput extends CreateRawMintInstructionInput {
+    rpc: Rpc;
+    payer: PublicKey;
+    mintSize?: number;
+    rentExemptBalance?: number;
+    splInterfaceIndex?: number;
+}
+
+export interface CreateRawMintToInstructionInput {
+    mint: PublicKey;
+    destination: PublicKey;
+    authority: PublicKey;
+    amount: number | bigint;
+    payer?: PublicKey;
+    tokenProgramId?: PublicKey;
+    multiSigners?: PublicKey[];
+    maxTopUp?: number;
+}
+
+export interface CreateMintToInstructionsInput
+    extends Omit<CreateRawMintToInstructionInput, 'tokenProgramId'> {
+    rpc: Rpc;
+    tokenProgramId?: PublicKey;
+}

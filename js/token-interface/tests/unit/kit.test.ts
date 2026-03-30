@@ -4,6 +4,8 @@ import { createAtaInstruction } from '../../src/instructions';
 import {
     createTransferInstructions,
     createAtaInstructions,
+    createMintInstructions,
+    createMintToInstructions,
     createSplInterfaceInstruction,
     createTransferInstructionPlan,
     toKitInstructions,
@@ -38,6 +40,8 @@ describe('kit adapter', () => {
     it('exports transfer builder and plan builder', () => {
         expect(typeof createTransferInstructions).toBe('function');
         expect(typeof createTransferInstructionPlan).toBe('function');
+        expect(typeof createMintInstructions).toBe('function');
+        expect(typeof createMintToInstructions).toBe('function');
     });
 
     it('adapts createSplInterfaceInstruction to kit format', () => {

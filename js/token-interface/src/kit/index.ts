@@ -6,6 +6,8 @@ import {
     createBurnInstructions as createBurnInstructionsTx,
     createFreezeInstructions as createFreezeInstructionsTx,
     createLoadInstructions as createLoadInstructionsTx,
+    createMintInstructions as createMintInstructionsTx,
+    createMintToInstructions as createMintToInstructionsTx,
     createRevokeInstructions as createRevokeInstructionsTx,
     createSplInterfaceInstruction as createSplInterfaceInstructionTx,
     createThawInstructions as createThawInstructionsTx,
@@ -19,6 +21,8 @@ import type {
     CreateBurnInstructionsInput,
     CreateFreezeInstructionsInput,
     CreateLoadInstructionsInput,
+    CreateMintInstructionsInput,
+    CreateMintToInstructionsInput,
     CreateRevokeInstructionsInput,
     CreateThawInstructionsInput,
     CreateTransferInstructionsInput,
@@ -32,6 +36,8 @@ export {
     createBurnInstructionPlan,
     createFreezeInstructionPlan,
     createLoadInstructionPlan,
+    createMintInstructionPlan,
+    createMintToInstructionPlan,
     createRevokeInstructionPlan,
     createThawInstructionPlan,
     createTransferInstructionPlan,
@@ -93,6 +99,17 @@ export async function createBurnInstructions(
     return wrap(createBurnInstructionsTx(input));
 }
 
+export async function createMintInstructions(
+    input: CreateMintInstructionsInput,
+): Promise<KitInstruction[]> {
+    return wrap(createMintInstructionsTx(input));
+}
+
+export async function createMintToInstructions(
+    input: CreateMintToInstructionsInput,
+): Promise<KitInstruction[]> {
+    return wrap(createMintToInstructionsTx(input));
+}
 export function createSplInterfaceInstruction(
     input: CreateSplInterfaceInstructionInput,
 ): KitInstruction {
@@ -105,6 +122,8 @@ export type {
     CreateBurnInstructionsInput,
     CreateFreezeInstructionsInput,
     CreateLoadInstructionsInput,
+    CreateMintInstructionsInput,
+    CreateMintToInstructionsInput,
     CreateRevokeInstructionsInput,
     CreateSplInterfaceInstructionInput,
     CreateThawInstructionsInput,

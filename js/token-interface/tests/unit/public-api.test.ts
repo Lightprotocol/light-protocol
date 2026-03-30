@@ -9,6 +9,8 @@ import {
     MultiTransactionNotSupportedError,
     createAtaInstructions,
     createFreezeInstruction,
+    createMintInstruction,
+    createMintToInstruction,
     createThawInstruction,
     createSplInterfaceInstruction,
     getAtaAddress,
@@ -114,5 +116,10 @@ describe('public api', () => {
     });
     it('exports createSplInterfaceInstruction builder', () => {
         expect(typeof createSplInterfaceInstruction).toBe('function');
+    });
+
+    it('exports mint and mint-to builders', () => {
+        expect(typeof createMintInstruction).toBe('function');
+        expect(typeof createMintToInstruction).toBe('function');
     });
 });
