@@ -20,6 +20,7 @@ import {
     createDecompressInstruction,
     createSplInterfaceInstruction,
     createMintInstruction,
+    createMintToCompressedInstruction,
     createMintInstructions,
     createMintToInstruction,
 } from '../../src/instructions';
@@ -636,5 +637,91 @@ describe('instruction builders', () => {
                 addressTreeInfo: mismatchedAddressTreeInfo,
             }),
         ).rejects.toThrow(/must match default/i);
+    });
+
+    it('creates mint-to-compressed instruction with mint action discriminator', () => {
+        const authority = Keypair.generate().publicKey;
+        const payer = Keypair.generate().publicKey;
+        const mint = Keypair.generate().publicKey;
+        const instruction = createMintToCompressedInstruction({
+            authority,
+            payer,
+            validityProof: {
+                compressedProof: null,
+                rootIndices: [1],
+            } as any,
+            merkleContext: {
+                hash: bn(0),
+                leafIndex: 2,
+                proveByIndex: true,
+                treeInfo: {
+                    tree: Keypair.generate().publicKey,
+                    queue: Keypair.generate().publicKey,
+                } as any,
+            },
+            mintData: {
+                supply: 0n,
+                decimals: 9,
+                mintAuthority: authority,
+                freezeAuthority: null,
+                splMint: mint,
+                mintDecompressed: false,
+                version: 3,
+                mintSigner: Keypair.generate().publicKey.toBytes(),
+                bump: 255,
+            },
+            recipients: [{ recipient: Keypair.generate().publicKey, amount: 42n }],
+        });
+
+        expect(instruction.programId.equals(LIGHT_TOKEN_PROGRAM_ID)).toBe(true);
+        expect(instruction.data[0]).toBe(103);
+        expect(instruction.keys[1].pubkey.equals(authority)).toBe(true);
+        expect(instruction.keys[2].pubkey.equals(payer)).toBe(true);
+    });
+
+    it('throws when mint-to-compressed includes token metadata', () => {
+        const authority = Keypair.generate().publicKey;
+        const payer = Keypair.generate().publicKey;
+        const mint = Keypair.generate().publicKey;
+
+        expect(() =>
+            createMintToCompressedInstruction({
+                authority,
+                payer,
+                validityProof: {
+                    compressedProof: null,
+                    rootIndices: [1],
+                } as any,
+                merkleContext: {
+                    hash: bn(0),
+                    leafIndex: 2,
+                    proveByIndex: true,
+                    treeInfo: {
+                        tree: Keypair.generate().publicKey,
+                        queue: Keypair.generate().publicKey,
+                    } as any,
+                },
+                mintData: {
+                    supply: 0n,
+                    decimals: 9,
+                    mintAuthority: authority,
+                    freezeAuthority: null,
+                    splMint: mint,
+                    mintDecompressed: false,
+                    version: 3,
+                    mintSigner: Keypair.generate().publicKey.toBytes(),
+                    bump: 255,
+                    metadata: {
+                        updateAuthority: authority,
+                        name: 'A',
+                        symbol: 'A',
+                        uri: 'https://example.com',
+                    },
+                },
+                recipients: [
+                    { recipient: Keypair.generate().publicKey, amount: 1n },
+                ],
+            }),
+        ).toThrow(/TokenMetadata extension not supported/i);
     });
 });

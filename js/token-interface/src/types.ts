@@ -1,11 +1,13 @@
 import type {
     AddressTreeInfo,
+    MerkleContext,
     ParsedTokenAccount,
     Rpc,
     TreeInfo,
     ValidityProofWithContext,
 } from '@lightprotocol/stateless.js';
 import type { Commitment, PublicKey, Signer } from '@solana/web3.js';
+import type { TokenDataVersion } from './constants';
 
 export interface TokenInterfaceParsedAta {
     address: PublicKey;
@@ -213,5 +215,35 @@ export interface CreateRawLightMintInstructionInput {
     addressTreeInfo: AddressTreeInfo;
     outputStateTreeInfo: TreeInfo;
     tokenMetadata?: TokenMetadataInput;
+    maxTopUp?: number;
+}
+
+export interface MintToCompressedMintData {
+    supply: bigint;
+    decimals: number;
+    mintAuthority: PublicKey | null;
+    freezeAuthority: PublicKey | null;
+    splMint: PublicKey;
+    mintDecompressed: boolean;
+    version: number;
+    mintSigner: Uint8Array | number[];
+    bump: number;
+    metadata?: {
+        updateAuthority: PublicKey | null;
+        name: string;
+        symbol: string;
+        uri: string;
+    };
+}
+
+export interface CreateRawMintToCompressedInstructionInput {
+    authority: PublicKey;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    merkleContext: MerkleContext;
+    mintData: MintToCompressedMintData;
+    recipients: Array<{ recipient: PublicKey; amount: number | bigint }>;
+    outputStateTreeInfo?: TreeInfo;
+    tokenAccountVersion?: TokenDataVersion;
     maxTopUp?: number;
 }

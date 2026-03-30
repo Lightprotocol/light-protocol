@@ -25,6 +25,7 @@ export {
     createBurnInstructions,
     createBurnInstructionPlan,
 } from './burn';
+export { createMintToCompressedInstruction } from './mint-to-compressed';
 export {
     createFreezeInstruction,
     createFreezeInstructions,
