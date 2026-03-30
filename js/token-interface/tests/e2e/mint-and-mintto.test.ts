@@ -233,6 +233,57 @@ describe('mint and mintTo instructions', () => {
         expect(token.amount).toBe(777n);
     });
 
+    it('mints to Token-2022 ATA when TOKEN_2022 is selected', async () => {
+        const rpc = createRpc();
+        const payer = await newAccountWithLamports(rpc, 20e9);
+        const mintKeypair = Keypair.generate();
+        const mintAuthority = Keypair.generate();
+        const recipient = Keypair.generate();
+
+        await sendInstructions(
+            rpc,
+            payer,
+            await createMintInstructions({
+                rpc,
+                payer: payer.publicKey,
+                keypair: mintKeypair,
+                decimals: 6,
+                mintAuthority: mintAuthority.publicKey,
+                tokenProgramId: TOKEN_2022_PROGRAM_ID,
+            }),
+            [mintKeypair],
+        );
+
+        const recipientAta = getAssociatedTokenAddressSync(
+            mintKeypair.publicKey,
+            recipient.publicKey,
+            false,
+            TOKEN_2022_PROGRAM_ID,
+        );
+        const createRecipientAta = createAssociatedTokenAccountIdempotentInstruction(
+            payer.publicKey,
+            recipientAta,
+            recipient.publicKey,
+            mintKeypair.publicKey,
+            TOKEN_2022_PROGRAM_ID,
+        );
+        await sendInstructions(rpc, payer, [createRecipientAta]);
+
+        const mintToIxs = await createMintToInstructions({
+            mint: mintKeypair.publicKey,
+            destination: recipientAta,
+            authority: mintAuthority.publicKey,
+            amount: 555n,
+            tokenProgramId: TOKEN_2022_PROGRAM_ID,
+        });
+        await sendInstructions(rpc, payer, mintToIxs, [mintAuthority]);
+
+        const accountInfo = await rpc.getAccountInfo(recipientAta);
+        expect(accountInfo).not.toBeNull();
+        const token = unpackAccount(recipientAta, accountInfo!, TOKEN_2022_PROGRAM_ID);
+        expect(token.amount).toBe(555n);
+    });
+
     it('mints to light ATA when LIGHT program is selected', async () => {
         const rpc = createRpc();
         const payer = await newAccountWithLamports(rpc, 20e9);

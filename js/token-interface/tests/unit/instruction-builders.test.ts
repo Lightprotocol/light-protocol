@@ -595,4 +595,44 @@ describe('instruction builders', () => {
         );
         expect(instructions[0].data[0]).toBe(103);
     });
+
+    it('throws for unsupported token program in createMintInstructions', async () => {
+        const keypair = Keypair.generate();
+        const payer = Keypair.generate().publicKey;
+        const mintAuthority = Keypair.generate().publicKey;
+        const unsupportedProgramId = Keypair.generate().publicKey;
+
+        await expect(
+            createMintInstructions({
+                rpc: {} as any,
+                payer,
+                keypair,
+                decimals: 9,
+                mintAuthority,
+                tokenProgramId: unsupportedProgramId,
+            }),
+        ).rejects.toThrow(/Unsupported token program .*createMintInstructions/i);
+    });
+
+    it('throws when light mint addressTreeInfo does not match default tree', async () => {
+        const keypair = Keypair.generate();
+        const payer = Keypair.generate().publicKey;
+        const mintAuthority = Keypair.generate().publicKey;
+        const mismatchedAddressTreeInfo = {
+            ...getDefaultAddressTreeInfo(),
+            tree: Keypair.generate().publicKey,
+        };
+
+        await expect(
+            createMintInstructions({
+                rpc: {} as any,
+                payer,
+                keypair,
+                decimals: 9,
+                mintAuthority,
+                tokenProgramId: LIGHT_TOKEN_PROGRAM_ID,
+                addressTreeInfo: mismatchedAddressTreeInfo,
+            }),
+        ).rejects.toThrow(/must match default/i);
+    });
 });
