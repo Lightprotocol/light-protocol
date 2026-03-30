@@ -92,10 +92,6 @@ function findMintAddress(mintSigner: PublicKey): [PublicKey, number] {
     );
 }
 
-function toPubkey(input: PublicKey | { publicKey: PublicKey }): PublicKey {
-    return 'publicKey' in input ? input.publicKey : input;
-}
-
 function deriveLightMintAddress(
     mintSigner: PublicKey,
     addressTreeInfo: AddressTreeInfo,
@@ -282,7 +278,7 @@ export async function createMintInstructions({
     addressTreeInfo,
     maxTopUp,
 }: CreateMintInstructionsInput): Promise<TransactionInstruction[]> {
-    const keypairPubkey = toPubkey(keypair);
+    const keypairPubkey = keypair.publicKey;
 
     if (tokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         const resolvedAddressTreeInfo = addressTreeInfo ?? getBatchAddressTreeInfo();
@@ -384,6 +380,11 @@ export function createMintToInstruction({
         tokenProgramId.equals(TOKEN_PROGRAM_ID) ||
         tokenProgramId.equals(TOKEN_2022_PROGRAM_ID)
     ) {
+        if (maxTopUp !== undefined) {
+            throw new Error(
+                'maxTopUp is only supported for LIGHT_TOKEN_PROGRAM_ID mint-to.',
+            );
+        }
         return createSplMintToInstruction(
             mint,
             destination,
@@ -397,6 +398,11 @@ export function createMintToInstruction({
     if (!tokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         throw new Error(
             `Unsupported token program ${tokenProgramId.toBase58()} for mint-to.`,
+        );
+    }
+    if (multiSigners.length > 0) {
+        throw new Error(
+            'multiSigners are only supported for SPL/Token-2022 mint-to.',
         );
     }
 

@@ -17,7 +17,8 @@ import {
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
-import { createMint, mintTo } from '../../../compressed-token/src';
+import { mintTo } from '../../../compressed-token/src';
+import { createMintInstructions } from '../../src';
 import { parseLightTokenHot } from '../../src/read';
 import { getSplInterfaces } from '../../src/spl-interface';
 
@@ -50,18 +51,20 @@ export async function createMintFixture(options?: {
         ? Keypair.generate()
         : undefined;
 
-    const mint = (
-        await createMint(
+    await sendInstructions(
+        rpc,
+        payer,
+        await createMintInstructions({
             rpc,
-            payer,
-            mintAuthority.publicKey,
-            TEST_TOKEN_DECIMALS,
-            mintKeypair,
-            undefined,
-            undefined,
-            freezeAuthority?.publicKey ?? null,
-        )
-    ).mint;
+            payer: payer.publicKey,
+            keypair: mintKeypair,
+            decimals: TEST_TOKEN_DECIMALS,
+            mintAuthority: mintAuthority.publicKey,
+            freezeAuthority: freezeAuthority?.publicKey ?? null,
+        }),
+        [mintKeypair],
+    );
+    const mint = mintKeypair.publicKey;
 
     const stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     const tokenPoolInfos = await getSplInterfaces(rpc, mint);

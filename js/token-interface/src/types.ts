@@ -165,7 +165,7 @@ export interface CreateRawMintInstructionInput {
 export interface CreateMintInstructionsInput {
     rpc: Rpc;
     payer: PublicKey;
-    keypair: PublicKey | Signer;
+    keypair: Signer;
     decimals: number;
     mintAuthority: PublicKey;
     freezeAuthority?: PublicKey | null;

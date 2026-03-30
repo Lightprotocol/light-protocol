@@ -506,8 +506,43 @@ describe('instruction builders', () => {
         expect(instruction.programId.equals(TOKEN_PROGRAM_ID)).toBe(true);
     });
 
+    it('throws when maxTopUp is set for SPL/Token-2022 mint-to', () => {
+        const mint = Keypair.generate().publicKey;
+        const destination = Keypair.generate().publicKey;
+        const authority = Keypair.generate().publicKey;
+
+        expect(() =>
+            createMintToInstruction({
+                mint,
+                destination,
+                authority,
+                amount: 1n,
+                tokenProgramId: TOKEN_PROGRAM_ID,
+                maxTopUp: 1,
+            }),
+        ).toThrow(/maxTopUp is only supported/i);
+    });
+
+    it('throws when multiSigners are provided for light mint-to', () => {
+        const mint = Keypair.generate().publicKey;
+        const destination = Keypair.generate().publicKey;
+        const authority = Keypair.generate().publicKey;
+        const extra = Keypair.generate().publicKey;
+
+        expect(() =>
+            createMintToInstruction({
+                mint,
+                destination,
+                authority,
+                amount: 1n,
+                tokenProgramId: LIGHT_TOKEN_PROGRAM_ID,
+                multiSigners: [extra],
+            }),
+        ).toThrow(/multiSigners are only supported/i);
+    });
+
     it('defaults createMintInstructions to SPL flow', async () => {
-        const keypair = Keypair.generate().publicKey;
+        const keypair = Keypair.generate();
         const payer = Keypair.generate().publicKey;
         const mintAuthority = Keypair.generate().publicKey;
         const rpc = {
@@ -527,7 +562,7 @@ describe('instruction builders', () => {
     });
 
     it('creates light mint flow when LIGHT program is requested', async () => {
-        const mintSigner = Keypair.generate().publicKey;
+        const mintSigner = Keypair.generate();
         const payer = Keypair.generate().publicKey;
         const mintAuthority = Keypair.generate().publicKey;
         const freezeAuthority = Keypair.generate().publicKey;
