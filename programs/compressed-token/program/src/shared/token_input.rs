@@ -80,15 +80,15 @@ pub fn set_input_compressed_account<'a>(
     // For ATA decompress (is_ata=true), verify the wallet owner from owner_index instead
     // of the compressed account owner (which is the ATA pubkey that can't sign).
     // Also verify that owner_account (the ATA) matches the derived ATA from wallet_owner + mint + bump.
-    let (signer_account, is_ata_decompress) = if let Some(exts) = tlv_data {
+    let (signer_account, check_signer) = if let Some(exts) = tlv_data {
         resolve_ata_signer(exts, packed_accounts, mint_account, owner_account)?
     } else {
-        (owner_account, false)
+        (owner_account, true)
     };
 
     // ATA decompress is permissionless -- the destination is a deterministic PDA,
     // so there is no griefing vector. ATA derivation is still validated above.
-    if !is_ata_decompress {
+    if check_signer {
         verify_owner_or_delegate_signer(
             signer_account,
             delegate_account,
@@ -232,13 +232,13 @@ fn resolve_ata_signer<'a>(
                 if !pinocchio::pubkey::pubkey_eq(owner_account.key(), &derived_ata) {
                     return Err(TokenError::InvalidAtaDerivation.into());
                 }
-
-                return Ok((wallet_owner, true));
+                // Do not check signer the recipient token account is the correct ata.
+                return Ok((wallet_owner, false));
             }
         }
     }
 
-    Ok((owner_account, false))
+    Ok((owner_account, true))
 }
 
 #[cold]
