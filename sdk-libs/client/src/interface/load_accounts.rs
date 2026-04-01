@@ -66,7 +66,9 @@ pub enum LoadAccountsError {
     TreeInfoIndexOutOfBounds { index: usize, len: usize },
 }
 
-const MAX_ATAS_PER_IX: usize = 8;
+// Permissionless ATA decompress is strictly gated on-chain to a single-input
+// idempotent ATA decompress shape, so ATA load instructions must stay 1-per-ix.
+const MAX_ATAS_PER_IX: usize = 1;
 
 /// Build load instructions for cold accounts. Returns empty vec if all hot.
 ///
