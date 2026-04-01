@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_pinocchio::instruction::{CompressibleParamsCpi, CreateTokenAtaCpi};
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
 };
@@ -69,7 +69,7 @@ pub fn process_create_ata_invoke_signed(
     }
 
     // Derive the PDA that will act as payer/owner
-    let (pda, bump) = pinocchio::pubkey::find_program_address(&[ATA_SEED], &ID);
+    let (pda, bump) = pinocchio::address::find_program_address(&[ATA_SEED], &ID);
 
     // Verify the payer is the PDA
     if pda != *accounts[2].key() {

@@ -16,7 +16,7 @@ use light_token_interface::{
     TokenError,
 };
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     pubkey::{pubkey_eq, Pubkey},
     sysvars::Sysvar,
 };
@@ -65,7 +65,7 @@ pub fn process_compress_and_close(
         amount,
         compressed_account,
         ctoken,
-        token_account_info.key(),
+        token_account_info.address(),
         close_inputs.tlv,
     )?;
 
@@ -109,7 +109,7 @@ fn validate_compressed_token_account(
     // compress_to_pubkey is derived from the extension (already fetched above)
     let output_owner = packed_accounts
         .get_u8(compressed_token_account.owner, "owner")?
-        .key();
+        .address();
     let expected_owner = if compression.info.compress_to_pubkey() || compression.is_ata() {
         token_account_pubkey
     } else {
@@ -128,7 +128,7 @@ fn validate_compressed_token_account(
     // 3. Mint validation
     let output_mint = packed_accounts
         .get_u8(compressed_token_account.mint, "mint")?
-        .key();
+        .address();
     if *output_mint != ctoken.mint.to_bytes() {
         return Err(ErrorCode::CompressAndCloseInvalidMint.into());
     }
@@ -207,7 +207,7 @@ fn validate_compressed_only_ext(
         }
         let output_delegate = packed_accounts
             .get_u8(compressed_token_account.delegate, "delegate")?
-            .key();
+            .address();
         if !pubkey_eq(output_delegate, &delegate.to_bytes()) {
             return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
         }
@@ -339,12 +339,12 @@ fn validate_ctoken_account(
     })?;
 
     // Validate rent_sponsor matches
-    if compression.info.rent_sponsor != *rent_sponsor.key() {
+    if compression.info.rent_sponsor != *rent_sponsor.address() {
         msg!("rent recipient mismatch");
         return Err(ProgramError::InvalidAccountData);
     }
 
-    if compression.info.compression_authority != *authority.key() {
+    if compression.info.compression_authority != *authority.address() {
         msg!("compress and close requires compression authority");
         return Err(ProgramError::InvalidAccountData);
     }

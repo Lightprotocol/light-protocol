@@ -7,8 +7,8 @@ use light_token_interface::{
     instructions::mint_action::ZDecompressMintAction, state::Mint, COMPRESSED_MINT_SEED,
 };
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::Seed,
+    AccountView as AccountInfo,
+    cpi::Seed,
     sysvars::{clock::Clock, rent::Rent, Sysvar},
 };
 use pinocchio_system::instructions::Transfer;
@@ -89,7 +89,7 @@ pub fn process_decompress_mint_action(
         .rent_sponsor
         .ok_or(ErrorCode::MissingRentSponsor)?;
 
-    if rent_sponsor.key() != &config.rent_sponsor.to_bytes() {
+    if rent_sponsor.address() != &config.rent_sponsor.to_bytes() {
         msg!("Rent sponsor account does not match config");
         return Err(ErrorCode::InvalidRentSponsor.into());
     }
@@ -116,9 +116,9 @@ pub fn process_decompress_mint_action(
     // 6. Verify PDA derivation using stored mint_signer from compressed_mint metadata
     let pda_mint_signer_bytes: &[u8] = compressed_mint.metadata.mint_signer.as_ref();
     let seeds: [&[u8]; 2] = [COMPRESSED_MINT_SEED, pda_mint_signer_bytes];
-    let canonical_bump = verify_pda(cmint.key(), &seeds, &crate::LIGHT_CPI_SIGNER.program_id)?;
+    let canonical_bump = verify_pda(cmint.address(), &seeds, &crate::LIGHT_CPI_SIGNER.program_id)?;
     // 6b. Verify CMint account matches compressed_mint.metadata.mint
-    if !pubkey_eq(cmint.key(), &compressed_mint.metadata.mint.to_bytes()) {
+    if !pubkey_eq(cmint.address(), &compressed_mint.metadata.mint.to_bytes()) {
         msg!("CMint account does not match compressed_mint.metadata.mint");
         return Err(ErrorCode::InvalidCMintAccount.into());
     }

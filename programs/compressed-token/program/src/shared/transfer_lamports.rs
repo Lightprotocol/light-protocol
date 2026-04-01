@@ -1,5 +1,5 @@
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 use pinocchio_system::instructions::Transfer as SystemTransfer;
 use solana_msg::msg;
 

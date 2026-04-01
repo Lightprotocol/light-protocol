@@ -68,12 +68,6 @@ impl From<AccountError> for u32 {
     }
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<AccountError> for pinocchio::program_error::ProgramError {
-    fn from(e: AccountError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}
 
 #[cfg(feature = "solana")]
 impl From<AccountError> for solana_program_error::ProgramError {
@@ -82,31 +76,14 @@ impl From<AccountError> for solana_program_error::ProgramError {
     }
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<pinocchio::program_error::ProgramError> for AccountError {
-    fn from(error: pinocchio::program_error::ProgramError) -> Self {
-        match error {
-            pinocchio::program_error::ProgramError::Custom(code) => {
+#[cfg(any(feature = "pinocchio", feature = "solana"))]
+impl From<solana_program_error::ProgramError> for AccountError {
+    fn from(e: solana_program_error::ProgramError) -> Self {
+        match e {
+            solana_program_error::ProgramError::Custom(code) => {
                 AccountError::PinocchioProgramError(code)
             }
-            _ => {
-                // Convert other ProgramError variants to error codes
-                let error_code = match error {
-                    pinocchio::program_error::ProgramError::InvalidArgument => 1,
-                    pinocchio::program_error::ProgramError::InvalidInstructionData => 2,
-                    pinocchio::program_error::ProgramError::InvalidAccountData => 3,
-                    pinocchio::program_error::ProgramError::AccountDataTooSmall => 4,
-                    pinocchio::program_error::ProgramError::InsufficientFunds => 5,
-                    pinocchio::program_error::ProgramError::IncorrectProgramId => 6,
-                    pinocchio::program_error::ProgramError::MissingRequiredSignature => 7,
-                    pinocchio::program_error::ProgramError::AccountAlreadyInitialized => 8,
-                    pinocchio::program_error::ProgramError::UninitializedAccount => 9,
-                    pinocchio::program_error::ProgramError::NotEnoughAccountKeys => 10,
-                    pinocchio::program_error::ProgramError::AccountBorrowFailed => 11,
-                    _ => 0, // Unknown error
-                };
-                AccountError::PinocchioProgramError(error_code)
-            }
+            _ => AccountError::PinocchioProgramError(u64::from(e) as u32),
         }
     }
 }

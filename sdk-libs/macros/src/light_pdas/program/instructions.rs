@@ -817,14 +817,14 @@ pub(crate) fn generate_light_program_items_with_backend(
                     pub const DECOMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [114, 67, 61, 123, 234, 31, 1, 112];
 
                     pub fn process_initialize_config(
-                        accounts: &[pinocchio::account_info::AccountInfo],
+                        accounts: &[pinocchio::AccountView as AccountInfo],
                         data: &[u8],
-                    ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
+                    ) -> std::result::Result<(), pinocchio::error::ProgramError> {
                         let params = <InitConfigParams as borsh::BorshDeserialize>::try_from_slice(data)
-                            .map_err(|_| pinocchio::program_error::ProgramError::BorshIoError)?;
+                            .map_err(|_| pinocchio::error::ProgramError::BorshIoError)?;
 
                         if accounts.len() < 5 {
-                            return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
+                            return Err(pinocchio::error::ProgramError::NotEnoughAccountKeys);
                         }
 
                         let fee_payer = &accounts[0];
@@ -846,15 +846,15 @@ pub(crate) fn generate_light_program_items_with_backend(
                             system_program,
                             &crate::LIGHT_CPI_SIGNER.program_id,
                         )
-                        .map_err(|e| pinocchio::program_error::ProgramError::Custom(u32::from(e)))
+                        .map_err(|e| pinocchio::error::ProgramError::Custom(u32::from(e)))
                     }
 
                     pub fn process_update_config(
-                        accounts: &[pinocchio::account_info::AccountInfo],
+                        accounts: &[pinocchio::AccountView as AccountInfo],
                         data: &[u8],
-                    ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
+                    ) -> std::result::Result<(), pinocchio::error::ProgramError> {
                         if accounts.len() < 2 {
-                            return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
+                            return Err(pinocchio::error::ProgramError::NotEnoughAccountKeys);
                         }
 
                         let config = &accounts[0];
@@ -866,7 +866,7 @@ pub(crate) fn generate_light_program_items_with_backend(
                             data,
                             &crate::LIGHT_CPI_SIGNER.program_id,
                         )
-                        .map_err(|e| pinocchio::program_error::ProgramError::Custom(u32::from(e)))
+                        .map_err(|e| pinocchio::error::ProgramError::Custom(u32::from(e)))
                     }
                 }
             });

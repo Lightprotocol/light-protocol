@@ -10,7 +10,7 @@ use light_compressed_account::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR,
 };
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 use crate::{
     cpi_context::state::{cpi_context_account_new, CpiContextAccount, CpiContextAccountInitParams},
@@ -38,7 +38,7 @@ impl<'info> InitializeCpiContextAccount<'info> {
         let associated_merkle_tree = &accounts[2];
         check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, associated_merkle_tree)?;
         let mut discriminator_bytes = [0u8; 8];
-        let data = associated_merkle_tree.try_borrow_data()?;
+        let data = associated_merkle_tree.try_borrow()?;
         discriminator_bytes.copy_from_slice(&data[0..8]);
 
         match discriminator_bytes {
@@ -61,7 +61,7 @@ pub fn init_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
     // Check that Merkle tree is initialized.
     let ctx = InitializeCpiContextAccount::from_account_infos(accounts)?;
     let params: CpiContextAccountInitParams =
-        CpiContextAccountInitParams::new(*ctx.associated_merkle_tree.key());
+        CpiContextAccountInitParams::new(ctx.associated_merkle_tree.address().to_bytes());
     cpi_context_account_new::<false>(ctx.cpi_context_account, params)?;
 
     Ok(())
@@ -79,7 +79,7 @@ pub fn reinit_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
 
     // Read associated_merkle_tree BEFORE resizing (in case resize truncates data)
     let associated_merkle_tree = {
-        let data = cpi_context_account.try_borrow_data()?;
+        let data = cpi_context_account.try_borrow()?;
         CpiContextAccount::deserialize(&mut &data[8..])
             .map_err(|_| ProgramError::BorshIoError)?
             .associated_merkle_tree

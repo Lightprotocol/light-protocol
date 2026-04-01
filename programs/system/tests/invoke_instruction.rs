@@ -5,7 +5,7 @@ use light_system_program_pinocchio::{
     accounts::account_traits::{InvokeAccounts, SignerAccounts},
     invoke::instruction::InvokeInstruction,
 };
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 
 // Import the account info getters from the invoke_cpi_instruction test file
 mod invoke_cpi_instruction;

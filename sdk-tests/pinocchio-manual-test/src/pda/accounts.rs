@@ -3,7 +3,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::CreateAccountsProof;
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
     sysvars::Sysvar,
@@ -46,8 +46,8 @@ impl<'a> CreatePda<'a> {
         let space = 8 + MinimalRecord::INIT_SPACE;
         let nonce_bytes = params.nonce.to_le_bytes();
         let seeds: &[&[u8]] = &[b"minimal_record", &params.owner, &nonce_bytes];
-        let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-        if record.key() != &expected_pda {
+        let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+        if record.address() != &expected_pda {
             return Err(ProgramError::InvalidSeeds);
         }
 
@@ -76,7 +76,7 @@ impl<'a> CreatePda<'a> {
         {
             use light_account_pinocchio::LightDiscriminator;
             let mut data = record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[..8].copy_from_slice(&MinimalRecord::LIGHT_DISCRIMINATOR);
         }

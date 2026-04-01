@@ -6,7 +6,7 @@ use light_token_interface::{
     state::{ZExtensionStructMut, ZTokenMut},
     TokenError,
 };
-use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
+use pinocchio::{AccountView as AccountInfo, pubkey::pubkey_eq};
 use solana_msg::msg;
 
 use super::inputs::DecompressCompressOnlyInputs;
@@ -44,7 +44,7 @@ pub fn validate_and_apply_compressed_only(
     validate_destination(
         ctoken,
         destination_account,
-        input_owner.key(),
+        input_owner.address(),
         ext_data,
         packed_accounts,
     )?;
@@ -85,14 +85,14 @@ fn validate_destination(
     }
 
     // ATA: destination address == input_owner (ATA pubkey)
-    if !pubkey_eq(destination.key(), input_owner_key) {
+    if !pubkey_eq(destination.address(), input_owner_key) {
         msg!("Decompress ATA: destination address mismatch");
         return Err(TokenError::DecompressDestinationMismatch.into());
     }
 
     // ATA: wallet owner == CToken owner field
     let wallet = packed_accounts.get_u8(ext_data.owner_index, "wallet owner")?;
-    if !pubkey_eq(wallet.key(), ctoken.base.owner.array_ref()) {
+    if !pubkey_eq(wallet.address(), ctoken.base.owner.array_ref()) {
         msg!("Decompress ATA: wallet owner mismatch");
         return Err(TokenError::DecompressDestinationMismatch.into());
     }
@@ -120,11 +120,11 @@ fn apply_delegate(
     };
 
     let delegate_is_set = if let Some(existing_delegate) = ctoken.delegate() {
-        pubkey_eq(existing_delegate.array_ref(), delegate_acc.key())
+        pubkey_eq(existing_delegate.array_ref(), delegate_acc.address())
     } else {
         ctoken
             .base
-            .set_delegate(Some(Pubkey::from(*delegate_acc.key())))?;
+            .set_delegate(Some(Pubkey::from(*delegate_acc.address())))?;
         true
     };
 

@@ -1,7 +1,7 @@
 //! Approve CPI for Light Token operations.
 
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     cpi::{slice_invoke, slice_invoke_signed},
     instruction::{AccountMeta, Instruction, Signer},
     program_error::ProgramError,
@@ -51,11 +51,11 @@ impl<'info> ApproveCpi<'info> {
         let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
         let account_metas = [
-            AccountMeta::writable(self.token_account.key()),
-            AccountMeta::readonly(self.delegate.key()),
-            AccountMeta::readonly_signer(self.owner.key()),
-            AccountMeta::readonly(self.system_program.key()),
-            AccountMeta::writable_signer(self.fee_payer.key()),
+            AccountMeta::writable(self.token_account.address()),
+            AccountMeta::readonly(self.delegate.address()),
+            AccountMeta::readonly_signer(self.owner.address()),
+            AccountMeta::readonly(self.system_program.address()),
+            AccountMeta::writable_signer(self.fee_payer.address()),
         ];
 
         let instruction = Instruction {

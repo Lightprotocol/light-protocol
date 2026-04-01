@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
-use pinocchio::instruction::AccountMeta;
+use pinocchio::instruction::InstructionAccount;
 
 /// Trait for types that can provide account information for CPI calls
 pub trait CpiAccountsTrait {
@@ -15,7 +15,7 @@ pub trait CpiAccountsTrait {
     /// Convert to account infos for invoke
     fn to_account_infos_for_invoke(
         &self,
-    ) -> crate::error::Result<Vec<&pinocchio::account_info::AccountInfo>>;
+    ) -> crate::error::Result<Vec<&pinocchio::AccountView>>;
 
     /// Get the CPI signer bump
     fn bump(&self) -> u8;

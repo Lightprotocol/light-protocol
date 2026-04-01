@@ -14,7 +14,7 @@ use light_token_interface::{
     },
     TokenError,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use crate::{
     compressed_token::transfer2::check_extensions::MintExtensionCache,
@@ -109,24 +109,24 @@ pub fn set_input_compressed_account<'a>(
                     None
                 };
                 let token_data = TokenData {
-                    mint: mint_account.key().into(),
-                    owner: owner_account.key().into(),
+                    mint: mint_account.address().into(),
+                    owner: owner_account.address().into(),
                     amount: input_token_data.amount.into(),
-                    delegate: delegate_account.map(|x| (*x.key()).into()),
+                    delegate: delegate_account.map(|x| (*x.address()).into()),
                     state,
                     tlv,
                 };
                 token_data.hash_sha_flat()?
             }
             _ => {
-                let hashed_owner = hash_cache.get_or_hash_pubkey(owner_account.key());
+                let hashed_owner = hash_cache.get_or_hash_pubkey(owner_account.address());
                 // Get mint hash from hash_cache
-                let hashed_mint = hash_cache.get_or_hash_mint(mint_account.key())?;
+                let hashed_mint = hash_cache.get_or_hash_mint(mint_account.address())?;
                 let amount_bytes =
                     token_version.serialize_amount_bytes(input_token_data.amount.into())?;
 
                 let hashed_delegate =
-                    delegate_account.map(|delegate| hash_cache.get_or_hash_pubkey(delegate.key()));
+                    delegate_account.map(|delegate| hash_cache.get_or_hash_pubkey(delegate.address()));
 
                 if !is_frozen {
                     TokenData::hash_with_hashed_values(
@@ -213,19 +213,19 @@ fn resolve_ata_signer<'a>(
                 // Derive ATA and verify owner_account matches
                 let bump_seed = [data.bump];
                 let ata_seeds: [&[u8]; 4] = [
-                    wallet_owner.key().as_ref(),
+                    wallet_owner.address().as_ref(),
                     crate::LIGHT_CPI_SIGNER.program_id.as_ref(),
-                    mint_account.key().as_ref(),
+                    mint_account.address().as_ref(),
                     bump_seed.as_ref(),
                 ];
-                let derived_ata = pinocchio::pubkey::create_program_address(
+                let derived_ata = pinocchio::address::create_program_address(
                     &ata_seeds,
                     &crate::LIGHT_CPI_SIGNER.program_id,
                 )
                 .map_err(|_| TokenError::InvalidAtaDerivation)?;
 
-                // owner_account.key() IS the ATA - verify it matches derived
-                if !pinocchio::pubkey::pubkey_eq(owner_account.key(), &derived_ata) {
+                // owner_account.address() IS the ATA - verify it matches derived
+                if !pinocchio::address::pubkey_eq(owner_account.address(), &derived_ata) {
                     return Err(TokenError::InvalidAtaDerivation.into());
                 }
 

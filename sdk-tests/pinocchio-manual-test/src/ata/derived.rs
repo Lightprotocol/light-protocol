@@ -1,7 +1,7 @@
 //! Derived code - what the macro would generate for associated token accounts.
 
 use light_account_pinocchio::{CreateTokenAtaCpi, LightFinalize, LightPreInit, LightSdkTypesError};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{CreateAtaAccounts, CreateAtaParams};
 

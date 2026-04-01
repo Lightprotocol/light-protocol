@@ -61,7 +61,7 @@ pub fn execute_cpi_invoke(
     let mut account_metas = Vec::with_capacity(total_capacity);
 
     // Always include: fee_payer and authority
-    account_metas.push(AccountMeta::new(accounts[0].key(), true, true)); // fee_payer (signer, mutable)
+    account_metas.push(AccountMeta::new(accounts[0].address(), true, true)); // fee_payer (signer, mutable)
     account_metas.push(AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true)); // authority (cpi_authority_pda, signer)
 
     if !write_to_cpi_context {
@@ -130,7 +130,7 @@ pub fn execute_cpi_invoke(
     Ok(())
 }
 
-/// Equivalent to pinocchio::cpi::slice_invoke_signed except:
+/// Equivalent to pinocchio::cpi::invoke_signed_with_slice except:
 /// 1. account_infos: &[&AccountInfo] ->  &[AccountInfo]
 /// 2. Error prints
 #[inline]
@@ -140,7 +140,7 @@ pub fn slice_invoke_signed(
     account_infos: &[AccountInfo],
     signers_seeds: &[Signer],
 ) -> pinocchio::ProgramResult {
-    use pinocchio::program_error::ProgramError;
+    use pinocchio::error::ProgramError;
     if instruction.accounts.len() < account_infos.len() {
         msg!(
             "instruction.accounts.len() account metas {}< account_infos.len() account infos {}",
@@ -161,11 +161,11 @@ pub fn slice_invoke_signed(
     for (account_info, account_meta) in account_infos.iter().zip(
         instruction.accounts.iter(), //   .filter(|x| x.pubkey != instruction.program_id),
     ) {
-        if account_info.key() != account_meta.pubkey {
+        if account_info.address() != account_meta.pubkey {
             use std::format;
             msg!(format!(
                 "Received account key: {:?}",
-                solana_pubkey::Pubkey::new_from_array(*account_info.key())
+                solana_pubkey::Pubkey::new_from_array(*account_info.address())
             )
             .as_str());
             msg!(format!(

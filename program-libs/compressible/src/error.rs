@@ -31,12 +31,6 @@ impl From<CompressibleError> for solana_program_error::ProgramError {
     }
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<CompressibleError> for pinocchio::program_error::ProgramError {
-    fn from(e: CompressibleError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}
 
 #[cfg(feature = "anchor")]
 impl From<CompressibleError> for anchor_lang::prelude::ProgramError {

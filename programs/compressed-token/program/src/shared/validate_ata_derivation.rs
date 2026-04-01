@@ -1,6 +1,6 @@
 use anchor_lang::prelude::ProgramError;
 use light_program_profiler::profile;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 /// Validates that an account is the correct Associated Token Account PDA
 ///
@@ -19,5 +19,5 @@ pub fn validate_ata_derivation(
         mint.as_ref(),
     ];
 
-    crate::shared::verify_pda(account.key(), seeds, &crate::LIGHT_CPI_SIGNER.program_id)
+    crate::shared::verify_pda(account.address(), seeds, &crate::LIGHT_CPI_SIGNER.program_id)
 }

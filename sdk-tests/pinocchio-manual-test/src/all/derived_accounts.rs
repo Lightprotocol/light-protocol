@@ -107,7 +107,7 @@ impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
             .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
 
         Ok(AllBorshVariant {
-            seeds: AllBorshSeeds { owner: owner.key() },
+            seeds: AllBorshSeeds { owner: owner.address() },
             data,
         })
     }
@@ -232,7 +232,7 @@ impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
             .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
 
         Ok(AllZeroCopyVariant {
-            seeds: AllZeroCopySeeds { owner: owner.key() },
+            seeds: AllZeroCopySeeds { owner: owner.address() },
             data,
         })
     }
@@ -297,7 +297,7 @@ impl light_account_pinocchio::IntoVariant<AllBorshVariant> for AllBorshSeeds {
 /// Implement Pack trait to allow AllBorshVariant to be used with `create_load_instructions`.
 /// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
-impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for AllBorshVariant {
+impl light_account_pinocchio::Pack<solana_instruction::InstructionAccount> for AllBorshVariant {
     type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(
@@ -359,7 +359,7 @@ impl light_account_pinocchio::IntoVariant<AllZeroCopyVariant> for AllZeroCopySee
 /// Implement Pack trait to allow AllZeroCopyVariant to be used with `create_load_instructions`.
 /// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
-impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for AllZeroCopyVariant {
+impl light_account_pinocchio::Pack<solana_instruction::InstructionAccount> for AllZeroCopyVariant {
     type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(

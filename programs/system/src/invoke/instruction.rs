@@ -1,5 +1,5 @@
 use light_account_checks::checks::check_signer;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 use crate::{
     accounts::{

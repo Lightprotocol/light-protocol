@@ -187,7 +187,7 @@ impl DecompressBuilder {
                 fn to_account_metas(
                     &self,
                     _is_signer: Option<bool>,
-                ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                ) -> Vec<anchor_lang::solana_program::instruction::InstructionAccount> {
                     Vec::new()
                 }
             }
@@ -234,7 +234,7 @@ impl DecompressBuilder {
                     fn to_account_metas(
                         &self,
                         _is_signer: Option<bool>,
-                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                    ) -> Vec<anchor_lang::solana_program::instruction::InstructionAccount> {
                         Vec::new()
                     }
                 }
@@ -249,7 +249,7 @@ impl DecompressBuilder {
                     fn to_account_metas(
                         &self,
                         _is_signer: Option<bool>,
-                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                    ) -> Vec<anchor_lang::solana_program::instruction::InstructionAccount> {
                         Vec::new()
                     }
                 }
@@ -410,7 +410,7 @@ impl DecompressBuilder {
             Ok(quote! {
                 impl #enum_name {
                     pub fn process_decompress(
-                        accounts: &[pinocchio::account_info::AccountInfo],
+                        accounts: &[pinocchio::AccountView as AccountInfo],
                         instruction_data: &[u8],
                     ) -> std::result::Result<(), #program_error> {
                         use borsh::BorshDeserialize;
@@ -622,7 +622,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
 
     let pda_derivation = if is_pinocchio {
         quote! {
-            let (pda, bump) = pinocchio::pubkey::find_program_address(seeds, program_id);
+            let (pda, bump) = pinocchio::address::find_program_address(seeds, program_id);
         }
     } else {
         quote! {

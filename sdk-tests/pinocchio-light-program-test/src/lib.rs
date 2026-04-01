@@ -8,7 +8,7 @@
 use light_account_pinocchio::{
     derive_light_cpi_signer, pubkey_array, CpiSigner, LightAccount, LightProgramPinocchio,
 };
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError, address::Address};
 
 pub mod account_loader;
 pub mod all;
@@ -155,7 +155,7 @@ fn process_create_pda(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
     {
         let mut account_data = ctx
             .record
-            .try_borrow_mut_data()
+            .try_borrow_mut()
             .map_err(|_| ProgramError::AccountBorrowFailed)?;
         let mut record = state::MinimalRecord::try_from_slice(&account_data[8..])
             .map_err(|_| ProgramError::BorshIoError)?;
@@ -222,7 +222,7 @@ fn process_create_zero_copy_record(
     {
         let mut account_data = ctx
             .record
-            .try_borrow_mut_data()
+            .try_borrow_mut()
             .map_err(|_| ProgramError::AccountBorrowFailed)?;
         let record_bytes = &mut account_data[8..8 + core::mem::size_of::<state::ZeroCopyRecord>()];
         let record: &mut state::ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);
@@ -284,7 +284,7 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
     {
         let mut borsh_data = ctx
             .borsh_record
-            .try_borrow_mut_data()
+            .try_borrow_mut()
             .map_err(|_| ProgramError::AccountBorrowFailed)?;
         let mut borsh_record = state::MinimalRecord::try_from_slice(&borsh_data[8..])
             .map_err(|_| ProgramError::BorshIoError)?;
@@ -295,7 +295,7 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
     {
         let mut zc_data = ctx
             .zero_copy_record
-            .try_borrow_mut_data()
+            .try_borrow_mut()
             .map_err(|_| ProgramError::AccountBorrowFailed)?;
         let record_bytes = &mut zc_data[8..8 + core::mem::size_of::<state::ZeroCopyRecord>()];
         let record: &mut state::ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);
@@ -306,7 +306,7 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
         let disc_len = state::OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
         let mut ob_data = ctx
             .one_byte_record
-            .try_borrow_mut_data()
+            .try_borrow_mut()
             .map_err(|_| ProgramError::AccountBorrowFailed)?;
         let mut ob_record = state::OneByteRecord::try_from_slice(&ob_data[disc_len..])
             .map_err(|_| ProgramError::BorshIoError)?;

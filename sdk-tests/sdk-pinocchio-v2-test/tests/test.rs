@@ -15,7 +15,7 @@ use sdk_pinocchio_v2_test::{
     update_pda::{UpdateMyCompressedAccount, UpdatePdaInstructionData},
 };
 use solana_sdk::{
-    instruction::Instruction,
+    instruction::InstructionView,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };

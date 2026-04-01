@@ -1,6 +1,6 @@
 pub use light_compressed_account::instruction_data::data::NewAddressParamsPacked;
 pub use light_sdk_types::address::AddressSeed;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::address::Address;
 
 pub mod v1 {
     use light_sdk_types::address::AddressSeed;

@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_pinocchio::instruction::{SplInterfaceCpi, TransferInterfaceCpi};
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
 };
@@ -100,7 +100,7 @@ pub fn process_transfer_interface_invoke_signed(
 
     // Derive the PDA for the authority
     let (authority_pda, authority_bump) =
-        pinocchio::pubkey::find_program_address(&[TRANSFER_INTERFACE_AUTHORITY_SEED], &ID);
+        pinocchio::address::find_program_address(&[TRANSFER_INTERFACE_AUTHORITY_SEED], &ID);
 
     // Verify the authority account is the PDA we expect
     if authority_pda != *accounts[3].key() {

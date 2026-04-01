@@ -1,3 +1,4 @@
+pub(crate) type Pubkey = [u8; 32];
 pub mod account_compression_state;
 pub mod accounts;
 pub mod constants;
@@ -25,8 +26,9 @@ use light_compressed_account::instruction_data::{
 use light_macros::pubkey_array;
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::{
-    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
+    AccountView as AccountInfo, error::ProgramError, address::Address, ProgramResult,
 };
+use solana_msg::msg;
 
 #[cfg(feature = "reinit")]
 use crate::accounts::init_context_account::reinit_cpi_context_account;
@@ -62,11 +64,11 @@ use pinocchio::entrypoint;
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    program_id: &Pubkey,
+    program_id: &Address,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    if *program_id != ID {
+    if program_id.to_bytes() != ID {
         return Err(ProgramError::IncorrectProgramId);
     }
     if instruction_data.len() < 8 {
@@ -103,7 +105,7 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
 
     input_compressed_accounts_signer_check(
         &inputs.input_compressed_accounts_with_merkle_context,
-        ctx.authority.key(),
+        &ctx.authority.address().to_bytes(),
     )?;
     let wrapped_inputs = context::WrappedInstructionData::new(inputs)?;
     process::<false, InvokeInstruction, ZInstructionDataInvoke>(
@@ -128,7 +130,7 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
 
     process_invoke_cpi::<false, InvokeCpiInstruction, ZInstructionDataInvokeCpi>(
-        *ctx.invoking_program.key(),
+        ctx.invoking_program.address().to_bytes(),
         ctx,
         inputs,
         remaining_accounts,

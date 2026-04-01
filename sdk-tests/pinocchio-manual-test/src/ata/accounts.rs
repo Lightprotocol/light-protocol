@@ -1,7 +1,7 @@
 //! Accounts struct for create_ata instruction (pinocchio version).
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 /// Params for ATA creation (empty - bump is derived automatically).
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug, Default)]

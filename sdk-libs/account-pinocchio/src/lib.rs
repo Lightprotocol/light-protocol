@@ -105,7 +105,7 @@
 //!
 //! For a complete example, see `sdk-tests/pinocchio-light-program-test`.
 
-pub use pinocchio::account_info::AccountInfo;
+pub use pinocchio::AccountView as AccountInfo;
 
 // ===== TYPE ALIASES (structs generic over AI, specialized with pinocchio AccountInfo) =====
 // Note: pinocchio's AccountInfo has no lifetime parameter, so aliases have fewer lifetimes.
@@ -129,7 +129,7 @@ pub type CpiContextWriteAccounts<'a> =
 
 #[cfg(all(not(target_os = "solana"), feature = "std"))]
 pub type PackedAccounts =
-    light_sdk_types::pack_accounts::PackedAccounts<solana_instruction::AccountMeta>;
+    light_sdk_types::pack_accounts::PackedAccounts<solana_instruction::InstructionAccount>;
 
 // ===== RE-EXPORTED TRAITS (generic over AI, used with explicit AccountInfo in impls) =====
 
@@ -280,12 +280,12 @@ pub use light_sdk_types::{constants, error::LightSdkTypesError, instruction::*, 
 
 // ===== UTILITY FUNCTIONS =====
 
-/// Converts a [`LightSdkTypesError`] into a [`pinocchio::program_error::ProgramError`].
+/// Converts a [`LightSdkTypesError`] into a [`pinocchio::error::ProgramError`].
 ///
 /// Use with `.map_err(light_err)` in pinocchio instruction handlers to disambiguate
 /// the multiple `From` implementations on `LightSdkTypesError`.
-pub fn light_err(e: LightSdkTypesError) -> pinocchio::program_error::ProgramError {
-    pinocchio::program_error::ProgramError::Custom(u32::from(e))
+pub fn light_err(e: LightSdkTypesError) -> pinocchio::error::ProgramError {
+    pinocchio::error::ProgramError::Custom(u32::from(e))
 }
 
 /// Derives the rent sponsor PDA for a given program.

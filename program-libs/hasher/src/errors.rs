@@ -64,9 +64,3 @@ impl From<HasherError> for solana_program_error::ProgramError {
     }
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<HasherError> for pinocchio::program_error::ProgramError {
-    fn from(e: HasherError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}

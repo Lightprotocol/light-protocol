@@ -11,7 +11,7 @@ use light_token_interface::{
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     cpi::slice_invoke_signed,
     instruction::{AccountMeta, Instruction, Signer},
     program_error::ProgramError,
@@ -30,7 +30,7 @@ const CREATE_TOKEN_ACCOUNT_DISCRIMINATOR: u8 = 18;
 ///     payer: &ctx.accounts.payer,
 ///     account: &ctx.accounts.vault,
 ///     mint: &ctx.accounts.mint,
-///     owner: ctx.accounts.vault_authority.key().clone(),
+///     owner: ctx.accounts.vault_authority.address().clone(),
 /// }
 /// .rent_free(
 ///     &ctx.accounts.ctoken_config,
@@ -150,12 +150,12 @@ fn build_instruction_inner<'a>(
     // [4] system_program (readonly)
     // [5] rent_sponsor (writable)
     let metas = [
-        AccountMeta::writable_signer(base.account.key()),
-        AccountMeta::readonly(base.mint.key()),
-        AccountMeta::writable_signer(base.payer.key()),
-        AccountMeta::readonly(compressible.compressible_config.key()),
-        AccountMeta::readonly(compressible.system_program.key()),
-        AccountMeta::writable(compressible.rent_sponsor.key()),
+        AccountMeta::writable_signer(base.account.address()),
+        AccountMeta::readonly(base.mint.address()),
+        AccountMeta::writable_signer(base.payer.address()),
+        AccountMeta::readonly(compressible.compressible_config.address()),
+        AccountMeta::readonly(compressible.system_program.address()),
+        AccountMeta::writable(compressible.rent_sponsor.address()),
     ];
 
     let account_infos = [

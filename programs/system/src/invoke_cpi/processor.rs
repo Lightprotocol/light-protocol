@@ -1,6 +1,7 @@
+use crate::Pubkey;
 use light_compressed_account::instruction_data::traits::InstructionData;
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::AccountView as AccountInfo;
 
 pub use crate::Result;
 use crate::{
@@ -37,14 +38,14 @@ pub fn process_invoke_cpi<
 
     cpi_signer_checks::<T>(
         &invoking_program,
-        accounts.get_authority().key(),
+        &accounts.get_authority().address().to_bytes(),
         &instruction_data,
     )?;
 
     let (cpi_context_inputs_len, instruction_data) = match process_cpi_context(
         instruction_data,
         accounts.get_cpi_context_account(),
-        *accounts.get_fee_payer().key(),
+        accounts.get_fee_payer().address().to_bytes(),
         invoking_program,
         remaining_accounts,
     ) {

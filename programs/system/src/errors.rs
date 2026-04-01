@@ -3,7 +3,7 @@ use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
 use light_zero_copy::errors::ZeroCopyError;
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]

@@ -58,13 +58,13 @@ use light_test_utils::{
     },
 };
 use light_zero_copy::traits::ZeroCopyAt;
-use pinocchio::pubkey::Pubkey as PinocchioPubkey;
+use pinocchio::address::Address as Pubkey as PinocchioPubkey;
 use solana_sdk::{pubkey::Pubkey, signature::Signer};
 
 /// Creates a test CPI context account with the given associated merkle tree.
 fn create_test_cpi_context_account(
     associated_merkle_tree: Option<PinocchioPubkey>,
-) -> pinocchio::account_info::AccountInfo {
+) -> pinocchio::AccountView {
     let associated_merkle_tree =
         associated_merkle_tree.unwrap_or_else(|| Pubkey::new_unique().to_bytes());
     let params = CpiContextAccountInitParams::new(associated_merkle_tree);

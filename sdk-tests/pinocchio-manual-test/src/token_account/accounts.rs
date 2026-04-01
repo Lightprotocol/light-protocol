@@ -1,7 +1,7 @@
 //! Accounts struct for create_token_vault instruction (pinocchio version).
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 /// Seed constant for token vault PDA
 pub const TOKEN_VAULT_SEED: &[u8] = b"vault";
@@ -46,10 +46,10 @@ impl<'a> CreateTokenVaultAccounts<'a> {
 
         // Validate token_vault PDA
         {
-            let mint_key = mint.key();
+            let mint_key = mint.address();
             let seeds: &[&[u8]] = &[TOKEN_VAULT_SEED, mint_key];
-            let (expected_pda, _bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if token_vault.key() != &expected_pda {
+            let (expected_pda, _bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if token_vault.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
         }

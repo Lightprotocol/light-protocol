@@ -1,7 +1,7 @@
 use light_account_checks::error::AccountError;
 use light_hasher::HasherError;
 pub use light_sdk_types::error::LightSdkTypesError;
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, LightSdkError>;

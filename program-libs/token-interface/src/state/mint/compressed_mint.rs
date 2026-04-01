@@ -3,7 +3,7 @@ use light_compressed_account::{address::derive_address, Pubkey};
 use light_compressible::compression_info::CompressionInfo;
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 #[cfg(feature = "solana")]
 use solana_msg::msg;
 
@@ -133,7 +133,7 @@ impl Mint {
     /// Validation is done via owner check + PDA derivation (caller responsibility).
     pub fn from_account_info_checked(account_info: &AccountInfo) -> Result<Self, TokenError> {
         // 1. Check program ownership
-        if !account_info.is_owned_by(&LIGHT_TOKEN_PROGRAM_ID) {
+        if !account_info.owned_by(&pinocchio::address::Address::from(LIGHT_TOKEN_PROGRAM_ID)) {
             #[cfg(feature = "solana")]
             msg!("Mint account has invalid owner");
             return Err(TokenError::InvalidMintOwner);
@@ -141,7 +141,7 @@ impl Mint {
 
         // 2. Borrow and deserialize account data
         let data = account_info
-            .try_borrow_data()
+            .try_borrow()
             .map_err(|_| TokenError::MintBorrowFailed)?;
 
         let mint =

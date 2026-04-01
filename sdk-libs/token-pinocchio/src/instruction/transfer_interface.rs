@@ -2,7 +2,7 @@
 
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     cpi::{invoke, slice_invoke_signed},
     instruction::{AccountMeta, Instruction, Signer},
     program_error::ProgramError,
@@ -240,10 +240,10 @@ impl<'info> TransferInterfaceCpi<'info> {
                 // [2] destination (writable)
                 // [3] authority (signer)
                 let account_metas = [
-                    AccountMeta::writable(self.source_account.key()),
-                    AccountMeta::readonly(spl.mint.key()),
-                    AccountMeta::writable(self.destination_account.key()),
-                    AccountMeta::readonly_signer(self.authority.key()),
+                    AccountMeta::writable(self.source_account.address()),
+                    AccountMeta::readonly(spl.mint.address()),
+                    AccountMeta::writable(self.destination_account.address()),
+                    AccountMeta::readonly_signer(self.authority.address()),
                 ];
 
                 // SPL token program ID from source account owner (Pubkey = [u8; 32])
@@ -344,10 +344,10 @@ impl<'info> TransferInterfaceCpi<'info> {
                 // [2] destination (writable)
                 // [3] authority (signer)
                 let account_metas = [
-                    AccountMeta::writable(self.source_account.key()),
-                    AccountMeta::readonly(spl.mint.key()),
-                    AccountMeta::writable(self.destination_account.key()),
-                    AccountMeta::readonly_signer(self.authority.key()),
+                    AccountMeta::writable(self.source_account.address()),
+                    AccountMeta::readonly(spl.mint.address()),
+                    AccountMeta::writable(self.destination_account.address()),
+                    AccountMeta::readonly_signer(self.authority.address()),
                 ];
 
                 // SPL token program ID from source account owner (Pubkey = [u8; 32])

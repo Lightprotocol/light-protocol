@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{CreateAccountsProof, LightAccount};
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
     sysvars::Sysvar,
@@ -75,8 +75,8 @@ impl<'a> CreateAllAccounts<'a> {
         {
             let space = 8 + MinimalRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"minimal_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if borsh_record.key() != &expected_pda {
+            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if borsh_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
 
@@ -102,7 +102,7 @@ impl<'a> CreateAllAccounts<'a> {
 
             use light_account_pinocchio::LightDiscriminator;
             let mut data = borsh_record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[..8].copy_from_slice(&MinimalRecord::LIGHT_DISCRIMINATOR);
         }
@@ -111,8 +111,8 @@ impl<'a> CreateAllAccounts<'a> {
         {
             let space = 8 + ZeroCopyRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[crate::RECORD_SEED, &params.owner];
-            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if zero_copy_record.key() != &expected_pda {
+            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if zero_copy_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
 
@@ -138,7 +138,7 @@ impl<'a> CreateAllAccounts<'a> {
 
             use light_account_pinocchio::LightDiscriminator;
             let mut data = zero_copy_record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[..8].copy_from_slice(&ZeroCopyRecord::LIGHT_DISCRIMINATOR);
         }
@@ -149,8 +149,8 @@ impl<'a> CreateAllAccounts<'a> {
             let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + OneByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"one_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if one_byte_record.key() != &expected_pda {
+            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if one_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             let rent = pinocchio::sysvars::rent::Rent::get()
@@ -173,18 +173,18 @@ impl<'a> CreateAllAccounts<'a> {
             .invoke_signed(&[signer])?;
 
             let mut data = one_byte_record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[..disc_len].copy_from_slice(OneByteRecord::LIGHT_DISCRIMINATOR_SLICE);
         }
 
         // Validate mint_signer PDA
         {
-            let authority_key = authority.key();
+            let authority_key = authority.address();
             let seeds: &[&[u8]] = &[crate::MINT_SIGNER_SEED_A, authority_key];
             let (expected_pda, expected_bump) =
-                pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if mint_signer.key() != &expected_pda {
+                pinocchio::address::find_program_address(seeds, &crate::ID);
+            if mint_signer.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             if expected_bump != params.mint_signer_bump {
@@ -194,11 +194,11 @@ impl<'a> CreateAllAccounts<'a> {
 
         // Validate token_vault PDA
         {
-            let mint_key = mint.key();
+            let mint_key = mint.address();
             let seeds: &[&[u8]] = &[crate::VAULT_SEED, mint_key];
             let (expected_pda, expected_bump) =
-                pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if token_vault.key() != &expected_pda {
+                pinocchio::address::find_program_address(seeds, &crate::ID);
+            if token_vault.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             if expected_bump != params.token_vault_bump {

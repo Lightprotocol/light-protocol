@@ -25,7 +25,7 @@ use light_token_interface::{
     state::CompressedTokenAccountState,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 use rand::Rng;
 
 #[test]

@@ -5,7 +5,7 @@ use light_program_profiler::profile;
 use light_token_interface::instructions::transfer2::{
     ZCompression, ZCompressionMode, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 /// Process inputs and add amounts to mint sums
@@ -137,7 +137,7 @@ pub fn validate_mint_uniqueness(
             let mint_account = packed_accounts
                 .get(*mint_index as usize, "mint")
                 .map_err(|_| ErrorCode::DuplicateMint)?;
-            let mint_pubkey = mint_account.key();
+            let mint_pubkey = mint_account.address();
 
             // Check if we've seen this pubkey with a different index
             if let Some(existing_index) = seen_pubkeys.get_by_pubkey(mint_pubkey) {

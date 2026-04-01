@@ -5,7 +5,7 @@ use light_account_pinocchio::{
     LightConfig, LightDiscriminator, LightSdkTypesError, PackedAddressTreeInfoExt,
 };
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     sysvars::{clock::Clock, Sysvar},
 };
 
@@ -44,7 +44,7 @@ pub fn process(
         .map_err(|_| LightSdkTypesError::InvalidInstructionData)?
         .slot;
 
-    let record_key = *ctx.record.key();
+    let record_key = *ctx.record.address();
     prepare_compressed_account_on_init(
         &record_key,
         &address_tree_pubkey,
@@ -61,7 +61,7 @@ pub fn process(
         let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
         let mut account_data = ctx
             .record
-            .try_borrow_mut_data()
+            .try_borrow_mut()
             .map_err(|_| LightSdkTypesError::Borsh)?;
         let mut record = OneByteRecord::try_from_slice(&account_data[disc_len..])
             .map_err(|_| LightSdkTypesError::Borsh)?;

@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{CreateAccountsProof, LightAccount, LightDiscriminator};
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
     sysvars::Sysvar,
@@ -60,8 +60,8 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = TwoByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + TwoByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"two_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if two_byte_record.key() != &expected_pda {
+            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if two_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             let lamports = rent.minimum_balance(space);
@@ -81,7 +81,7 @@ impl<'a> CreateMultiByteRecords<'a> {
             }
             .invoke_signed(&[signer])?;
             let mut data = two_byte_record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[0..disc_len].copy_from_slice(TwoByteRecord::LIGHT_DISCRIMINATOR_SLICE);
         }
@@ -91,8 +91,8 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = ThreeByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + ThreeByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"three_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if three_byte_record.key() != &expected_pda {
+            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if three_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             let lamports = rent.minimum_balance(space);
@@ -112,7 +112,7 @@ impl<'a> CreateMultiByteRecords<'a> {
             }
             .invoke_signed(&[signer])?;
             let mut data = three_byte_record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[0..disc_len].copy_from_slice(ThreeByteRecord::LIGHT_DISCRIMINATOR_SLICE);
         }
@@ -122,8 +122,8 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = FourByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + FourByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"four_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if four_byte_record.key() != &expected_pda {
+            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if four_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             let lamports = rent.minimum_balance(space);
@@ -143,7 +143,7 @@ impl<'a> CreateMultiByteRecords<'a> {
             }
             .invoke_signed(&[signer])?;
             let mut data = four_byte_record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[0..disc_len].copy_from_slice(FourByteRecord::LIGHT_DISCRIMINATOR_SLICE);
         }
@@ -153,8 +153,8 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = FiveByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + FiveByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"five_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if five_byte_record.key() != &expected_pda {
+            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if five_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             let lamports = rent.minimum_balance(space);
@@ -174,7 +174,7 @@ impl<'a> CreateMultiByteRecords<'a> {
             }
             .invoke_signed(&[signer])?;
             let mut data = five_byte_record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[0..disc_len].copy_from_slice(FiveByteRecord::LIGHT_DISCRIMINATOR_SLICE);
         }
@@ -184,8 +184,8 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = SixByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + SixByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"six_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if six_byte_record.key() != &expected_pda {
+            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if six_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             let lamports = rent.minimum_balance(space);
@@ -205,7 +205,7 @@ impl<'a> CreateMultiByteRecords<'a> {
             }
             .invoke_signed(&[signer])?;
             let mut data = six_byte_record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[0..disc_len].copy_from_slice(SixByteRecord::LIGHT_DISCRIMINATOR_SLICE);
         }
@@ -215,8 +215,8 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = SevenByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + SevenByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"seven_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if seven_byte_record.key() != &expected_pda {
+            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if seven_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             let lamports = rent.minimum_balance(space);
@@ -236,7 +236,7 @@ impl<'a> CreateMultiByteRecords<'a> {
             }
             .invoke_signed(&[signer])?;
             let mut data = seven_byte_record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[0..disc_len].copy_from_slice(SevenByteRecord::LIGHT_DISCRIMINATOR_SLICE);
         }

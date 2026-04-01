@@ -1,7 +1,7 @@
 #![cfg(all(feature = "solana", feature = "pinocchio"))]
 // Comprehensive tests for AccountInfoTrait implementations:
 // - Solana implementation (solana_account_info::AccountInfo)
-// - Pinocchio implementation (pinocchio::account_info::AccountInfo)
+// - Pinocchio implementation (pinocchio::AccountView)
 //
 // Tests cover all trait methods with both functional and failing test cases:
 // 1. key() - Returns account public key
@@ -58,7 +58,7 @@ fn create_test_account_pinocchio(
     writable: bool,
     signer: bool,
     executable: bool,
-) -> pinocchio::account_info::AccountInfo {
+) -> pinocchio::AccountView {
     light_account_checks::account_info::test_account_info::pinocchio::get_account_info(
         key, owner, signer, writable, executable, data,
     )
@@ -400,7 +400,7 @@ fn test_pinocchio_account_info_trait() {
 
         // Test find_program_address() - functional
         let (pda, bump) =
-            pinocchio::account_info::AccountInfo::find_program_address(seeds, &program_id);
+            pinocchio::AccountView::find_program_address(seeds, &program_id);
 
         // Verify the PDA is valid by using Solana's function
         let (expected_pda, expected_bump) = solana_pubkey::Pubkey::find_program_address(
@@ -412,7 +412,7 @@ fn test_pinocchio_account_info_trait() {
 
         // Test create_program_address() - functional
         let seeds_with_bump = &[b"test_seed".as_ref(), &[1, 2, 3], &[bump]];
-        let created_pda = pinocchio::account_info::AccountInfo::create_program_address(
+        let created_pda = pinocchio::AccountView::create_program_address(
             seeds_with_bump,
             &program_id,
         )
@@ -421,7 +421,7 @@ fn test_pinocchio_account_info_trait() {
 
         // Test create_program_address() - failing (invalid bump)
         let invalid_seeds = &[b"test_seed".as_ref(), &[1, 2, 3], &[255u8]]; // Invalid bump
-        let result = pinocchio::account_info::AccountInfo::create_program_address(
+        let result = pinocchio::AccountView::create_program_address(
             invalid_seeds,
             &program_id,
         );
@@ -448,7 +448,7 @@ fn test_pinocchio_account_info_trait() {
     // TODO: Enable when sysvar is available in test environment
     /*
     {
-        use pinocchio::account_info::AccountInfo;
+        use pinocchio::AccountView as AccountInfo;
 
         // Test get_min_rent_balance() - functional
         let small_rent = AccountInfo::get_min_rent_balance(100);

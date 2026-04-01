@@ -7,7 +7,7 @@
 use light_macros::pubkey_array;
 use light_sdk_pinocchio::{derive_light_cpi_signer, error::LightSdkError, CpiSigner};
 use pinocchio::{
-    account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey,
+    AccountView as AccountInfo, entrypoint, error::ProgramError, address::Address,
 };
 
 pub const ID: Pubkey = pubkey_array!("NoStDPinocchio11111111111111111111111111111");

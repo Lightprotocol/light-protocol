@@ -1,6 +1,7 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError as PinocchioProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError as PinocchioProgramError};
+use solana_msg::msg;
 use pinocchio_token_program::processor::{burn::process_burn, burn_checked::process_burn_checked};
 
 use crate::shared::{

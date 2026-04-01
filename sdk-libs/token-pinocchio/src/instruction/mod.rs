@@ -80,7 +80,7 @@ pub use light_token_interface::{
 };
 pub use mint_to::*;
 pub use mint_to_checked::*;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 pub use revoke::*;
 pub use thaw::*;
 pub use transfer::*;

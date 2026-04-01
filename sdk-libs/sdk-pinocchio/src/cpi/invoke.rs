@@ -1,7 +1,7 @@
 pub use light_compressed_account::LightInstructionData;
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 #[cfg(any(feature = "std", feature = "alloc"))]
-use pinocchio::pubkey::Pubkey;
+use pinocchio::address::Address as Pubkey;
 use pinocchio::{
     cpi::slice_invoke_signed,
     instruction::{Instruction, Seed, Signer},
@@ -93,7 +93,7 @@ where
 /// interface with better type safety and ergonomics.
 #[inline(always)]
 pub fn invoke_light_system_program(
-    account_infos: &[&pinocchio::account_info::AccountInfo],
+    account_infos: &[&pinocchio::AccountView],
     instruction: Instruction,
     bump: u8,
 ) -> Result<(), ProgramError> {

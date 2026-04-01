@@ -63,7 +63,7 @@ use light_account_checks::{
     account_info::test_account_info, account_iterator::AccountIterator, error::AccountError,
     AccountInfoTrait,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 // Helper to extract error from Result when Ok type doesn't implement Debug
 fn get_error<T>(result: Result<T, AccountError>) -> AccountError {
@@ -78,7 +78,7 @@ fn create_pinocchio_accounts(
     count: usize,
     signer: bool,
     writable: bool,
-) -> Vec<pinocchio::account_info::AccountInfo> {
+) -> Vec<pinocchio::AccountView> {
     (0..count)
         .map(|i| {
             let key = [i as u8; 32];
@@ -116,7 +116,7 @@ fn get_iterator_state<T: AccountInfoTrait>(iter: &AccountIterator<T>) -> Iterato
 fn test_new_iterator_empty_accounts() {
     // Pinocchio only - Solana TestAccount requires mutable ref for get_account_info()
 
-    let accounts: Vec<pinocchio::account_info::AccountInfo> = vec![];
+    let accounts: Vec<pinocchio::AccountView> = vec![];
     let iter = AccountIterator::new(&accounts);
 
     let expected = IteratorState {
@@ -895,7 +895,7 @@ fn test_pinocchio_backend_iterator() {
 
 #[test]
 fn test_backend_error_consistency() {
-    let accounts: Vec<pinocchio::account_info::AccountInfo> = vec![];
+    let accounts: Vec<pinocchio::AccountView> = vec![];
     let mut iter = AccountIterator::new(&accounts);
 
     assert_eq!(
@@ -904,7 +904,7 @@ fn test_backend_error_consistency() {
     );
 }
 
-fn get_signer_mutable_account() -> pinocchio::account_info::AccountInfo {
+fn get_signer_mutable_account() -> pinocchio::AccountView {
     test_account_info::pinocchio::get_account_info(
         [1; 32],
         [255; 32],
@@ -915,7 +915,7 @@ fn get_signer_mutable_account() -> pinocchio::account_info::AccountInfo {
     )
 }
 
-fn get_signer_readonly_account() -> pinocchio::account_info::AccountInfo {
+fn get_signer_readonly_account() -> pinocchio::AccountView {
     test_account_info::pinocchio::get_account_info(
         [2; 32],
         [255; 32],
@@ -926,7 +926,7 @@ fn get_signer_readonly_account() -> pinocchio::account_info::AccountInfo {
     )
 }
 
-fn get_nonsigner_mutable_account() -> pinocchio::account_info::AccountInfo {
+fn get_nonsigner_mutable_account() -> pinocchio::AccountView {
     test_account_info::pinocchio::get_account_info(
         [3; 32],
         [255; 32],
@@ -937,7 +937,7 @@ fn get_nonsigner_mutable_account() -> pinocchio::account_info::AccountInfo {
     )
 }
 
-fn get_nonsigner_readonly_account() -> pinocchio::account_info::AccountInfo {
+fn get_nonsigner_readonly_account() -> pinocchio::AccountView {
     test_account_info::pinocchio::get_account_info(
         [4; 32],
         [255; 32],
@@ -948,7 +948,7 @@ fn get_nonsigner_readonly_account() -> pinocchio::account_info::AccountInfo {
     )
 }
 
-type AccountTestCase = (fn() -> AccountInfo, &'static str, Result<(), AccountError>);
+type AccountTestCase = (fn() -> AccountView, &'static str, Result<(), AccountError>);
 
 #[test]
 fn test_systematic_next_account_validation() {

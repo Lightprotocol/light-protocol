@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_pinocchio::instruction::MintToCpi;
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
 };
@@ -58,7 +58,7 @@ pub fn process_mint_to_invoke_signed(
     }
 
     // Derive the PDA for the mint authority
-    let (pda, bump) = pinocchio::pubkey::find_program_address(&[MINT_AUTHORITY_SEED], &ID);
+    let (pda, bump) = pinocchio::address::find_program_address(&[MINT_AUTHORITY_SEED], &ID);
 
     // Verify the authority account is the PDA we expect
     if pda != *accounts[2].key() {

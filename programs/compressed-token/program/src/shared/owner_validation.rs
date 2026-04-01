@@ -3,7 +3,8 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
 use light_program_profiler::profile;
 use light_token_interface::{state::ZTokenMut, LIGHT_TOKEN_PROGRAM_ID};
-use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
+use pinocchio::{AccountView as AccountInfo, pubkey::pubkey_eq};
+use solana_msg::msg;
 
 use crate::extensions::MintExtensionChecks;
 
@@ -30,7 +31,7 @@ pub fn check_token_program_owner(account: &AccountInfo) -> Result<(), ProgramErr
 pub fn verify_owner_or_delegate_signer<'a>(
     owner_account: &'a AccountInfo,
     delegate_account: Option<&'a AccountInfo>,
-    permanent_delegate: Option<&pinocchio::pubkey::Pubkey>,
+    permanent_delegate: Option<&pinocchio::address::Address>,
     accounts: &[AccountInfo],
 ) -> Result<(), ProgramError> {
     // Check if owner is signer
@@ -48,7 +49,7 @@ pub fn verify_owner_or_delegate_signer<'a>(
     // Check if permanent delegate is signer (search through all accounts)
     if let Some(perm_delegate) = permanent_delegate {
         for account in accounts {
-            if pubkey_eq(account.key(), perm_delegate) && account.is_signer() {
+            if pubkey_eq(account.address(), perm_delegate) && account.is_signer() {
                 return Ok(());
             }
         }
@@ -57,13 +58,13 @@ pub fn verify_owner_or_delegate_signer<'a>(
     // No valid signer found
     anchor_lang::solana_program::msg!(
         "Checking owner signer: {:?}",
-        solana_pubkey::Pubkey::new_from_array(*owner_account.key())
+        solana_pubkey::Pubkey::new_from_array(*owner_account.address())
     );
     anchor_lang::solana_program::msg!("Owner signer check failed: InvalidSigner");
     if let Some(delegate_account) = delegate_account {
         anchor_lang::solana_program::msg!(
             "Delegate signer: {:?}",
-            solana_pubkey::Pubkey::new_from_array(*delegate_account.key())
+            solana_pubkey::Pubkey::new_from_array(*delegate_account.address())
         );
         anchor_lang::solana_program::msg!("Delegate signer check failed: InvalidSigner");
     }
@@ -92,7 +93,7 @@ pub fn check_ctoken_owner(
         ProgramError::from(e)
     })?;
 
-    let authority_key = authority_account.key();
+    let authority_key = authority_account.address();
     let owner_key = compressed_token.owner.array_ref();
 
     // Check if authority is the owner

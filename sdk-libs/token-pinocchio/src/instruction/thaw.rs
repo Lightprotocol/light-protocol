@@ -1,7 +1,7 @@
 //! Thaw CPI for Light Token operations.
 
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     cpi::{slice_invoke, slice_invoke_signed},
     instruction::{AccountMeta, Instruction, Signer},
     program_error::ProgramError,
@@ -42,9 +42,9 @@ impl<'info> ThawCpi<'info> {
         let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
         let account_metas = [
-            AccountMeta::writable(self.token_account.key()),
-            AccountMeta::readonly(self.mint.key()),
-            AccountMeta::readonly_signer(self.freeze_authority.key()),
+            AccountMeta::writable(self.token_account.address()),
+            AccountMeta::readonly(self.mint.address()),
+            AccountMeta::readonly_signer(self.freeze_authority.address()),
         ];
 
         let instruction = Instruction {

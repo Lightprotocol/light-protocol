@@ -10,7 +10,7 @@ use light_sdk_types::{
 };
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use light_token_types::CPI_AUTHORITY_PDA;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 /// Helper function to create test AccountInfo with specific properties
 fn create_test_account(

@@ -4,7 +4,7 @@ use light_account_checks::AccountIterator;
 use light_compressed_account::Pubkey;
 use light_program_profiler::profile;
 use light_token_interface::instructions::create_token_account::CreateTokenAccountInstructionData;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 use crate::{
@@ -61,7 +61,7 @@ pub fn process_create_token_account(
         let rent_payer = iter.next_mut("rent_payer")?;
 
         if let Some(compress_to_pubkey) = compressible_config.compress_to_account_pubkey.as_ref() {
-            compress_to_pubkey.check_seeds(token_account.key())?;
+            compress_to_pubkey.check_seeds(token_account.address())?;
         }
 
         // If restricted extensions exist, compression_only must be set

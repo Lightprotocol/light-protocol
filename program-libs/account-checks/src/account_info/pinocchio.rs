@@ -53,21 +53,21 @@ impl AccountMetaTrait for OwnedAccountMeta {
 }
 
 /// Implement trait for pinocchio AccountInfo
-impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
+impl AccountInfoTrait for pinocchio::AccountView {
     type Pubkey = [u8; 32];
-    type DataRef<'a> = pinocchio::account_info::Ref<'a, [u8]>;
-    type DataRefMut<'a> = pinocchio::account_info::RefMut<'a, [u8]>;
+    type DataRef<'a> = pinocchio::account::Ref<'a, [u8]>;
+    type DataRefMut<'a> = pinocchio::account::RefMut<'a, [u8]>;
 
     fn key(&self) -> [u8; 32] {
-        *self.key()
+        self.address().to_bytes()
     }
 
     fn key_ref(&self) -> &[u8] {
-        self.key()
+        self.address().as_ref()
     }
 
     fn pubkey(&self) -> Self::Pubkey {
-        *self.key()
+        self.address().to_bytes()
     }
 
     fn pubkey_from_bytes(bytes: [u8; 32]) -> Self::Pubkey {
@@ -98,23 +98,24 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
     }
 
     fn try_borrow_data(&self) -> Result<Self::DataRef<'_>, AccountError> {
-        self.try_borrow_data().map_err(Into::into)
+        self.try_borrow().map_err(Into::into)
     }
 
     fn try_borrow_mut_data(&self) -> Result<Self::DataRefMut<'_>, AccountError> {
-        self.try_borrow_mut_data().map_err(Into::into)
+        self.try_borrow_mut().map_err(Into::into)
     }
 
     fn is_owned_by(&self, program: &[u8; 32]) -> bool {
-        pinocchio::account_info::AccountInfo::is_owned_by(self, program)
+        self.owned_by(&pinocchio::address::Address::from(*program))
     }
 
     fn find_program_address(_seeds: &[&[u8]], _program_id: &[u8; 32]) -> ([u8; 32], u8) {
         #[cfg(target_os = "solana")]
         {
-            let program_pubkey = pinocchio::pubkey::Pubkey::from(*_program_id);
-            let (pubkey, bump) = pinocchio::pubkey::find_program_address(_seeds, &program_pubkey);
-            (pubkey, bump)
+            let program_pubkey = pinocchio::address::Address::from(*_program_id);
+            let (address, bump) =
+                pinocchio::address::Address::find_program_address(_seeds, &program_pubkey);
+            (address.to_bytes(), bump)
         }
         // Pinocchio does not support find_program_address outside of target_os solana.
         #[cfg(all(not(target_os = "solana"), feature = "solana"))]
@@ -136,8 +137,9 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
     ) -> Result<[u8; 32], AccountError> {
         #[cfg(target_os = "solana")]
         {
-            let program_pubkey = pinocchio::pubkey::Pubkey::from(*_program_id);
-            pinocchio::pubkey::create_program_address(_seeds, &program_pubkey)
+            let program_pubkey = pinocchio::address::Address::from(*_program_id);
+            pinocchio::address::Address::create_program_address(_seeds, &program_pubkey)
+                .map(|address| address.to_bytes())
                 .map_err(|_| AccountError::InvalidSeeds)
         }
         // Pinocchio does not support create_program_address outside of target_os solana.
@@ -202,7 +204,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         // This is safe in the Solana runtime context where the runtime
         // validates ownership changes.
         unsafe {
-            self.assign(&pinocchio::pubkey::Pubkey::from(*new_owner));
+            self.assign(&pinocchio::address::Address::from(*new_owner));
         }
         Ok(())
     }
@@ -212,18 +214,20 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
     }
 
     fn sub_lamports(&self, amount: u64) -> Result<(), AccountError> {
-        let mut lamports = self.try_borrow_mut_lamports().map_err(AccountError::from)?;
-        *lamports = lamports
+        let current = self.lamports();
+        let new_lamports = current
             .checked_sub(amount)
             .ok_or(AccountError::ArithmeticOverflow)?;
+        self.set_lamports(new_lamports);
         Ok(())
     }
 
     fn add_lamports(&self, amount: u64) -> Result<(), AccountError> {
-        let mut lamports = self.try_borrow_mut_lamports().map_err(AccountError::from)?;
-        *lamports = lamports
+        let current = self.lamports();
+        let new_lamports = current
             .checked_add(amount)
             .ok_or(AccountError::ArithmeticOverflow)?;
+        self.set_lamports(new_lamports);
         Ok(())
     }
 
@@ -245,7 +249,9 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         extern crate alloc;
         use alloc::vec::Vec;
 
-        use pinocchio::instruction::{Seed, Signer};
+        use pinocchio::cpi::{Seed, Signer};
+
+        let owner_address = pinocchio::address::Address::from(*owner);
 
         let pda_seeds_vec: Vec<Seed> = pda_seeds.iter().map(|s| Seed::from(*s)).collect();
         let pda_signer = Signer::from(&pda_seeds_vec[..]);
@@ -261,7 +267,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         if self.lamports() > 0 {
             pinocchio_system::instructions::Assign {
                 account: self,
-                owner,
+                owner: &owner_address,
             }
             .invoke_signed(core::slice::from_ref(&pda_signer))
             .map_err(AccountError::from)?;
@@ -304,7 +310,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
             to: self,
             lamports,
             space,
-            owner,
+            owner: &owner_address,
         };
         if has_payer_seeds {
             let payer_signer = Signer::from(&payer_seeds_vec[..]);
@@ -327,7 +333,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         extern crate alloc;
         use alloc::vec::Vec;
 
-        use pinocchio::instruction::{Seed, Signer};
+        use pinocchio::cpi::{Seed, Signer};
 
         let seeds_vec: Vec<Seed> = signer_seeds.iter().map(|s| Seed::from(*s)).collect();
         let signer = Signer::from(&seeds_vec[..]);
@@ -351,23 +357,26 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         extern crate alloc;
         use alloc::vec::Vec;
 
-        use pinocchio::instruction::{AccountMeta, Seed, Signer};
+        use pinocchio::{
+            cpi::{Seed, Signer},
+            instruction::InstructionAccount,
+        };
 
-        // Build owned pubkeys so AccountMeta can borrow them
-        let pubkeys: Vec<pinocchio::pubkey::Pubkey> = account_metas
+        // Build owned pubkeys so InstructionAccount can borrow them
+        let pubkeys: Vec<pinocchio::address::Address> = account_metas
             .iter()
-            .map(|m| pinocchio::pubkey::Pubkey::from(m.pubkey))
+            .map(|m| pinocchio::address::Address::from(m.pubkey))
             .collect();
 
-        // Build pinocchio AccountMetas referencing the owned pubkeys
-        let metas: Vec<AccountMeta<'_>> = account_metas
+        // Build pinocchio InstructionAccounts referencing the owned pubkeys
+        let metas: Vec<InstructionAccount<'_>> = account_metas
             .iter()
             .zip(pubkeys.iter())
-            .map(|(m, pk)| AccountMeta::new(pk, m.is_writable, m.is_signer))
+            .map(|(m, pk)| InstructionAccount::new(pk, m.is_writable, m.is_signer))
             .collect();
 
-        let program_pubkey = pinocchio::pubkey::Pubkey::from(*program_id);
-        let instruction = pinocchio::instruction::Instruction {
+        let program_pubkey = pinocchio::address::Address::from(*program_id);
+        let instruction = pinocchio::instruction::InstructionView {
             program_id: &program_pubkey,
             accounts: &metas,
             data: instruction_data,
@@ -377,12 +386,12 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         // This matches how solana-program's invoke works (lookup by pubkey, not position).
         // Pinocchio's invoke_signed_with_bounds zips account_infos with account_metas
         // and requires pubkeys to match at each position, so we must reorder.
-        let mut info_refs: Vec<&pinocchio::account_info::AccountInfo> =
+        let mut info_refs: Vec<&pinocchio::AccountView as AccountInfo> =
             Vec::with_capacity(account_metas.len());
         for meta in account_metas {
             let account_info = account_infos
                 .iter()
-                .find(|info| info.key() == &meta.pubkey)
+                .find(|info| *info.address() == pinocchio::address::Address::from(meta.pubkey))
                 .ok_or(AccountError::NotEnoughAccountKeys)?;
             info_refs.push(account_info);
         }

@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 use pinocchio_token_program::processor::{
     freeze_account::process_freeze_account, thaw_account::process_thaw_account,
 };

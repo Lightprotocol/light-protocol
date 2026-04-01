@@ -116,7 +116,7 @@ impl Token {
         account_info: &solana_account_info::AccountInfo,
     ) -> Result<u64, ZeroCopyError> {
         let data = account_info
-            .try_borrow_data()
+            .try_borrow()
             .map_err(|_| ZeroCopyError::Size)?;
         Self::amount_from_slice(&data)
     }

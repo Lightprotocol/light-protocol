@@ -4,7 +4,7 @@ use pinocchio_token_program::error::TokenError;
 /// Convert generic pinocchio errors to anchor ProgramError with +6000 offset.
 /// Use this for system program operations, data access, and non-token operations.
 pub fn convert_program_error(
-    pinocchio_program_error: pinocchio::program_error::ProgramError,
+    pinocchio_program_error: pinocchio::error::ProgramError,
 ) -> anchor_lang::prelude::ProgramError {
     anchor_lang::prelude::ProgramError::Custom(u64::from(pinocchio_program_error) as u32 + 6000)
 }
@@ -21,7 +21,7 @@ pub fn convert_token_error(e: TokenError) -> anchor_lang::prelude::ProgramError 
 /// IMPORTANT: Only use this for pinocchio_token_program processor calls.
 /// For system program and other operations, use `convert_program_error` instead.
 pub fn convert_pinocchio_token_error(
-    pinocchio_error: pinocchio::program_error::ProgramError,
+    pinocchio_error: pinocchio::error::ProgramError,
 ) -> anchor_lang::prelude::ProgramError {
     convert_spl_token_error_code(u64::from(pinocchio_error) as u32)
 }

@@ -8,7 +8,8 @@ use light_compressed_account::{
 };
 use light_hasher::{Hasher, Poseidon};
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use solana_msg::msg;
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount,

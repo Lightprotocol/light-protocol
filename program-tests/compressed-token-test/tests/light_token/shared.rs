@@ -809,7 +809,7 @@ pub async fn approve_spl_compat_and_assert(
     name: &str,
 ) {
     use anchor_spl::token_2022::spl_token_2022;
-    use solana_sdk::instruction::AccountMeta;
+    use solana_sdk::instruction::InstructionAccount;
     println!("SPL compat approve initiated for: {}", name);
 
     // Build SPL approve instruction and change program_id
@@ -855,7 +855,7 @@ pub async fn approve_spl_compat_and_assert(
 /// Note: Light Token requires system_program account for compressible top-up, so we add it here.
 pub async fn revoke_spl_compat_and_assert(context: &mut AccountTestContext, name: &str) {
     use anchor_spl::token_2022::spl_token_2022;
-    use solana_sdk::instruction::AccountMeta;
+    use solana_sdk::instruction::InstructionAccount;
     println!("SPL compat revoke initiated for: {}", name);
 
     // Build SPL revoke instruction and change program_id

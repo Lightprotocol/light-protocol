@@ -9,7 +9,7 @@ use light_sdk_pinocchio::{
     instruction::{PackedAddressTreeInfo, ValidityProof},
     LightAccount, LightDiscriminator, LightHasher,
 };
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 /// CU usage:
 /// - sdk pre system program cpi 10,942 CU

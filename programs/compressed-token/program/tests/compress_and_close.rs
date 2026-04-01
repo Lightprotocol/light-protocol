@@ -15,7 +15,7 @@ use light_token_interface::{
     },
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
-use pinocchio::pubkey::Pubkey;
+use pinocchio::address::Address;
 
 // Anchor custom error codes start at offset 6000
 const ANCHOR_ERROR_OFFSET: u32 = 6000;

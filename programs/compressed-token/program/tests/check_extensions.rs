@@ -25,7 +25,7 @@ use light_token_interface::instructions::{
     },
 };
 use light_zero_copy::traits::ZeroCopyAt;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::address::Address;
 use spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool};
 use spl_token_2022::{
     extension::{

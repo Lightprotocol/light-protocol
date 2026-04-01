@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_compressed_token::compressed_token::mint_action::check_authority;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::address::Address as Pubkey;
 
 // Anchor custom error codes start at offset 6000
 const ANCHOR_ERROR_OFFSET: u32 = 6000;
@@ -10,7 +10,7 @@ const ANCHOR_ERROR_OFFSET: u32 = 6000;
 fn create_test_account_info(
     pubkey: Pubkey,
     is_signer: bool,
-) -> pinocchio::account_info::AccountInfo {
+) -> pinocchio::AccountView {
     get_account_info(
         pubkey,
         [0u8; 32], // owner

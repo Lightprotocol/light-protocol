@@ -3,7 +3,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::CreateAccountsProof;
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
     sysvars::Sysvar,
@@ -48,8 +48,8 @@ impl<'a> CreateZeroCopy<'a> {
         let space = 8 + ZeroCopyRecord::INIT_SPACE;
         let name_bytes = params.name.as_bytes();
         let seeds: &[&[u8]] = &[b"zero_copy", &params.owner, name_bytes];
-        let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-        if record.key() != &expected_pda {
+        let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+        if record.address() != &expected_pda {
             return Err(ProgramError::InvalidSeeds);
         }
 
@@ -78,7 +78,7 @@ impl<'a> CreateZeroCopy<'a> {
         {
             use light_account_pinocchio::LightDiscriminator;
             let mut data = record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[..8].copy_from_slice(&ZeroCopyRecord::LIGHT_DISCRIMINATOR);
         }

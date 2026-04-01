@@ -1,3 +1,4 @@
+use crate::Pubkey;
 use std::mem;
 
 use aligned_sized::aligned_sized;
@@ -10,7 +11,6 @@ use light_hasher::Poseidon;
 use light_merkle_tree_metadata::{
     access::AccessMetadata, merkle_tree::MerkleTreeMetadata, rollover::RolloverMetadata,
 };
-use pinocchio::pubkey::Pubkey;
 
 use crate::Result;
 
