@@ -2,10 +2,10 @@
 
 use pinocchio::{
     AccountView as AccountInfo,
-    cpi::{slice_invoke, slice_invoke_signed},
-    instruction::{AccountMeta, Instruction, Signer},
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    cpi::{invoke_with_slice, invoke_signed_with_slice, Signer},
+    instruction::{InstructionAccount, InstructionView},
+    error::ProgramError,
+    address::Address,
 };
 
 use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
@@ -47,17 +47,17 @@ impl<'info> TransferCpi<'info> {
         data[0] = 3u8;
         data[1..9].copy_from_slice(&self.amount.to_le_bytes());
 
-        let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+        let program_id = Address::from(LIGHT_TOKEN_PROGRAM_ID);
 
         let account_metas = [
-            AccountMeta::writable(self.source.address()),
-            AccountMeta::writable(self.destination.address()),
-            AccountMeta::readonly_signer(self.authority.address()),
-            AccountMeta::readonly(self.system_program.address()),
-            AccountMeta::writable_signer(self.fee_payer.address()),
+            InstructionAccount::writable(self.source.address()),
+            InstructionAccount::writable(self.destination.address()),
+            InstructionAccount::readonly_signer(self.authority.address()),
+            InstructionAccount::readonly(self.system_program.address()),
+            InstructionAccount::writable_signer(self.fee_payer.address()),
         ];
 
-        let instruction = Instruction {
+        let instruction = InstructionView {
             program_id: &program_id,
             accounts: &account_metas,
             data: &data,
@@ -72,9 +72,9 @@ impl<'info> TransferCpi<'info> {
         ];
 
         if signers.is_empty() {
-            slice_invoke(&instruction, &account_infos)
+            invoke_with_slice(&instruction, &account_infos)
         } else {
-            slice_invoke_signed(&instruction, &account_infos, signers)
+            invoke_signed_with_slice(&instruction, &account_infos, signers)
         }
     }
 }

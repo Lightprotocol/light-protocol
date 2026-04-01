@@ -11,10 +11,11 @@ use light_token_interface::{
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use pinocchio::{
+    address::Address,
     AccountView as AccountInfo,
-    cpi::slice_invoke_signed,
-    instruction::{AccountMeta, Instruction, Signer},
-    program_error::ProgramError,
+    cpi::{invoke_signed_with_slice, Signer},
+    instruction::{InstructionAccount, InstructionView},
+    error::ProgramError,
 };
 
 use super::compressible::CompressibleParamsCpi;
@@ -123,7 +124,7 @@ fn build_instruction_inner<'a>(
     base: &CreateTokenAccountCpi<'a>,
     compressible: &CompressibleParamsCpi<'a>,
     compress_to: Option<CompressToPubkey>,
-) -> Result<(Vec<u8>, [AccountMeta<'a>; 6], [&'a AccountInfo; 6]), ProgramError> {
+) -> Result<(Vec<u8>, [InstructionAccount<'a>; 6], [&'a AccountInfo; 6]), ProgramError> {
     let instruction_data = CreateTokenAccountInstructionData {
         owner: base.owner.into(),
         compressible_config: Some(CompressibleExtensionInstructionData {
@@ -150,12 +151,12 @@ fn build_instruction_inner<'a>(
     // [4] system_program (readonly)
     // [5] rent_sponsor (writable)
     let metas = [
-        AccountMeta::writable_signer(base.account.address()),
-        AccountMeta::readonly(base.mint.address()),
-        AccountMeta::writable_signer(base.payer.address()),
-        AccountMeta::readonly(compressible.compressible_config.address()),
-        AccountMeta::readonly(compressible.system_program.address()),
-        AccountMeta::writable(compressible.rent_sponsor.address()),
+        InstructionAccount::writable_signer(base.account.address()),
+        InstructionAccount::readonly(base.mint.address()),
+        InstructionAccount::writable_signer(base.payer.address()),
+        InstructionAccount::readonly(compressible.compressible_config.address()),
+        InstructionAccount::readonly(compressible.system_program.address()),
+        InstructionAccount::writable(compressible.rent_sponsor.address()),
     ];
 
     let account_infos = [
@@ -173,14 +174,15 @@ fn build_instruction_inner<'a>(
 /// Helper to invoke CPI to Light Token program.
 fn invoke_cpi(
     data: &[u8],
-    metas: &[AccountMeta],
+    metas: &[InstructionAccount],
     account_infos: &[&AccountInfo],
     signers: &[Signer],
 ) -> Result<(), ProgramError> {
-    let instruction = Instruction {
-        program_id: &LIGHT_TOKEN_PROGRAM_ID,
+    let program_id = Address::from(LIGHT_TOKEN_PROGRAM_ID);
+    let instruction = InstructionView {
+        program_id: &program_id,
         accounts: metas,
         data,
     };
-    slice_invoke_signed(&instruction, account_infos, signers)
+    invoke_signed_with_slice(&instruction, account_infos, signers)
 }
