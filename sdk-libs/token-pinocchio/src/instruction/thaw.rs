@@ -2,10 +2,10 @@
 
 use pinocchio::{
     AccountView as AccountInfo,
-    cpi::{slice_invoke, slice_invoke_signed},
-    instruction::{AccountMeta, Instruction, Signer},
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    cpi::{invoke_with_slice, invoke_signed_with_slice, Signer},
+    instruction::{InstructionAccount, InstructionView},
+    error::ProgramError,
+    address::Address,
 };
 
 use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
@@ -39,15 +39,15 @@ impl<'info> ThawCpi<'info> {
         // Build instruction data: discriminator(1) only
         let data = [11u8]; // Thaw discriminator
 
-        let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+        let program_id = Address::from(LIGHT_TOKEN_PROGRAM_ID);
 
         let account_metas = [
-            AccountMeta::writable(self.token_account.address()),
-            AccountMeta::readonly(self.mint.address()),
-            AccountMeta::readonly_signer(self.freeze_authority.address()),
+            InstructionAccount::writable(self.token_account.address()),
+            InstructionAccount::readonly(self.mint.address()),
+            InstructionAccount::readonly_signer(self.freeze_authority.address()),
         ];
 
-        let instruction = Instruction {
+        let instruction = InstructionView {
             program_id: &program_id,
             accounts: &account_metas,
             data: &data,
@@ -56,9 +56,9 @@ impl<'info> ThawCpi<'info> {
         let account_infos = [self.token_account, self.mint, self.freeze_authority];
 
         if signers.is_empty() {
-            slice_invoke(&instruction, &account_infos)
+            invoke_with_slice(&instruction, &account_infos)
         } else {
-            slice_invoke_signed(&instruction, &account_infos, signers)
+            invoke_signed_with_slice(&instruction, &account_infos, signers)
         }
     }
 }

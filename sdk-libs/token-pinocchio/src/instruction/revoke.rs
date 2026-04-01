@@ -2,10 +2,10 @@
 
 use pinocchio::{
     AccountView as AccountInfo,
-    cpi::{slice_invoke, slice_invoke_signed},
-    instruction::{AccountMeta, Instruction, Signer},
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    cpi::{invoke_with_slice, invoke_signed_with_slice, Signer},
+    instruction::{InstructionAccount, InstructionView},
+    error::ProgramError,
+    address::Address,
 };
 
 use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
@@ -42,16 +42,16 @@ impl<'info> RevokeCpi<'info> {
         // Build instruction data: discriminator(1) only
         let data = [5u8]; // Revoke discriminator
 
-        let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+        let program_id = Address::from(LIGHT_TOKEN_PROGRAM_ID);
 
         let account_metas = [
-            AccountMeta::writable(self.token_account.address()),
-            AccountMeta::readonly_signer(self.owner.address()),
-            AccountMeta::readonly(self.system_program.address()),
-            AccountMeta::writable_signer(self.fee_payer.address()),
+            InstructionAccount::writable(self.token_account.address()),
+            InstructionAccount::readonly_signer(self.owner.address()),
+            InstructionAccount::readonly(self.system_program.address()),
+            InstructionAccount::writable_signer(self.fee_payer.address()),
         ];
 
-        let instruction = Instruction {
+        let instruction = InstructionView {
             program_id: &program_id,
             accounts: &account_metas,
             data: &data,
@@ -65,9 +65,9 @@ impl<'info> RevokeCpi<'info> {
         ];
 
         if signers.is_empty() {
-            slice_invoke(&instruction, &account_infos)
+            invoke_with_slice(&instruction, &account_infos)
         } else {
-            slice_invoke_signed(&instruction, &account_infos, signers)
+            invoke_signed_with_slice(&instruction, &account_infos, signers)
         }
     }
 }

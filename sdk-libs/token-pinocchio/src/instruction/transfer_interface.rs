@@ -3,9 +3,9 @@
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use pinocchio::{
     AccountView as AccountInfo,
-    cpi::{invoke, slice_invoke_signed},
-    instruction::{AccountMeta, Instruction, Signer},
-    program_error::ProgramError,
+    cpi::{invoke, invoke_signed_with_slice, Signer},
+    instruction::{InstructionAccount, InstructionView},
+    error::ProgramError,
 };
 
 use super::{
@@ -163,9 +163,11 @@ impl<'info> TransferInterfaceCpi<'info> {
 
     /// Invoke the appropriate transfer based on account types.
     pub fn invoke(self) -> Result<(), ProgramError> {
+        let source_owner = unsafe { self.source_account.owner() };
+        let destination_owner = unsafe { self.destination_account.owner() };
         let transfer_type = determine_transfer_type(
-            self.source_account.owner(),
-            self.destination_account.owner(),
+            source_owner.as_array(),
+            destination_owner.as_array(),
         )?;
 
         match transfer_type {
@@ -240,15 +242,16 @@ impl<'info> TransferInterfaceCpi<'info> {
                 // [2] destination (writable)
                 // [3] authority (signer)
                 let account_metas = [
-                    AccountMeta::writable(self.source_account.address()),
-                    AccountMeta::readonly(spl.mint.address()),
-                    AccountMeta::writable(self.destination_account.address()),
-                    AccountMeta::readonly_signer(self.authority.address()),
+                    InstructionAccount::writable(self.source_account.address()),
+                    InstructionAccount::readonly(spl.mint.address()),
+                    InstructionAccount::writable(self.destination_account.address()),
+                    InstructionAccount::readonly_signer(self.authority.address()),
                 ];
 
                 // SPL token program ID from source account owner (Pubkey = [u8; 32])
-                let instruction = Instruction {
-                    program_id: self.source_account.owner(),
+                let source_owner = unsafe { self.source_account.owner() };
+                let instruction = InstructionView {
+                    program_id: source_owner,
                     accounts: &account_metas,
                     data: &ix_data,
                 };
@@ -267,9 +270,11 @@ impl<'info> TransferInterfaceCpi<'info> {
 
     /// Invoke with signer seeds.
     pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
+        let source_owner = unsafe { self.source_account.owner() };
+        let destination_owner = unsafe { self.destination_account.owner() };
         let transfer_type = determine_transfer_type(
-            self.source_account.owner(),
-            self.destination_account.owner(),
+            source_owner.as_array(),
+            destination_owner.as_array(),
         )?;
 
         match transfer_type {
@@ -344,15 +349,16 @@ impl<'info> TransferInterfaceCpi<'info> {
                 // [2] destination (writable)
                 // [3] authority (signer)
                 let account_metas = [
-                    AccountMeta::writable(self.source_account.address()),
-                    AccountMeta::readonly(spl.mint.address()),
-                    AccountMeta::writable(self.destination_account.address()),
-                    AccountMeta::readonly_signer(self.authority.address()),
+                    InstructionAccount::writable(self.source_account.address()),
+                    InstructionAccount::readonly(spl.mint.address()),
+                    InstructionAccount::writable(self.destination_account.address()),
+                    InstructionAccount::readonly_signer(self.authority.address()),
                 ];
 
                 // SPL token program ID from source account owner (Pubkey = [u8; 32])
-                let instruction = Instruction {
-                    program_id: self.source_account.owner(),
+                let source_owner = unsafe { self.source_account.owner() };
+                let instruction = InstructionView {
+                    program_id: source_owner,
                     accounts: &account_metas,
                     data: &ix_data,
                 };
@@ -364,7 +370,7 @@ impl<'info> TransferInterfaceCpi<'info> {
                     self.authority,
                 ];
 
-                slice_invoke_signed(&instruction, &account_infos, signers)
+                invoke_signed_with_slice(&instruction, &account_infos, signers)
             }
         }
     }
