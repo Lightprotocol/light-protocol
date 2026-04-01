@@ -1,6 +1,7 @@
 use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyCompressedAccount;
 use light_program_profiler::profile;
-use pinocchio::{msg, program_error::ProgramError};
+use pinocchio::{error::ProgramError};
+use solana_msg::msg;
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount, errors::SystemProgramError,
@@ -65,7 +66,7 @@ pub fn verify_read_only_account_inclusion_by_index(
         // inclusion proof by index has to be successful
         // -> proved_inclusion == true.
         if !proved_inclusion && read_only_account.merkle_context.prove_by_index() {
-            pinocchio::msg!(
+            solana_msg::msg!(
                 "Expected read-only account in the output queue but account does not exist."
             );
             return Err(SystemProgramError::ReadOnlyAccountDoesNotExist.into());

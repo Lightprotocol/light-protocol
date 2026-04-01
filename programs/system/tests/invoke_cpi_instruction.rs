@@ -6,7 +6,7 @@ use light_account_checks::{
 };
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use light_system_program_pinocchio::invoke_cpi::instruction::InvokeCpiInstruction;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError, address::Address};
 
 pub fn get_fee_payer_account_info() -> AccountInfo {
     get_account_info(

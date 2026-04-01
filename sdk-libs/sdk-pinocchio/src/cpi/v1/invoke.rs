@@ -71,7 +71,7 @@ impl LightCpiInstruction for LightSystemProgramCpi {
     fn with_light_account<A>(
         mut self,
         account: crate::LightAccount<A>,
-    ) -> Result<Self, pinocchio::program_error::ProgramError>
+    ) -> Result<Self, pinocchio::error::ProgramError>
     where
         A: crate::BorshSerialize
             + crate::BorshDeserialize
@@ -80,7 +80,7 @@ impl LightCpiInstruction for LightSystemProgramCpi {
             + Default,
     {
         use light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext;
-        use pinocchio::program_error::ProgramError;
+        use pinocchio::error::ProgramError;
         // Convert LightAccount to account info
         let account_info = account
             .to_account_info()

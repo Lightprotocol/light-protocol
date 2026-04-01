@@ -243,7 +243,7 @@ impl<'a> LightVariantBuilder<'a> {
                 let pack_impl = if backend.is_pinocchio() {
                     quote! {
                         #[cfg(not(target_os = "solana"))]
-                        impl #account_crate::Pack<#account_crate::solana_instruction::AccountMeta> for #seeds_name {
+                        impl #account_crate::Pack<#account_crate::solana_instruction::InstructionAccount> for #seeds_name {
                             type Packed = #packed_seeds_name;
 
                             fn pack(

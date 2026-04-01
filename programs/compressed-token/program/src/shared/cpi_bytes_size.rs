@@ -12,7 +12,7 @@ use light_compressed_account::{
 use light_program_profiler::profile;
 use light_token_interface::state::Mint;
 use light_zero_copy::ZeroCopyNew;
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 use tinyvec::ArrayVec;
 
 pub const MAX_INPUT_ACCOUNTS: usize = 8;

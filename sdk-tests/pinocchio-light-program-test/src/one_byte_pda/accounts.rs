@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{CreateAccountsProof, LightAccount, LightDiscriminator};
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
     sysvars::Sysvar,
@@ -44,8 +44,8 @@ impl<'a> CreateOneByteRecord<'a> {
         let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
         let space = disc_len + OneByteRecord::INIT_SPACE;
         let seeds: &[&[u8]] = &[b"one_byte_record", &params.owner];
-        let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-        if record.key() != &expected_pda {
+        let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+        if record.address() != &expected_pda {
             return Err(ProgramError::InvalidSeeds);
         }
 
@@ -72,7 +72,7 @@ impl<'a> CreateOneByteRecord<'a> {
         // Write discriminator to data[0..disc_len]
         {
             let mut data = record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[0..disc_len].copy_from_slice(OneByteRecord::LIGHT_DISCRIMINATOR_SLICE);
         }

@@ -9,7 +9,7 @@ use light_sdk_pinocchio::{
     LightAccount,
 };
 use pinocchio::{
-    account_info::AccountInfo, log::sol_log_compute_units, program_error::ProgramError,
+    AccountView as AccountInfo, log::sol_log_compute_units, error::ProgramError,
 };
 
 use crate::create_pda::MyCompressedAccount;

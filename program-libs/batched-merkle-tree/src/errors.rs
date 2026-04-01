@@ -91,16 +91,4 @@ impl From<BatchedMerkleTreeError> for solana_program_error::ProgramError {
     }
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<BatchedMerkleTreeError> for pinocchio::program_error::ProgramError {
-    fn from(e: BatchedMerkleTreeError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}
 
-#[cfg(feature = "pinocchio")]
-impl From<pinocchio::program_error::ProgramError> for BatchedMerkleTreeError {
-    fn from(error: pinocchio::program_error::ProgramError) -> Self {
-        BatchedMerkleTreeError::ProgramError(u64::from(error))
-    }
-}

@@ -1,3 +1,4 @@
+use crate::Pubkey;
 use light_account_checks::discriminator::Discriminator;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::{
@@ -9,11 +10,10 @@ use light_compressed_account::{
         },
         traits::{InstructionData, OutputAccount},
     },
-    pubkey::AsPubkey,
 };
 use light_program_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 use super::state::{deserialize_cpi_context_account, ZCpiContextAccount2};
@@ -200,7 +200,7 @@ fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionDat
     cpi_context_account: &ZCpiContextAccount2<'a>,
     remaining_accounts: &[AccountInfo],
 ) -> Result<()> {
-    let first_merkle_tree_pubkey = if !instruction_data.inputs_empty() {
+    let first_merkle_tree_pubkey: [u8; 32] = if !instruction_data.inputs_empty() {
         let input = instruction_data
             .input_accounts()
             .next()
@@ -210,7 +210,7 @@ fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionDat
         if index as usize >= remaining_accounts.len() {
             return Err(SystemProgramError::InvalidAccountIndex.into());
         }
-        *remaining_accounts[index as usize].key()
+        remaining_accounts[index as usize].address().to_bytes()
     } else if !instruction_data.outputs_empty() {
         let output = instruction_data
             .output_accounts()
@@ -221,20 +221,20 @@ fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionDat
         if index as usize >= remaining_accounts.len() {
             return Err(SystemProgramError::InvalidAccountIndex.into());
         }
-        if &remaining_accounts[index as usize].try_borrow_data()?[..8]
+        if &remaining_accounts[index as usize].try_borrow()?[..8]
             == BatchedQueueAccount::LIGHT_DISCRIMINATOR_SLICE
         {
             let queue_account =
                 BatchedQueueAccount::output_from_account_info(&remaining_accounts[index as usize])?;
             queue_account.metadata.associated_merkle_tree.to_bytes()
         } else {
-            *remaining_accounts[index as usize].key()
+            remaining_accounts[index as usize].address().to_bytes()
         }
     } else {
         return Err(SystemProgramError::NoInputs.into());
     };
 
-    if *cpi_context_account.associated_merkle_tree != first_merkle_tree_pubkey.to_pubkey_bytes() {
+    if *cpi_context_account.associated_merkle_tree != first_merkle_tree_pubkey {
         msg!(format!(
             "first_merkle_tree_pubkey {:?} != associated_merkle_tree {:?}",
             solana_pubkey::Pubkey::new_from_array(first_merkle_tree_pubkey),

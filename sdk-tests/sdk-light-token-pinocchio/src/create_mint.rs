@@ -5,7 +5,7 @@ use light_token_pinocchio::instruction::{
     CompressedProof, CreateMintCpi, CreateMintParams, ExtensionInstructionData, SystemAccountInfos,
 };
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
 };
@@ -139,7 +139,7 @@ pub fn process_create_mint_invoke_signed(
     }
 
     // Derive the PDA for the mint signer
-    let (pda, bump) = pinocchio::pubkey::find_program_address(&[MINT_SIGNER_SEED], &ID);
+    let (pda, bump) = pinocchio::address::find_program_address(&[MINT_SIGNER_SEED], &ID);
 
     // Verify the mint_signer account is the PDA we expect
     if pda != *accounts[2].key() {
@@ -230,11 +230,11 @@ pub fn process_create_mint_with_pda_authority(
 
     // Derive the PDA for the mint signer
     let (mint_signer_pda, mint_signer_bump) =
-        pinocchio::pubkey::find_program_address(&[MINT_SIGNER_SEED], &ID);
+        pinocchio::address::find_program_address(&[MINT_SIGNER_SEED], &ID);
 
     // Derive the PDA for the authority
     let (authority_pda, authority_bump) =
-        pinocchio::pubkey::find_program_address(&[MINT_AUTHORITY_SEED], &ID);
+        pinocchio::address::find_program_address(&[MINT_AUTHORITY_SEED], &ID);
 
     // Verify the mint_signer account is the PDA we expect
     if mint_signer_pda != *accounts[2].key() {

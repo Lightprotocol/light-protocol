@@ -1,6 +1,7 @@
 use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyAddress;
 use light_program_profiler::profile;
-use pinocchio::{msg, program_error::ProgramError};
+use pinocchio::{error::ProgramError};
+use solana_msg::msg;
 
 use crate::{accounts::remaining_account_checks::AcpAccount, errors::SystemProgramError, Result};
 

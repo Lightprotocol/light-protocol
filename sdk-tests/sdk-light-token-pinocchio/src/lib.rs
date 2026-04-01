@@ -47,7 +47,7 @@ pub use ctoken_mint_to::{
 pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 use light_macros::pubkey_array;
 use pinocchio::{
-    account_info::AccountInfo, entrypoint, program_error::ProgramError, ProgramResult,
+    AccountView as AccountInfo, entrypoint, error::ProgramError, ProgramResult,
 };
 pub use revoke::{
     process_revoke_invoke, process_revoke_invoke_signed, process_revoke_invoke_with_fee_payer,

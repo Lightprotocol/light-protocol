@@ -8,14 +8,15 @@ use light_compressed_account::{
         QUEUE_ACCOUNT_DISCRIMINATOR, STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR,
     },
     hash_to_bn254_field_size_be,
-    pubkey::Pubkey,
+    pubkey::Pubkey as LightPubkey,
     QueueType, TreeType,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, msg};
+use pinocchio::{AccountView as AccountInfo};
+use solana_msg::msg;
 
 use crate::{
     account_compression_state::{
@@ -35,14 +36,14 @@ pub enum AcpAccount<'info> {
     OutputQueue(BatchedQueueAccount<'info>),
     BatchedStateTree(BatchedMerkleTreeAccount<'info>),
     BatchedAddressTree(BatchedMerkleTreeAccount<'info>),
-    StateTree((Pubkey, ConcurrentMerkleTreeZeroCopyMut<'info, Poseidon, 26>)),
+    StateTree((LightPubkey, ConcurrentMerkleTreeZeroCopyMut<'info, Poseidon, 26>)),
     AddressTree(
         (
-            Pubkey,
+            LightPubkey,
             IndexedMerkleTreeZeroCopyMut<'info, Poseidon, usize, 26, 16>,
         ),
     ),
-    AddressQueue(Pubkey, &'info AccountInfo),
+    AddressQueue(LightPubkey, &'info AccountInfo),
     V1Queue(&'info AccountInfo),
     Unknown(),
 }
@@ -70,7 +71,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     let mut discriminator = [0u8; 8];
     {
         let data = account_info
-            .try_borrow_data()
+            .try_borrow()
             .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
 
         if data.len() < 8 {
@@ -84,7 +85,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             let mut tree_type = [0u8; 8];
             tree_type.copy_from_slice(
                 &account_info
-                    .try_borrow_data()
+                    .try_borrow()
                     .map_err(|_| SystemProgramError::BorrowingDataFailed)?[8..16],
             );
             let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
@@ -104,7 +105,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                     msg!(format!(
                         "Invalid batched tree type. {:?} pubkey: {:?}",
                         tree_type,
-                        account_info.key()
+                        account_info.address()
                     )
                     .as_str());
                     Err(SystemProgramError::InvalidAccount)
@@ -120,7 +121,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             let program_owner = {
                 check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)?;
                 let data = account_info
-                    .try_borrow_data()
+                    .try_borrow()
                     .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
                 let merkle_tree = bytemuck::from_bytes::<StateMerkleTreeAccount>(
                     &data[8..StateMerkleTreeAccount::LEN],
@@ -129,14 +130,14 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                     index,
                     MerkleTreeContext {
                         rollover_fee: merkle_tree.metadata.rollover_metadata.rollover_fee,
-                        hashed_pubkey: hash_to_bn254_field_size_be(account_info.key().as_slice()),
+                        hashed_pubkey: hash_to_bn254_field_size_be(account_info.address().as_ref()),
                         network_fee: merkle_tree.metadata.rollover_metadata.network_fee,
                     },
                 );
 
                 merkle_tree.metadata.access_metadata.program_owner
             };
-            let merkle_tree = account_info.try_borrow_mut_data();
+            let merkle_tree = account_info.try_borrow_mut();
             if merkle_tree.is_err() {
                 return Err(SystemProgramError::InvalidAccount);
             }
@@ -147,7 +148,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             };
             Ok((
                 AcpAccount::StateTree((
-                    (*account_info.key()).into(),
+                    account_info.address().to_bytes().into(),
                     state_merkle_tree_from_bytes_zero_copy_mut(data_slice)
                         .map_err(|e| SystemProgramError::ProgramError(e.into()))?,
                 )),
@@ -158,7 +159,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             let program_owner = {
                 check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)?;
                 let data = account_info
-                    .try_borrow_data()
+                    .try_borrow()
                     .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
 
                 let merkle_tree = bytemuck::from_bytes::<AddressMerkleTreeAccount>(
@@ -175,7 +176,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 merkle_tree.metadata.access_metadata.program_owner
             };
             let mut merkle_tree = account_info
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| SystemProgramError::InvalidAccount)?;
             // SAFETY: merkle_tree is a valid RefMut<[u8]>, pointer and length are valid
             let data_slice: &'info mut [u8] = unsafe {
@@ -183,7 +184,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             };
             Ok((
                 AcpAccount::AddressTree((
-                    (*account_info.key()).into(),
+                    account_info.address().to_bytes().into(),
                     address_merkle_tree_from_bytes_zero_copy_mut(data_slice)
                         .map_err(|e| SystemProgramError::ProgramError(e.into()))?,
                 )),
@@ -193,7 +194,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
         QUEUE_ACCOUNT_DISCRIMINATOR => {
             check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)?;
             let data = account_info
-                .try_borrow_data()
+                .try_borrow()
                 .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
             let queue = bytemuck::from_bytes::<QueueAccount>(&data[8..QueueAccount::LEN]);
 
@@ -209,15 +210,15 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
 
                 let program_owner = queue.metadata.access_metadata.program_owner;
                 Ok((
-                    AcpAccount::AddressQueue((*account_info.key()).into(), account_info),
+                    AcpAccount::AddressQueue(account_info.address().to_bytes().into(), account_info),
                     program_owner,
                 ))
             } else if queue.metadata.queue_type == QueueType::NullifierV1 as u64 {
-                Ok((AcpAccount::V1Queue(account_info), Pubkey::default()))
+                Ok((AcpAccount::V1Queue(account_info), LightPubkey::default()))
             } else {
                 msg!(format!(
                     "Invalid queue account {:?} type {}",
-                    account_info.key(),
+                    account_info.address(),
                     queue.metadata.queue_type
                 )
                 .as_str());
@@ -225,22 +226,22 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             }
         }
         // Needed for compatibility with the token program.
-        _ => Ok((AcpAccount::Unknown(), Pubkey::default())),
+        _ => Ok((AcpAccount::Unknown(), LightPubkey::default())),
     }?;
 
     if let AcpAccount::Unknown() = account {
         return Ok(account);
     }
-    if !account_info.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
-        msg!(format!("Pubkey {:?}", account_info.key()).as_str());
+    if !account_info.owned_by(&pinocchio::address::Address::from(ACCOUNT_COMPRESSION_PROGRAM_ID)) {
+        msg!(format!("Pubkey {:?}", account_info.address()).as_str());
         return Err(SystemProgramError::InvalidAccount);
     }
 
-    if program_owner != Pubkey::default() {
+    if program_owner != LightPubkey::default() {
         if let Some(invoking_program) = context.invoking_program_id {
             if invoking_program != program_owner.to_bytes() {
                 msg!(format!(
-                    "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
+                    "invoking_program.address() {:?} == merkle_tree_unpacked.program_owner {:?}",
                     invoking_program, program_owner
                 )
                 .as_str());

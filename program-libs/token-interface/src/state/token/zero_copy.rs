@@ -539,15 +539,15 @@ impl Token {
     /// is not modified through other means while this reference exists.
     #[inline(always)]
     pub fn from_account_info_checked<'a>(
-        account_info: &pinocchio::account_info::AccountInfo,
+        account_info: &pinocchio::AccountView,
     ) -> Result<ZToken<'a>, crate::error::TokenError> {
         // 1. Check program ownership
-        if !account_info.is_owned_by(&crate::LIGHT_TOKEN_PROGRAM_ID) {
+        if !account_info.owned_by(&pinocchio::address::Address::from(crate::LIGHT_TOKEN_PROGRAM_ID)) {
             return Err(crate::error::TokenError::InvalidTokenOwner);
         }
 
         let data = account_info
-            .try_borrow_data()
+            .try_borrow()
             .map_err(|_| crate::error::TokenError::BorrowFailed)?;
 
         // Extend lifetime to 'a - safe because account data lives for transaction duration
@@ -574,15 +574,15 @@ impl Token {
     /// 4. No trailing bytes after the Token structure
     #[inline(always)]
     pub fn from_account_info_mut_checked<'a>(
-        account_info: &pinocchio::account_info::AccountInfo,
+        account_info: &pinocchio::AccountView,
     ) -> Result<ZTokenMut<'a>, crate::error::TokenError> {
         // 1. Check program ownership
-        if !account_info.is_owned_by(&crate::LIGHT_TOKEN_PROGRAM_ID) {
+        if !account_info.owned_by(&pinocchio::address::Address::from(crate::LIGHT_TOKEN_PROGRAM_ID)) {
             return Err(crate::error::TokenError::InvalidTokenOwner);
         }
 
         let mut data = account_info
-            .try_borrow_mut_data()
+            .try_borrow_mut()
             .map_err(|_| crate::error::TokenError::BorrowFailed)?;
 
         // Extend lifetime to 'a - safe because account data lives for transaction duration

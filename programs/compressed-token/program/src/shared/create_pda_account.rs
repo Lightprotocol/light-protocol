@@ -1,7 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_program_profiler::profile;
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     pubkey::Pubkey,
     sysvars::{rent::Rent, Sysvar},
@@ -45,7 +45,7 @@ pub fn create_pda_account(
     if new_account.lamports() > 0 {
         // Verify account is owned by system program (uninitialized).
         // Prevents overwriting an already-initialized account.
-        if !new_account.is_owned_by(&[0u8; 32]) {
+        if !new_account.owned_by(&[0u8; 32]) {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
@@ -105,7 +105,7 @@ pub fn verify_pda<const N: usize>(
     program_id: &Pubkey,
 ) -> Result<u8, ProgramError> {
     let (expected_pubkey, bump) =
-        pinocchio::pubkey::find_program_address(seeds.as_slice(), program_id);
+        pinocchio::address::find_program_address(seeds.as_slice(), program_id);
 
     if account_key != &expected_pubkey {
         return Err(ProgramError::InvalidAccountData);

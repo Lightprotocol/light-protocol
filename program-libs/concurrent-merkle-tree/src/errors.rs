@@ -68,9 +68,3 @@ impl From<ConcurrentMerkleTreeError> for solana_program_error::ProgramError {
     }
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<ConcurrentMerkleTreeError> for pinocchio::program_error::ProgramError {
-    fn from(e: ConcurrentMerkleTreeError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}

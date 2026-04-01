@@ -10,7 +10,7 @@ use light_token_interface::{
     state::Mint,
     TokenError,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 use crate::{
@@ -72,7 +72,7 @@ pub fn process_actions<'a>(
             ZAction::UpdateMintAuthority(update_action) => {
                 check_authority(
                     compressed_mint.base.mint_authority,
-                    validated_accounts.authority.key(),
+                    validated_accounts.authority.address(),
                     "mint authority",
                 )?;
                 compressed_mint.base.mint_authority =
@@ -81,7 +81,7 @@ pub fn process_actions<'a>(
             ZAction::UpdateFreezeAuthority(update_action) => {
                 check_authority(
                     compressed_mint.base.freeze_authority,
-                    validated_accounts.authority.key(),
+                    validated_accounts.authority.address(),
                     "freeze authority",
                 )?;
 
@@ -112,21 +112,21 @@ pub fn process_actions<'a>(
                 process_update_metadata_field_action(
                     update_metadata_action,
                     compressed_mint,
-                    validated_accounts.authority.key(),
+                    validated_accounts.authority.address(),
                 )?;
             }
             ZAction::UpdateMetadataAuthority(update_metadata_authority_action) => {
                 process_update_metadata_authority_action(
                     update_metadata_authority_action,
                     compressed_mint,
-                    validated_accounts.authority.key(),
+                    validated_accounts.authority.address(),
                 )?;
             }
             ZAction::RemoveMetadataKey(remove_metadata_key_action) => {
                 process_remove_metadata_key_action(
                     remove_metadata_key_action,
                     compressed_mint,
-                    validated_accounts.authority.key(),
+                    validated_accounts.authority.address(),
                 )?;
             }
             ZAction::DecompressMint(decompress_action) => {

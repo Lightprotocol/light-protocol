@@ -10,7 +10,7 @@ use light_account_pinocchio::{
     create_accounts, AtaInitParam, CreateMintsInput, LightAccount, LightFinalize, LightPreInit,
     LightSdkTypesError, PdaInitParam, SharedAccounts, SingleMintParams, TokenInitParam,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{
     CreateAllAccounts, CreateAllParams, ALL_MINT_SIGNER_SEED, ALL_TOKEN_VAULT_SEED,
@@ -31,9 +31,9 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
         const NUM_TOKENS: usize = 1;
         const NUM_ATAS: usize = 1;
 
-        let authority_key = *self.authority.key();
-        let mint_signer_key = *self.mint_signer.key();
-        let mint_key = *self.mint.key();
+        let authority_key = *self.authority.address();
+        let mint_signer_key = *self.mint_signer.address();
+        let mint_key = *self.mint.address();
 
         let mint_signer_seeds: &[&[u8]] = &[
             ALL_MINT_SIGNER_SEED,
@@ -64,7 +64,7 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
                 // Set compression_info on the Borsh record
                 {
                     let mut account_data = borsh_record
-                        .try_borrow_mut_data()
+                        .try_borrow_mut()
                         .map_err(|_| LightSdkTypesError::Borsh)?;
                     let record =
                         crate::pda::MinimalRecord::mut_from_account_data(&mut account_data);
@@ -73,7 +73,7 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
                 // Set compression_info on the ZeroCopy record
                 {
                     let mut account_data = zero_copy_record
-                        .try_borrow_mut_data()
+                        .try_borrow_mut()
                         .map_err(|_| LightSdkTypesError::Borsh)?;
                     let record_bytes = &mut account_data
                         [8..8 + core::mem::size_of::<crate::account_loader::ZeroCopyRecord>()];
@@ -100,7 +100,7 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
             [TokenInitParam {
                 account: self.token_vault,
                 mint: self.mint,
-                owner: *self.vault_owner.key(),
+                owner: *self.vault_owner.address(),
                 seeds: vault_seeds,
             }],
             [AtaInitParam {

@@ -69,7 +69,7 @@ pub use light_sdk_types::interface::cpi::create_mints::{
     get_output_queue_next_index, CreateMintsParams, SingleMintParams, DEFAULT_RENT_PAYMENT,
     DEFAULT_WRITE_TOP_UP,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 /// High-level struct for creating light mints (pinocchio).
 ///

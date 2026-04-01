@@ -7,7 +7,7 @@ use light_token_interface::state::{AccountState, Token, ZTokenMut};
 use light_zero_copy::traits::ZeroCopyAtMut;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
-use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
+use pinocchio::{AccountView as AccountInfo, pubkey::pubkey_eq};
 use solana_msg::msg;
 
 use super::accounts::CloseTokenAccountAccounts;
@@ -37,12 +37,12 @@ fn from_account_info_mut_for_close(
     account_info: &AccountInfo,
 ) -> Result<ZTokenMut<'_>, ProgramError> {
     // Check program ownership
-    if !account_info.is_owned_by(&light_token_interface::LIGHT_TOKEN_PROGRAM_ID) {
+    if !account_info.owned_by(&light_token_interface::LIGHT_TOKEN_PROGRAM_ID) {
         return Err(ProgramError::IllegalOwner);
     }
 
     let mut data = account_info
-        .try_borrow_mut_data()
+        .try_borrow_mut()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
 
     // Extend lifetime - safe because account data lives for transaction duration
@@ -77,7 +77,7 @@ fn validate_token_account_close(
     accounts: &CloseTokenAccountAccounts,
     ctoken: &ZTokenMut<'_>,
 ) -> Result<(), ProgramError> {
-    if accounts.token_account.key() == accounts.destination.key() {
+    if accounts.token_account.address() == accounts.destination.address() {
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -98,7 +98,7 @@ fn validate_token_account_close(
         let rent_sponsor = accounts
             .rent_sponsor
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        if compression.info.rent_sponsor != *rent_sponsor.key() {
+        if compression.info.rent_sponsor != *rent_sponsor.address() {
             msg!("rent recipient mismatch");
             return Err(ProgramError::InvalidAccountData);
         }
@@ -116,21 +116,21 @@ fn validate_token_account_close(
     // This matches SPL Token behavior where close_authority takes precedence over owner
     if let Some(close_authority) = ctoken.close_authority() {
         // close_authority is set - only close_authority can close
-        if !pubkey_eq(ctoken.close_authority.array_ref(), accounts.authority.key()) {
+        if !pubkey_eq(ctoken.close_authority.array_ref(), accounts.authority.address()) {
             msg!(
                 "close authority mismatch: close_authority {:?} != {:?} authority",
                 solana_pubkey::Pubkey::from(close_authority.to_bytes()),
-                solana_pubkey::Pubkey::from(*accounts.authority.key())
+                solana_pubkey::Pubkey::from(*accounts.authority.address())
             );
             return Err(ErrorCode::OwnerMismatch.into());
         }
     } else {
         // close_authority is None - owner can close
-        if !pubkey_eq(ctoken.owner.array_ref(), accounts.authority.key()) {
+        if !pubkey_eq(ctoken.owner.array_ref(), accounts.authority.address()) {
             msg!(
                 "owner mismatch: ctoken.owner {:?} != {:?} authority",
                 solana_pubkey::Pubkey::from(ctoken.owner.to_bytes()),
-                solana_pubkey::Pubkey::from(*accounts.authority.key())
+                solana_pubkey::Pubkey::from(*accounts.authority.address())
             );
             return Err(ErrorCode::OwnerMismatch.into());
         }
@@ -187,7 +187,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
             .rent_sponsor
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-        if accounts.authority.key() == &compression.info.compression_authority {
+        if accounts.authority.address() == &compression.info.compression_authority {
             // When compressing via compression_authority:
             // Extract compression incentive from rent_sponsor portion to give to forester
             // The compression incentive is included in lamports_to_rent_sponsor

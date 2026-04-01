@@ -8,7 +8,7 @@ use light_token_interface::{
     TokenError,
 };
 use light_zero_copy::traits::ZeroCopyAtMut;
-use pinocchio::pubkey::pubkey_eq;
+use pinocchio::address::pubkey_eq;
 use solana_msg::msg;
 
 use super::{
@@ -43,7 +43,7 @@ pub fn compress_or_decompress_ctokens(
 
     check_owner(&crate::LIGHT_CPI_SIGNER.program_id, token_account_info)?;
     let mut token_account_data = token_account_info
-        .try_borrow_mut_data()
+        .try_borrow_mut()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
 
     let (mut ctoken, _) = Token::zero_copy_at_mut(&mut token_account_data)?;

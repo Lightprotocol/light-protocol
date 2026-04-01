@@ -6,7 +6,7 @@ use light_token_interface::state::{
 };
 use light_token_interface::TokenError;
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     sysvars::{clock::Clock, Sysvar},
 };
 

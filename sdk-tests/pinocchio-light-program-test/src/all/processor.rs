@@ -2,7 +2,7 @@ use light_account_pinocchio::{
     create_accounts, AtaInitParam, CreateMintsInput, LightAccount, LightSdkTypesError,
     PdaInitParam, SharedAccounts, SingleMintParams, TokenInitParam,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{CreateAllAccounts, CreateAllParams};
 
@@ -18,9 +18,9 @@ pub fn process(
     const NUM_TOKENS: usize = 1;
     const NUM_ATAS: usize = 1;
 
-    let authority_key = *ctx.authority.key();
-    let mint_signer_key = *ctx.mint_signer.key();
-    let mint_key = *ctx.mint.key();
+    let authority_key = *ctx.authority.address();
+    let mint_signer_key = *ctx.mint_signer.address();
+    let mint_key = *ctx.mint.address();
 
     let mint_signer_seeds: &[&[u8]] = &[
         crate::MINT_SIGNER_SEED_A,
@@ -54,7 +54,7 @@ pub fn process(
             // Set compression_info on the Borsh record
             {
                 let mut account_data = borsh_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let mut record = crate::state::MinimalRecord::try_from_slice(&account_data[8..])
                     .map_err(|_| LightSdkTypesError::Borsh)?;
@@ -65,7 +65,7 @@ pub fn process(
             // Set compression_info on the ZeroCopy record
             {
                 let mut account_data = zero_copy_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let record_bytes =
                     &mut account_data[8..8 + core::mem::size_of::<crate::state::ZeroCopyRecord>()];
@@ -78,7 +78,7 @@ pub fn process(
                 use light_account_pinocchio::LightDiscriminator;
                 let disc_len = crate::state::OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
                 let mut account_data = one_byte_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let mut record =
                     crate::state::OneByteRecord::try_from_slice(&account_data[disc_len..])
@@ -106,7 +106,7 @@ pub fn process(
         [TokenInitParam {
             account: ctx.token_vault,
             mint: ctx.mint,
-            owner: *ctx.vault_owner.key(),
+            owner: *ctx.vault_owner.address(),
             seeds: vault_seeds,
         }],
         [AtaInitParam {

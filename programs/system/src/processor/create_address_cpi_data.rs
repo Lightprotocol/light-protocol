@@ -5,7 +5,7 @@ use light_compressed_account::{
     },
 };
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount, context::SystemContext,

@@ -14,7 +14,7 @@ use light_sdk::constants::{
 };
 use light_system_program_pinocchio::cpi_context::state::deserialize_cpi_context_account;
 use light_test_utils::{legacy_cpi_context_account::get_legacy_cpi_context_account, Rpc};
-use pinocchio::pubkey::Pubkey as PinocchioPubkey;
+use pinocchio::address::Address as PinocchioPubkey;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,

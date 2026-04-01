@@ -8,7 +8,7 @@ use light_account_pinocchio::{
     account_meta::CompressedAccountMetaNoLamportsNoAddress, prepare_account_for_compression,
     process_compress_pda_accounts_idempotent, CompressCtx, LightDiscriminator, LightSdkTypesError,
 };
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 use crate::{account_loader::ZeroCopyRecord, pda::MinimalRecord};
 
@@ -25,7 +25,7 @@ fn compress_dispatch(
     ctx: &mut CompressCtx<'_>,
 ) -> std::result::Result<(), LightSdkTypesError> {
     let data = account_info
-        .try_borrow_data()
+        .try_borrow()
         .map_err(|_| LightSdkTypesError::Borsh)?;
 
     // Read discriminator from first 8 bytes

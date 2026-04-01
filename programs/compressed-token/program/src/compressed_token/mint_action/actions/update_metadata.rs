@@ -19,7 +19,7 @@ fn get_metadata_extension_mut<'a>(
     compressed_mint: &'a mut Mint,
     extension_index: usize,
     operation_name: &str,
-    signer: &pinocchio::pubkey::Pubkey,
+    signer: &pinocchio::address::Address,
 ) -> Result<&'a mut TokenMetadata, ProgramError> {
     let extensions = compressed_mint.extensions.as_mut().ok_or_else(|| {
         msg!("No extensions found - cannot {}", operation_name);
@@ -55,7 +55,7 @@ fn get_metadata_extension_mut<'a>(
 pub fn process_update_metadata_field_action(
     action: &ZUpdateMetadataFieldAction,
     compressed_mint: &mut Mint,
-    signer: &pinocchio::pubkey::Pubkey,
+    signer: &pinocchio::address::Address,
 ) -> Result<(), ProgramError> {
     let metadata = get_metadata_extension_mut(
         compressed_mint,
@@ -104,7 +104,7 @@ pub fn process_update_metadata_field_action(
 pub fn process_update_metadata_authority_action(
     action: &ZUpdateMetadataAuthorityAction,
     compressed_mint: &mut Mint,
-    signer: &pinocchio::pubkey::Pubkey,
+    signer: &pinocchio::address::Address,
 ) -> Result<(), ProgramError> {
     let metadata = get_metadata_extension_mut(
         compressed_mint,
@@ -127,7 +127,7 @@ pub fn process_update_metadata_authority_action(
 pub fn process_remove_metadata_key_action(
     action: &ZRemoveMetadataKeyAction,
     compressed_mint: &mut Mint,
-    signer: &pinocchio::pubkey::Pubkey,
+    signer: &pinocchio::address::Address,
 ) -> Result<(), ProgramError> {
     let metadata = get_metadata_extension_mut(
         compressed_mint,

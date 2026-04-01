@@ -5,8 +5,8 @@
 
 use light_account_pinocchio::process_decompress_pda_accounts_idempotent;
 use pinocchio::{
-    account_info::AccountInfo,
-    program_error::ProgramError,
+    AccountView as AccountInfo,
+    error::ProgramError,
     sysvars::{clock::Clock, Sysvar},
 };
 

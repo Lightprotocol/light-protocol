@@ -303,7 +303,7 @@ impl CompressBuilder {
                 fn to_account_metas(
                     &self,
                     _is_signer: Option<bool>,
-                ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                ) -> Vec<anchor_lang::solana_program::instruction::InstructionAccount> {
                     Vec::new()
                 }
             }
@@ -350,7 +350,7 @@ impl CompressBuilder {
                     fn to_account_metas(
                         &self,
                         _is_signer: Option<bool>,
-                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                    ) -> Vec<anchor_lang::solana_program::instruction::InstructionAccount> {
                         Vec::new()
                     }
                 }
@@ -365,7 +365,7 @@ impl CompressBuilder {
                     fn to_account_metas(
                         &self,
                         _is_signer: Option<bool>,
-                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                    ) -> Vec<anchor_lang::solana_program::instruction::InstructionAccount> {
                         Vec::new()
                     }
                 }
@@ -454,7 +454,7 @@ impl CompressBuilder {
             Ok(quote! {
                 impl #enum_name {
                     pub fn process_compress(
-                        accounts: &[pinocchio::account_info::AccountInfo],
+                        accounts: &[pinocchio::AccountView as AccountInfo],
                         instruction_data: &[u8],
                     ) -> std::result::Result<(), #program_error> {
                         use borsh::BorshDeserialize;

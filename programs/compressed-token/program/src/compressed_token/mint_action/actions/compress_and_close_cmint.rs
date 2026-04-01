@@ -63,7 +63,7 @@ pub fn process_compress_and_close_cmint_action(
         .ok_or(ErrorCode::MissingRentSponsor)?;
 
     // 3. Verify CMint account matches compressed_mint.metadata.mint
-    if !pubkey_eq(cmint.key(), &compressed_mint.metadata.mint.to_bytes()) {
+    if !pubkey_eq(cmint.address(), &compressed_mint.metadata.mint.to_bytes()) {
         msg!("CMint account does not match compressed_mint.metadata.mint");
         return Err(ErrorCode::InvalidCMintAccount.into());
     }
@@ -71,7 +71,7 @@ pub fn process_compress_and_close_cmint_action(
     let compression_info = &compressed_mint.compression;
 
     // 4. Verify rent_sponsor matches compression info
-    if !pubkey_eq(rent_sponsor.key(), &compression_info.rent_sponsor) {
+    if !pubkey_eq(rent_sponsor.address(), &compression_info.rent_sponsor) {
         msg!("Rent sponsor does not match compression info");
         return Err(ErrorCode::InvalidRentSponsor.into());
     }

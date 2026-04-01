@@ -1,3 +1,5 @@
+use crate::Pubkey;
+use light_compressed_account::pubkey::Pubkey as LightPubkey;
 use std::slice;
 
 use borsh::BorshDeserialize;
@@ -9,11 +11,10 @@ use light_compressed_account::{
             ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
         },
     },
-    Pubkey as LightPubkey,
 };
 use light_program_profiler::profile;
 use light_zero_copy::{errors::ZeroCopyError, slice_mut::ZeroCopySliceMut, vec::ZeroCopyVecU8};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 use solana_msg::msg;
 use zerocopy::{little_endian::U16, Ref};
 
@@ -296,7 +297,7 @@ fn deserialize_cpi_context_account_inner<'a, const CLEARED: bool>(
 ) -> Result<ZCpiContextAccount2<'a>, ProgramError> {
     check_owner(&ID, account_info).map_err(|_| SystemProgramError::InvalidCpiContextOwner)?;
     let mut account_data = account_info
-        .try_borrow_mut_data()
+        .try_borrow_mut()
         .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
     // SAFETY: account_data is a valid RefMut<[u8]>, pointer and length are valid
     let data = unsafe { slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len()) };
@@ -412,7 +413,7 @@ pub fn cpi_context_account_new<'a, const RE_INIT: bool>(
         msg!("Invalid cpi context account owner.");
         SystemProgramError::InvalidCpiContextOwner
     })?;
-    let mut account_data = account_info.try_borrow_mut_data().map_err(|_| {
+    let mut account_data = account_info.try_borrow_mut().map_err(|_| {
         msg!("Cpi context account data borrow failed.");
         SystemProgramError::BorrowingDataFailed
     })?;

@@ -58,7 +58,7 @@ light-macros = { workspace = true }
 solana-pubkey = { workspace = true }
 arrayvec = { workspace = true }
 tinyvec = { workspace = true }
-pinocchio = { workspace = true, features = ["std"] }
+pinocchio = { workspace = true }
 light-token-interface = { workspace = true, features = ["anchor"] }
 light-array-map = { workspace = true }
 pinocchio-pubkey = { workspace = true }

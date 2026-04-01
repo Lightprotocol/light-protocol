@@ -50,7 +50,7 @@ use light_system_program_pinocchio::{
     ID,
 };
 use light_zero_copy::traits::ZeroCopyAt;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{AccountView as AccountInfo, address::Address};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use zerocopy::little_endian::{U16, U32, U64};
 

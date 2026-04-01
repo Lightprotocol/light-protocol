@@ -8,7 +8,7 @@ use light_token_interface::{
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     cpi::{slice_invoke, slice_invoke_signed},
     instruction::{AccountMeta, Instruction, Signer},
     program_error::ProgramError,
@@ -135,14 +135,14 @@ impl<'info> TransferToSplCpi<'info> {
         //   - [4] SPL interface PDA (writable)
         //   - [5] SPL Token program (readonly)
         let account_metas = vec![
-            AccountMeta::readonly(self.compressed_token_program_authority.key()),
-            AccountMeta::writable_signer(self.payer.key()),
-            AccountMeta::readonly(self.mint.key()),
-            AccountMeta::writable(self.source.key()),
-            AccountMeta::writable(self.destination_spl_token_account.key()),
-            AccountMeta::readonly_signer(self.authority.key()),
-            AccountMeta::writable(self.spl_interface_pda.key()),
-            AccountMeta::readonly(self.spl_token_program.key()),
+            AccountMeta::readonly(self.compressed_token_program_authority.address()),
+            AccountMeta::writable_signer(self.payer.address()),
+            AccountMeta::readonly(self.mint.address()),
+            AccountMeta::writable(self.source.address()),
+            AccountMeta::writable(self.destination_spl_token_account.address()),
+            AccountMeta::readonly_signer(self.authority.address()),
+            AccountMeta::writable(self.spl_interface_pda.address()),
+            AccountMeta::readonly(self.spl_token_program.address()),
         ];
 
         let account_infos = vec![

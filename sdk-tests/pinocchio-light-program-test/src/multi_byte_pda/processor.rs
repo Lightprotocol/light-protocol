@@ -3,7 +3,7 @@ use light_account_pinocchio::{
     create_accounts, LightAccount, LightDiscriminator, LightSdkTypesError, PdaInitParam,
     SharedAccounts,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{CreateMultiByteRecords, CreateMultiByteRecordsParams};
 use crate::state::{
@@ -49,7 +49,7 @@ pub fn process(
             {
                 let disc_len = TwoByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
                 let mut account_data = two_byte_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let mut record = TwoByteRecord::try_from_slice(&account_data[disc_len..])
                     .map_err(|_| LightSdkTypesError::Borsh)?;
@@ -62,7 +62,7 @@ pub fn process(
             {
                 let disc_len = ThreeByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
                 let mut account_data = three_byte_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let mut record = ThreeByteRecord::try_from_slice(&account_data[disc_len..])
                     .map_err(|_| LightSdkTypesError::Borsh)?;
@@ -75,7 +75,7 @@ pub fn process(
             {
                 let disc_len = FourByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
                 let mut account_data = four_byte_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let mut record = FourByteRecord::try_from_slice(&account_data[disc_len..])
                     .map_err(|_| LightSdkTypesError::Borsh)?;
@@ -88,7 +88,7 @@ pub fn process(
             {
                 let disc_len = FiveByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
                 let mut account_data = five_byte_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let mut record = FiveByteRecord::try_from_slice(&account_data[disc_len..])
                     .map_err(|_| LightSdkTypesError::Borsh)?;
@@ -101,7 +101,7 @@ pub fn process(
             {
                 let disc_len = SixByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
                 let mut account_data = six_byte_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let mut record = SixByteRecord::try_from_slice(&account_data[disc_len..])
                     .map_err(|_| LightSdkTypesError::Borsh)?;
@@ -114,7 +114,7 @@ pub fn process(
             {
                 let disc_len = SevenByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
                 let mut account_data = seven_byte_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let mut record = SevenByteRecord::try_from_slice(&account_data[disc_len..])
                     .map_err(|_| LightSdkTypesError::Borsh)?;

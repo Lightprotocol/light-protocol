@@ -85,7 +85,7 @@ fn create_test_account_pinocchio(
     writable: bool,
     signer: bool,
     executable: bool,
-) -> pinocchio::account_info::AccountInfo {
+) -> pinocchio::AccountView {
     light_account_checks::account_info::test_account_info::pinocchio::get_account_info(
         key,
         owner,
@@ -859,7 +859,7 @@ fn test_get_min_rent_balance() {
     // Pinocchio success case - test different feature configurations
     #[cfg(feature = "pinocchio")]
     {
-        use pinocchio::account_info::AccountInfo;
+        use pinocchio::AccountView as AccountInfo;
 
         // Test with common account sizes
         let small_rent = AccountInfo::get_min_rent_balance(100);

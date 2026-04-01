@@ -6,7 +6,7 @@ use light_token_interface::{
     instructions::mint_action::ZMintActionCompressedInstructionData, COMPRESSED_MINT_SEED,
     MINT_ADDRESS_TREE,
 };
-use pinocchio::pubkey::pubkey_eq;
+use pinocchio::address::pubkey_eq;
 use solana_msg::msg;
 
 /// Processes the create mint action by validating parameters and setting up the new address.
@@ -14,7 +14,7 @@ use solana_msg::msg;
 #[profile]
 pub fn process_create_mint_action(
     parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
-    mint_signer: &pinocchio::pubkey::Pubkey,
+    mint_signer: &pinocchio::address::Address,
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
     address_merkle_tree_account_index: u8,
 ) -> Result<(), ProgramError> {

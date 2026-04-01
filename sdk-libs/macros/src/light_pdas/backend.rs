@@ -142,7 +142,7 @@ impl CodegenBackend for AnchorBackend {
 /// - `borsh::BorshSerialize/BorshDeserialize` for serialization
 /// - `light_account_pinocchio::` crate paths
 /// - `[u8; 32]` type for public keys
-/// - `pinocchio::account_info::AccountInfo` for account info
+/// - `pinocchio::AccountView as AccountInfo` for account info
 pub struct PinocchioBackend;
 
 impl CodegenBackend for PinocchioBackend {
@@ -163,7 +163,7 @@ impl CodegenBackend for PinocchioBackend {
     }
 
     fn account_info_type(&self) -> TokenStream {
-        quote! { pinocchio::account_info::AccountInfo }
+        quote! { pinocchio::AccountView as AccountInfo }
     }
 
     fn packed_accounts_type(&self) -> TokenStream {
@@ -171,7 +171,7 @@ impl CodegenBackend for PinocchioBackend {
     }
 
     fn account_meta_type(&self) -> TokenStream {
-        quote! { light_account_pinocchio::solana_instruction::AccountMeta }
+        quote! { light_account_pinocchio::solana_instruction::InstructionAccount }
     }
 
     fn is_pinocchio(&self) -> bool {
@@ -183,7 +183,7 @@ impl CodegenBackend for PinocchioBackend {
     }
 
     fn program_error_type(&self) -> TokenStream {
-        quote! { pinocchio::program_error::ProgramError }
+        quote! { pinocchio::error::ProgramError }
     }
 
     fn borrow_error(&self) -> TokenStream {

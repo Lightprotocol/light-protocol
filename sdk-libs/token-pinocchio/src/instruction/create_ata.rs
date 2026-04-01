@@ -12,7 +12,7 @@ use light_token_interface::{
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     cpi::slice_invoke_signed,
     instruction::{AccountMeta, Instruction, Signer},
     program_error::ProgramError,
@@ -234,13 +234,13 @@ fn build_create_ata_instruction_inner<'a>(
     // [5] compressible_config (readonly)
     // [6] rent_sponsor (writable)
     let metas = [
-        AccountMeta::readonly(owner.key()),
-        AccountMeta::readonly(mint.key()),
-        AccountMeta::writable_signer(payer.key()),
-        AccountMeta::writable(ata.key()),
-        AccountMeta::readonly(compressible.system_program.key()),
-        AccountMeta::readonly(compressible.compressible_config.key()),
-        AccountMeta::writable(compressible.rent_sponsor.key()),
+        AccountMeta::readonly(owner.address()),
+        AccountMeta::readonly(mint.address()),
+        AccountMeta::writable_signer(payer.address()),
+        AccountMeta::writable(ata.address()),
+        AccountMeta::readonly(compressible.system_program.address()),
+        AccountMeta::readonly(compressible.compressible_config.address()),
+        AccountMeta::writable(compressible.rent_sponsor.address()),
     ];
 
     let account_infos = [

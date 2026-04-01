@@ -5,7 +5,7 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{CompressionInfo, LightDiscriminator, LightPinocchioAccount};
-use pinocchio::pubkey::Pubkey;
+use pinocchio::address::Address;
 
 /// Minimal record struct for testing PDA creation.
 /// Contains compression_info and one field.

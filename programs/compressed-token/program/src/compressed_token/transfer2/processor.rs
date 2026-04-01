@@ -15,7 +15,7 @@ use light_token_interface::{
     TokenError,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 use super::check_extensions::{build_mint_extension_cache, MintExtensionCache};
@@ -300,8 +300,8 @@ fn process_with_system_program_cpi<'a>(
             cpi_bytes,
             tree_pubkeys.as_slice(),
             transfer_config.sol_pool_required,
-            system_accounts.sol_decompression_recipient.map(|x| x.key()),
-            system_accounts.cpi_context.map(|x| *x.key()),
+            system_accounts.sol_decompression_recipient.map(|x| x.address()),
+            system_accounts.cpi_context.map(|x| *x.address()),
             false,
         )?;
 
@@ -325,7 +325,7 @@ fn process_with_system_program_cpi<'a>(
             &[],
             false,
             None,
-            Some(*system_accounts.cpi_context.key()),
+            Some(*system_accounts.cpi_context.address()),
             true,
         )?;
     } else {

@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug, Default)]
 pub struct CreateAtaParams {}

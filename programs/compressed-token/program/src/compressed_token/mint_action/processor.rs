@@ -9,7 +9,7 @@ use light_token_interface::{
     state::Mint, TokenError,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use crate::{
     compressed_token::mint_action::{
@@ -138,7 +138,7 @@ pub fn process_mint_action(
                 .mint_signer
                 .ok_or(TokenError::ExpectedMintSignerAccount)
                 .map_err(|_| ErrorCode::MintActionMissingExecutingAccounts)?
-                .key(),
+                .address(),
             &mut cpi_instruction_struct,
             queue_indices.address_merkle_tree_index,
         )?;
@@ -193,7 +193,7 @@ pub fn process_mint_action(
                 .as_slice(),
             false, // no sol_pool_pda
             None,
-            executing.system.cpi_context.map(|x| *x.key()),
+            executing.system.cpi_context.map(|x| *x.address()),
             false, // don't write to cpi context account
         )
     } else {
@@ -209,7 +209,7 @@ pub fn process_mint_action(
             validated_accounts
                 .write_to_cpi_context_system
                 .as_ref()
-                .map(|x| *x.cpi_context.key()),
+                .map(|x| *x.cpi_context.address()),
             true,
         )
     }

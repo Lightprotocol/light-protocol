@@ -7,7 +7,7 @@ use light_token_interface::{
     state::{ExtensionStructConfig, TokenData, TokenDataConfig},
 };
 use light_zero_copy::ZeroCopyNew;
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 use tinyvec::ArrayVec;
 
 use crate::shared::cpi_bytes_size::{

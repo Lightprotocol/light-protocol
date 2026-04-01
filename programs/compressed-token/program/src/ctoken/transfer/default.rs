@@ -1,6 +1,6 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 use pinocchio_token_program::processor::transfer::process_transfer;
 
 use super::shared::{

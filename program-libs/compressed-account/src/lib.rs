@@ -137,12 +137,6 @@ impl From<CompressedAccountError> for solana_program_error::ProgramError {
     }
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<CompressedAccountError> for pinocchio::program_error::ProgramError {
-    fn from(e: CompressedAccountError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}
 
 pub const NULLIFIER_QUEUE_TYPE_V1: u64 = 1;
 pub const ADDRESS_QUEUE_TYPE_V1: u64 = 2;

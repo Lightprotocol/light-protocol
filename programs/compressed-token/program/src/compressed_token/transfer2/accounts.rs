@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{AccountView as AccountInfo, address::Address};
 use solana_msg::msg;
 
 use crate::{
@@ -149,7 +149,7 @@ pub fn extract_tree_accounts<'info>(
         // check that the first 8 bytes of the account compression program
         // equal the first 8 bytes of the account owner.
         if account_info.owner()[0..8] == [9, 44, 54, 236, 34, 245, 23, 131] {
-            tree_accounts.push(account_info.key());
+            tree_accounts.push(account_info.address());
         }
     }
     tree_accounts

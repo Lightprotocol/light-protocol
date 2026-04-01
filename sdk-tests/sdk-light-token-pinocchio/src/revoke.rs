@@ -1,6 +1,6 @@
 use light_token_pinocchio::instruction::RevokeCpi;
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
 };
@@ -44,7 +44,7 @@ pub fn process_revoke_invoke_signed(accounts: &[AccountInfo]) -> Result<(), Prog
     }
 
     // Derive the PDA for the owner
-    let (pda, bump) = pinocchio::pubkey::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
+    let (pda, bump) = pinocchio::address::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
 
     // Verify the owner account is the PDA we expect
     if pda != *accounts[1].key() {

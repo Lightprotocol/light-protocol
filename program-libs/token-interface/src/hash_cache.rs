@@ -1,6 +1,6 @@
 use light_array_map::ArrayMap;
 use light_compressed_account::hash_to_bn254_field_size_be;
-use pinocchio::pubkey::{pubkey_eq, Pubkey};
+use light_compressed_account::Pubkey;
 
 use crate::error::TokenError;
 /// Context for caching hashed values to avoid recomputation
@@ -26,7 +26,7 @@ impl HashCache {
             return Ok(*hash);
         }
 
-        let hashed_mint = hash_to_bn254_field_size_be(mint);
+        let hashed_mint = hash_to_bn254_field_size_be(mint.as_ref());
         self.hashed_mints
             .insert(*mint, hashed_mint, TokenError::InvalidAccountData)?;
         Ok(hashed_mint)
@@ -37,12 +37,12 @@ impl HashCache {
         let hashed_pubkey = self
             .hashed_pubkeys
             .iter()
-            .find(|a| pubkey_eq(&a.0, pubkey))
+            .find(|a| a.0 == *pubkey)
             .map(|a| a.1);
         match hashed_pubkey {
             Some(hashed_pubkey) => hashed_pubkey,
             None => {
-                let hashed_pubkey = hash_to_bn254_field_size_be(pubkey);
+                let hashed_pubkey = hash_to_bn254_field_size_be(pubkey.as_ref());
                 self.hashed_pubkeys.push((*pubkey, hashed_pubkey));
                 hashed_pubkey
             }

@@ -13,7 +13,8 @@ use light_token_interface::{
 use light_zero_copy::traits::ZeroCopyNew;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
-use pinocchio::{account_info::AccountInfo, instruction::Seed, msg, pubkey::Pubkey};
+use pinocchio::{AccountView as AccountInfo, cpi::Seed, address::Address};
+use solana_msg::msg;
 
 use crate::{
     extensions::MintExtensionFlags,
@@ -70,7 +71,7 @@ pub fn create_compressible_account<'info>(
     is_ata: bool,
 ) -> Result<CompressibleInitData<'info>, ProgramError> {
     // Validate rent payer is not the token account itself
-    if rent_payer.key() == target_account.key() {
+    if rent_payer.address() == target_account.address() {
         msg!("Rent sponsor cannot be the token account itself");
         return Err(ProgramError::InvalidAccountData);
     }
@@ -100,7 +101,7 @@ pub fn create_compressible_account<'info>(
         .get_rent_with_compression_cost(account_size, compressible_config.rent_payment as u64);
     let account_size = account_size as usize;
 
-    let custom_rent_payer = *rent_payer.key() != config_account.rent_sponsor.to_bytes();
+    let custom_rent_payer = *rent_payer.address() != config_account.rent_sponsor.to_bytes();
 
     // Custom rent payer must be a signer (prevents executable accounts as rent_sponsor)
     if custom_rent_payer && !rent_payer.is_signer() {
@@ -145,7 +146,7 @@ pub fn create_compressible_account<'info>(
         ix_data: compressible_config,
         config_account,
         custom_rent_payer: if custom_rent_payer {
-            Some(*rent_payer.key())
+            Some(*rent_payer.address())
         } else {
             None
         },
@@ -212,7 +213,7 @@ pub fn initialize_ctoken_account(
     }
     // Build the config for new_zero_copy
     let zc_config = TokenConfig {
-        mint: light_compressed_account::Pubkey::from(*mint_account.key()),
+        mint: light_compressed_account::Pubkey::from(*mint_account.address()),
         owner: light_compressed_account::Pubkey::from(*owner),
         state: if mint_extensions.default_state_frozen {
             AccountState::Frozen as u8

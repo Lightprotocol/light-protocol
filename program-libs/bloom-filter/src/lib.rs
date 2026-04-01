@@ -38,12 +38,6 @@ impl From<BloomFilterError> for solana_program_error::ProgramError {
     }
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<BloomFilterError> for pinocchio::program_error::ProgramError {
-    fn from(e: BloomFilterError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}
 
 #[derive(Debug)]
 pub struct BloomFilter<'a> {

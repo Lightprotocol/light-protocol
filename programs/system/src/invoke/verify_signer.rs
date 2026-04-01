@@ -1,5 +1,6 @@
+use crate::Pubkey;
 use light_compressed_account::instruction_data::zero_copy::ZPackedCompressedAccountWithMerkleContext;
-use pinocchio::{msg, pubkey::Pubkey};
+use solana_msg::msg;
 
 use crate::{errors::SystemProgramError, Result};
 

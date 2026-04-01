@@ -100,7 +100,7 @@ fn serialize_compressed_mint<'a>(
         // Store the PDA pubkey in the data field and hash it
         compressed_account_data
             .data
-            .copy_from_slice(cmint_account.key());
+            .copy_from_slice(cmint_account.address());
         (
             DECOMPRESSED_PDA_DISCRIMINATOR,
             Sha256BE::hash(compressed_account_data.data)?,
@@ -199,7 +199,7 @@ fn serialize_decompressed_mint(
 
     // STEP 6: Write serialized data
     let mut cmint_data = cmint_account
-        .try_borrow_mut_data()
+        .try_borrow_mut()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
     cmint_data[..serialized.len()].copy_from_slice(&serialized);
 

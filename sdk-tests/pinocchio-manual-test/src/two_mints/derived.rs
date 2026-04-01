@@ -5,7 +5,7 @@ use light_account_pinocchio::{
     create_accounts, CreateMintsInput, LightFinalize, LightPreInit, LightSdkTypesError,
     SharedAccounts, SingleMintParams,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{
     CreateDerivedMintsAccounts, CreateDerivedMintsParams, MINT_SIGNER_0_SEED, MINT_SIGNER_1_SEED,
@@ -21,9 +21,9 @@ impl LightPreInit<AccountInfo, CreateDerivedMintsParams> for CreateDerivedMintsA
         remaining_accounts: &[AccountInfo],
         params: &CreateDerivedMintsParams,
     ) -> std::result::Result<bool, LightSdkTypesError> {
-        let authority = *self.authority.key();
-        let mint_signer_0 = *self.mint_signer_0.key();
-        let mint_signer_1 = *self.mint_signer_1.key();
+        let authority = *self.authority.address();
+        let mint_signer_0 = *self.mint_signer_0.address();
+        let mint_signer_1 = *self.mint_signer_1.address();
 
         let mint_signer_0_seeds: &[&[u8]] = &[
             MINT_SIGNER_0_SEED,

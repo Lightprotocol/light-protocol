@@ -8,7 +8,7 @@ use light_token_interface::{
         extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,
     },
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::check_extensions::validate_tlv_and_get_frozen;
 use crate::shared::token_output::set_output_compressed_account;
@@ -38,13 +38,13 @@ pub fn set_output_compressed_accounts<'a>(
 
         // Get owner account using owner index
         let owner_account = packed_accounts.get_u8(output_data.owner, "out token owner")?;
-        let owner_pubkey = *owner_account.key();
+        let owner_pubkey = *owner_account.address();
 
         // Get delegate if present
         let delegate_pubkey = if output_data.has_delegate() {
             let delegate_account =
                 packed_accounts.get_u8(output_data.delegate, "out token delegate")?;
-            Some(*delegate_account.key())
+            Some(*delegate_account.address())
         } else {
             None
         };
@@ -72,7 +72,7 @@ pub fn set_output_compressed_accounts<'a>(
             delegate_pubkey.map(|d| d.into()),
             output_data.amount,
             output_lamports,
-            mint_account.key().into(),
+            mint_account.address().into(),
             inputs.output_queue,
             output_data.version,
             tlv_data,

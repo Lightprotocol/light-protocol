@@ -14,7 +14,7 @@ use solana_msg::msg;
 #[track_caller]
 pub fn check_authority(
     current_authority: Option<Pubkey>,
-    signer: &pinocchio::pubkey::Pubkey,
+    signer: &pinocchio::address::Address,
     authority_name: &str,
 ) -> Result<(), ProgramError> {
     // Get authority from current state or fallback to instruction data

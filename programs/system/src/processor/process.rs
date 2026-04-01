@@ -1,3 +1,4 @@
+use crate::Pubkey;
 use std::cmp::min;
 
 use light_compressed_account::{
@@ -12,9 +13,10 @@ use light_compressed_account::{
 use light_program_profiler::profile;
 use light_zero_copy::slice_mut::ZeroCopySliceMut;
 use pinocchio::{
-    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
+    AccountView as AccountInfo, error::ProgramError,
     sysvars::clock::Clock,
 };
+use solana_msg::msg;
 
 use crate::{
     accounts::{

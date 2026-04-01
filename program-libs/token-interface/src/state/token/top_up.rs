@@ -3,7 +3,7 @@
 use light_compressible::compression_info::CompressionInfo;
 use light_program_profiler::profile;
 #[cfg(target_os = "solana")]
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::ACCOUNT_TYPE_TOKEN_ACCOUNT;
 use crate::state::ExtensionType;
@@ -71,7 +71,7 @@ pub fn top_up_lamports_from_account_info_unchecked(
     current_slot: &mut u64,
 ) -> Option<u64> {
     use pinocchio::sysvars::{clock::Clock, Sysvar};
-    let data = account_info.try_borrow_data().ok()?;
+    let data = account_info.try_borrow().ok()?;
     let current_lamports = account_info.lamports();
     if *current_slot == 0 {
         *current_slot = Clock::get().ok()?.slot;

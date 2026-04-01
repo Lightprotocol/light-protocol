@@ -10,7 +10,7 @@ use light_token_interface::{
     },
     TokenError,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 use super::check_extensions::MintExtensionCache;
@@ -152,7 +152,7 @@ pub fn process_token_compression<'a>(
                 _ => {
                     msg!(
                         "source_or_recipient {:?}",
-                        solana_pubkey::Pubkey::new_from_array(*source_or_recipient.key())
+                        solana_pubkey::Pubkey::new_from_array(*source_or_recipient.address())
                     );
                     msg!(
                         "Invalid token program ID {:?}",

@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
 pub struct CreateTokenVaultParams {
@@ -36,10 +36,10 @@ impl<'a> CreateTokenVaultAccounts<'a> {
 
         // Validate token_vault PDA
         {
-            let mint_key = mint.key();
+            let mint_key = mint.address();
             let seeds: &[&[u8]] = &[crate::VAULT_SEED, mint_key];
-            let (expected_pda, _bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if token_vault.key() != &expected_pda {
+            let (expected_pda, _bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            if token_vault.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
         }

@@ -4,7 +4,7 @@ use light_compressible::compression_info::CompressionInfo;
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
 #[cfg(target_os = "solana")]
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::compressed_mint::ACCOUNT_TYPE_MINT;
 
@@ -58,11 +58,11 @@ pub fn mint_top_up_lamports_from_account_info(
     use pinocchio::sysvars::{clock::Clock, Sysvar};
 
     // Check owner is Token program
-    if !account_info.is_owned_by(&crate::LIGHT_TOKEN_PROGRAM_ID) {
+    if !account_info.owned_by(&crate::LIGHT_TOKEN_PROGRAM_ID) {
         return None;
     }
 
-    let data = account_info.try_borrow_data().ok()?;
+    let data = account_info.try_borrow().ok()?;
 
     if data.len() < MINT_MIN_SIZE_WITH_COMPRESSION || data[ACCOUNT_TYPE_OFFSET] != ACCOUNT_TYPE_MINT
     {

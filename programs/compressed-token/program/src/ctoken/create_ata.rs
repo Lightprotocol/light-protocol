@@ -3,7 +3,7 @@ use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
 use light_program_profiler::profile;
 use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
-use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::pubkey_eq};
+use pinocchio::{AccountView as AccountInfo, cpi::Seed, pubkey::pubkey_eq};
 use solana_msg::msg;
 
 use crate::{
@@ -59,14 +59,14 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     let associated_token_account = iter.next_mut("associated_token_account")?;
     let _system_program = iter.next_non_mut("system_program")?;
 
-    let owner_bytes = owner.key();
-    let mint_bytes = mint.key();
+    let owner_bytes = owner.address();
+    let mint_bytes = mint.address();
 
     // Derive canonical bump on-chain (validates PDA derivation)
     let bump = validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes)?;
 
     // If idempotent mode, check if account already exists
-    if IDEMPOTENT && associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
+    if IDEMPOTENT && associated_token_account.owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
         let token = light_token_interface::state::Token::from_account_info_checked(
             associated_token_account,
         )?;
@@ -82,7 +82,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     }
 
     // Check account is owned by system program (uninitialized)
-    if !associated_token_account.is_owned_by(&[0u8; 32]) {
+    if !associated_token_account.owned_by(&[0u8; 32]) {
         return Err(ProgramError::IllegalOwner);
     }
 

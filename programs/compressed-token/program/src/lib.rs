@@ -4,8 +4,10 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::CpiSigner;
 use light_macros::derive_light_cpi_signer;
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
-use pinocchio::{account_info::AccountInfo, msg};
+use pinocchio::{AccountView as AccountInfo};
+use solana_msg::msg;
 
+pub(crate) type Pubkey = [u8; 32];
 pub mod compressed_token;
 pub mod compressible;
 pub mod convert_account_infos;
@@ -39,7 +41,7 @@ pub const MAX_ACCOUNTS: usize = 30;
 pub const MINT_CREATION_FEE: u64 = 50_000;
 /// Hardcoded rent sponsor PDA for write-mode mint creation fee validation.
 /// Same value as LIGHT_TOKEN_RENT_SPONSOR in sdk-types/src/constants.rs.
-pub const RENT_SPONSOR_V1: pinocchio::pubkey::Pubkey =
+pub const RENT_SPONSOR_V1: pinocchio::address::Address =
     light_macros::pubkey_array!("r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti");
 pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
 /// Maximum number of compression operations per instruction.
@@ -135,7 +137,7 @@ use pinocchio::program_entrypoint;
 program_entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    program_id: &pinocchio::pubkey::Pubkey,
+    program_id: &pinocchio::address::Address,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {

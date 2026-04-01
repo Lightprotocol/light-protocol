@@ -2,7 +2,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::constants::CPI_AUTHORITY_PDA_SEED;
 use light_program_profiler::profile;
 use pinocchio::{
-    account_info::AccountInfo,
+    AccountView as AccountInfo,
     instruction::{AccountMeta, Instruction, Seed, Signer},
     program::invoke_signed,
 };
@@ -22,9 +22,9 @@ pub fn mint_to_token_pool(
 ) -> Result<(), ProgramError> {
     // Create SPL mint_to instruction
     let spl_mint_to_ix = spl_token_2022::instruction::mint_to(
-        &solana_pubkey::Pubkey::new_from_array(*token_program.key()),
-        &solana_pubkey::Pubkey::new_from_array(*mint_account.key()),
-        &solana_pubkey::Pubkey::new_from_array(*token_pool_account.key()),
+        &solana_pubkey::Pubkey::new_from_array(*token_program.address()),
+        &solana_pubkey::Pubkey::new_from_array(*mint_account.address()),
+        &solana_pubkey::Pubkey::new_from_array(*token_pool_account.address()),
         &solana_pubkey::Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer),
         &[],
         amount,
@@ -32,10 +32,10 @@ pub fn mint_to_token_pool(
 
     // Create instruction for CPI call
     let mint_to_ix = Instruction {
-        program_id: token_program.key(),
+        program_id: token_program.address(),
         accounts: &[
-            AccountMeta::new(mint_account.key(), true, false), // mint (writable)
-            AccountMeta::new(token_pool_account.key(), true, false), // token_pool (writable)
+            AccountMeta::new(mint_account.address(), true, false), // mint (writable)
+            AccountMeta::new(token_pool_account.address(), true, false), // token_pool (writable)
             AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true), // authority (signer)
         ],
         data: &spl_mint_to_ix.data,

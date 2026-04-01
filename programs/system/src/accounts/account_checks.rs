@@ -11,7 +11,7 @@ use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, instruction_data::traits::AccountOptions,
 };
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 use crate::{
     cpi_context::state::ZCpiContextAccount2,
@@ -58,7 +58,7 @@ pub fn check_anchor_option_sol_pool_pda(
     account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
     let option_sol_pool_pda = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let sol_pool_pda = if *option_sol_pool_pda.key() == crate::ID {
+    let sol_pool_pda = if option_sol_pool_pda.address().to_bytes() == crate::ID {
         None
     } else {
         check_pda_seeds_with_bump(
@@ -78,7 +78,7 @@ pub fn anchor_option_mut_account_info(
     account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
     let option_decompression_recipient = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let decompression_recipient = if *option_decompression_recipient.key() == crate::ID {
+    let decompression_recipient = if option_decompression_recipient.address().to_bytes() == crate::ID {
         None
     } else {
         check_mut(option_decompression_recipient).map_err(ProgramError::from)?;
@@ -90,7 +90,7 @@ pub fn anchor_option_mut_account_info(
 #[profile]
 pub fn check_system_program(account_info: Option<&AccountInfo>) -> Result<&AccountInfo> {
     let account_info = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
-    check_program(&Pubkey::default(), account_info)?;
+    check_program(&crate::Pubkey::default(), account_info)?;
     Ok(account_info)
 }
 
@@ -99,13 +99,13 @@ pub fn check_anchor_option_cpi_context_account(
     account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
     let option_cpi_context_account = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let cpi_context_account = if *option_cpi_context_account.key() == crate::ID {
+    let cpi_context_account = if option_cpi_context_account.address().to_bytes() == crate::ID {
         None
     } else {
         {
             check_owner(&crate::ID, option_cpi_context_account)?;
             check_discriminator::<ZCpiContextAccount2>(
-                option_cpi_context_account.try_borrow_data()?.as_ref(),
+                option_cpi_context_account.try_borrow()?.as_ref(),
             )?;
         }
         Some(option_cpi_context_account)
@@ -141,15 +141,15 @@ pub fn check_option_cpi_context_account<'a>(
             let location = Location::caller();
             solana_msg::msg!(
                 "ERROR: check_owner {:?} owner: {:?} for cpi_context failed. {}:{}:{}",
-                solana_pubkey::Pubkey::new_from_array(*account_info.key()),
+                solana_pubkey::Pubkey::new_from_array(account_info.address().to_bytes()),
                 // SAFETY: owner() returns a valid pointer to a 32-byte aligned Pubkey
-                solana_pubkey::Pubkey::new_from_array(*account_info.owner()),
+                solana_pubkey::Pubkey::new_from_array(unsafe { account_info.owner().to_bytes() }),
                 location.file(),
                 location.line(),
                 location.column()
             )
         })?;
-        check_discriminator::<ZCpiContextAccount2>(account_info.try_borrow_data()?.as_ref())
+        check_discriminator::<ZCpiContextAccount2>(account_info.try_borrow()?.as_ref())
             .inspect_err(|_| {
                 let location = Location::caller();
                 solana_msg::msg!(

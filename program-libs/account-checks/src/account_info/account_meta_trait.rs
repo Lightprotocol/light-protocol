@@ -6,7 +6,7 @@ use core::fmt::Debug;
 /// (e.g. `solana_pubkey::Pubkey` or `[u8; 32]`) without manual conversion.
 pub trait AccountMetaTrait: Clone + Debug {
     /// The native pubkey type for this account meta implementation.
-    /// - `solana_pubkey::Pubkey` for `solana_instruction::AccountMeta`
+    /// - `solana_pubkey::Pubkey` for `solana_instruction::InstructionAccount`
     /// - `[u8; 32]` for pinocchio's `OwnedAccountMeta`
     type Pubkey: Copy;
 

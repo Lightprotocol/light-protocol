@@ -1,7 +1,7 @@
 use light_account_pinocchio::{
     create_accounts, CreateMintsInput, LightSdkTypesError, SharedAccounts, SingleMintParams,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{CreateMintAccounts, CreateMintParams};
 
@@ -10,8 +10,8 @@ pub fn process(
     params: &CreateMintParams,
     remaining_accounts: &[AccountInfo],
 ) -> Result<(), LightSdkTypesError> {
-    let authority = *ctx.authority.key();
-    let mint_signer_key = *ctx.mint_signer.key();
+    let authority = *ctx.authority.address();
+    let mint_signer_key = *ctx.mint_signer.address();
 
     let mint_signer_seeds: &[&[u8]] = &[
         crate::MINT_SIGNER_SEED_A,

@@ -291,11 +291,6 @@ impl From<TokenError> for solana_program_error::ProgramError {
     }
 }
 
-impl From<TokenError> for pinocchio::program_error::ProgramError {
-    fn from(e: TokenError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}
 
 #[cfg(feature = "anchor")]
 impl From<TokenError> for anchor_lang::prelude::ProgramError {

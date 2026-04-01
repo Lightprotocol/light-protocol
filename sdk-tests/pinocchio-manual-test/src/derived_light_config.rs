@@ -3,7 +3,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{process_initialize_light_config, process_update_light_config};
 use light_compressible::rent::RentConfig;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{AccountView as AccountInfo, error::ProgramError};
 
 /// Params order matches SDK's InitializeCompressionConfigAnchorData.
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
