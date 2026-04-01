@@ -249,6 +249,7 @@ fn process_with_system_program_cpi<'a>(
 
     // Create HashCache to cache hashed pubkeys.
     let mut hash_cache = HashCache::new();
+    let is_idempotent_ata_decompress = is_idempotent_ata_decompress(inputs);
 
     // Process input compressed accounts and build compression-to-input lookup.
     let compression_to_input = set_input_compressed_accounts(
@@ -258,8 +259,8 @@ fn process_with_system_program_cpi<'a>(
         &validated_accounts.packed_accounts,
         accounts,
         mint_cache,
+        is_idempotent_ata_decompress,
     )?;
-    let is_idempotent_ata_decompress = is_idempotent_ata_decompress(inputs);
     #[allow(clippy::collapsible_if)]
     if is_idempotent_ata_decompress {
         if check_ata_decompress_idempotent(inputs, &cpi_instruction_struct, validated_accounts)? {
