@@ -1,6 +1,6 @@
 use std::panic::catch_unwind;
 
-use light_account_checks::error::AccountError;
+use light_account_checks::{error::AccountError, AccountInfoTrait};
 use light_system_program_pinocchio::{
     accounts::account_traits::{InvokeAccounts, SignerAccounts},
     invoke::instruction::InvokeInstruction,
@@ -39,15 +39,15 @@ fn functional_from_account_infos() {
         system_program: &system_program,
     };
     let account_info_array = [
-        fee_payer,
-        authority,
-        registered_program_pda,
-        noop_program,
-        account_compression_authority,
-        account_compression_program,
-        sol_pool_pda_none,
-        decompression_recipient,
-        system_program,
+        fee_payer.clone(),
+        authority.clone(),
+        registered_program_pda.clone(),
+        noop_program.clone(),
+        account_compression_authority.clone(),
+        account_compression_program.clone(),
+        sol_pool_pda_none.clone(),
+        decompression_recipient.clone(),
+        system_program.clone(),
     ];
     let (invoke_cpi_instruction, _) =
         InvokeInstruction::from_account_infos(account_info_array.as_slice()).unwrap();
@@ -104,15 +104,15 @@ fn failing_from_account_infos() {
         system_program: &system_program,
     };
     let account_info_array = [
-        fee_payer,
-        authority,
-        registered_program_pda,
-        noop_program,
-        account_compression_authority,
-        account_compression_program,
-        sol_pool_pda_none,
-        decompression_recipient,
-        system_program,
+        fee_payer.clone(),
+        authority.clone(),
+        registered_program_pda.clone(),
+        noop_program.clone(),
+        account_compression_authority.clone(),
+        account_compression_program.clone(),
+        sol_pool_pda_none.clone(),
+        decompression_recipient.clone(),
+        system_program.clone(),
     ];
     // 1. Functional
     {
@@ -122,35 +122,35 @@ fn failing_from_account_infos() {
     }
     // 3. Registered Program Pda mutable
     {
-        let mut account_info_array = account_info_array;
+        let mut account_info_array = account_info_array.clone();
         account_info_array[2] = get_mut_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::AccountMutable)));
     }
     // 4. account_compression_authority mutable
     {
-        let mut account_info_array = account_info_array;
+        let mut account_info_array = account_info_array.clone();
         account_info_array[4] = get_mut_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::AccountMutable)));
     }
     // 5. account_compression_program invalid program id
     {
-        let mut account_info_array = account_info_array;
+        let mut account_info_array = account_info_array.clone();
         account_info_array[5] = get_mut_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::InvalidProgramId)));
     }
     // 6. account_compression_program not executable
     {
-        let mut account_info_array = account_info_array;
+        let mut account_info_array = account_info_array.clone();
         account_info_array[5] = get_non_executable_account_compression_program_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::ProgramNotExecutable)));
     }
     // 7. sol_pool_pda invalid address
     {
-        let mut account_info_array = account_info_array;
+        let mut account_info_array = account_info_array.clone();
         account_info_array[6] = get_mut_account_info();
         // Panics with Unable to find a viable program address bump seed
         let result = catch_unwind(|| {
@@ -164,7 +164,7 @@ fn failing_from_account_infos() {
     }
     // 8. system_program invalid program id
     {
-        let mut account_info_array = account_info_array;
+        let mut account_info_array = account_info_array.clone();
         account_info_array[8] = get_mut_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::InvalidProgramId)));
