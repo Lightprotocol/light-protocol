@@ -41,6 +41,8 @@ const DECOMPRESS_DESTINATION_MISMATCH: u32 = 18057;
 const MINT_MISMATCH: u32 = 18058;
 /// Expected error code for DecompressAmountMismatch
 const DECOMPRESS_AMOUNT_MISMATCH: u32 = 18064;
+/// Expected error code for InvalidAtaDerivation
+const INVALID_ATA_DERIVATION: u32 = 18066;
 
 /// Setup context for ATA CompressOnly tests
 struct AtaCompressedTokenContext {
@@ -1634,6 +1636,92 @@ async fn test_permissionless_ata_decompress() {
         dest_ctoken.amount, context.amount,
         "Decompressed amount should match original amount"
     );
+}
+
+/// Test that strict permissionless ATA decompress still enforces ATA derivation on-chain.
+/// Even with payer-only signature, wrong ATA bump must fail with InvalidAtaDerivation. (idempotency only on bloom filter hit.)
+#[tokio::test]
+#[serial]
+async fn test_permissionless_ata_decompress_rejects_wrong_bump() {
+    let mut context = setup_ata_compressed_token(&[ExtensionType::Pausable], None, false)
+        .await
+        .unwrap();
+
+    // Create destination ATA.
+    let create_dest_ix = CreateAssociatedTokenAccount::new(
+        context.payer.pubkey(),
+        context.owner.pubkey(),
+        context.mint_pubkey,
+    )
+    .with_compressible(CompressibleParams {
+        compressible_config: context
+            .rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: context
+            .rpc
+            .test_accounts
+            .funding_pool_config
+            .rent_sponsor_pda,
+        pre_pay_num_epochs: 2,
+        lamports_per_write: Some(100),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: true,
+    })
+    .idempotent()
+    .instruction()
+    .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[create_dest_ix],
+            &context.payer.pubkey(),
+            &[&context.payer],
+        )
+        .await
+        .unwrap();
+
+    // Build strict ATA decompress with intentionally wrong bump.
+    let wrong_bump = context.ata_bump.wrapping_add(1);
+    let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
+        CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: true,
+            bump: wrong_bump,
+            owner_index: 0, // updated by helper; bump remains wrong
+        },
+    )]];
+
+    let ix = create_generic_transfer2_instruction(
+        &mut context.rpc,
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
+            compressed_token_account: vec![context.compressed_account.clone()],
+            decompress_amount: context.amount,
+            solana_token_account: context.ata_pubkey,
+            amount: context.amount,
+            pool_index: None,
+            decimals: 9,
+            in_tlv: Some(in_tlv),
+        })],
+        context.payer.pubkey(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    // Payer-only signing should reach on-chain ATA derivation checks and fail there.
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[ix], &context.payer.pubkey(), &[&context.payer])
+        .await;
+
+    assert_rpc_error(result, 0, INVALID_ATA_DERIVATION).unwrap();
 }
 
 /// Test that regular Decompress without owner signer fails for non-ATA compressed tokens.
