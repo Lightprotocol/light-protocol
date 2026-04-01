@@ -27,7 +27,7 @@ pub mod pinocchio {
         // Allocate memory for RuntimeAccount + data
         let mut raw_data = vec![0u8; account_size + data.len()];
 
-        // Set the boolean flags - use 1 for true as the AccountView as AccountInfo implementation checks for non-zero
+        // Set the boolean flags - use 1 for true as the AccountView implementation checks for non-zero
         // IMPORTANT: borrow_state needs to be 0xFF (all bits set) to indicate unborrowed state
         raw_data[0] = 0xFF; // borrow_state - all bits set means unborrowed
         raw_data[1] = if is_signer { 1 } else { 0 }; // is_signer
@@ -54,13 +54,13 @@ pub mod pinocchio {
             raw_data[account_size..account_size + data.len()].copy_from_slice(&data);
         }
 
-        // Create the AccountView as AccountInfo by pointing to our raw RuntimeAccount data
+        // Create the AccountView by pointing to our raw RuntimeAccount data
         let account_ptr = raw_data.as_mut_ptr() as *mut RuntimeAccount;
 
-        // Need to leak the memory so it doesn't get dropped while the AccountView as AccountInfo is still using it
+        // Need to leak the memory so it doesn't get dropped while the AccountView is still using it
         core::mem::forget(raw_data);
 
-        unsafe { AccountView as AccountInfo::new_unchecked(account_ptr) }
+        unsafe { AccountInfo::new_unchecked(account_ptr) }
     }
 
     #[test]

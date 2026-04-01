@@ -3,9 +3,9 @@ use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID
 #[cfg(any(feature = "std", feature = "alloc"))]
 use pinocchio::address::Address as Pubkey;
 use pinocchio::{
-    cpi::slice_invoke_signed,
-    instruction::{Instruction, Seed, Signer},
-    program_error::ProgramError,
+    cpi::invoke_signed_with_slice,
+    instruction::{cpi::{Seed, Signer}, InstructionView},
+    error::ProgramError,
 };
 
 use super::{account::CpiAccountsTrait, instruction::LightCpiInstruction};
@@ -22,31 +22,27 @@ pub trait InvokeLightSystemProgram {
     ) -> Result<(), ProgramError>;
 }
 
-// Blanket implementation for types that implement both LightInstructionData and LightCpiInstruction
 impl<T> InvokeLightSystemProgram for T
 where
     T: LightInstructionData + LightCpiInstruction,
 {
     #[cfg(any(feature = "std", feature = "alloc"))]
     fn invoke(self, accounts: impl CpiAccountsTrait) -> Result<(), ProgramError> {
-        // Validate mode consistency
         if accounts.get_mode() != self.get_mode() {
             return Err(ProgramError::from(LightSdkError::ModeMismatch));
         }
 
-        // Serialize instruction data with discriminator
         let data = self
             .data()
             .map_err(|e| ProgramError::from(LightSdkError::from(e)))?;
 
-        // Get account infos and metas
         let account_infos = accounts
             .to_account_infos_for_invoke()
             .map_err(ProgramError::from)?;
         let account_metas = accounts.to_account_metas().map_err(ProgramError::from)?;
-
-        let instruction = Instruction {
-            program_id: &Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
+        let program_id = Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID);
+        let instruction = InstructionView {
+            program_id: &program_id,
             accounts: &account_metas,
             data: &data,
         };
@@ -59,25 +55,22 @@ where
         accounts: impl CpiAccountsTrait,
     ) -> Result<(), ProgramError> {
         use light_compressed_account::CompressedAccountError;
-        // Validate mode consistency
         if accounts.get_mode() != self.get_mode() {
             return Err(ProgramError::InvalidArgument);
         }
 
-        // Serialize instruction data with discriminator using data_array
         let data = self.data_array::<N>().map_err(|e| match e {
             CompressedAccountError::InputTooLarge(_) => ProgramError::InvalidInstructionData,
             _ => ProgramError::InvalidArgument,
         })?;
 
-        // Get account infos and metas
         let account_infos = accounts
             .to_account_infos_for_invoke()
             .map_err(ProgramError::from)?;
         let account_metas = accounts.to_account_metas().map_err(ProgramError::from)?;
-
-        let instruction = Instruction {
-            program_id: &LIGHT_SYSTEM_PROGRAM_ID,
+        let program_id = Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID);
+        let instruction = InstructionView {
+            program_id: &program_id,
             accounts: &account_metas,
             data: data.as_slice(),
         };
@@ -86,15 +79,10 @@ where
     }
 }
 
-/// Low-level function to invoke the Light system program with a PDA signer.
-///
-/// **Note**: This is a low-level function. In most cases, you should use the
-/// [`InvokeLightSystemProgram`] trait methods instead, which provide a higher-level
-/// interface with better type safety and ergonomics.
 #[inline(always)]
 pub fn invoke_light_system_program(
     account_infos: &[&pinocchio::AccountView],
-    instruction: Instruction,
+    instruction: InstructionView,
     bump: u8,
 ) -> Result<(), ProgramError> {
     let bump_seed = [bump];
@@ -104,5 +92,5 @@ pub fn invoke_light_system_program(
     ];
     let signer = Signer::from(&seed_array);
 
-    slice_invoke_signed(&instruction, account_infos, &[signer])
+    invoke_signed_with_slice(&instruction, account_infos, &[signer])
 }

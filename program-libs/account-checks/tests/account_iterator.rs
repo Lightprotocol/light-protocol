@@ -948,7 +948,7 @@ fn get_nonsigner_readonly_account() -> pinocchio::AccountView {
     )
 }
 
-type AccountTestCase = (fn() -> AccountView, &'static str, Result<(), AccountError>);
+type AccountTestCase = (fn() -> AccountInfo, &'static str, Result<(), AccountError>);
 
 #[test]
 fn test_systematic_next_account_validation() {

@@ -386,7 +386,7 @@ impl AccountInfoTrait for pinocchio::AccountView {
         // This matches how solana-program's invoke works (lookup by pubkey, not position).
         // Pinocchio's invoke_signed_with_bounds zips account_infos with account_metas
         // and requires pubkeys to match at each position, so we must reorder.
-        let mut info_refs: Vec<&pinocchio::AccountView as AccountInfo> =
+        let mut info_refs: Vec<&pinocchio::AccountView> =
             Vec::with_capacity(account_metas.len());
         for meta in account_metas {
             let account_info = account_infos
