@@ -25,6 +25,7 @@ pub fn set_input_compressed_accounts<'a>(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     all_accounts: &[AccountInfo],
     mint_cache: &'a MintExtensionCache,
+    allow_permissionless_ata_decompress: bool,
 ) -> Result<[Option<u8>; MAX_COMPRESSIONS], ProgramError> {
     // compression_to_input[compression_index] = Some(input_index), None means unset
     let mut compression_to_input: [Option<u8>; MAX_COMPRESSIONS] = [None; MAX_COMPRESSIONS];
@@ -84,6 +85,7 @@ pub fn set_input_compressed_accounts<'a>(
             tlv_data,
             mint_cache,
             is_frozen,
+            allow_permissionless_ata_decompress,
         )?;
     }
 

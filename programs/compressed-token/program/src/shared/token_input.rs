@@ -37,6 +37,7 @@ pub fn set_input_compressed_account<'a>(
     tlv_data: Option<&'a [ZExtensionInstructionData<'a>]>,
     mint_cache: &MintExtensionCache,
     is_frozen: bool,
+    allow_permissionless_ata_decompress: bool,
 ) -> std::result::Result<(), ProgramError> {
     // Get owner from packed accounts using the owner index
     let owner_account = packed_accounts
@@ -81,7 +82,13 @@ pub fn set_input_compressed_account<'a>(
     // of the compressed account owner (which is the ATA pubkey that can't sign).
     // Also verify that owner_account (the ATA) matches the derived ATA from wallet_owner + mint + bump.
     let (signer_account, check_signer) = if let Some(exts) = tlv_data {
-        resolve_ata_signer(exts, packed_accounts, mint_account, owner_account)?
+        resolve_ata_signer(
+            exts,
+            packed_accounts,
+            mint_account,
+            owner_account,
+            allow_permissionless_ata_decompress,
+        )?
     } else {
         (owner_account, true)
     };
@@ -197,6 +204,7 @@ fn resolve_ata_signer<'a>(
     packed_accounts: &'a [AccountInfo],
     mint_account: &AccountInfo,
     owner_account: &'a AccountInfo,
+    allow_permissionless_ata_decompress: bool,
 ) -> Result<(&'a AccountInfo, bool), ProgramError> {
     for ext in exts.iter() {
         if let ZExtensionInstructionData::CompressedOnly(data) = ext {
@@ -232,8 +240,8 @@ fn resolve_ata_signer<'a>(
                 if !pinocchio::pubkey::pubkey_eq(owner_account.key(), &derived_ata) {
                     return Err(TokenError::InvalidAtaDerivation.into());
                 }
-                // Do not check signer the recipient token account is the correct ata.
-                return Ok((wallet_owner, false));
+                // Only the strict idempotent ATA decompress flow is permissionless.
+                return Ok((wallet_owner, !allow_permissionless_ata_decompress));
             }
         }
     }

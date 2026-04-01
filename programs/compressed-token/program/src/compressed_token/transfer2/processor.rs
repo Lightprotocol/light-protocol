@@ -1,5 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
+use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
 use light_array_map::ArrayMap;
 use light_compressed_account::instruction_data::with_readonly::{
     InstructionDataInvokeCpiWithReadOnly, ZInstructionDataInvokeCpiWithReadOnlyMut,
@@ -248,6 +249,7 @@ fn process_with_system_program_cpi<'a>(
 
     // Create HashCache to cache hashed pubkeys.
     let mut hash_cache = HashCache::new();
+    let is_idempotent_ata_decompress = is_idempotent_ata_decompress(inputs);
 
     // Process input compressed accounts and build compression-to-input lookup.
     let compression_to_input = set_input_compressed_accounts(
@@ -257,8 +259,8 @@ fn process_with_system_program_cpi<'a>(
         &validated_accounts.packed_accounts,
         accounts,
         mint_cache,
+        is_idempotent_ata_decompress,
     )?;
-    let is_idempotent_ata_decompress = is_idempotent_ata_decompress(inputs);
     #[allow(clippy::collapsible_if)]
     if is_idempotent_ata_decompress {
         if check_ata_decompress_idempotent(inputs, &cpi_instruction_struct, validated_accounts)? {
@@ -413,5 +415,9 @@ fn check_ata_decompress_idempotent(
         )
         .map_err(ProgramError::from)?;
 
-    Ok(tree.check_input_queue_non_inclusion(&account_hash).is_err())
+    match tree.check_input_queue_non_inclusion(&account_hash) {
+        Ok(()) => Ok(false),
+        Err(BatchedMerkleTreeError::NonInclusionCheckFailed) => Ok(true),
+        Err(e) => Err(ProgramError::from(e)),
+    }
 }
