@@ -1,5 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
+use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
 use light_array_map::ArrayMap;
 use light_compressed_account::instruction_data::with_readonly::{
     InstructionDataInvokeCpiWithReadOnly, ZInstructionDataInvokeCpiWithReadOnlyMut,
@@ -413,5 +414,9 @@ fn check_ata_decompress_idempotent(
         )
         .map_err(ProgramError::from)?;
 
-    Ok(tree.check_input_queue_non_inclusion(&account_hash).is_err())
+    match tree.check_input_queue_non_inclusion(&account_hash) {
+        Ok(()) => Ok(false),
+        Err(BatchedMerkleTreeError::NonInclusionCheckFailed) => Ok(true),
+        Err(e) => Err(ProgramError::from(e)),
+    }
 }
