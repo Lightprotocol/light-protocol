@@ -162,6 +162,21 @@ pub enum Transfer2InstructionType {
     CompressAndClose(CompressAndCloseInput),
 }
 
+fn set_owner_index_for_ata_tlvs(
+    tlvs: &mut [Vec<ExtensionInstructionData>],
+    wallet_owner_index: u8,
+) {
+    for tlv in tlvs.iter_mut() {
+        for ext in tlv.iter_mut() {
+            if let ExtensionInstructionData::CompressedOnly(data) = ext {
+                if data.is_ata {
+                    data.owner_index = wallet_owner_index;
+                }
+            }
+        }
+    }
+}
+
 // Note doesn't support multiple signers.
 pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
@@ -334,6 +349,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 token_accounts.push(token_account);
             }
             Transfer2InstructionType::Decompress(ref input) => {
+                let tlv_start = collected_in_tlv.len();
                 // Collect in_tlv data if provided
                 if let Some(ref tlv_data) = input.in_tlv {
                     has_any_tlv = true;
@@ -344,6 +360,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         collected_in_tlv.push(Vec::new());
                     }
                 }
+                let tlv_end = collected_in_tlv.len();
 
                 // Check if any input has is_ata=true in the TLV
                 let is_ata = input.in_tlv.as_ref().is_some_and(|tlv| {
@@ -370,15 +387,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     if let Ok(ctoken) = Token::deserialize(&mut &recipient_account.data[..]) {
                         let wallet_owner = Pubkey::from(ctoken.owner.to_bytes());
                         let wallet_owner_index = packed_tree_accounts.insert_or_get(wallet_owner);
-                        for tlv in collected_in_tlv.iter_mut() {
-                            for ext in tlv.iter_mut() {
-                                if let ExtensionInstructionData::CompressedOnly(data) = ext {
-                                    if data.is_ata {
-                                        data.owner_index = wallet_owner_index;
-                                    }
-                                }
-                            }
-                        }
+                        set_owner_index_for_ata_tlvs(
+                            &mut collected_in_tlv[tlv_start..tlv_end],
+                            wallet_owner_index,
+                        );
                     }
                 }
 
@@ -679,4 +691,66 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         },
     };
     create_transfer2_instruction(inputs)
+}
+
+#[cfg(test)]
+mod tests {
+    use light_token_interface::instructions::extensions::CompressedOnlyExtensionInstructionData;
+
+    use super::*;
+
+    fn compressed_only(is_ata: bool, owner_index: u8) -> ExtensionInstructionData {
+        ExtensionInstructionData::CompressedOnly(CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata,
+            bump: 0,
+            owner_index,
+        })
+    }
+
+    #[test]
+    fn set_owner_index_for_ata_tlvs_updates_only_selected_slice() {
+        let mut collected_in_tlv = vec![
+            vec![compressed_only(true, 1)],
+            vec![compressed_only(true, 2)],
+            vec![compressed_only(true, 3)],
+            vec![compressed_only(true, 4)],
+        ];
+
+        set_owner_index_for_ata_tlvs(&mut collected_in_tlv[2..4], 9);
+
+        assert_eq!(
+            collected_in_tlv[0],
+            vec![compressed_only(true, 1)],
+            "entries before slice must remain unchanged"
+        );
+        assert_eq!(
+            collected_in_tlv[1],
+            vec![compressed_only(true, 2)],
+            "entries before slice must remain unchanged"
+        );
+        assert_eq!(
+            collected_in_tlv[2],
+            vec![compressed_only(true, 9)],
+            "entries inside slice must be updated"
+        );
+        assert_eq!(
+            collected_in_tlv[3],
+            vec![compressed_only(true, 9)],
+            "entries inside slice must be updated"
+        );
+    }
+
+    #[test]
+    fn set_owner_index_for_ata_tlvs_does_not_touch_non_ata() {
+        let mut tlvs = vec![vec![compressed_only(false, 7), compressed_only(true, 8)]];
+
+        set_owner_index_for_ata_tlvs(&mut tlvs, 11);
+
+        assert_eq!(tlvs[0][0], compressed_only(false, 7));
+        assert_eq!(tlvs[0][1], compressed_only(true, 11));
+    }
 }
