@@ -26,9 +26,11 @@
    - SPL tokens when compressed are backed by tokens stored in ctoken pool PDAs
 
 3. Compression modes:
-   - `Compress`: Move tokens from Solana account (ctoken or SPL) to compressed state
-   - `Decompress`: Move tokens from compressed state to Solana account (ctoken or SPL)
-   - `CompressAndClose`: Compress full ctoken balance and close the account (authority: compression_authority only, requires compressible extension, **ctoken accounts only - NOT supported for SPL tokens**)
+   - `Compress` (0): Move tokens from Solana account (ctoken or SPL) to compressed state
+   - `Decompress` (1): Move tokens from compressed state to Solana account (ctoken or SPL)
+   - `CompressAndClose` (2): Compress full ctoken balance and close the account (authority: compression_authority only, requires compressible extension, **ctoken accounts only - NOT supported for SPL tokens**)
+
+   **Permissionless ATA decompress:** When the input has CompressedOnly extension with `is_ata=true`, Decompress skips the owner/delegate signer check (permissionless). This is safe because the destination is a deterministic PDA (ATA derivation is still validated). ATA decompress is restricted to exactly 1 input and 1 decompress compression per instruction (error: `AtaDecompressRequiresSingleInput` if violated). It also includes a bloom filter idempotency check -- if the compressed account is already spent, the transaction returns Ok as a no-op.
 
 4. Global sum check enforces transaction balance:
    - Input sum = compressed inputs + compress operations (tokens entering compressed state)
@@ -59,7 +61,7 @@
    - `out_tlv`: Optional TLV data for output accounts (used for CompressedOnly extension during CompressAndClose)
 
 2. Compression struct fields (path: program-libs/token-interface/src/instructions/transfer2/compression.rs):
-   - `mode`: CompressionMode enum (Compress, Decompress, CompressAndClose)
+   - `mode`: CompressionMode enum (Compress=0, Decompress=1, CompressAndClose=2)
    - `amount`: u64 - Amount to compress/decompress
    - `mint`: u8 - Index of mint account in packed accounts
    - `source_or_recipient`: u8 - Index of source (compress) or recipient (decompress) account
@@ -310,11 +312,14 @@ When compression processing occurs (in both Path A and Path B):
    - **For Decompress:**
      - Adds decompression amount to the recipient ctoken account balance (with overflow protection)
      - **Extension state transfer (with CompressedOnly in input TLV):**
-       - Validates destination CToken is fresh (zero amount, no delegate, no close_authority)
+       - **Amount validation:** Compression amount must equal the input compressed account amount (error: `DecompressAmountMismatch`)
+       - **Destination validation (src/transfer2/compression/ctoken/decompress.rs: `validate_destination`):**
+         - Non-ATA: CToken owner must match the input owner (wallet pubkey) (error: `DecompressDestinationMismatch`)
+         - ATA: destination account address must equal the input owner (ATA pubkey), AND CToken owner must equal the wallet owner from `owner_index` (error: `DecompressDestinationMismatch`)
+       - Validates destination CToken is fresh (zero amount, no delegate, no close_authority) (error: `DecompressDestinationNotFresh`)
        - Transfers delegate and delegated_amount from CompressedOnly extension to CToken
-       - Transfers withheld_transfer_fee to CToken's TransferFeeAccount extension
+       - Transfers withheld_transfer_fee to CToken's TransferFeeAccount extension (error: `DecompressWithheldFeeWithoutExtension` if fee > 0 but no TransferFeeAccount extension on CToken)
        - Restores frozen state (sets CToken.state = 2 if extension.is_frozen)
-       - Error: `DecompressDestinationNotFresh` if destination has non-zero state
      - **CompressedOnly inputs must decompress to CToken, not SPL token accounts:**
        - Error: `CompressedOnlyRequiresCTokenDecompress` if decompressing to SPL token account
    - **For CompressAndClose:**
@@ -385,6 +390,11 @@ When compression processing occurs (in both Path A and Path B):
 - `CTokenError::CompressedOnlyBlocksTransfer` (error code: 18048) - CompressedOnly inputs cannot have compressed outputs (must decompress only)
 - `CTokenError::OutTlvOutputCountMismatch` (error code: 18049) - out_tlv length does not match out_token_data length
 - `CTokenError::DecompressDestinationNotFresh` (error code: 18055) - Decompress destination CToken has non-zero state (amount, delegate, etc)
+- `TokenError::DecompressDestinationMismatch` (error code: 18057) - Decompress destination owner/address mismatch (non-ATA: CToken owner != input owner; ATA: destination address != ATA pubkey or CToken owner != wallet owner)
+- `TokenError::DecompressWithheldFeeWithoutExtension` (error code: 18060) - Withheld transfer fee > 0 but destination CToken has no TransferFeeAccount extension
+- `TokenError::DecompressAmountMismatch` (error code: 18064) - Compression amount does not match input compressed account amount
+- `TokenError::InvalidAtaDerivation` (error code: 18066) - ATA derivation failed (wrong bump or wallet/mint mismatch)
+- `TokenError::AtaDecompressRequiresSingleInput` (error code: 18067) - ATA decompress (is_ata=true) requires exactly 1 input and 1 decompress compression per instruction
 - `CTokenError::InvalidInstructionData` (error code: 18001) - Compressions not allowed when writing to CPI context
 - `CTokenError::InvalidCompressionMode` (error code: 18018) - Invalid compression mode value
 - `CTokenError::CompressInsufficientFunds` (error code: 18019) - Insufficient balance for compression

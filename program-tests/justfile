@@ -19,7 +19,7 @@ test-registry:
     RUST_MIN_STACK=16777216 RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test
 
 # System program tests
-test-system: test-system-address test-system-compression test-system-re-init
+test-system: test-system-address test-system-compression test-system-re-init test-system-v2-failing
 
 test-system-address:
     RUSTFLAGS="-D warnings" cargo test-sbf -p system-test -- test_with_address
@@ -29,6 +29,9 @@ test-system-compression:
 
 test-system-re-init:
     RUSTFLAGS="-D warnings" cargo test-sbf -p system-test --test test_re_init_cpi_account
+
+test-system-v2-failing:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-test --test v2_failing_tests
 
 # System CPI tests (v1)
 test-system-cpi:
@@ -52,7 +55,7 @@ test-system-cpi-v2-functional-account-infos:
     RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-v2-test -- functional_account_infos
 
 # Compressed token tests
-test-compressed-token: test-compressed-token-unit test-compressed-token-v1 test-compressed-token-mint test-compressed-token-light-token test-compressed-token-transfer2 test-compressed-token-token-pool
+test-compressed-token: test-compressed-token-unit test-compressed-token-v1 test-compressed-token-mint test-compressed-token-light-token test-compressed-token-transfer2 test-compressed-token-token-pool test-compressed-token-compress-only test-compressed-token-freeze
 
 test-compressed-token-unit:
     RUSTFLAGS="-D warnings" cargo test -p light-compressed-token
@@ -71,6 +74,12 @@ test-compressed-token-transfer2:
 
 test-compressed-token-token-pool:
     RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test token_pool
+
+test-compressed-token-compress-only:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test compress_only
+
+test-compressed-token-freeze:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test freeze
 
 # Compressed token batched tree test (flaky, may need retries)
 test-compressed-token-batched-tree:
@@ -99,13 +108,13 @@ build-compressed-token-small:
 ci-account-compression-and-registry: test-account-compression test-registry
 
 # Matches CI: light-system-program-address
-ci-system-address: test-system-address test-e2e test-e2e-extended test-compressed-token-light-token
+ci-system-address: test-system-address test-system-v2-failing test-e2e test-e2e-extended test-compressed-token-light-token
 
 # Matches CI: light-system-program-compression
 ci-system-compression: test-system-compression test-system-re-init
 
 # Matches CI: compressed-token-and-e2e
-ci-compressed-token-and-e2e: test-compressed-token-unit test-compressed-token-v1 test-compressed-token-mint test-compressed-token-token-pool
+ci-compressed-token-and-e2e: test-compressed-token-unit test-compressed-token-v1 test-compressed-token-mint test-compressed-token-token-pool test-compressed-token-compress-only test-compressed-token-freeze
 
 # Matches CI: compressed-token-batched-tree (with retry for flaky test)
 ci-compressed-token-batched-tree:
