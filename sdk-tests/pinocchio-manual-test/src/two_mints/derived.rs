@@ -21,9 +21,9 @@ impl LightPreInit<AccountInfo, CreateDerivedMintsParams> for CreateDerivedMintsA
         remaining_accounts: &[AccountInfo],
         params: &CreateDerivedMintsParams,
     ) -> std::result::Result<bool, LightSdkTypesError> {
-        let authority = *self.authority.address();
-        let mint_signer_0 = *self.mint_signer_0.address();
-        let mint_signer_1 = *self.mint_signer_1.address();
+        let authority = self.authority.address().to_bytes();
+        let mint_signer_0 = self.mint_signer_0.address().to_bytes();
+        let mint_signer_1 = self.mint_signer_1.address().to_bytes();
 
         let mint_signer_0_seeds: &[&[u8]] = &[
             MINT_SIGNER_0_SEED,
@@ -62,8 +62,11 @@ impl LightPreInit<AccountInfo, CreateDerivedMintsParams> for CreateDerivedMintsA
                         token_metadata: None,
                     },
                 ],
-                mint_seed_accounts: [self.mint_signers_slice[0], self.mint_signers_slice[1]],
-                mint_accounts: [self.mints_slice[0], self.mints_slice[1]],
+                mint_seed_accounts: [
+                    self.mint_signers_slice[0].clone(),
+                    self.mint_signers_slice[1].clone(),
+                ],
+                mint_accounts: [self.mints_slice[0].clone(), self.mints_slice[1].clone()],
             }),
             [],
             [],

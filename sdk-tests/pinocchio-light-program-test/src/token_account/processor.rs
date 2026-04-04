@@ -8,14 +8,14 @@ pub fn process(
     params: &CreateTokenVaultParams,
     _remaining_accounts: &[AccountInfo],
 ) -> Result<(), LightSdkTypesError> {
-    let mint_key = *ctx.mint.address();
+    let mint_key = ctx.mint.address().to_bytes();
     let vault_seeds: &[&[u8]] = &[crate::VAULT_SEED, mint_key.as_ref(), &[params.vault_bump]];
 
     CreateTokenAccountCpi {
         payer: ctx.payer,
         account: ctx.token_vault,
         mint: ctx.mint,
-        owner: *ctx.vault_owner.address(),
+        owner: ctx.vault_owner.address().to_bytes(),
     }
     .rent_free(
         ctx.compressible_config,

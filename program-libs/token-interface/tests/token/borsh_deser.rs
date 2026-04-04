@@ -4,7 +4,7 @@
 //! but does not equal ACCOUNT_TYPE_TOKEN_ACCOUNT (2), deserialization returns an error
 //! instead of silently accepting the wrong type.
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_compressed_account::Pubkey;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_token_interface::state::{

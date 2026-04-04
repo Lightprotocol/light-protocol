@@ -1,4 +1,3 @@
-use borsh::BorshSerialize;
 use light_compressed_account::{
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_REGISTRY_PROGRAM_ID, REGISTERED_PROGRAM_PDA,

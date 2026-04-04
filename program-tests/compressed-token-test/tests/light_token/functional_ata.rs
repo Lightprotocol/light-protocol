@@ -276,7 +276,8 @@ async fn test_create_ata_with_prefunded_lamports() {
 
     // Pre-fund the ATA address with lamports (simulating attacker donation DoS attempt)
     let prefund_amount = 1_000; // 1000 lamports
-    let transfer_ix = solana_sdk::system_instruction::transfer(&payer_pubkey, &ata, prefund_amount);
+    let transfer_ix =
+        solana_system_interface::instruction::transfer(&payer_pubkey, &ata, prefund_amount);
 
     context
         .rpc
@@ -363,7 +364,7 @@ async fn test_create_token_account_with_prefunded_lamports() {
 
     // Pre-fund the token account address with lamports (simulating attacker donation DoS attempt)
     let prefund_amount = 1_000; // 1000 lamports
-    let transfer_ix = solana_sdk::system_instruction::transfer(
+    let transfer_ix = solana_system_interface::instruction::transfer(
         &payer_pubkey,
         &token_account_pubkey,
         prefund_amount,

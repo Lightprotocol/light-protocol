@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::borsh::BorshSerialize, AnchorDeserialize};
+use anchor_lang::AnchorDeserialize;
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,

@@ -3,10 +3,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::CreateAccountsProof;
 use pinocchio::{
-    AccountView as AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
+    cpi::{Seed, Signer},
+    error::ProgramError,
     sysvars::Sysvar,
+    AccountView as AccountInfo, Address,
 };
 
 use super::state::ZeroCopyRecord;
@@ -48,14 +48,16 @@ impl<'a> CreateZeroCopy<'a> {
         let space = 8 + ZeroCopyRecord::INIT_SPACE;
         let name_bytes = params.name.as_bytes();
         let seeds: &[&[u8]] = &[b"zero_copy", &params.owner, name_bytes];
-        let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+        let (expected_pda, bump) = Address::find_program_address(seeds, &Address::from(crate::ID));
         if record.address() != &expected_pda {
             return Err(ProgramError::InvalidSeeds);
         }
 
         let rent =
             pinocchio::sysvars::rent::Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
-        let lamports = rent.minimum_balance(space);
+        let lamports = rent
+            .try_minimum_balance(space)
+            .map_err(|_| ProgramError::ArithmeticOverflow)?;
 
         let bump_bytes = [bump];
         let seed_array = [
@@ -70,7 +72,7 @@ impl<'a> CreateZeroCopy<'a> {
             to: record,
             lamports,
             space: space as u64,
-            owner: &crate::ID,
+            owner: &Address::from(crate::ID),
         }
         .invoke_signed(&[signer])?;
 

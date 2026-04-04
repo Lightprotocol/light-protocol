@@ -12,10 +12,10 @@ use light_token_interface::{
 };
 use pinocchio::{
     address::Address,
-    AccountView as AccountInfo,
     cpi::{invoke_signed_with_slice, Signer},
-    instruction::{InstructionAccount, InstructionView},
     error::ProgramError,
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 use super::compressible::CompressibleParamsCpi;

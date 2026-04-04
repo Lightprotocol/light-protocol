@@ -2,7 +2,7 @@
 
 mod shared;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;

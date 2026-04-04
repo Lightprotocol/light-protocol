@@ -396,7 +396,6 @@ pub mod test_freeze {
                 &mut merkle_tree_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &nullifier_queue_pubkey,
@@ -406,7 +405,6 @@ pub mod test_freeze {
                 &mut nullifier_queue_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &delegate,
@@ -416,7 +414,6 @@ pub mod test_freeze {
                 &mut delegate_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &merkle_tree_pubkey_1,
@@ -426,7 +423,6 @@ pub mod test_freeze {
                 &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
-                0,
             ),
         ];
         let owner = Pubkey::new_unique();

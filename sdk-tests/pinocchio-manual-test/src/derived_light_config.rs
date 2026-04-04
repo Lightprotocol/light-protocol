@@ -3,7 +3,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{process_initialize_light_config, process_update_light_config};
 use light_compressible::rent::RentConfig;
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 /// Params order matches SDK's InitializeCompressionConfigAnchorData.
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
@@ -57,7 +57,7 @@ pub fn process_update_config(accounts: &[AccountInfo], data: &[u8]) -> Result<()
     let authority = &accounts[0];
     let config = &accounts[1];
 
-    let remaining = [*config, *authority];
+    let remaining = [config.clone(), authority.clone()];
     process_update_light_config(&remaining, data, &crate::ID)
         .map_err(|e| ProgramError::Custom(u32::from(e)))
 }

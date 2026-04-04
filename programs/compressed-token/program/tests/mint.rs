@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_compressed_account::{
     address::derive_address, instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly,
     Pubkey,

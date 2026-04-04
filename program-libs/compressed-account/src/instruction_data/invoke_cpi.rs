@@ -36,11 +36,6 @@ pub struct InstructionDataInvokeCpi {
 impl LightInstructionData for InstructionDataInvokeCpi {
     #[cfg(feature = "alloc")]
     fn data(&self) -> Result<Vec<u8>, crate::CompressedAccountError> {
-        #[cfg(feature = "anchor")]
-        use anchor_lang::AnchorSerialize as BorshSerialize;
-        #[cfg(not(feature = "anchor"))]
-        use borsh::BorshSerialize;
-
         let inputs =
             borsh::to_vec(&self).map_err(|_| crate::CompressedAccountError::InvalidArgument)?;
         let mut data = Vec::with_capacity(12 + inputs.len());

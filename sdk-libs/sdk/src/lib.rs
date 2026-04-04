@@ -212,7 +212,7 @@ pub use light_sdk_macros::{
 };
 pub use light_sdk_types::{constants, instruction::PackedAddressTreeInfoExt, CpiSigner};
 use solana_account_info::AccountInfo;
-use solana_instruction::InstructionAccount;
+use solana_instruction::AccountMeta;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 

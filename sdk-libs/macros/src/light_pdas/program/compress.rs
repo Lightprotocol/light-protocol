@@ -303,7 +303,7 @@ impl CompressBuilder {
                 fn to_account_metas(
                     &self,
                     _is_signer: Option<bool>,
-                ) -> Vec<anchor_lang::solana_program::instruction::InstructionAccount> {
+                ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     Vec::new()
                 }
             }
@@ -350,7 +350,7 @@ impl CompressBuilder {
                     fn to_account_metas(
                         &self,
                         _is_signer: Option<bool>,
-                    ) -> Vec<anchor_lang::solana_program::instruction::InstructionAccount> {
+                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                         Vec::new()
                     }
                 }
@@ -365,7 +365,7 @@ impl CompressBuilder {
                     fn to_account_metas(
                         &self,
                         _is_signer: Option<bool>,
-                    ) -> Vec<anchor_lang::solana_program::instruction::InstructionAccount> {
+                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                         Vec::new()
                     }
                 }
@@ -408,6 +408,7 @@ impl CompressBuilder {
                         ctx: &mut #account_crate::CompressCtx<'_>,
                     ) -> std::result::Result<(), #sdk_error> {
                         use borsh::BorshDeserialize;
+                        use #account_crate::AccountInfoTrait;
                         let data = account_info.try_borrow_data()#borrow_error;
                         #(#compress_arms)*
                         Ok(())
@@ -454,7 +455,7 @@ impl CompressBuilder {
             Ok(quote! {
                 impl #enum_name {
                     pub fn process_compress(
-                        accounts: &[pinocchio::AccountView as AccountInfo],
+                        accounts: &[pinocchio::AccountView],
                         instruction_data: &[u8],
                     ) -> std::result::Result<(), #program_error> {
                         use borsh::BorshDeserialize;

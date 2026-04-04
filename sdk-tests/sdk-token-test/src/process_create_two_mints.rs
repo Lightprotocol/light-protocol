@@ -46,7 +46,7 @@ impl CreateMintsParams {
 }
 
 /// Anchor instruction wrapper for create_mints.
-pub fn process_create_mints<'a, 'info>(
+pub fn process_create_mints<'info>(
     ctx: Context<'info, crate::Generic<'info>>,
     params: CreateMintsParams,
 ) -> Result<()> {

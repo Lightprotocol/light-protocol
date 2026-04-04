@@ -101,7 +101,7 @@ pub mod counter {
     use super::*;
 
     pub fn create_compressed_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateCompressedAccount<'info>>,
+        ctx: Context<'info, CreateCompressedAccount<'info>>,
         proof: ValidityProof,
         address_tree_info: PackedAddressTreeInfo,
         output_tree_index: u8,

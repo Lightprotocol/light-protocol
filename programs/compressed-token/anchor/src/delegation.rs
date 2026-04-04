@@ -472,7 +472,6 @@ mod test {
                 &mut merkle_tree_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &nullifier_queue_pubkey,
@@ -482,7 +481,6 @@ mod test {
                 &mut nullifier_queue_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &merkle_tree_pubkey_1,
@@ -492,7 +490,6 @@ mod test {
                 &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
-                0,
             ),
         ];
         let authority = Pubkey::new_unique();
@@ -589,7 +586,6 @@ mod test {
                 &mut merkle_tree_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &nullifier_queue_pubkey,
@@ -599,7 +595,6 @@ mod test {
                 &mut nullifier_queue_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &merkle_tree_pubkey_1,
@@ -609,7 +604,6 @@ mod test {
                 &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
-                0,
             ),
         ];
         let authority = Pubkey::new_unique();

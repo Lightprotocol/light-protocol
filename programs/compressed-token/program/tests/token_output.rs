@@ -1,5 +1,5 @@
 use anchor_compressed_token::TokenData as AnchorTokenData;
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountData},
     instruction_data::{
@@ -129,7 +129,7 @@ fn test_rnd_create_output_compressed_accounts() {
                     },
                 );
                 tlv_instruction_data_vecs.push(vec![ext.clone()]);
-                tlv_bytes_vecs.push(vec![ext].try_to_vec().unwrap());
+                tlv_bytes_vecs.push(borsh::to_vec(&vec![ext]).unwrap());
             } else {
                 tlv_instruction_data_vecs.push(vec![]);
                 // Empty vec needs explicit type annotation and borsh serialization

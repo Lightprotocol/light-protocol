@@ -1,10 +1,10 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_program_profiler::profile;
 use pinocchio::{
-    AccountView as AccountInfo,
-    instruction::{Seed, Signer},
-    pubkey::Pubkey,
+    address::Address,
+    cpi::{Seed, Signer},
     sysvars::{rent::Rent, Sysvar},
+    AccountView as AccountInfo,
 };
 use pinocchio_system::instructions::{Assign, CreateAccount, Transfer};
 
@@ -34,7 +34,10 @@ pub fn create_pda_account(
 ) -> Result<(), ProgramError> {
     // Calculate rent
     let rent = Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
-    let lamports = rent.minimum_balance(account_size) + additional_lamports.unwrap_or_default();
+    let lamports = rent
+        .try_minimum_balance(account_size)
+        .map_err(|_| ProgramError::ArithmeticOverflow)?
+        + additional_lamports.unwrap_or_default();
 
     // Build signers from seeds
     let fee_payer_signer: Option<Signer> = fee_payer_seeds.map(Signer::from);
@@ -45,15 +48,16 @@ pub fn create_pda_account(
     if new_account.lamports() > 0 {
         // Verify account is owned by system program (uninitialized).
         // Prevents overwriting an already-initialized account.
-        if !new_account.owned_by(&[0u8; 32]) {
+        if !new_account.owned_by(&Address::from([0u8; 32])) {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
         let current_lamports = new_account.lamports();
 
+        let owner_addr = Address::from(LIGHT_CPI_SIGNER.program_id);
         Assign {
             account: new_account,
-            owner: &LIGHT_CPI_SIGNER.program_id,
+            owner: &owner_addr,
         }
         .invoke_signed(new_account_signer.as_slice())
         .map_err(convert_program_error)?;
@@ -85,12 +89,13 @@ pub fn create_pda_account(
         signers.push(s);
     }
 
+    let owner_addr = Address::from(LIGHT_CPI_SIGNER.program_id);
     CreateAccount {
         from: fee_payer,
         to: new_account,
         lamports,
         space: account_size as u64,
-        owner: &LIGHT_CPI_SIGNER.program_id,
+        owner: &owner_addr,
     }
     .invoke_signed(signers.as_slice())
     .map_err(convert_program_error)
@@ -102,12 +107,12 @@ pub fn create_pda_account(
 pub fn verify_pda<const N: usize>(
     account_key: &[u8; 32],
     seeds: &[&[u8]; N],
-    program_id: &Pubkey,
+    program_id: &[u8; 32],
 ) -> Result<u8, ProgramError> {
-    let (expected_pubkey, bump) =
-        pinocchio::address::find_program_address(seeds.as_slice(), program_id);
+    let program_addr = Address::from(*program_id);
+    let (expected_pubkey, bump) = Address::find_program_address(seeds.as_slice(), &program_addr);
 
-    if account_key != &expected_pubkey {
+    if *account_key != expected_pubkey.to_bytes() {
         return Err(ProgramError::InvalidAccountData);
     }
 

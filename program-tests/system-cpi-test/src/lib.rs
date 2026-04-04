@@ -1,4 +1,5 @@
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::diverging_sub_expression)]
 #![allow(deprecated)]
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
@@ -212,14 +213,14 @@ pub mod system_cpi_test {
         )
     }
 
-    pub fn cpi_context_indexing<'a, 'b, 'c, 'info>(
+    pub fn cpi_context_indexing<'info>(
         ctx: Context<'info, GenericAnchorAccounts<'info>>,
         mode: u8,
     ) -> Result<()> {
         process_cpi_context_indexing(ctx, mode)
     }
 
-    pub fn cpi_context_indexing_inputs<'a, 'b, 'c, 'info>(
+    pub fn cpi_context_indexing_inputs<'info>(
         ctx: Context<'info, GenericAnchorAccounts<'info>>,
         mode: u8,
         leaf_indices: [u8; 3],

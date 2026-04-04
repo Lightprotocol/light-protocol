@@ -67,7 +67,7 @@ impl LightAccount for MinimalRecord {
         // key() returns [u8; 32] directly - no Pubkey::from() needed
         Ok(MinimalRecord {
             compression_info: CompressionInfo::compressed(),
-            owner: owner_account.address(),
+            owner: owner_account.key(),
         })
     }
 }

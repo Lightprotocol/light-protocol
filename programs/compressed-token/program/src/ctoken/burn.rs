@@ -1,14 +1,11 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
-use pinocchio::{AccountView as AccountInfo, error::ProgramError as PinocchioProgramError};
-use solana_msg::msg;
+use pinocchio::AccountView as AccountInfo;
 use pinocchio_token_program::processor::{burn::process_burn, burn_checked::process_burn_checked};
 
 use crate::shared::{
     compressible_top_up::calculate_and_execute_compressible_top_ups, convert_pinocchio_token_error,
 };
-
-pub(crate) type ProcessorFn = fn(&[AccountInfo], &[u8]) -> Result<(), PinocchioProgramError>;
 
 /// Base instruction data length constants
 pub(crate) const BASE_LEN_UNCHECKED: usize = 8;
@@ -21,6 +18,15 @@ const PAYER_IDX: usize = 2;
 #[allow(dead_code)]
 const SYSTEM_PROGRAM_IDX: usize = 3;
 const FEE_PAYER_IDX: usize = 4;
+
+/// Convert a pinocchio 0.9 ProgramError (from pinocchio-token-program) to
+/// an anchor ProgramError. Both pinocchio 0.9 and 0.10 ProgramError use
+/// the same u64 representation, so we convert via u64 roundtrip.
+#[inline(always)]
+pub(crate) fn convert_v9_result(result: Result<(), impl Into<u64>>) -> Result<(), ProgramError> {
+    result
+        .map_err(|e| convert_pinocchio_token_error(pinocchio::error::ProgramError::from(e.into())))
+}
 
 /// Process ctoken burn instruction
 ///
@@ -43,7 +49,7 @@ pub fn process_ctoken_burn(
     process_ctoken_supply_change_inner::<BASE_LEN_UNCHECKED, BURN_CMINT_IDX, BURN_CTOKEN_IDX>(
         accounts,
         instruction_data,
-        process_burn,
+        |a, d| convert_v9_result(process_burn(unsafe { core::mem::transmute(a) }, d)),
     )
 }
 
@@ -68,7 +74,7 @@ pub fn process_ctoken_burn_checked(
     process_ctoken_supply_change_inner::<BASE_LEN_CHECKED, BURN_CMINT_IDX, BURN_CTOKEN_IDX>(
         accounts,
         instruction_data,
-        process_burn_checked,
+        |a, d| convert_v9_result(process_burn_checked(unsafe { core::mem::transmute(a) }, d)),
     )
 }
 
@@ -82,7 +88,7 @@ pub fn process_ctoken_burn_checked(
 /// # Arguments
 /// * `accounts` - Account layout: [cmint/ctoken, ctoken/cmint, authority]
 /// * `instruction_data` - Serialized instruction data
-/// * `processor` - Pinocchio processor function
+/// * `processor` - Wrapper function that calls the pinocchio token processor
 #[inline(always)]
 pub(crate) fn process_ctoken_supply_change_inner<
     const BASE_LEN: usize,
@@ -91,7 +97,7 @@ pub(crate) fn process_ctoken_supply_change_inner<
 >(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
-    processor: ProcessorFn,
+    processor: impl FnOnce(&[AccountInfo], &[u8]) -> Result<(), ProgramError>,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 3 {
         msg!(
@@ -116,7 +122,7 @@ pub(crate) fn process_ctoken_supply_change_inner<
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    processor(accounts, &instruction_data[..BASE_LEN]).map_err(convert_pinocchio_token_error)?;
+    processor(accounts, &instruction_data[..BASE_LEN])?;
 
     // Calculate and execute top-ups for both CMint and CToken
     // SAFETY: accounts.len() >= 3 validated at function entry

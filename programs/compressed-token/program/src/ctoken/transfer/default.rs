@@ -6,7 +6,7 @@ use pinocchio_token_program::processor::transfer::process_transfer;
 use super::shared::{
     process_transfer_extensions_transfer, validate_self_transfer, TransferAccounts,
 };
-use crate::shared::convert_pinocchio_token_error;
+use crate::ctoken::burn::convert_v9_result;
 
 /// Account indices for CToken transfer instruction
 const ACCOUNT_SOURCE: usize = 0;
@@ -58,8 +58,12 @@ pub fn process_ctoken_transfer(
     // Hot path: 165-byte accounts have no extensions, skip all extension processing
     if source.data_len() == 165 && destination.data_len() == 165 {
         // Slice to exactly 3 accounts: [source, destination, authority]
-        return process_transfer(&accounts[..3], &instruction_data[..8], false)
-            .map_err(convert_pinocchio_token_error);
+        // SAFETY: pinocchio 0.9 AccountInfo and 0.10 AccountView have the same memory layout.
+        return convert_v9_result(process_transfer(
+            unsafe { core::mem::transmute(&accounts[..3]) },
+            &instruction_data[..8],
+            false,
+        ));
     }
 
     // Parse max_top_up based on instruction data length
@@ -78,8 +82,12 @@ pub fn process_ctoken_transfer(
 
     // Only pass the first 8 bytes (amount) to the SPL transfer processor
     // Slice to exactly 3 accounts: [source, destination, authority]
-    process_transfer(&accounts[..3], &instruction_data[..8], signer_is_validated)
-        .map_err(convert_pinocchio_token_error)
+    // SAFETY: pinocchio 0.9 AccountInfo and 0.10 AccountView have the same memory layout.
+    convert_v9_result(process_transfer(
+        unsafe { core::mem::transmute(&accounts[..3]) },
+        &instruction_data[..8],
+        signer_is_validated,
+    ))
 }
 
 fn process_extensions(accounts: &[AccountInfo], max_top_up: u16) -> Result<bool, ProgramError> {

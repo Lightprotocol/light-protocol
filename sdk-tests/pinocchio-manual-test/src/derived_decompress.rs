@@ -5,9 +5,9 @@
 
 use light_account_pinocchio::process_decompress_pda_accounts_idempotent;
 use pinocchio::{
-    AccountView as AccountInfo,
     error::ProgramError,
     sysvars::{clock::Clock, Sysvar},
+    AccountView as AccountInfo,
 };
 
 use crate::derived_variants::PackedLightAccountVariant;

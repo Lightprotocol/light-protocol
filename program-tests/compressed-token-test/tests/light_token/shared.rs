@@ -809,7 +809,7 @@ pub async fn approve_spl_compat_and_assert(
     name: &str,
 ) {
     use anchor_spl::token_2022::spl_token_2022;
-    use solana_sdk::instruction::InstructionAccount;
+    use solana_sdk::instruction::AccountMeta;
     println!("SPL compat approve initiated for: {}", name);
 
     // Build SPL approve instruction and change program_id
@@ -855,7 +855,7 @@ pub async fn approve_spl_compat_and_assert(
 /// Note: Light Token requires system_program account for compressible top-up, so we add it here.
 pub async fn revoke_spl_compat_and_assert(context: &mut AccountTestContext, name: &str) {
     use anchor_spl::token_2022::spl_token_2022;
-    use solana_sdk::instruction::InstructionAccount;
+    use solana_sdk::instruction::AccountMeta;
     println!("SPL compat revoke initiated for: {}", name);
 
     // Build SPL revoke instruction and change program_id
@@ -1063,7 +1063,7 @@ pub async fn setup_account_test_with_spl_mint(
         .get_minimum_balance_for_rent_exemption(Mint::LEN)
         .await?;
 
-    let create_mint_account_ix = solana_sdk::system_instruction::create_account(
+    let create_mint_account_ix = solana_system_interface::instruction::create_account(
         &payer.pubkey(),
         &mint_pubkey,
         mint_rent,

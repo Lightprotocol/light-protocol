@@ -25,9 +25,7 @@ use light_compressed_account::instruction_data::{
 };
 use light_macros::pubkey_array;
 use light_zero_copy::traits::ZeroCopyAt;
-use pinocchio::{
-    AccountView as AccountInfo, error::ProgramError, address::Address, ProgramResult,
-};
+use pinocchio::{address::Address, error::ProgramError, AccountView as AccountInfo, ProgramResult};
 use solana_msg::msg;
 
 #[cfg(feature = "reinit")]

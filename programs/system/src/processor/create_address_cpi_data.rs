@@ -5,7 +5,7 @@ use light_compressed_account::{
     },
 };
 use light_program_profiler::profile;
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount, context::SystemContext,
@@ -33,11 +33,13 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                     new_address_params.address_queue_index(),
                     remaining_accounts,
                     "V1 address queue",
+                    true, // is_writable: queue accounts store state
                 )?;
                 cpi_ix_data.addresses[i].tree_index = context.get_index_or_insert(
                     new_address_params.address_merkle_tree_account_index(),
                     remaining_accounts,
                     "V1 address tree",
+                    true, // is_writable: tree accounts store state
                 )?;
 
                 let network_fee = context
@@ -70,6 +72,7 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                     new_address_params.address_merkle_tree_account_index(),
                     remaining_accounts,
                     "V2 address tree",
+                    true, // is_writable: tree accounts store state
                 )?;
                 cpi_ix_data.addresses[i].tree_index = tree_index;
                 cpi_ix_data.addresses[i].queue_index = tree_index;

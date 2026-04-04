@@ -161,8 +161,11 @@ impl AccountInfoTrait for pinocchio::AccountView {
         {
             use pinocchio::sysvars::Sysvar;
             pinocchio::sysvars::rent::Rent::get()
-                .map(|rent| rent.minimum_balance(_size))
                 .map_err(|_| AccountError::FailedBorrowRentSysvar)
+                .and_then(|rent| {
+                    rent.try_minimum_balance(_size)
+                        .map_err(|_| AccountError::FailedBorrowRentSysvar)
+                })
         }
         #[cfg(all(not(target_os = "solana"), feature = "solana"))]
         {
@@ -386,8 +389,7 @@ impl AccountInfoTrait for pinocchio::AccountView {
         // This matches how solana-program's invoke works (lookup by pubkey, not position).
         // Pinocchio's invoke_signed_with_bounds zips account_infos with account_metas
         // and requires pubkeys to match at each position, so we must reorder.
-        let mut info_refs: Vec<&pinocchio::AccountView> =
-            Vec::with_capacity(account_metas.len());
+        let mut info_refs: Vec<&pinocchio::AccountView> = Vec::with_capacity(account_metas.len());
         for meta in account_metas {
             let account_info = account_infos
                 .iter()

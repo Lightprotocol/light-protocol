@@ -5,7 +5,7 @@ use chrono::Utc;
 use clap::Parser;
 use solana_client::rpc_client::{GetConfirmedSignaturesForAddress2Config, RpcClient};
 use solana_commitment_config::CommitmentConfig;
-use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::TransactionError};
+use solana_sdk::{pubkey::Pubkey, signature::Signature};
 use tabled::{builder::Builder, settings::Style};
 
 const SYSTEM_PROGRAM_ID: &str = "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7";

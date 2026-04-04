@@ -1,5 +1,4 @@
 use anchor_compressed_token::ErrorCode;
-use anchor_lang::AnchorSerialize;
 use light_account_checks::{
     account_info::test_account_info::pinocchio::get_account_info,
     packed_accounts::ProgramPackedAccounts,
@@ -15,8 +14,6 @@ use light_token_interface::{
     },
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
-use pinocchio::address::Address;
-
 // Anchor custom error codes start at offset 6000
 const ANCHOR_ERROR_OFFSET: u32 = 6000;
 
@@ -99,8 +96,8 @@ fn test_close_for_compress_and_close_duplicate_detection() {
     // Create mock account infos (we need at least 5 accounts for indices 0-4)
     let owner_pubkey_bytes = [1u8; 32];
     let rent_sponsor_pubkey_bytes = [2u8; 32];
-    let owner_pubkey = Pubkey::from(owner_pubkey_bytes);
-    let rent_sponsor_pubkey = Pubkey::from(rent_sponsor_pubkey_bytes);
+    let owner_pubkey = owner_pubkey_bytes;
+    let rent_sponsor_pubkey = rent_sponsor_pubkey_bytes;
     let dummy_owner = [0u8; 32];
 
     // Create valid compressible CToken account data using zero-copy initialization
@@ -118,14 +115,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
         ), // index 0: token_account (writable)
         get_account_info(owner_pubkey, dummy_owner, true, false, false, vec![]), // index 1: authority (signer)
         get_account_info(rent_sponsor_pubkey, dummy_owner, false, true, false, vec![]), // index 2: rent_sponsor (writable)
-        get_account_info(
-            Pubkey::from([3u8; 32]),
-            dummy_owner,
-            false,
-            true,
-            false,
-            vec![],
-        ), // index 3: destination (writable)
+        get_account_info([3u8; 32], dummy_owner, false, true, false, vec![]), // index 3: destination (writable)
         get_account_info(owner_pubkey, dummy_owner, false, true, false, ctoken_data), // index 4: second token_account (writable)
     ];
 

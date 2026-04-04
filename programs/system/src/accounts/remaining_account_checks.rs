@@ -15,7 +15,7 @@ use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use light_program_profiler::profile;
-use pinocchio::{AccountView as AccountInfo};
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 use crate::{
@@ -36,7 +36,12 @@ pub enum AcpAccount<'info> {
     OutputQueue(BatchedQueueAccount<'info>),
     BatchedStateTree(BatchedMerkleTreeAccount<'info>),
     BatchedAddressTree(BatchedMerkleTreeAccount<'info>),
-    StateTree((LightPubkey, ConcurrentMerkleTreeZeroCopyMut<'info, Poseidon, 26>)),
+    StateTree(
+        (
+            LightPubkey,
+            ConcurrentMerkleTreeZeroCopyMut<'info, Poseidon, 26>,
+        ),
+    ),
     AddressTree(
         (
             LightPubkey,
@@ -210,7 +215,10 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
 
                 let program_owner = queue.metadata.access_metadata.program_owner;
                 Ok((
-                    AcpAccount::AddressQueue(account_info.address().to_bytes().into(), account_info),
+                    AcpAccount::AddressQueue(
+                        account_info.address().to_bytes().into(),
+                        account_info,
+                    ),
                     program_owner,
                 ))
             } else if queue.metadata.queue_type == QueueType::NullifierV1 as u64 {
@@ -232,7 +240,9 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     if let AcpAccount::Unknown() = account {
         return Ok(account);
     }
-    if !account_info.owned_by(&pinocchio::address::Address::from(ACCOUNT_COMPRESSION_PROGRAM_ID)) {
+    if !account_info.owned_by(&pinocchio::address::Address::from(
+        ACCOUNT_COMPRESSION_PROGRAM_ID,
+    )) {
         msg!(format!("Pubkey {:?}", account_info.address()).as_str());
         return Err(SystemProgramError::InvalidAccount);
     }

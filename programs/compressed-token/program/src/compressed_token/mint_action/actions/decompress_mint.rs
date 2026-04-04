@@ -1,15 +1,14 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_array_map::pubkey_eq;
 use light_compressible::compression_info::CompressionInfo;
 use light_program_profiler::profile;
 use light_token_interface::{
     instructions::mint_action::ZDecompressMintAction, state::Mint, COMPRESSED_MINT_SEED,
 };
 use pinocchio::{
-    AccountView as AccountInfo,
     cpi::Seed,
     sysvars::{clock::Clock, rent::Rent, Sysvar},
+    AccountView as AccountInfo,
 };
 use pinocchio_system::instructions::Transfer;
 use solana_msg::msg;
@@ -89,7 +88,7 @@ pub fn process_decompress_mint_action(
         .rent_sponsor
         .ok_or(ErrorCode::MissingRentSponsor)?;
 
-    if rent_sponsor.address() != &config.rent_sponsor.to_bytes() {
+    if *rent_sponsor.address().as_array() != config.rent_sponsor.to_bytes() {
         msg!("Rent sponsor account does not match config");
         return Err(ErrorCode::InvalidRentSponsor.into());
     }
@@ -116,9 +115,13 @@ pub fn process_decompress_mint_action(
     // 6. Verify PDA derivation using stored mint_signer from compressed_mint metadata
     let pda_mint_signer_bytes: &[u8] = compressed_mint.metadata.mint_signer.as_ref();
     let seeds: [&[u8]; 2] = [COMPRESSED_MINT_SEED, pda_mint_signer_bytes];
-    let canonical_bump = verify_pda(cmint.address(), &seeds, &crate::LIGHT_CPI_SIGNER.program_id)?;
+    let canonical_bump = verify_pda(
+        cmint.address().as_array(),
+        &seeds,
+        &crate::LIGHT_CPI_SIGNER.program_id,
+    )?;
     // 6b. Verify CMint account matches compressed_mint.metadata.mint
-    if !pubkey_eq(cmint.address(), &compressed_mint.metadata.mint.to_bytes()) {
+    if *cmint.address().as_array() != compressed_mint.metadata.mint.to_bytes() {
         msg!("CMint account does not match compressed_mint.metadata.mint");
         return Err(ErrorCode::InvalidCMintAccount.into());
     }
@@ -132,7 +135,8 @@ pub fn process_decompress_mint_action(
     // 7a.1. Store rent exemption at creation (only query Rent sysvar here, never again)
     let rent_exemption_paid: u32 = Rent::get()
         .map_err(|_| ProgramError::UnsupportedSysvar)?
-        .minimum_balance(account_size)
+        .try_minimum_balance(account_size)
+        .map_err(|_| ProgramError::ArithmeticOverflow)?
         .try_into()
         .map_err(|_| ProgramError::ArithmeticOverflow)?;
     compressed_mint.compression.rent_exemption_paid = rent_exemption_paid;

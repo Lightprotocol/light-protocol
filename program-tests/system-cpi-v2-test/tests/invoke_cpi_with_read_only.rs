@@ -2944,7 +2944,7 @@ async fn test_duplicate_account_in_inputs_and_read_only() {
 pub mod local_sdk {
     use std::{collections::HashMap, println};
 
-    use anchor_lang::{prelude::AccountMeta, AnchorSerialize};
+    use anchor_lang::prelude::AccountMeta;
     use solana_sdk::pubkey::Pubkey;
 
     const LIGHT_CPI_SIGNER: CpiSigner =
@@ -3059,7 +3059,7 @@ pub mod local_sdk {
             pack_read_only_address_params(read_only_addresses.as_slice(), &mut remaining_accounts);
 
         let ix_data = if account_infos.is_none() {
-            InstructionDataInvokeCpiWithReadOnly {
+            borsh::to_vec(&InstructionDataInvokeCpiWithReadOnly {
                 mode: if v2_ix { 1 } else { 0 },
                 bump: 255,
                 invoking_program_id: create_address_test_program::ID.into(),
@@ -3085,11 +3085,10 @@ pub mod local_sdk {
                 read_only_addresses,
                 with_cpi_context: cpi_context.is_some(),
                 cpi_context: cpi_context.unwrap_or_default(),
-            }
-            .try_to_vec()
+            })
             .unwrap()
         } else if let Some(account_infos) = account_infos.as_ref() {
-            InstructionDataInvokeCpiWithAccountInfo {
+            borsh::to_vec(&InstructionDataInvokeCpiWithAccountInfo {
                 mode: if v2_ix { 1 } else { 0 },
                 bump: 255,
                 invoking_program_id: create_address_test_program::ID.into(),
@@ -3104,8 +3103,7 @@ pub mod local_sdk {
                 with_transaction_hash,
                 with_cpi_context: cpi_context.is_some(),
                 cpi_context: cpi_context.unwrap_or_default(),
-            }
-            .try_to_vec()
+            })
             .unwrap()
         } else {
             unimplemented!("Invalid mode.")

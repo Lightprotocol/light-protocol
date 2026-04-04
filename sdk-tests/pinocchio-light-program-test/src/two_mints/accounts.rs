@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::CreateAccountsProof;
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
 pub struct CreateTwoMintsParams {
@@ -54,9 +54,11 @@ impl<'a> CreateTwoMintsAccounts<'a> {
         // Validate mint_signer_a PDA
         {
             let authority_key = authority.address();
-            let seeds: &[&[u8]] = &[crate::MINT_SIGNER_SEED_A, authority_key];
-            let (expected_pda, expected_bump) =
-                pinocchio::address::find_program_address(seeds, &crate::ID);
+            let seeds: &[&[u8]] = &[crate::MINT_SIGNER_SEED_A, authority_key.as_ref()];
+            let (expected_pda, expected_bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if mint_signer_a.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
@@ -68,9 +70,11 @@ impl<'a> CreateTwoMintsAccounts<'a> {
         // Validate mint_signer_b PDA
         {
             let authority_key = authority.address();
-            let seeds: &[&[u8]] = &[crate::MINT_SIGNER_SEED_B, authority_key];
-            let (expected_pda, expected_bump) =
-                pinocchio::address::find_program_address(seeds, &crate::ID);
+            let seeds: &[&[u8]] = &[crate::MINT_SIGNER_SEED_B, authority_key.as_ref()];
+            let (expected_pda, expected_bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if mint_signer_b.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }

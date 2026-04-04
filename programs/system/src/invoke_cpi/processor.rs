@@ -1,4 +1,3 @@
-use crate::Pubkey;
 use light_compressed_account::instruction_data::traits::InstructionData;
 use light_program_profiler::profile;
 use pinocchio::AccountView as AccountInfo;
@@ -12,6 +11,7 @@ use crate::{
     },
     invoke_cpi::verify_signer::cpi_signer_checks,
     processor::process::process,
+    Pubkey,
 };
 
 /// Processes an `InvokeCpi` instruction.

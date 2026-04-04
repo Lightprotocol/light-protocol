@@ -58,11 +58,14 @@ pub fn mint_top_up_lamports_from_account_info(
     use pinocchio::sysvars::{clock::Clock, Sysvar};
 
     // Check owner is Token program
-    if !account_info.owned_by(&crate::LIGHT_TOKEN_PROGRAM_ID) {
+    if !account_info.owned_by(&pinocchio::address::Address::from(
+        crate::LIGHT_TOKEN_PROGRAM_ID,
+    )) {
         return None;
     }
 
     let data = account_info.try_borrow().ok()?;
+    // Note: try_borrow() returns data for AccountView in pinocchio 0.10
 
     if data.len() < MINT_MIN_SIZE_WITH_COMPRESSION || data[ACCOUNT_TYPE_OFFSET] != ACCOUNT_TYPE_MINT
     {

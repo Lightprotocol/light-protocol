@@ -6,11 +6,9 @@
 
 use light_macros::pubkey_array;
 use light_sdk_pinocchio::{derive_light_cpi_signer, error::LightSdkError, CpiSigner};
-use pinocchio::{
-    AccountView as AccountInfo, entrypoint, error::ProgramError, address::Address,
-};
+use pinocchio::{entrypoint, error::ProgramError, AccountView as AccountInfo, Address};
 
-pub const ID: Pubkey = pubkey_array!("NoStDPinocchio11111111111111111111111111111");
+pub const ID: [u8; 32] = pubkey_array!("NoStDPinocchio11111111111111111111111111111");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("NoStDPinocchio11111111111111111111111111111");
 
@@ -37,7 +35,7 @@ impl TryFrom<u8> for InstructionType {
 }
 
 pub fn process_instruction(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     _accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
@@ -68,7 +66,7 @@ const _: () = {
 pub mod test_helpers {
     use super::*;
 
-    pub fn get_program_id() -> Pubkey {
+    pub fn get_program_id() -> [u8; 32] {
         ID
     }
 

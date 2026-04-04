@@ -1,6 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-use borsh::BorshSerialize;
 use light_compressed_account::{
     address::derive_address, compressed_account::CompressedAccountWithMerkleContext,
     hashv_to_bn254_field_size_be,

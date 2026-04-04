@@ -96,7 +96,7 @@ impl VariantBuilder {
     /// - `BorshSerialize/BorshDeserialize` instead of `AnchorSerialize/AnchorDeserialize`
     /// - `light_account_pinocchio::` instead of `light_account::`
     /// - `[u8; 32]` instead of `Pubkey` for seed fields
-    /// - `pinocchio::AccountView as AccountInfo` for AccountInfo references
+    /// - `pinocchio::AccountView` for AccountInfo references
     pub fn build_for_pinocchio(&self) -> TokenStream {
         self.build_with_backend(&PinocchioBackend)
     }
@@ -409,7 +409,7 @@ impl VariantBuilder {
         if backend.is_pinocchio() {
             quote! {
                 #[cfg(not(target_os = "solana"))]
-                impl #account_crate::Pack<#account_crate::solana_instruction::InstructionAccount> for #variant_name {
+                impl #account_crate::Pack<#account_crate::solana_instruction::AccountMeta> for #variant_name {
                     type Packed = #packed_variant_name;
 
                     fn pack(
@@ -417,7 +417,7 @@ impl VariantBuilder {
                         accounts: &mut #account_crate::PackedAccounts,
                     ) -> std::result::Result<Self::Packed, #sdk_error> {
                         use #account_crate::LightAccountVariantTrait;
-                        let (_, bump) = self.derive_pda::<pinocchio::AccountView as AccountInfo>();
+                        let (_, bump) = self.derive_pda::<pinocchio::AccountView>();
                         Ok(#packed_variant_name {
                             seeds: #packed_seeds_struct_name {
                                 #(#pack_seed_fields,)*

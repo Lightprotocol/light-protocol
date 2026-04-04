@@ -28,8 +28,8 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
     let address_tree_info = instruction_data.address_tree_info;
     let (address, address_seed) = light_sdk_pinocchio::address::v1::derive_address(
         &[b"compressed", instruction_data.data.as_slice()],
-        &address_tree_info.get_tree_pubkey(&cpi_accounts)?,
-        &crate::ID,
+        &pinocchio::Address::from(address_tree_info.get_tree_pubkey(&cpi_accounts)?),
+        &pinocchio::Address::from(crate::ID),
     );
 
     let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);

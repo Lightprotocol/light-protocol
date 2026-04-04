@@ -817,7 +817,7 @@ pub(crate) fn generate_light_program_items_with_backend(
                     pub const DECOMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [114, 67, 61, 123, 234, 31, 1, 112];
 
                     pub fn process_initialize_config(
-                        accounts: &[pinocchio::AccountView as AccountInfo],
+                        accounts: &[pinocchio::AccountView],
                         data: &[u8],
                     ) -> std::result::Result<(), pinocchio::error::ProgramError> {
                         let params = <InitConfigParams as borsh::BorshDeserialize>::try_from_slice(data)
@@ -850,7 +850,7 @@ pub(crate) fn generate_light_program_items_with_backend(
                     }
 
                     pub fn process_update_config(
-                        accounts: &[pinocchio::AccountView as AccountInfo],
+                        accounts: &[pinocchio::AccountView],
                         data: &[u8],
                     ) -> std::result::Result<(), pinocchio::error::ProgramError> {
                         if accounts.len() < 2 {
@@ -860,7 +860,7 @@ pub(crate) fn generate_light_program_items_with_backend(
                         let config = &accounts[0];
                         let authority = &accounts[1];
 
-                        let remaining = [*config, *authority];
+                        let remaining = [config.clone(), authority.clone()];
                         #account_crate::process_update_light_config(
                             &remaining,
                             data,

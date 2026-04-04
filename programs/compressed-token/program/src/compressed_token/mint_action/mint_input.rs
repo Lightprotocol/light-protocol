@@ -1,5 +1,4 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use borsh::BorshSerialize;
 use light_compressed_account::{
     compressed_account::PackedMerkleContext, instruction_data::with_readonly::ZInAccountMut,
 };

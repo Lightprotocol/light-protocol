@@ -4,6 +4,7 @@
 //! Exercises all variant kinds: PDA, ATA, token, zero_copy.
 
 #![allow(deprecated)]
+#![allow(clippy::diverging_sub_expression)]
 
 use std::marker::PhantomData;
 

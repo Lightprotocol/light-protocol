@@ -2,10 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_program_profiler::profile;
 use light_token_interface::{instructions::mint_action::ZCompressAndCloseMintAction, state::Mint};
-use pinocchio::{
-    pubkey::pubkey_eq,
-    sysvars::{clock::Clock, Sysvar},
-};
+use pinocchio::sysvars::{clock::Clock, Sysvar};
 use solana_msg::msg;
 
 use crate::{
@@ -63,7 +60,7 @@ pub fn process_compress_and_close_cmint_action(
         .ok_or(ErrorCode::MissingRentSponsor)?;
 
     // 3. Verify CMint account matches compressed_mint.metadata.mint
-    if !pubkey_eq(cmint.address(), &compressed_mint.metadata.mint.to_bytes()) {
+    if *cmint.address().as_array() != compressed_mint.metadata.mint.to_bytes() {
         msg!("CMint account does not match compressed_mint.metadata.mint");
         return Err(ErrorCode::InvalidCMintAccount.into());
     }
@@ -71,7 +68,7 @@ pub fn process_compress_and_close_cmint_action(
     let compression_info = &compressed_mint.compression;
 
     // 4. Verify rent_sponsor matches compression info
-    if !pubkey_eq(rent_sponsor.address(), &compression_info.rent_sponsor) {
+    if *rent_sponsor.address().as_array() != compression_info.rent_sponsor {
         msg!("Rent sponsor does not match compression info");
         return Err(ErrorCode::InvalidRentSponsor.into());
     }
@@ -101,7 +98,7 @@ pub fn process_compress_and_close_cmint_action(
 
         // 7. Close account (assign to system program, resize to 0)
         unsafe {
-            cmint.assign(&[0u8; 32]);
+            cmint.assign(&pinocchio::address::Address::new_from_array([0u8; 32]));
         }
         cmint.resize(0).map_err(convert_program_error)?;
     }

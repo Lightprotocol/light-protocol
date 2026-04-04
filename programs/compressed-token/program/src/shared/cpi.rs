@@ -7,37 +7,32 @@ use light_compressed_account::constants::{
 };
 use light_program_profiler::profile;
 use pinocchio::{
-    account_info::{AccountInfo, BorrowState},
-    cpi::{invoke_signed_unchecked, MAX_CPI_ACCOUNTS},
-    instruction::{Account, AccountMeta, Instruction, Seed, Signer},
-    msg,
-    pubkey::Pubkey,
+    address::Address,
+    cpi::{invoke_signed_unchecked, CpiAccount, Seed, Signer},
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
+use solana_msg::msg;
 
 use crate::LIGHT_CPI_SIGNER;
 
+/// Cast `&[u8; 32]` to `&Address` without creating a stack copy.
+/// SAFETY: Address is a single-field newtype wrapper around [u8; 32].
+#[inline(always)]
+fn as_addr(bytes: &[u8; 32]) -> &Address {
+    unsafe { &*(bytes as *const [u8; 32] as *const Address) }
+}
+
 /// Executes CPI to light-system-program using the new InvokeCpiInstructionSmall format
-///
-/// This function follows the same pattern as the system program's InvokeCpiInstructionSmall
-/// and properly handles AccountOptions for determining execution vs cpi context writing.
-///
-/// # Arguments
-/// * `accounts` - All account infos passed to the instruction
-/// * `cpi_bytes` - The CPI instruction data bytes
-/// * `tree_accounts` - Slice of tree account pubkeys to append (will be marked as mutable)
-/// * `with_sol_pool` - Whether SOL pool is being used
-/// * `cpi_context_account` - Optional CPI cpi context account pubkey
-///
-/// # Returns
-/// * `Result<(), ProgramError>` - Success or error from the CPI call
+#[inline(never)]
 #[profile]
 pub fn execute_cpi_invoke(
     accounts: &[AccountInfo],
     cpi_bytes: Vec<u8>,
-    tree_accounts: &[&Pubkey],
+    tree_accounts: &[&[u8; 32]],
     with_sol_pool: bool,
-    decompress_sol: Option<&Pubkey>,
-    cpi_context_account: Option<Pubkey>,
+    decompress_sol: Option<&[u8; 32]>,
+    cpi_context_account: Option<[u8; 32]>,
     write_to_cpi_context: bool,
 ) -> Result<(), ProgramError> {
     if cpi_bytes[9] == 0 {
@@ -61,52 +56,72 @@ pub fn execute_cpi_invoke(
     let mut account_metas = Vec::with_capacity(total_capacity);
 
     // Always include: fee_payer and authority
-    account_metas.push(AccountMeta::new(accounts[0].address(), true, true)); // fee_payer (signer, mutable)
-    account_metas.push(AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true)); // authority (cpi_authority_pda, signer)
+    account_metas.push(InstructionAccount::new(accounts[0].address(), true, true)); // fee_payer (signer, mutable)
+    account_metas.push(InstructionAccount::new(
+        as_addr(&LIGHT_CPI_SIGNER.cpi_signer),
+        false,
+        true,
+    )); // authority (cpi_authority_pda, signer)
 
     if !write_to_cpi_context {
         // Execution mode - include all execution accounts
-        account_metas.push(AccountMeta::new(&REGISTERED_PROGRAM_PDA, false, false)); // registered_program_pda
-        account_metas.push(AccountMeta::new(
-            &ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+        account_metas.push(InstructionAccount::new(
+            as_addr(&REGISTERED_PROGRAM_PDA),
             false,
             false,
-        )); // account_compression_authority
-        account_metas.push(AccountMeta::new(
-            &ACCOUNT_COMPRESSION_PROGRAM_ID,
+        ));
+        account_metas.push(InstructionAccount::new(
+            as_addr(&ACCOUNT_COMPRESSION_AUTHORITY_PDA),
             false,
             false,
-        )); // account_compression_program
-        account_metas.push(AccountMeta::new(&[0u8; 32], false, false)); // system_program
+        ));
+        account_metas.push(InstructionAccount::new(
+            as_addr(&ACCOUNT_COMPRESSION_PROGRAM_ID),
+            false,
+            false,
+        ));
+        static SYSTEM_PROGRAM: [u8; 32] = [0u8; 32];
+        account_metas.push(InstructionAccount::new(
+            as_addr(&SYSTEM_PROGRAM),
+            false,
+            false,
+        ));
 
         // Optional SOL pool
         if with_sol_pool {
-            const INNER_POOL: [u8; 32] =
+            static INNER_POOL: [u8; 32] =
                 solana_pubkey::pubkey!("CHK57ywWSDncAoRu1F8QgwYJeXuAJyyBYT4LixLXvMZ1").to_bytes();
-            account_metas.push(AccountMeta::new(&INNER_POOL, true, false)); // sol_pool_pda
+            account_metas.push(InstructionAccount::new(as_addr(&INNER_POOL), true, false));
         }
 
-        // No decompression_recipient for compressed token operations
-        if let Some(decompress_sol) = decompress_sol {
-            account_metas.push(AccountMeta::new(decompress_sol, true, false));
+        if let Some(decompress_sol_bytes) = decompress_sol {
+            account_metas.push(InstructionAccount::new(
+                as_addr(decompress_sol_bytes),
+                true,
+                false,
+            ));
         }
-        // Optional CPI context account (for both execution and cpi context writing modes)
-        if let Some(cpi_context) = cpi_context_account.as_ref() {
-            account_metas.push(AccountMeta::new(cpi_context, true, false)); // cpi_context_account
+        if let Some(ref cpi_context_bytes) = cpi_context_account {
+            account_metas.push(InstructionAccount::new(
+                as_addr(cpi_context_bytes),
+                true,
+                false,
+            ));
         }
-        // Append dynamic tree accounts (merkle trees, queues, etc.)
+        // Append dynamic tree accounts
         for tree_account in tree_accounts {
-            account_metas.push(AccountMeta::new(tree_account, true, false));
+            account_metas.push(InstructionAccount::new(as_addr(tree_account), true, false));
         }
-    } else {
-        // Optional CPI context account (for both execution and cpi context writing modes)
-        if let Some(cpi_context) = cpi_context_account.as_ref() {
-            account_metas.push(AccountMeta::new(cpi_context, true, false)); // cpi_context_account
-        }
+    } else if let Some(ref cpi_context_bytes) = cpi_context_account {
+        account_metas.push(InstructionAccount::new(
+            as_addr(cpi_context_bytes),
+            true,
+            false,
+        ));
     }
 
-    let instruction = Instruction {
-        program_id: &LIGHT_SYSTEM_PROGRAM_ID,
+    let instruction = InstructionView {
+        program_id: as_addr(&LIGHT_SYSTEM_PROGRAM_ID),
         accounts: account_metas.as_slice(),
         data: cpi_bytes.as_slice(),
     };
@@ -133,10 +148,10 @@ pub fn execute_cpi_invoke(
 /// Equivalent to pinocchio::cpi::invoke_signed_with_slice except:
 /// 1. account_infos: &[&AccountInfo] ->  &[AccountInfo]
 /// 2. Error prints
-#[inline]
+#[inline(never)]
 #[profile]
 pub fn slice_invoke_signed(
-    instruction: &Instruction,
+    instruction: &InstructionView,
     account_infos: &[AccountInfo],
     signers_seeds: &[Signer],
 ) -> pinocchio::ProgramResult {
@@ -150,39 +165,36 @@ pub fn slice_invoke_signed(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    if account_infos.len() > MAX_CPI_ACCOUNTS {
+    const LOCAL_MAX: usize = crate::MAX_ACCOUNTS;
+    if account_infos.len() > LOCAL_MAX {
         return Err(ProgramError::InvalidArgument);
     }
 
-    const UNINIT: MaybeUninit<Account> = MaybeUninit::<Account>::uninit();
-    let mut accounts = [UNINIT; MAX_CPI_ACCOUNTS];
+    const UNINIT: MaybeUninit<CpiAccount> = MaybeUninit::<CpiAccount>::uninit();
+    let mut accounts = [UNINIT; LOCAL_MAX];
     let mut len = 0;
 
-    for (account_info, account_meta) in account_infos.iter().zip(
-        instruction.accounts.iter(), //   .filter(|x| x.pubkey != instruction.program_id),
-    ) {
-        if account_info.address() != account_meta.pubkey {
+    for (account_info, account_meta) in account_infos.iter().zip(instruction.accounts.iter()) {
+        if account_info.address() != account_meta.address {
             use std::format;
             msg!(format!(
                 "Received account key: {:?}",
-                solana_pubkey::Pubkey::new_from_array(*account_info.address())
+                solana_pubkey::Pubkey::new_from_array(account_info.address().to_bytes())
             )
             .as_str());
             msg!(format!(
                 "Expected account key: {:?}",
-                solana_pubkey::Pubkey::new_from_array(*account_meta.pubkey)
+                solana_pubkey::Pubkey::new_from_array(account_meta.address.to_bytes())
             )
             .as_str());
             return Err(ProgramError::InvalidArgument);
         }
 
-        let state = if account_meta.is_writable {
-            BorrowState::Borrowed
-        } else {
-            BorrowState::MutablyBorrowed
-        };
-
-        if account_info.is_borrowed(state) {
+        if account_meta.is_writable {
+            if account_info.is_borrowed_mut() {
+                return Err(ProgramError::AccountBorrowFailed);
+            }
+        } else if account_info.is_borrowed() {
             return Err(ProgramError::AccountBorrowFailed);
         }
 
@@ -191,7 +203,7 @@ pub fn slice_invoke_signed(
         unsafe {
             accounts
                 .get_unchecked_mut(len)
-                .write(Account::from(account_info));
+                .write(CpiAccount::from(account_info));
         }
 
         len += 1;

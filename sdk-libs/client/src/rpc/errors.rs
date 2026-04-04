@@ -11,6 +11,7 @@ use crate::indexer::IndexerError;
 pub enum RpcError {
     #[cfg(feature = "program-test")]
     #[error("BanksError: {0}")]
+    #[allow(deprecated)]
     BanksError(#[from] solana_banks_client::BanksClientError),
 
     #[error("Rate limited")]

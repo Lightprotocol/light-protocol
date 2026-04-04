@@ -6,7 +6,7 @@
 //! - Account type byte is at position 165 ONLY when extensions are present
 //! - Compression info is stored in the Compressible extension
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_compressed_account::Pubkey;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_token_interface::state::{

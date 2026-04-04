@@ -1,6 +1,6 @@
 use anchor_lang::prelude::ProgramError;
 use light_compressed_token::shared::initialize_ctoken_account::is_valid_mint;
-use pinocchio::address::Address;
+type Pubkey = [u8; 32];
 
 const SPL_TOKEN_ID: Pubkey = spl_token::ID.to_bytes();
 const SPL_TOKEN_2022_ID: Pubkey = spl_token_2022::ID.to_bytes();

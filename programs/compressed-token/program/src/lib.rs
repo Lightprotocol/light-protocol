@@ -1,10 +1,12 @@
+#![allow(clippy::missing_transmute_annotations)]
+
 use std::mem::ManuallyDrop;
 
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::CpiSigner;
 use light_macros::derive_light_cpi_signer;
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
-use pinocchio::{AccountView as AccountInfo};
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 pub(crate) type Pubkey = [u8; 32];
@@ -42,7 +44,9 @@ pub const MINT_CREATION_FEE: u64 = 50_000;
 /// Hardcoded rent sponsor PDA for write-mode mint creation fee validation.
 /// Same value as LIGHT_TOKEN_RENT_SPONSOR in sdk-types/src/constants.rs.
 pub const RENT_SPONSOR_V1: pinocchio::address::Address =
-    light_macros::pubkey_array!("r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti");
+    pinocchio::address::Address::new_from_array(light_macros::pubkey_array!(
+        "r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti"
+    ));
 pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
 /// Maximum number of compression operations per instruction.
 /// Used for compression_to_input lookup array sizing.
@@ -136,13 +140,14 @@ use pinocchio::program_entrypoint;
 #[cfg(not(feature = "cpi"))]
 program_entrypoint!(process_instruction);
 
+#[inline(never)]
 pub fn process_instruction(
     program_id: &pinocchio::address::Address,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     let discriminator = InstructionType::from(instruction_data[0]);
-    if *program_id != LIGHT_TOKEN_PROGRAM_ID {
+    if *program_id.as_array() != LIGHT_TOKEN_PROGRAM_ID {
         return Err(ProgramError::IncorrectProgramId);
     }
     match discriminator {
@@ -221,16 +226,26 @@ pub fn process_instruction(
         // anchor instructions have no discriminator conflicts with InstructionType
         // TODO: add test for discriminator conflict
         _ => {
-            let account_infos = unsafe { convert_account_infos::<MAX_ACCOUNTS>(accounts)? };
-            let account_infos = ManuallyDrop::new(account_infos);
-            let solana_program_id = solana_pubkey::Pubkey::new_from_array(*program_id);
-
-            entry(
-                &solana_program_id,
-                account_infos.as_slice(),
-                instruction_data,
-            )?;
+            process_anchor_fallback(program_id, accounts, instruction_data)?;
         }
     }
+    Ok(())
+}
+
+#[inline(never)]
+fn process_anchor_fallback(
+    program_id: &pinocchio::address::Address,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> Result<(), ProgramError> {
+    let account_infos = unsafe { convert_account_infos::<MAX_ACCOUNTS>(accounts)? };
+    let account_infos = ManuallyDrop::new(account_infos);
+    let solana_program_id = solana_pubkey::Pubkey::new_from_array(program_id.to_bytes());
+
+    entry(
+        &solana_program_id,
+        account_infos.as_slice(),
+        instruction_data,
+    )?;
     Ok(())
 }

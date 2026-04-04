@@ -11,6 +11,7 @@ use pinocchio::AccountView as AccountInfo;
 /// - Caller must ensure no concurrent access to returned AccountInfo
 #[inline(always)]
 #[profile]
+#[allow(deprecated)]
 pub unsafe fn convert_account_infos<'a, const N: usize>(
     pinocchio_accounts: &'a [AccountInfo],
 ) -> Result<arrayvec::ArrayVec<anchor_lang::prelude::AccountInfo<'a>, N>, ProgramError> {
@@ -34,8 +35,7 @@ pub unsafe fn convert_account_infos<'a, const N: usize>(
 
     let mut solana_accounts = arrayvec::ArrayVec::<anchor_lang::prelude::AccountInfo<'a>, N>::new();
     for (i, pinocchio_account) in pinocchio_accounts.iter().enumerate() {
-        let key: &'a solana_pubkey::Pubkey =
-            &*(pinocchio_account.address() as *const _ as *const solana_pubkey::Pubkey);
+        let key: &'a solana_pubkey::Pubkey = &*(pinocchio_account.address() as *const _);
 
         // For duplicate accounts, share Rc<RefCell<>> from the first occurrence
         // to prevent multiple independent mutable references to the same memory.
@@ -46,7 +46,12 @@ pub unsafe fn convert_account_infos<'a, const N: usize>(
         if let Some(existing) = pinocchio_accounts[..i]
             .iter()
             .zip(solana_accounts.iter())
-            .find(|(prev, _)| light_array_map::pubkey_eq(prev.address(), pinocchio_account.address()))
+            .find(|(prev, _)| {
+                light_array_map::pubkey_eq(
+                    prev.address().as_array(),
+                    pinocchio_account.address().as_array(),
+                )
+            })
             .map(|(_, acct)| acct)
         {
             solana_accounts.push(anchor_lang::prelude::AccountInfo {
@@ -62,14 +67,13 @@ pub unsafe fn convert_account_infos<'a, const N: usize>(
             continue;
         }
 
-        let owner: &'a solana_pubkey::Pubkey =
-            &*(pinocchio_account.owner() as *const _ as *const solana_pubkey::Pubkey);
+        let owner: &'a solana_pubkey::Pubkey = &*(pinocchio_account.owner() as *const _);
 
         let lamports = Rc::new(RefCell::new(
-            pinocchio_account.borrow_mut_lamports_unchecked(),
+            &mut (*pinocchio_account.account_ptr().cast_mut()).lamports,
         ));
 
-        let data = Rc::new(RefCell::new(pinocchio_account.borrow_mut_unchecked()));
+        let data = Rc::new(RefCell::new(pinocchio_account.borrow_unchecked_mut()));
 
         let account_info = anchor_lang::prelude::AccountInfo {
             key,

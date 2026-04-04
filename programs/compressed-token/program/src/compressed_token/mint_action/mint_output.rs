@@ -1,6 +1,5 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use borsh::BorshSerialize;
 use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
 use light_compressible::{rent::get_rent_exemption_lamports, DECOMPRESSED_PDA_DISCRIMINATOR};
 use light_hasher::{sha256::Sha256BE, Hasher};
@@ -100,7 +99,7 @@ fn serialize_compressed_mint<'a>(
         // Store the PDA pubkey in the data field and hash it
         compressed_account_data
             .data
-            .copy_from_slice(cmint_account.address());
+            .copy_from_slice(cmint_account.address().as_array());
         (
             DECOMPRESSED_PDA_DISCRIMINATOR,
             Sha256BE::hash(compressed_account_data.data)?,

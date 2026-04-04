@@ -12,7 +12,6 @@
 use std::collections::HashMap;
 
 use anchor_lang::Discriminator;
-use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Indexer},

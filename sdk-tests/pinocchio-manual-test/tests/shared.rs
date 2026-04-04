@@ -102,7 +102,7 @@ pub async fn create_test_mint(rpc: &mut LightProgramTest, payer: &Keypair) -> Pu
             Pubkey::new_from_array(light_token_types::CPI_AUTHORITY_PDA),
             false,
         ),
-        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false),
+        AccountMeta::new_readonly(solana_system_interface::program::ID, false),
     ];
 
     let ix = Instruction {

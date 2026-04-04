@@ -8,7 +8,7 @@
 use light_account_pinocchio::{
     derive_light_cpi_signer, pubkey_array, CpiSigner, LightAccount, LightProgramPinocchio,
 };
-use pinocchio::{AccountView as AccountInfo, error::ProgramError, address::Address};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo, Address};
 
 pub mod account_loader;
 pub mod all;
@@ -23,7 +23,7 @@ pub mod two_mints;
 
 pub use state::*;
 
-pub const ID: Pubkey = pubkey_array!("DrvPda11111111111111111111111111111111111111");
+pub const ID: [u8; 32] = pubkey_array!("DrvPda11111111111111111111111111111111111111");
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("DrvPda11111111111111111111111111111111111111");
@@ -97,7 +97,7 @@ pub mod discriminators {
 pinocchio::entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {

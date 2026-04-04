@@ -57,7 +57,7 @@ async fn test_spl_to_ctoken_scenario() {
         .unwrap();
 
     // Create mint account instruction
-    let create_mint_account_ix = solana_sdk::system_instruction::create_account(
+    let create_mint_account_ix = solana_system_interface::instruction::create_account(
         &payer.pubkey(),
         &mint,
         mint_rent,

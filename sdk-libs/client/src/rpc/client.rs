@@ -640,6 +640,7 @@ impl Rpc for LightClient {
         .await
     }
 
+    #[allow(deprecated)]
     async fn get_program_accounts_with_discriminator(
         &self,
         program_id: &Pubkey,

@@ -11,7 +11,7 @@ use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, instruction_data::traits::AccountOptions,
 };
 use light_program_profiler::profile;
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 use crate::{
     cpi_context::state::ZCpiContextAccount2,
@@ -78,12 +78,13 @@ pub fn anchor_option_mut_account_info(
     account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
     let option_decompression_recipient = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let decompression_recipient = if option_decompression_recipient.address().to_bytes() == crate::ID {
-        None
-    } else {
-        check_mut(option_decompression_recipient).map_err(ProgramError::from)?;
-        Some(option_decompression_recipient)
-    };
+    let decompression_recipient =
+        if option_decompression_recipient.address().to_bytes() == crate::ID {
+            None
+        } else {
+            check_mut(option_decompression_recipient).map_err(ProgramError::from)?;
+            Some(option_decompression_recipient)
+        };
     Ok(decompression_recipient)
 }
 

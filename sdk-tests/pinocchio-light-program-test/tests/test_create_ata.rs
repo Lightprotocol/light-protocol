@@ -37,7 +37,7 @@ async fn test_create_ata_derive() {
         AccountMeta::new_readonly(LIGHT_TOKEN_CONFIG, false),
         AccountMeta::new(LIGHT_TOKEN_RENT_SPONSOR, false),
         AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID.into(), false),
-        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false),
+        AccountMeta::new_readonly(solana_system_interface::program::ID, false),
     ];
 
     let instruction = Instruction {

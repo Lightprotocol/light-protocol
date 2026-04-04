@@ -1,4 +1,3 @@
-use crate::Pubkey;
 use std::mem;
 
 use aligned_sized::aligned_sized;
@@ -12,7 +11,7 @@ use light_merkle_tree_metadata::{
     access::AccessMetadata, merkle_tree::MerkleTreeMetadata, rollover::RolloverMetadata,
 };
 
-use crate::Result;
+use crate::{Pubkey, Result};
 
 /// Concurrent state Merkle tree used for public compressed transactions.
 #[repr(C)]

@@ -2,10 +2,10 @@
 
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use pinocchio::{
-    AccountView as AccountInfo,
     cpi::{invoke, invoke_signed_with_slice, Signer},
-    instruction::{InstructionAccount, InstructionView},
     error::ProgramError,
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 use super::{
@@ -165,10 +165,8 @@ impl<'info> TransferInterfaceCpi<'info> {
     pub fn invoke(self) -> Result<(), ProgramError> {
         let source_owner = unsafe { self.source_account.owner() };
         let destination_owner = unsafe { self.destination_account.owner() };
-        let transfer_type = determine_transfer_type(
-            source_owner.as_array(),
-            destination_owner.as_array(),
-        )?;
+        let transfer_type =
+            determine_transfer_type(source_owner.as_array(), destination_owner.as_array())?;
 
         match transfer_type {
             TransferType::LightToLight => TransferCheckedCpi {
@@ -272,10 +270,8 @@ impl<'info> TransferInterfaceCpi<'info> {
     pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
         let source_owner = unsafe { self.source_account.owner() };
         let destination_owner = unsafe { self.destination_account.owner() };
-        let transfer_type = determine_transfer_type(
-            source_owner.as_array(),
-            destination_owner.as_array(),
-        )?;
+        let transfer_type =
+            determine_transfer_type(source_owner.as_array(), destination_owner.as_array())?;
 
         match transfer_type {
             TransferType::LightToLight => TransferCheckedCpi {

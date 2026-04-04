@@ -31,7 +31,6 @@ impl From<CompressibleError> for solana_program_error::ProgramError {
     }
 }
 
-
 #[cfg(feature = "anchor")]
 impl From<CompressibleError> for anchor_lang::prelude::ProgramError {
     fn from(e: CompressibleError) -> Self {

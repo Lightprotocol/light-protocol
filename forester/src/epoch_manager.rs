@@ -8,7 +8,6 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
-use borsh::BorshSerialize;
 use dashmap::DashMap;
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},

@@ -2,7 +2,7 @@
 
 mod shared;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
@@ -120,7 +120,7 @@ async fn test_create_ata_invoke_signed() {
     let (pda_owner, _pda_bump) = Pubkey::find_program_address(&[ATA_SEED], &PROGRAM_ID);
 
     // Fund the PDA so it can pay for the ATA creation
-    let fund_ix = solana_sdk::system_instruction::transfer(
+    let fund_ix = solana_system_interface::instruction::transfer(
         &payer.pubkey(),
         &pda_owner,
         1_000_000_000, // 1 SOL

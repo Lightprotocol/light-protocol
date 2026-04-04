@@ -4,8 +4,11 @@ use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID
 use pinocchio::address::Address as Pubkey;
 use pinocchio::{
     cpi::invoke_signed_with_slice,
-    instruction::{cpi::{Seed, Signer}, InstructionView},
     error::ProgramError,
+    instruction::{
+        cpi::{Seed, Signer},
+        InstructionView,
+    },
 };
 
 use super::{account::CpiAccountsTrait, instruction::LightCpiInstruction};

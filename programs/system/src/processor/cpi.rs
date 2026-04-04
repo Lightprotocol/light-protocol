@@ -1,4 +1,3 @@
-use crate::Pubkey;
 use std::cmp::min;
 
 use light_compressed_account::{
@@ -7,10 +6,10 @@ use light_compressed_account::{
 };
 use light_program_profiler::profile;
 use pinocchio::{
-    AccountView as AccountInfo,
     address::Address,
     cpi::{invoke_signed_with_bounds, Seed, Signer},
     instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 use crate::{
@@ -18,7 +17,7 @@ use crate::{
     constants::{CPI_AUTHORITY_PDA_BUMP, CPI_AUTHORITY_PDA_SEED},
     context::SystemContext,
     errors::SystemProgramError,
-    Result,
+    Pubkey, Result,
 };
 #[profile]
 #[allow(clippy::too_many_arguments)]
@@ -37,7 +36,7 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
         ctx.get_registered_program_pda()?,
     ];
     let accounts = vec![
-        InstructionAccount::new(account_infos[0].address(), true, false),
+        InstructionAccount::readonly_signer(account_infos[0].address()),
         InstructionAccount::readonly(account_infos[1].address()),
     ];
     let account_indices =

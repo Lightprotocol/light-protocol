@@ -1,4 +1,5 @@
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::diverging_sub_expression)]
 #![allow(unexpected_cfgs)]
 #![allow(deprecated)]
 pub mod errors;

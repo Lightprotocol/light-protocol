@@ -14,11 +14,11 @@ use light_token_interface::state::{
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use rand::Rng;
+use solana_program_pack::Pack;
 use spl_pod::{bytemuck::pod_from_bytes, primitives::PodU64, solana_program_option::COption};
 use spl_token_2022::{
     extension::{BaseStateWithExtensions, PodStateWithExtensions, StateWithExtensions},
     pod::PodAccount,
-    solana_program::program_pack::Pack,
     state::{Account, AccountState},
 };
 

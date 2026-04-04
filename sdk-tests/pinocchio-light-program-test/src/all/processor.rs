@@ -18,9 +18,9 @@ pub fn process(
     const NUM_TOKENS: usize = 1;
     const NUM_ATAS: usize = 1;
 
-    let authority_key = *ctx.authority.address();
-    let mint_signer_key = *ctx.mint_signer.address();
-    let mint_key = *ctx.mint.address();
+    let authority_key = ctx.authority.address().to_bytes();
+    let mint_signer_key = ctx.mint_signer.address().to_bytes();
+    let mint_key = ctx.mint.address().to_bytes();
 
     let mint_signer_seeds: &[&[u8]] = &[
         crate::MINT_SIGNER_SEED_A,
@@ -100,13 +100,13 @@ pub fn process(
                 mint_signer_seeds: Some(mint_signer_seeds),
                 token_metadata: None,
             }],
-            mint_seed_accounts: [ctx.mint_signers_slice[0]],
-            mint_accounts: [ctx.mints_slice[0]],
+            mint_seed_accounts: [ctx.mint_signers_slice[0].clone()],
+            mint_accounts: [ctx.mints_slice[0].clone()],
         }),
         [TokenInitParam {
             account: ctx.token_vault,
             mint: ctx.mint,
-            owner: *ctx.vault_owner.address(),
+            owner: ctx.vault_owner.address().to_bytes(),
             seeds: vault_seeds,
         }],
         [AtaInitParam {

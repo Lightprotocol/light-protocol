@@ -38,10 +38,10 @@ mod tests {
     use solana_sdk::{
         native_token::LAMPORTS_PER_SOL,
         signature::{Keypair, Signer},
-        system_instruction::{create_account, transfer},
-        system_program,
         transaction::{Transaction, VersionedTransaction},
     };
+    use solana_sdk_ids::system_program;
+    use solana_system_interface::instruction::{create_account, transfer};
 
     use super::*;
 

@@ -291,7 +291,6 @@ impl From<TokenError> for solana_program_error::ProgramError {
     }
 }
 
-
 #[cfg(feature = "anchor")]
 impl From<TokenError> for anchor_lang::prelude::ProgramError {
     fn from(e: TokenError) -> Self {

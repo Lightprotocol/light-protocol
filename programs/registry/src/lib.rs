@@ -2,6 +2,7 @@
 // which is used in the #[program] macro but we don't directly control
 #![allow(deprecated)]
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::diverging_sub_expression)]
 use account_compression::{
     utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
     NullifierQueueConfig, StateMerkleTreeConfig,

@@ -6,7 +6,6 @@ use light_token_interface::{
     instructions::mint_action::ZMintActionCompressedInstructionData, COMPRESSED_MINT_SEED,
     MINT_ADDRESS_TREE,
 };
-use pinocchio::address::pubkey_eq;
 use solana_msg::msg;
 
 /// Processes the create mint action by validating parameters and setting up the new address.
@@ -27,7 +26,7 @@ pub fn process_create_mint_action(
     // 1. Derive compressed mint address without bump to ensure
     //      that only one mint per seed can be created.
     let (mint_pda, mint_pda_bump) = solana_pubkey::Pubkey::find_program_address(
-        &[COMPRESSED_MINT_SEED, mint_signer.as_slice()],
+        &[COMPRESSED_MINT_SEED, mint_signer.as_ref()],
         &crate::ID,
     );
     let mint_pda = mint_pda.to_bytes();
@@ -38,7 +37,7 @@ pub fn process_create_mint_action(
         .ok_or(ProgramError::InvalidInstructionData)?;
 
     // 1. Validate mint_signer matches account
-    if mint_signer.as_slice() != mint.metadata.mint_signer.as_ref() {
+    if mint_signer.as_ref() != mint.metadata.mint_signer.as_ref() {
         msg!("Mint signer mismatch");
         return Err(ErrorCode::MintActionInvalidMintSigner.into());
     }
@@ -49,7 +48,7 @@ pub fn process_create_mint_action(
     }
 
     // 3. Validate derived PDA matches stored mint
-    if !pubkey_eq(&mint_pda, mint.metadata.mint.array_ref()) {
+    if mint_pda != *mint.metadata.mint.array_ref() {
         msg!("Invalid mint PDA derivation");
         return Err(ErrorCode::MintActionInvalidMintPda.into());
     }
@@ -63,7 +62,7 @@ pub fn process_create_mint_action(
     // the light system program checks correct address derivation and we check
     // the address tree in new_address_params.
     if let Some(cpi_context) = &parsed_instruction_data.cpi_context {
-        if !pubkey_eq(&cpi_context.address_tree_pubkey, &MINT_ADDRESS_TREE) {
+        if cpi_context.address_tree_pubkey != MINT_ADDRESS_TREE {
             msg!("Invalid address tree pubkey in cpi context");
             return Err(ErrorCode::MintActionInvalidCpiContextAddressTreePubkey.into());
         }

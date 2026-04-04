@@ -13,7 +13,7 @@ use light_token_interface::{
 use light_zero_copy::traits::ZeroCopyNew;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
-use pinocchio::{AccountView as AccountInfo, cpi::Seed, address::Address};
+use pinocchio::{cpi::Seed, AccountView as AccountInfo};
 use solana_msg::msg;
 
 use crate::{
@@ -38,7 +38,7 @@ pub struct CompressibleInitData<'a> {
     /// Compressible config account with rent and authority settings
     pub config_account: &'a CompressibleConfig,
     /// Custom rent payer pubkey (if not using default rent sponsor)
-    pub custom_rent_payer: Option<Pubkey>,
+    pub custom_rent_payer: Option<[u8; 32]>,
     /// Whether this account is an ATA (determined by instruction path, not ix data)
     pub is_ata: bool,
     /// Rent exemption lamports paid at account creation (from Rent sysvar)
@@ -89,7 +89,8 @@ pub fn create_compressible_account<'info>(
     #[cfg(target_os = "solana")]
     let rent_exemption_paid: u32 = Rent::get()
         .map_err(|_| ProgramError::UnsupportedSysvar)?
-        .minimum_balance(account_size as usize)
+        .try_minimum_balance(account_size as usize)
+        .map_err(|_| ProgramError::ArithmeticOverflow)?
         .try_into()
         .map_err(|_| ProgramError::ArithmeticOverflow)?;
     #[cfg(not(target_os = "solana"))]
@@ -101,7 +102,8 @@ pub fn create_compressible_account<'info>(
         .get_rent_with_compression_cost(account_size, compressible_config.rent_payment as u64);
     let account_size = account_size as usize;
 
-    let custom_rent_payer = *rent_payer.address() != config_account.rent_sponsor.to_bytes();
+    let custom_rent_payer =
+        *rent_payer.address().as_array() != config_account.rent_sponsor.to_bytes();
 
     // Custom rent payer must be a signer (prevents executable accounts as rent_sponsor)
     if custom_rent_payer && !rent_payer.is_signer() {
@@ -146,7 +148,7 @@ pub fn create_compressible_account<'info>(
         ix_data: compressible_config,
         config_account,
         custom_rent_payer: if custom_rent_payer {
-            Some(*rent_payer.address())
+            Some(rent_payer.address().to_bytes())
         } else {
             None
         },
@@ -175,7 +177,7 @@ pub fn initialize_ctoken_account(
             msg!("Invalid mint account: account data is empty");
             return Err(ProgramError::InvalidAccountData);
         }
-        if !is_valid_mint(mint_account.owner(), &mint_data)? {
+        if !is_valid_mint(unsafe { mint_account.owner() }.as_array(), &mint_data)? {
             msg!("Invalid mint account: not a valid mint");
             return Err(ProgramError::InvalidAccountData);
         }
@@ -213,7 +215,7 @@ pub fn initialize_ctoken_account(
     }
     // Build the config for new_zero_copy
     let zc_config = TokenConfig {
-        mint: light_compressed_account::Pubkey::from(*mint_account.address()),
+        mint: light_compressed_account::Pubkey::from(mint_account.address().to_bytes()),
         owner: light_compressed_account::Pubkey::from(*owner),
         state: if mint_extensions.default_state_frozen {
             AccountState::Frozen as u8
@@ -349,7 +351,7 @@ fn configure_compression_info(
 }
 
 #[inline(always)]
-pub fn is_valid_mint(owner: &Pubkey, mint_data: &[u8]) -> Result<bool, ProgramError> {
+pub fn is_valid_mint(owner: &[u8; 32], mint_data: &[u8]) -> Result<bool, ProgramError> {
     if *owner == SPL_TOKEN_ID {
         // SPL Token: mint must be exactly 82 bytes
         Ok(mint_data.len() == SPL_MINT_LEN)

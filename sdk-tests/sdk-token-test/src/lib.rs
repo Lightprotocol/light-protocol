@@ -1,5 +1,6 @@
 #![allow(unexpected_cfgs)]
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::diverging_sub_expression)]
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
@@ -355,7 +356,7 @@ pub mod sdk_token_test {
     /// Flow:
     /// - N=1: Single CPI (create + decompress)
     /// - N>1: 2N-1 CPIs (N-1 writes + 1 execute with decompress + N-1 decompress)
-    pub fn create_mints<'a, 'info>(
+    pub fn create_mints<'info>(
         ctx: Context<'info, Generic<'info>>,
         params: CreateMintsParams,
     ) -> Result<()> {

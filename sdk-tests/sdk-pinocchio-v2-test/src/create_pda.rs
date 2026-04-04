@@ -9,7 +9,7 @@ use light_sdk_pinocchio::{
     instruction::{PackedAddressTreeInfo, ValidityProof},
     LightAccount, LightDiscriminator, LightHasher,
 };
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 /// CU usage:
 /// - sdk pre system program cpi 10,942 CU
@@ -37,11 +37,12 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
         )
         .map_err(LightSdkError::from)
         .map_err(ProgramError::from)?
-        .key();
+        .address()
+        .to_bytes();
     let (address, address_seed) = light_sdk_pinocchio::address::v2::derive_address(
         &[b"compressed", instruction_data.data.as_slice()],
-        tree_pubkey,
-        &crate::ID,
+        &pinocchio::Address::from(tree_pubkey),
+        &pinocchio::Address::from(crate::ID),
     );
 
     let new_address_params =

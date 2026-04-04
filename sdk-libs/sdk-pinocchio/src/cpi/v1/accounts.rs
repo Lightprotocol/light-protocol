@@ -5,11 +5,7 @@ pub use light_sdk_types::{
     },
     CpiSigner,
 };
-use pinocchio::{
-    address::Address,
-    AccountView as AccountInfo,
-    instruction::InstructionAccount,
-};
+use pinocchio::{address::Address, instruction::InstructionAccount, AccountView as AccountInfo};
 
 use crate::error::{LightSdkError, Result};
 
@@ -19,7 +15,9 @@ pub type CpiAccounts<'a> = GenericCpiAccounts<'a, AccountInfo>;
 
 pub fn to_account_metas<'a>(cpi_accounts: &CpiAccounts<'a>) -> Result<Vec<InstructionAccount<'a>>> {
     let mut account_metas = Vec::with_capacity(1 + SYSTEM_ACCOUNTS_LEN);
-    account_metas.push(InstructionAccount::writable_signer(cpi_accounts.fee_payer().address()));
+    account_metas.push(InstructionAccount::writable_signer(
+        cpi_accounts.fee_payer().address(),
+    ));
     account_metas.push(InstructionAccount::readonly_signer(
         cpi_accounts.authority()?.address(),
     ));
@@ -27,7 +25,9 @@ pub fn to_account_metas<'a>(cpi_accounts: &CpiAccounts<'a>) -> Result<Vec<Instru
     account_metas.push(InstructionAccount::readonly(
         cpi_accounts.registered_program_pda()?.address(),
     ));
-    account_metas.push(InstructionAccount::readonly(cpi_accounts.noop_program()?.address()));
+    account_metas.push(InstructionAccount::readonly(
+        cpi_accounts.noop_program()?.address(),
+    ));
     account_metas.push(InstructionAccount::readonly(
         cpi_accounts.account_compression_authority()?.address(),
     ));

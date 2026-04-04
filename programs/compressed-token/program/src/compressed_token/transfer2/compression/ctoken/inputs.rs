@@ -7,7 +7,7 @@ use light_token_interface::instructions::{
         ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
     },
 };
-use pinocchio::{AccountView as AccountInfo, address::Address};
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 use crate::{extensions::MintExtensionChecks, MAX_COMPRESSIONS};
@@ -88,7 +88,7 @@ pub struct CTokenCompressionInputs<'a> {
     pub authority: Option<&'a AccountInfo>,
     pub compress_and_close_inputs: Option<CompressAndCloseInputs<'a>>,
     pub amount: u64,
-    pub mint: Pubkey,
+    pub mint: [u8; 32],
     pub token_account_info: &'a AccountInfo,
     pub mode: ZCompressionMode,
     pub packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
@@ -119,9 +119,10 @@ impl<'a> CTokenCompressionInputs<'a> {
             None
         };
 
-        let mint_account = *packed_accounts
+        let mint_account = packed_accounts
             .get_u8(compression.mint, "process_ctoken_compression: token mint")?
-            .address();
+            .address()
+            .to_bytes();
 
         let compress_and_close_inputs = if compression.mode == ZCompressionMode::CompressAndClose {
             Some(CompressAndCloseInputs {
@@ -163,7 +164,7 @@ impl<'a> CTokenCompressionInputs<'a> {
 
     pub fn mint_ctokens(
         amount: u64,
-        mint: Pubkey,
+        mint: [u8; 32],
         token_account_info: &'a AccountInfo,
         packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
     ) -> Self {

@@ -14,7 +14,6 @@ use light_sdk::constants::{
 };
 use light_system_program_pinocchio::cpi_context::state::deserialize_cpi_context_account;
 use light_test_utils::{legacy_cpi_context_account::get_legacy_cpi_context_account, Rpc};
-use pinocchio::address::Address as PinocchioPubkey;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -120,8 +119,8 @@ async fn test_re_init_cpi_account() {
 
         // Create an AccountInfo using the test helper to deserialize the account
         let account_info = get_account_info(
-            PinocchioPubkey::from(cpi_context_account.to_bytes()),
-            PinocchioPubkey::from(light_system_program::ID.to_bytes()),
+            cpi_context_account.to_bytes(),
+            light_system_program::ID.to_bytes(),
             false, // is_signer
             true,  // is_writable
             false, // is_executable

@@ -7,12 +7,9 @@ use pinocchio::address::Address as Pubkey;
 const ANCHOR_ERROR_OFFSET: u32 = 6000;
 
 // Helper function to create test account info
-fn create_test_account_info(
-    pubkey: Pubkey,
-    is_signer: bool,
-) -> pinocchio::AccountView {
+fn create_test_account_info(pubkey: Pubkey, is_signer: bool) -> pinocchio::AccountView {
     get_account_info(
-        pubkey,
+        pubkey.to_bytes(),
         [0u8; 32], // owner
         is_signer,
         false, // writable
@@ -39,7 +36,7 @@ fn test_check_authority_essential_cases() {
     // Test Case 1: None authority -> Error
     {
         let signer = create_test_account_info(Pubkey::from(valid_authority.to_bytes()), true);
-        let result = check_authority(None, signer.key(), "test authority");
+        let result = check_authority(None, signer.address(), "test authority");
 
         assert!(result.is_err(), "None authority should fail");
         match result.err().unwrap() {
@@ -57,7 +54,7 @@ fn test_check_authority_essential_cases() {
     // Test Case 2: Valid authority + matching signer -> Success
     {
         let signer = create_test_account_info(Pubkey::from(valid_authority.to_bytes()), true);
-        let result = check_authority(Some(valid_authority), signer.key(), "test authority");
+        let result = check_authority(Some(valid_authority), signer.address(), "test authority");
 
         assert!(
             result.is_ok(),
@@ -68,7 +65,7 @@ fn test_check_authority_essential_cases() {
     // Test Case 3: Valid authority + non-matching signer -> Error
     {
         let signer = create_test_account_info(Pubkey::from(wrong_signer.to_bytes()), true);
-        let result = check_authority(Some(valid_authority), signer.key(), "test authority");
+        let result = check_authority(Some(valid_authority), signer.address(), "test authority");
 
         assert!(
             result.is_err(),
@@ -91,7 +88,7 @@ fn test_check_authority_essential_cases() {
         // Even if we somehow had a signer that matched [0u8; 32], it should still fail
         // In practice this is impossible, but the function checks for revoked state explicitly
         let signer = create_test_account_info(Pubkey::from(wrong_signer.to_bytes()), true);
-        let result = check_authority(Some(revoked_authority), signer.key(), "test authority");
+        let result = check_authority(Some(revoked_authority), signer.address(), "test authority");
 
         assert!(result.is_err(), "Revoked authority should always fail");
         match result.err().unwrap() {
@@ -118,7 +115,11 @@ fn test_check_authority_revoked_edge_case() {
 
     // Test with a different signer (the normal case)
     let signer = create_test_account_info(Pubkey::from(different_signer.to_bytes()), true);
-    let result = check_authority(Some(revoked_authority), signer.key(), "revoked authority");
+    let result = check_authority(
+        Some(revoked_authority),
+        signer.address(),
+        "revoked authority",
+    );
 
     // Revoked authority with different signer should fail with specific error
     assert!(
@@ -142,7 +143,7 @@ fn test_check_authority_revoked_edge_case() {
     let impossible_signer = create_test_account_info(Pubkey::from([0u8; 32]), true);
     let edge_result = check_authority(
         Some(revoked_authority),
-        impossible_signer.key(),
+        impossible_signer.address(),
         "revoked authority edge case",
     );
 

@@ -21,14 +21,14 @@ impl LightPreInit<AccountInfo, CreateTokenVaultParams> for CreateTokenVaultAccou
         _remaining_accounts: &[AccountInfo],
         params: &CreateTokenVaultParams,
     ) -> std::result::Result<bool, LightSdkTypesError> {
-        let mint_key = *self.mint.address();
+        let mint_key = self.mint.address().to_bytes();
         let vault_seeds: &[&[u8]] = &[TOKEN_VAULT_SEED, mint_key.as_ref(), &[params.vault_bump]];
 
         CreateTokenAccountCpi {
             payer: self.payer,
             account: self.token_vault,
             mint: self.mint,
-            owner: *self.vault_owner.address(),
+            owner: self.vault_owner.address().to_bytes(),
         }
         .rent_free(
             self.compressible_config,
@@ -81,7 +81,7 @@ pub struct PackedTokenVaultSeeds {
 // ============================================================================
 
 #[cfg(not(target_os = "solana"))]
-impl Pack<solana_instruction::InstructionAccount> for TokenVaultSeeds {
+impl Pack<solana_instruction::AccountMeta> for TokenVaultSeeds {
     type Packed = PackedTokenVaultSeeds;
     fn pack(
         &self,
@@ -104,7 +104,7 @@ impl<AI: light_account_checks::AccountInfoTrait> Unpack<AI> for PackedTokenVault
         let mint = remaining_accounts
             .get(self.mint_idx as usize)
             .ok_or(LightSdkTypesError::NotEnoughAccountKeys)?
-            .address();
+            .key();
         Ok(TokenVaultSeeds { mint })
     }
 }

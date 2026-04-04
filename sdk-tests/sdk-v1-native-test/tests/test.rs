@@ -1,6 +1,5 @@
 //#![cfg(feature = "test-sbf")]
 
-use borsh::BorshSerialize;
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,

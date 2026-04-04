@@ -15,11 +15,7 @@ use light_token_interface::{
     state::{TokenDataVersion, ZExtensionStructMut, ZTokenMut},
     TokenError,
 };
-use pinocchio::{
-    AccountView as AccountInfo,
-    pubkey::{pubkey_eq, Pubkey},
-    sysvars::Sysvar,
-};
+use pinocchio::{sysvars::Sysvar, AccountView as AccountInfo};
 use solana_msg::msg;
 
 use super::inputs::CompressAndCloseInputs;
@@ -98,7 +94,7 @@ fn validate_compressed_token_account(
     compression_amount: u64,
     compressed_token_account: &ZMultiTokenTransferOutputData<'_>,
     ctoken: &ZTokenMut,
-    token_account_pubkey: &Pubkey,
+    token_account_pubkey: &pinocchio::address::Address,
     out_tlv: Option<&[ZExtensionInstructionData<'_>]>,
 ) -> Result<(), ProgramError> {
     let compression = ctoken
@@ -110,12 +106,12 @@ fn validate_compressed_token_account(
     let output_owner = packed_accounts
         .get_u8(compressed_token_account.owner, "owner")?
         .address();
-    let expected_owner = if compression.info.compress_to_pubkey() || compression.is_ata() {
-        token_account_pubkey
+    let expected_owner_bytes = if compression.info.compress_to_pubkey() || compression.is_ata() {
+        *token_account_pubkey.as_array()
     } else {
-        &ctoken.owner.to_bytes()
+        ctoken.owner.to_bytes()
     };
-    if output_owner != expected_owner {
+    if *output_owner.as_array() != expected_owner_bytes {
         return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
     }
 
@@ -129,7 +125,7 @@ fn validate_compressed_token_account(
     let output_mint = packed_accounts
         .get_u8(compressed_token_account.mint, "mint")?
         .address();
-    if *output_mint != ctoken.mint.to_bytes() {
+    if *output_mint.as_array() != ctoken.mint.to_bytes() {
         return Err(ErrorCode::CompressAndCloseInvalidMint.into());
     }
 
@@ -208,7 +204,7 @@ fn validate_compressed_only_ext(
         let output_delegate = packed_accounts
             .get_u8(compressed_token_account.delegate, "delegate")?
             .address();
-        if !pubkey_eq(output_delegate, &delegate.to_bytes()) {
+        if *output_delegate.as_array() != delegate.to_bytes() {
             return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
         }
     } else if compressed_token_account.has_delegate() {
@@ -339,12 +335,12 @@ fn validate_ctoken_account(
     })?;
 
     // Validate rent_sponsor matches
-    if compression.info.rent_sponsor != *rent_sponsor.address() {
+    if compression.info.rent_sponsor != *rent_sponsor.address().as_array() {
         msg!("rent recipient mismatch");
         return Err(ProgramError::InvalidAccountData);
     }
 
-    if compression.info.compression_authority != *authority.address() {
+    if compression.info.compression_authority != *authority.address().as_array() {
         msg!("compress and close requires compression authority");
         return Err(ProgramError::InvalidAccountData);
     }

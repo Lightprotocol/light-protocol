@@ -1,6 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-use borsh::BorshSerialize;
 use light_compressed_account::{
     address::derive_address, compressed_account::CompressedAccountWithMerkleContext,
     hashv_to_bn254_field_size_be,
@@ -15,7 +14,7 @@ use sdk_pinocchio_v2_test::{
     update_pda::{UpdateMyCompressedAccount, UpdatePdaInstructionData},
 };
 use solana_sdk::{
-    instruction::InstructionView,
+    instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };

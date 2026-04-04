@@ -1,9 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_pinocchio::instruction::{TransferFromSplCpi, TransferToSplCpi};
 use pinocchio::{
-    AccountView as AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    AccountView as AccountInfo, Address,
 };
 
 use crate::ID;
@@ -92,10 +92,10 @@ pub fn process_spl_to_ctoken_invoke_signed(
 
     // Derive the PDA for the authority
     let (authority_pda, authority_bump) =
-        pinocchio::address::find_program_address(&[TRANSFER_AUTHORITY_SEED], &ID);
+        Address::find_program_address(&[TRANSFER_AUTHORITY_SEED], &Address::from(ID));
 
     // Verify the authority account is the PDA we expect
-    if authority_pda != *accounts[3].key() {
+    if authority_pda != *accounts[3].address() {
         return Err(ProgramError::InvalidSeeds);
     }
 
@@ -188,10 +188,10 @@ pub fn process_ctoken_to_spl_invoke_signed(
 
     // Derive the PDA for the authority
     let (authority_pda, authority_bump) =
-        pinocchio::address::find_program_address(&[TRANSFER_AUTHORITY_SEED], &ID);
+        Address::find_program_address(&[TRANSFER_AUTHORITY_SEED], &Address::from(ID));
 
     // Verify the authority account is the PDA we expect
-    if authority_pda != *accounts[3].key() {
+    if authority_pda != *accounts[3].address() {
         return Err(ProgramError::InvalidSeeds);
     }
 

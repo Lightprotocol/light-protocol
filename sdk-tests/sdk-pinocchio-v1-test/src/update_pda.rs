@@ -8,9 +8,14 @@ use light_sdk_pinocchio::{
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     LightAccount,
 };
-use pinocchio::{
-    AccountView as AccountInfo, log::sol_log_compute_units, error::ProgramError,
-};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
+
+#[cfg(target_os = "solana")]
+fn sol_log_compute_units() {
+    unsafe { pinocchio::syscalls::sol_log_compute_units_() }
+}
+#[cfg(not(target_os = "solana"))]
+fn sol_log_compute_units() {}
 
 use crate::create_pda::MyCompressedAccount;
 

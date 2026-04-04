@@ -1,4 +1,3 @@
-use crate::Pubkey;
 use std::panic::Location;
 
 use light_compressed_account::{
@@ -10,14 +9,12 @@ use light_compressed_account::{
     },
 };
 use light_program_profiler::profile;
-use pinocchio::{
-    AccountView as AccountInfo, instruction::InstructionAccount, error::ProgramError,
-};
+use pinocchio::{error::ProgramError, instruction::InstructionAccount, AccountView as AccountInfo};
 use solana_msg::msg;
 
 use crate::{
     cpi_context::state::ZCpiContextAccount2, errors::SystemProgramError,
-    utils::transfer_lamports_invoke, Result, MAX_OUTPUT_ACCOUNTS,
+    utils::transfer_lamports_invoke, Pubkey, Result, MAX_OUTPUT_ACCOUNTS,
 };
 
 pub struct SystemContext<'info> {
@@ -112,6 +109,7 @@ impl<'info> SystemContext<'info> {
         ix_data_index: u8,
         remaining_accounts: &'info [AccountInfo],
         name: &str,
+        is_writable: bool,
     ) -> std::result::Result<u8, SystemProgramError> {
         let queue_index = self
             .account_indices
@@ -138,7 +136,7 @@ impl<'info> SystemContext<'info> {
                         })?;
                 self.accounts.push(InstructionAccount::new(
                     account_info.address(),
-                    true,  // is_writable
+                    is_writable,
                     false, // is_signer
                 ));
                 self.account_infos.push(account_info);

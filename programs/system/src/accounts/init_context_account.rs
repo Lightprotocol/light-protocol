@@ -10,7 +10,7 @@ use light_compressed_account::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR,
 };
 use light_program_profiler::profile;
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 use crate::{
     cpi_context::state::{cpi_context_account_new, CpiContextAccount, CpiContextAccountInitParams},

@@ -8,11 +8,11 @@ use light_token_interface::{
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use pinocchio::{
-    AccountView as AccountInfo,
-    cpi::{invoke_with_slice, invoke_signed_with_slice, Signer},
-    instruction::{InstructionAccount, InstructionView},
-    error::ProgramError,
     address::Address,
+    cpi::{invoke_signed_with_slice, invoke_with_slice, Signer},
+    error::ProgramError,
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 /// Discriminator for Transfer2 instruction

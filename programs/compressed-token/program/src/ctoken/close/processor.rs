@@ -1,5 +1,5 @@
 use anchor_compressed_token::ErrorCode;
-use anchor_lang::prelude::ProgramError;
+use anchor_lang::{prelude::ProgramError, solana_program::msg};
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::AccountRentState;
 use light_program_profiler::profile;
@@ -7,8 +7,7 @@ use light_token_interface::state::{AccountState, Token, ZTokenMut};
 use light_zero_copy::traits::ZeroCopyAtMut;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
-use pinocchio::{AccountView as AccountInfo, pubkey::pubkey_eq};
-use solana_msg::msg;
+use pinocchio::{address::Address, AccountView as AccountInfo};
 
 use super::accounts::CloseTokenAccountAccounts;
 use crate::shared::{convert_program_error, transfer_lamports};
@@ -37,7 +36,9 @@ fn from_account_info_mut_for_close(
     account_info: &AccountInfo,
 ) -> Result<ZTokenMut<'_>, ProgramError> {
     // Check program ownership
-    if !account_info.owned_by(&light_token_interface::LIGHT_TOKEN_PROGRAM_ID) {
+    if !account_info.owned_by(&Address::from(
+        light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+    )) {
         return Err(ProgramError::IllegalOwner);
     }
 
@@ -98,7 +99,7 @@ fn validate_token_account_close(
         let rent_sponsor = accounts
             .rent_sponsor
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        if compression.info.rent_sponsor != *rent_sponsor.address() {
+        if compression.info.rent_sponsor != *rent_sponsor.address().as_array() {
             msg!("rent recipient mismatch");
             return Err(ProgramError::InvalidAccountData);
         }
@@ -116,21 +117,21 @@ fn validate_token_account_close(
     // This matches SPL Token behavior where close_authority takes precedence over owner
     if let Some(close_authority) = ctoken.close_authority() {
         // close_authority is set - only close_authority can close
-        if !pubkey_eq(ctoken.close_authority.array_ref(), accounts.authority.address()) {
+        if ctoken.close_authority.array_ref() != accounts.authority.address().as_array() {
             msg!(
                 "close authority mismatch: close_authority {:?} != {:?} authority",
                 solana_pubkey::Pubkey::from(close_authority.to_bytes()),
-                solana_pubkey::Pubkey::from(*accounts.authority.address())
+                solana_pubkey::Pubkey::from(*accounts.authority.address().as_array())
             );
             return Err(ErrorCode::OwnerMismatch.into());
         }
     } else {
         // close_authority is None - owner can close
-        if !pubkey_eq(ctoken.owner.array_ref(), accounts.authority.address()) {
+        if ctoken.owner.array_ref() != accounts.authority.address().as_array() {
             msg!(
                 "owner mismatch: ctoken.owner {:?} != {:?} authority",
                 solana_pubkey::Pubkey::from(ctoken.owner.to_bytes()),
-                solana_pubkey::Pubkey::from(*accounts.authority.address())
+                solana_pubkey::Pubkey::from(*accounts.authority.address().as_array())
             );
             return Err(ErrorCode::OwnerMismatch.into());
         }
@@ -187,7 +188,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
             .rent_sponsor
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-        if accounts.authority.address() == &compression.info.compression_authority {
+        if accounts.authority.address().as_array() == &compression.info.compression_authority {
             // When compressing via compression_authority:
             // Extract compression incentive from rent_sponsor portion to give to forester
             // The compression incentive is included in lamports_to_rent_sponsor
@@ -235,7 +236,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
 
 fn finalize_account_closure(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(), ProgramError> {
     unsafe {
-        accounts.token_account.assign(&[0u8; 32]);
+        accounts.token_account.assign(&Address::from([0u8; 32]));
     }
     match accounts.token_account.resize(0) {
         Ok(()) => Ok(()),

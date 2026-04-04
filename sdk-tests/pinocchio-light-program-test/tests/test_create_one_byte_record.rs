@@ -47,7 +47,7 @@ async fn test_create_compress_decompress_one_byte_record() {
         AccountMeta::new_readonly(env.config_pda, false),
         AccountMeta::new(env.rent_sponsor, false),
         AccountMeta::new(record_pda, false),
-        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false),
+        AccountMeta::new_readonly(solana_system_interface::program::ID, false),
     ];
 
     let instruction = Instruction {

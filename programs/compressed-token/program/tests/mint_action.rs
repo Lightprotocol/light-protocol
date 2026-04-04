@@ -2,7 +2,6 @@
 ///
 /// Tests AccountsConfig::new() by generating random instruction data and verifying
 /// that the derived configuration matches expected values based on instruction content.
-use borsh::BorshSerialize;
 use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_compressed_token::compressed_token::mint_action::accounts::AccountsConfig;
 use light_token_interface::{

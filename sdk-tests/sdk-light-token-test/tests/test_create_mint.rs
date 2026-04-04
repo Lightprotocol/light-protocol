@@ -2,7 +2,6 @@
 
 mod shared;
 
-use borsh::BorshSerialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::{

@@ -1,5 +1,4 @@
 #![cfg(test)]
-use borsh::BorshSerialize;
 use light_compressible::{
     compression_info::CompressionInfo,
     rent::{RentConfig, COMPRESSION_COST, COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH},

@@ -33,7 +33,7 @@ async fn test_spl_instruction_compatibility() {
             .await
             .unwrap();
 
-        let create_account_ix = solana_sdk::system_instruction::create_account(
+        let create_account_ix = solana_system_interface::instruction::create_account(
             &payer_pubkey,
             &account1_keypair.pubkey(),
             rent,
@@ -84,7 +84,7 @@ async fn test_spl_instruction_compatibility() {
             .await
             .unwrap();
 
-        let create_account_ix = solana_sdk::system_instruction::create_account(
+        let create_account_ix = solana_system_interface::instruction::create_account(
             &payer_pubkey,
             &account2_keypair.pubkey(),
             rent,
@@ -486,7 +486,7 @@ async fn test_spl_instruction_compatibility_with_mint() {
             .await
             .unwrap();
 
-        let create_account_ix = solana_sdk::system_instruction::create_account(
+        let create_account_ix = solana_system_interface::instruction::create_account(
             &payer_pubkey,
             &account1_keypair.pubkey(),
             rent,
@@ -528,7 +528,7 @@ async fn test_spl_instruction_compatibility_with_mint() {
             .await
             .unwrap();
 
-        let create_account_ix = solana_sdk::system_instruction::create_account(
+        let create_account_ix = solana_system_interface::instruction::create_account(
             &payer_pubkey,
             &account2_keypair.pubkey(),
             rent,

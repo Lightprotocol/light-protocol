@@ -3,8 +3,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
 use light_program_profiler::profile;
 use light_token_interface::{state::ZTokenMut, LIGHT_TOKEN_PROGRAM_ID};
-use pinocchio::{AccountView as AccountInfo, pubkey::pubkey_eq};
-use solana_msg::msg;
+use pinocchio::AccountView as AccountInfo;
 
 use crate::extensions::MintExtensionChecks;
 
@@ -14,10 +13,10 @@ const SPL_TOKEN_2022_ID: [u8; 32] = spl_token_2022::ID.to_bytes();
 /// Check that an account is owned by a valid token program (SPL Token, Token-2022, or cToken).
 #[inline(always)]
 pub fn check_token_program_owner(account: &AccountInfo) -> Result<(), ProgramError> {
-    let owner = account.owner();
-    if pubkey_eq(owner, &SPL_TOKEN_ID)
-        || pubkey_eq(owner, &SPL_TOKEN_2022_ID)
-        || pubkey_eq(owner, &LIGHT_TOKEN_PROGRAM_ID)
+    let owner = unsafe { account.owner() };
+    if *owner.as_array() == SPL_TOKEN_ID
+        || *owner.as_array() == SPL_TOKEN_2022_ID
+        || *owner.as_array() == LIGHT_TOKEN_PROGRAM_ID
     {
         Ok(())
     } else {
@@ -49,7 +48,7 @@ pub fn verify_owner_or_delegate_signer<'a>(
     // Check if permanent delegate is signer (search through all accounts)
     if let Some(perm_delegate) = permanent_delegate {
         for account in accounts {
-            if pubkey_eq(account.address(), perm_delegate) && account.is_signer() {
+            if account.address() == perm_delegate && account.is_signer() {
                 return Ok(());
             }
         }
@@ -58,20 +57,20 @@ pub fn verify_owner_or_delegate_signer<'a>(
     // No valid signer found
     anchor_lang::solana_program::msg!(
         "Checking owner signer: {:?}",
-        solana_pubkey::Pubkey::new_from_array(*owner_account.address())
+        solana_pubkey::Pubkey::new_from_array(owner_account.address().to_bytes())
     );
     anchor_lang::solana_program::msg!("Owner signer check failed: InvalidSigner");
     if let Some(delegate_account) = delegate_account {
         anchor_lang::solana_program::msg!(
             "Delegate signer: {:?}",
-            solana_pubkey::Pubkey::new_from_array(*delegate_account.address())
+            solana_pubkey::Pubkey::new_from_array(delegate_account.address().to_bytes())
         );
         anchor_lang::solana_program::msg!("Delegate signer check failed: InvalidSigner");
     }
     if let Some(perm_delegate) = permanent_delegate {
         anchor_lang::solana_program::msg!(
             "Permanent delegate: {:?}",
-            solana_pubkey::Pubkey::new_from_array(*perm_delegate)
+            solana_pubkey::Pubkey::new_from_array(perm_delegate.to_bytes())
         );
         anchor_lang::solana_program::msg!("Permanent delegate signer check failed: InvalidSigner");
     }
@@ -97,14 +96,14 @@ pub fn check_ctoken_owner(
     let owner_key = compressed_token.owner.array_ref();
 
     // Check if authority is the owner
-    if pubkey_eq(authority_key, owner_key) {
+    if *authority_key.as_array() == *owner_key {
         return Ok(false);
     }
 
     // Check if authority is the permanent delegate from the mint
     if let Some(checks) = mint_checks {
         if let Some(permanent_delegate) = &checks.permanent_delegate {
-            if pubkey_eq(authority_key, permanent_delegate) {
+            if authority_key.as_array() == permanent_delegate {
                 return Ok(false);
             }
         }
@@ -112,7 +111,7 @@ pub fn check_ctoken_owner(
 
     // Check if authority is the account-level delegate (approved via CTokenApprove)
     if let Some(delegate) = compressed_token.delegate() {
-        if pubkey_eq(authority_key, &delegate.to_bytes()) {
+        if *authority_key.as_array() == delegate.to_bytes() {
             return Ok(true);
         }
     }
