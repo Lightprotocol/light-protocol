@@ -1,7 +1,7 @@
 use light_sdk_types::cpi_accounts::v2::{
     CompressionCpiAccountIndex, CpiAccounts as GenericCpiAccounts, PROGRAM_ACCOUNTS_LEN,
 };
-use pinocchio::{AccountView as AccountInfo, instruction::InstructionAccount};
+use pinocchio::{instruction::InstructionAccount, AccountView as AccountInfo};
 
 use crate::error::{LightSdkError, Result};
 
@@ -11,7 +11,9 @@ pub fn to_account_metas<'a>(cpi_accounts: &CpiAccounts<'a>) -> Result<Vec<Instru
     let mut account_metas =
         Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
 
-    account_metas.push(InstructionAccount::writable_signer(cpi_accounts.fee_payer().address()));
+    account_metas.push(InstructionAccount::writable_signer(
+        cpi_accounts.fee_payer().address(),
+    ));
     account_metas.push(InstructionAccount::readonly_signer(
         cpi_accounts.authority()?.address(),
     ));
@@ -24,7 +26,9 @@ pub fn to_account_metas<'a>(cpi_accounts: &CpiAccounts<'a>) -> Result<Vec<Instru
     account_metas.push(InstructionAccount::readonly(
         cpi_accounts.account_compression_program()?.address(),
     ));
-    account_metas.push(InstructionAccount::readonly(cpi_accounts.system_program()?.address()));
+    account_metas.push(InstructionAccount::readonly(
+        cpi_accounts.system_program()?.address(),
+    ));
 
     let accounts = cpi_accounts.account_infos();
     let mut index = CompressionCpiAccountIndex::SolPoolPda as usize;

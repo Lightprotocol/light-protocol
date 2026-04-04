@@ -19,11 +19,11 @@ use light_token_interface::{
     COMPRESSED_MINT_SEED,
 };
 use pinocchio::{
-    AccountView as AccountInfo,
-    cpi::{invoke_with_slice, invoke_signed_with_slice, Signer},
-    instruction::{InstructionAccount, InstructionView},
-    error::ProgramError,
     address::Address,
+    cpi::{invoke_signed_with_slice, invoke_with_slice, Signer},
+    error::ProgramError,
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 use crate::{constants::LIGHT_TOKEN_PROGRAM_ID, instruction::SystemAccountInfos};
@@ -254,8 +254,12 @@ impl<'info> CreateMintCpi<'info> {
             InstructionAccount::writable_signer(self.payer.address()),
             InstructionAccount::readonly(self.system_accounts.cpi_authority_pda.address()),
             InstructionAccount::readonly(self.system_accounts.registered_program_pda.address()),
-            InstructionAccount::readonly(self.system_accounts.account_compression_authority.address()),
-            InstructionAccount::readonly(self.system_accounts.account_compression_program.address()),
+            InstructionAccount::readonly(
+                self.system_accounts.account_compression_authority.address(),
+            ),
+            InstructionAccount::readonly(
+                self.system_accounts.account_compression_program.address(),
+            ),
             InstructionAccount::readonly(self.system_accounts.system_program.address()),
         ];
 

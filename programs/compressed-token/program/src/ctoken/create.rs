@@ -61,7 +61,7 @@ pub fn process_create_token_account(
         let rent_payer = iter.next_mut("rent_payer")?;
 
         if let Some(compress_to_pubkey) = compressible_config.compress_to_account_pubkey.as_ref() {
-            compress_to_pubkey.check_seeds(token_account.address())?;
+            compress_to_pubkey.check_seeds(token_account.address().as_array())?;
         }
 
         // If restricted extensions exist, compression_only must be set
@@ -103,8 +103,9 @@ pub fn process_create_token_account(
             use pinocchio::sysvars::Sysvar;
             let rent = pinocchio::sysvars::rent::Rent::get()
                 .map_err(|_| ProgramError::UnsupportedSysvar)?;
-            let min_lamports =
-                rent.minimum_balance(light_token_interface::BASE_TOKEN_ACCOUNT_SIZE as usize);
+            let min_lamports = rent
+                .try_minimum_balance(light_token_interface::BASE_TOKEN_ACCOUNT_SIZE as usize)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
             if token_account.lamports() < min_lamports {
                 msg!("Token account is not rent-exempt");
                 return Err(ProgramError::AccountNotRentExempt);

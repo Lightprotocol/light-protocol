@@ -62,7 +62,6 @@ impl From<VerifierError> for solana_program_error::ProgramError {
     }
 }
 
-
 pub use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use VerifierError::*;
 

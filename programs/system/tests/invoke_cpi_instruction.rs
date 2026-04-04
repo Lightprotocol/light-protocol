@@ -6,28 +6,14 @@ use light_account_checks::{
 };
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use light_system_program_pinocchio::invoke_cpi::instruction::InvokeCpiInstruction;
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 pub fn get_fee_payer_account_info() -> AccountInfo {
-    get_account_info(
-        pubkey_unique(),
-        [0u8; 32],
-        true,
-        true,
-        false,
-        Vec::new(),
-    )
+    get_account_info(pubkey_unique(), [0u8; 32], true, true, false, Vec::new())
 }
 
 pub fn get_authority_account_info() -> AccountInfo {
-    get_account_info(
-        pubkey_unique(),
-        [0u8; 32],
-        true,
-        false,
-        false,
-        Vec::new(),
-    )
+    get_account_info(pubkey_unique(), [0u8; 32], true, false, false, Vec::new())
 }
 
 /// Random account info since it is not tested
@@ -113,14 +99,7 @@ pub fn get_mut_account_info() -> AccountInfo {
 
 /// Random account info executable is true.
 pub fn get_system_program_account_info() -> AccountInfo {
-    get_account_info(
-        [0u8; 32],
-        pubkey_unique(),
-        false,
-        false,
-        true,
-        Vec::new(),
-    )
+    get_account_info([0u8; 32], pubkey_unique(), false, false, true, Vec::new())
 }
 
 /// Random account info

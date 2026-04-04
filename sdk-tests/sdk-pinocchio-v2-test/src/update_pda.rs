@@ -8,7 +8,7 @@ use light_sdk_pinocchio::{
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     LightAccount,
 };
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 use crate::{create_pda::MyCompressedAccount, LIGHT_CPI_SIGNER};
 

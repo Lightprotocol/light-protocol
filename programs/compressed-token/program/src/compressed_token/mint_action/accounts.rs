@@ -8,7 +8,7 @@ use light_token_interface::{
     MINT_ADDRESS_TREE,
 };
 use light_zero_copy::U16;
-use pinocchio::{AccountView as AccountInfo, address::Address};
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 use crate::shared::{
@@ -90,7 +90,7 @@ impl<'info> MintActionAccounts<'info> {
         if config.write_to_cpi_context {
             let write_mode_rent_sponsor = if config.create_mint {
                 let sponsor = iter.next_mut("rent_sponsor")?;
-                if sponsor.address() != &crate::RENT_SPONSOR_V1 {
+                if *sponsor.address() != crate::RENT_SPONSOR_V1 {
                     msg!("Rent sponsor account does not match RENT_SPONSOR_V1");
                     return Err(ErrorCode::InvalidRentSponsor.into());
                 }
@@ -141,7 +141,7 @@ impl<'info> MintActionAccounts<'info> {
             if let Some(sponsor) = rent_sponsor {
                 let cfg =
                     compressible_config.ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
-                if sponsor.address() != &cfg.rent_sponsor.to_bytes() {
+                if *sponsor.address().as_array() != cfg.rent_sponsor.to_bytes() {
                     msg!("Rent sponsor account does not match config");
                     return Err(ErrorCode::InvalidRentSponsor.into());
                 }
@@ -211,25 +211,25 @@ impl<'info> MintActionAccounts<'info> {
     }
 
     #[inline(always)]
-    pub fn tree_pubkeys(&self, deduplicated: bool) -> Vec<&'info Pubkey> {
+    pub fn tree_pubkeys(&self, deduplicated: bool) -> Vec<&'info [u8; 32]> {
         let mut pubkeys = Vec::with_capacity(4);
 
         if let Some(executing) = &self.executing {
-            pubkeys.push(executing.out_output_queue.address());
+            pubkeys.push(executing.out_output_queue.address().as_array());
 
             // Include either in_merkle_tree or address_merkle_tree based on which is present
             if let Some(in_tree) = executing.in_merkle_tree {
-                pubkeys.push(in_tree.address());
+                pubkeys.push(in_tree.address().as_array());
             } else if let Some(address_tree) = executing.address_merkle_tree {
-                pubkeys.push(address_tree.address());
+                pubkeys.push(address_tree.address().as_array());
             }
 
             if let Some(in_queue) = executing.in_output_queue {
-                pubkeys.push(in_queue.address());
+                pubkeys.push(in_queue.address().as_array());
             }
             if let Some(tokens_out_queue) = executing.tokens_out_queue {
                 if !deduplicated {
-                    pubkeys.push(tokens_out_queue.address());
+                    pubkeys.push(tokens_out_queue.address().as_array());
                 }
             }
         }
@@ -355,18 +355,18 @@ impl<'info> MintActionAccounts<'info> {
         // When cmint_pubkey is provided, verify CMint account matches
         // When None (mint data from CMint), skip - CMint is validated when reading its data
         if let (Some(cmint_account), Some(expected_pubkey)) = (accounts.cmint, cmint_pubkey) {
-            if expected_pubkey.to_bytes() != *cmint_account.address() {
+            if expected_pubkey.to_bytes() != *cmint_account.address().as_array() {
                 return Err(ErrorCode::MintAccountMismatch.into());
             }
         }
 
         // Validate address merkle tree when creating mint
         if let Some(address_tree) = accounts.address_merkle_tree {
-            if *address_tree.address() != MINT_ADDRESS_TREE {
+            if *address_tree.address().as_array() != MINT_ADDRESS_TREE {
                 msg!(
                     "Create mint action expects address Merkle tree {:?} received: {:?}",
                     solana_pubkey::Pubkey::from(MINT_ADDRESS_TREE),
-                    solana_pubkey::Pubkey::from(*address_tree.address())
+                    solana_pubkey::Pubkey::from(*address_tree.address().as_array())
                 );
                 return Err(ErrorCode::InvalidAddressTree.into());
             }

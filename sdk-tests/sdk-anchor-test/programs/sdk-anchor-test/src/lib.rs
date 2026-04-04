@@ -1,5 +1,6 @@
 #![allow(unexpected_cfgs)]
 #![allow(deprecated)]
+#![allow(clippy::diverging_sub_expression)]
 
 mod read_only;
 

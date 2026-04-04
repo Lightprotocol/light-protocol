@@ -2,7 +2,7 @@
 // Verifies that both implementations correctly serialize/deserialize their data
 // and maintain full struct equivalence including token metadata extension.
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_compressed_account::Pubkey;
 use light_compressible::compression_info::CompressionInfo;
 use light_token_interface::state::{
@@ -11,7 +11,8 @@ use light_token_interface::state::{
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use rand::{thread_rng, Rng};
-use spl_token_2022::{solana_program::program_pack::Pack, state::Mint as SplMint};
+use solana_program_pack::Pack;
+use spl_token_2022::state::Mint as SplMint;
 
 /// Generate random token metadata extension
 fn generate_random_token_metadata(rng: &mut impl Rng) -> TokenMetadata {

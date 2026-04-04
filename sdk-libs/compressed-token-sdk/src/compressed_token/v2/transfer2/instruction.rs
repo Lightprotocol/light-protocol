@@ -14,7 +14,6 @@ use super::account_metas::{get_transfer2_instruction_account_metas, Transfer2Acc
 use crate::{
     compressed_token::CTokenAccount2,
     error::{Result, TokenSdkError},
-    AnchorSerialize,
 };
 
 #[derive(Debug, PartialEq, Copy, Clone)]

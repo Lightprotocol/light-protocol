@@ -26,10 +26,9 @@ use light_test_utils::{
     system_program::create_invoke_instruction,
 };
 use serial_test::serial;
+use solana_commitment_config::CommitmentConfig;
 use solana_program::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::{
-    commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair, signer::Signer,
-};
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::{
     sync::{mpsc, oneshot},
     time::timeout,

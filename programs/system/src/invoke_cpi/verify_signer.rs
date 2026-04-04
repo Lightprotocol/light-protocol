@@ -1,5 +1,4 @@
 #![allow(unused_imports)]
-use crate::Pubkey;
 use light_compressed_account::instruction_data::traits::InstructionData;
 use light_program_profiler::profile;
 use pinocchio::error::ProgramError;
@@ -7,7 +6,7 @@ use solana_msg::msg;
 
 use crate::{
     constants::CPI_AUTHORITY_PDA_SEED, context::WrappedInstructionData, errors::SystemProgramError,
-    Result,
+    Pubkey, Result,
 };
 /// Checks:
 /// 1. Invoking program is signer (cpi_signer_check)

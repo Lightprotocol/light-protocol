@@ -196,7 +196,7 @@ impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
 
         Ok(ZeroCopyRecordVariant {
             seeds: ZeroCopyRecordSeeds {
-                owner: owner.address(),
+                owner: owner.key(),
                 name: self.seeds.name.clone(),
             },
             data,
@@ -268,7 +268,7 @@ impl light_account_pinocchio::IntoVariant<ZeroCopyRecordVariant> for ZeroCopyRec
 /// Implement Pack trait to allow ZeroCopyRecordVariant to be used with `create_load_instructions`.
 /// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
-impl light_account_pinocchio::Pack<solana_instruction::InstructionAccount> for ZeroCopyRecordVariant {
+impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for ZeroCopyRecordVariant {
     type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(

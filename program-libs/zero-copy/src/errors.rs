@@ -91,7 +91,6 @@ impl From<ZeroCopyError> for u32 {
     }
 }
 
-
 #[cfg(feature = "solana")]
 impl From<ZeroCopyError> for solana_program_error::ProgramError {
     fn from(e: ZeroCopyError) -> Self {

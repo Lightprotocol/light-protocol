@@ -4,6 +4,7 @@
 //! ensuring the simplest PDA-only program compiles and works correctly.
 
 #![allow(deprecated)]
+#![allow(clippy::diverging_sub_expression)]
 
 use anchor_lang::prelude::*;
 use light_account::{derive_light_cpi_signer, light_program, CpiSigner};

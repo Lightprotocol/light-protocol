@@ -1,5 +1,5 @@
 use light_program_profiler::profile;
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 use pinocchio_system::instructions::Transfer as SystemTransfer;
 use solana_msg::msg;
 
@@ -17,22 +17,22 @@ pub fn transfer_lamports(
     from: &AccountInfo,
     to: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    let from_lamports: u64 = *from.try_borrow_lamports()?;
-    let to_lamports: u64 = *to.try_borrow_lamports()?;
-    if from_lamports < amount {
-        msg!("payer lamports {}", from_lamports);
+    let from_lamps: u64 = from.lamports();
+    let to_lamps: u64 = to.lamports();
+    if from_lamps < amount {
+        msg!("payer lamports {}", from_lamps);
         msg!("required lamports {}", amount);
         return Err(ProgramError::InsufficientFunds);
     }
 
-    let from_lamports = from_lamports
+    let new_from = from_lamps
         .checked_sub(amount)
         .ok_or(ProgramError::InsufficientFunds)?;
-    let to_lamports = to_lamports
+    let new_to = to_lamps
         .checked_add(amount)
         .ok_or(ProgramError::InsufficientFunds)?;
-    *from.try_borrow_mut_lamports()? = from_lamports;
-    *to.try_borrow_mut_lamports()? = to_lamports;
+    from.set_lamports(new_from);
+    to.set_lamports(new_to);
     Ok(())
 }
 

@@ -1,12 +1,10 @@
 use light_macros::pubkey_array;
 use light_sdk_pinocchio::{derive_light_cpi_signer, error::LightSdkError, CpiSigner};
-use pinocchio::{
-    AccountView as AccountInfo, entrypoint, error::ProgramError, address::Address,
-};
+use pinocchio::{entrypoint, error::ProgramError, AccountView as AccountInfo, Address};
 pub mod create_pda;
 pub mod update_pda;
 
-pub const ID: Pubkey = pubkey_array!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
+pub const ID: [u8; 32] = pubkey_array!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
@@ -31,7 +29,7 @@ impl TryFrom<u8> for InstructionType {
 }
 
 pub fn process_instruction(
-    _program_id: &Pubkey,
+    _program_id: &Address,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {

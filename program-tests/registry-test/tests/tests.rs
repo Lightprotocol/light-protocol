@@ -4,7 +4,7 @@ use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeConfig, AddressQueueConfig,
     MigrateLeafParams, NullifierQueueConfig, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
-use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::{
     account_zero_copy::get_concurrent_merkle_tree, forester_epoch::get_epoch_phases,
     utils::airdrop_lamports,

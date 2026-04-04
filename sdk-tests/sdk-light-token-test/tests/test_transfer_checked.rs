@@ -41,7 +41,7 @@ async fn test_ctoken_transfer_checked_spl_mint() {
         .await
         .unwrap();
 
-    let create_mint_account_ix = solana_sdk::system_instruction::create_account(
+    let create_mint_account_ix = solana_system_interface::instruction::create_account(
         &payer.pubkey(),
         &mint,
         mint_rent,

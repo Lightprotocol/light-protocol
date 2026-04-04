@@ -90,5 +90,3 @@ impl From<BatchedMerkleTreeError> for solana_program_error::ProgramError {
         solana_program_error::ProgramError::Custom(e.into())
     }
 }
-
-

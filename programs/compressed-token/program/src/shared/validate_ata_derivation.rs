@@ -19,5 +19,9 @@ pub fn validate_ata_derivation(
         mint.as_ref(),
     ];
 
-    crate::shared::verify_pda(account.address(), seeds, &crate::LIGHT_CPI_SIGNER.program_id)
+    crate::shared::verify_pda(
+        account.address().as_array(),
+        seeds,
+        &crate::LIGHT_CPI_SIGNER.program_id,
+    )
 }

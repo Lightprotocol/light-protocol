@@ -86,10 +86,13 @@ pub fn set_input_compressed_account<'a>(
         owner_account
     };
 
+    // SAFETY: Address is a #[repr(transparent)] wrapper around [u8; 32].
+    let permanent_delegate_addr: Option<&pinocchio::address::Address> =
+        permanent_delegate.map(|d| unsafe { core::mem::transmute(d) });
     verify_owner_or_delegate_signer(
         signer_account,
         delegate_account,
-        permanent_delegate,
+        permanent_delegate_addr,
         all_accounts,
     )?;
     let token_version = TokenDataVersion::try_from(input_token_data.version)?;
@@ -109,24 +112,27 @@ pub fn set_input_compressed_account<'a>(
                     None
                 };
                 let token_data = TokenData {
-                    mint: mint_account.address().into(),
-                    owner: owner_account.address().into(),
+                    mint: mint_account.address().to_bytes().into(),
+                    owner: owner_account.address().to_bytes().into(),
                     amount: input_token_data.amount.into(),
-                    delegate: delegate_account.map(|x| (*x.address()).into()),
+                    delegate: delegate_account.map(|x| x.address().to_bytes().into()),
                     state,
                     tlv,
                 };
                 token_data.hash_sha_flat()?
             }
             _ => {
-                let hashed_owner = hash_cache.get_or_hash_pubkey(owner_account.address());
+                let hashed_owner =
+                    hash_cache.get_or_hash_pubkey(&owner_account.address().to_bytes().into());
                 // Get mint hash from hash_cache
-                let hashed_mint = hash_cache.get_or_hash_mint(mint_account.address())?;
+                let hashed_mint =
+                    hash_cache.get_or_hash_mint(&mint_account.address().to_bytes().into())?;
                 let amount_bytes =
                     token_version.serialize_amount_bytes(input_token_data.amount.into())?;
 
-                let hashed_delegate =
-                    delegate_account.map(|delegate| hash_cache.get_or_hash_pubkey(delegate.address()));
+                let hashed_delegate = delegate_account.map(|delegate| {
+                    hash_cache.get_or_hash_pubkey(&delegate.address().to_bytes().into())
+                });
 
                 if !is_frozen {
                     TokenData::hash_with_hashed_values(
@@ -218,14 +224,14 @@ fn resolve_ata_signer<'a>(
                     mint_account.address().as_ref(),
                     bump_seed.as_ref(),
                 ];
-                let derived_ata = pinocchio::address::create_program_address(
-                    &ata_seeds,
-                    &crate::LIGHT_CPI_SIGNER.program_id,
-                )
-                .map_err(|_| TokenError::InvalidAtaDerivation)?;
+                let program_addr =
+                    pinocchio::address::Address::from(crate::LIGHT_CPI_SIGNER.program_id);
+                let derived_ata =
+                    pinocchio::address::Address::create_program_address(&ata_seeds, &program_addr)
+                        .map_err(|_| TokenError::InvalidAtaDerivation)?;
 
                 // owner_account.address() IS the ATA - verify it matches derived
-                if !pinocchio::address::pubkey_eq(owner_account.address(), &derived_ata) {
+                if *owner_account.address() != derived_ata {
                     return Err(TokenError::InvalidAtaDerivation.into());
                 }
 

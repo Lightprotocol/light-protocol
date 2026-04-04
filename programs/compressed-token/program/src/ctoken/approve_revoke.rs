@@ -8,7 +8,7 @@ use {
     light_token_interface::TokenError,
 };
 
-use crate::shared::convert_pinocchio_token_error;
+use super::burn::convert_v9_result;
 
 /// Approve: 8-byte base (amount), owner at index 2, fee_payer at index 4 (optional)
 const APPROVE_BASE_LEN: usize = 8;
@@ -39,8 +39,10 @@ pub fn process_ctoken_approve(
     if instruction_data.len() < APPROVE_BASE_LEN {
         return Err(ProgramError::InvalidInstructionData);
     }
-    process_approve(accounts, &instruction_data[..APPROVE_BASE_LEN])
-        .map_err(convert_pinocchio_token_error)?;
+    convert_v9_result(process_approve(
+        unsafe { core::mem::transmute(accounts) },
+        &instruction_data[..APPROVE_BASE_LEN],
+    ))?;
     handle_compressible_top_up::<APPROVE_BASE_LEN, APPROVE_OWNER_IDX, APPROVE_FEE_PAYER_IDX>(
         accounts,
         instruction_data,
@@ -61,7 +63,7 @@ pub fn process_ctoken_revoke(
     if accounts.is_empty() {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
-    process_revoke(accounts).map_err(convert_pinocchio_token_error)?;
+    convert_v9_result(process_revoke(unsafe { core::mem::transmute(accounts) }))?;
     handle_compressible_top_up::<REVOKE_BASE_LEN, REVOKE_OWNER_IDX, REVOKE_FEE_PAYER_IDX>(
         accounts,
         instruction_data,

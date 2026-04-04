@@ -63,4 +63,3 @@ impl From<HasherError> for solana_program_error::ProgramError {
         solana_program_error::ProgramError::Custom(e.into())
     }
 }
-

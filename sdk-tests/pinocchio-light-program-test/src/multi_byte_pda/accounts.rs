@@ -1,10 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{CreateAccountsProof, LightAccount, LightDiscriminator};
 use pinocchio::{
-    AccountView as AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
+    cpi::{Seed, Signer},
+    error::ProgramError,
     sysvars::Sysvar,
+    AccountView as AccountInfo,
 };
 
 use crate::state::{
@@ -60,11 +60,16 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = TwoByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + TwoByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"two_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if two_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
-            let lamports = rent.minimum_balance(space);
+            let lamports = rent
+                .try_minimum_balance(space)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
             let bump_bytes = [bump];
             let seed_array = [
                 Seed::from(b"two_byte_record" as &[u8]),
@@ -77,7 +82,7 @@ impl<'a> CreateMultiByteRecords<'a> {
                 to: two_byte_record,
                 lamports,
                 space: space as u64,
-                owner: &crate::ID,
+                owner: &pinocchio::Address::from(crate::ID),
             }
             .invoke_signed(&[signer])?;
             let mut data = two_byte_record
@@ -91,11 +96,16 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = ThreeByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + ThreeByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"three_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if three_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
-            let lamports = rent.minimum_balance(space);
+            let lamports = rent
+                .try_minimum_balance(space)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
             let bump_bytes = [bump];
             let seed_array = [
                 Seed::from(b"three_byte_record" as &[u8]),
@@ -108,7 +118,7 @@ impl<'a> CreateMultiByteRecords<'a> {
                 to: three_byte_record,
                 lamports,
                 space: space as u64,
-                owner: &crate::ID,
+                owner: &pinocchio::Address::from(crate::ID),
             }
             .invoke_signed(&[signer])?;
             let mut data = three_byte_record
@@ -122,11 +132,16 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = FourByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + FourByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"four_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if four_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
-            let lamports = rent.minimum_balance(space);
+            let lamports = rent
+                .try_minimum_balance(space)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
             let bump_bytes = [bump];
             let seed_array = [
                 Seed::from(b"four_byte_record" as &[u8]),
@@ -139,7 +154,7 @@ impl<'a> CreateMultiByteRecords<'a> {
                 to: four_byte_record,
                 lamports,
                 space: space as u64,
-                owner: &crate::ID,
+                owner: &pinocchio::Address::from(crate::ID),
             }
             .invoke_signed(&[signer])?;
             let mut data = four_byte_record
@@ -153,11 +168,16 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = FiveByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + FiveByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"five_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if five_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
-            let lamports = rent.minimum_balance(space);
+            let lamports = rent
+                .try_minimum_balance(space)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
             let bump_bytes = [bump];
             let seed_array = [
                 Seed::from(b"five_byte_record" as &[u8]),
@@ -170,7 +190,7 @@ impl<'a> CreateMultiByteRecords<'a> {
                 to: five_byte_record,
                 lamports,
                 space: space as u64,
-                owner: &crate::ID,
+                owner: &pinocchio::Address::from(crate::ID),
             }
             .invoke_signed(&[signer])?;
             let mut data = five_byte_record
@@ -184,11 +204,16 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = SixByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + SixByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"six_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if six_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
-            let lamports = rent.minimum_balance(space);
+            let lamports = rent
+                .try_minimum_balance(space)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
             let bump_bytes = [bump];
             let seed_array = [
                 Seed::from(b"six_byte_record" as &[u8]),
@@ -201,7 +226,7 @@ impl<'a> CreateMultiByteRecords<'a> {
                 to: six_byte_record,
                 lamports,
                 space: space as u64,
-                owner: &crate::ID,
+                owner: &pinocchio::Address::from(crate::ID),
             }
             .invoke_signed(&[signer])?;
             let mut data = six_byte_record
@@ -215,11 +240,16 @@ impl<'a> CreateMultiByteRecords<'a> {
             let disc_len = SevenByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + SevenByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"seven_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if seven_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
-            let lamports = rent.minimum_balance(space);
+            let lamports = rent
+                .try_minimum_balance(space)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
             let bump_bytes = [bump];
             let seed_array = [
                 Seed::from(b"seven_byte_record" as &[u8]),
@@ -232,7 +262,7 @@ impl<'a> CreateMultiByteRecords<'a> {
                 to: seven_byte_record,
                 lamports,
                 space: space as u64,
-                owner: &crate::ID,
+                owner: &pinocchio::Address::from(crate::ID),
             }
             .invoke_signed(&[signer])?;
             let mut data = seven_byte_record

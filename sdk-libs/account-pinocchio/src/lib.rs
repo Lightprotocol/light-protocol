@@ -129,7 +129,7 @@ pub type CpiContextWriteAccounts<'a> =
 
 #[cfg(all(not(target_os = "solana"), feature = "std"))]
 pub type PackedAccounts =
-    light_sdk_types::pack_accounts::PackedAccounts<solana_instruction::InstructionAccount>;
+    light_sdk_types::pack_accounts::PackedAccounts<solana_instruction::AccountMeta>;
 
 // ===== RE-EXPORTED TRAITS (generic over AI, used with explicit AccountInfo in impls) =====
 

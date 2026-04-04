@@ -188,7 +188,7 @@ impl PackedLightAccountVariantTrait<4> for PackedMinimalRecordVariant {
 
         Ok(MinimalRecordVariant {
             seeds: MinimalRecordSeeds {
-                owner: owner.address(),
+                owner: owner.key(),
                 nonce: u64::from_le_bytes(self.seeds.nonce_bytes),
             },
             data,
@@ -263,7 +263,7 @@ impl light_account_pinocchio::IntoVariant<MinimalRecordVariant> for MinimalRecor
 /// Implement Pack trait to allow MinimalRecordVariant to be used with `create_load_instructions`.
 /// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
-impl light_account_pinocchio::Pack<solana_instruction::InstructionAccount> for MinimalRecordVariant {
+impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for MinimalRecordVariant {
     type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(

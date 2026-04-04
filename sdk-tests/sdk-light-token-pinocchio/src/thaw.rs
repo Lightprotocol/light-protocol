@@ -1,8 +1,8 @@
 use light_token_pinocchio::instruction::ThawCpi;
 use pinocchio::{
-    AccountView as AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    AccountView as AccountInfo, Address,
 };
 
 use crate::{FREEZE_AUTHORITY_SEED, ID};
@@ -42,10 +42,10 @@ pub fn process_thaw_invoke_signed(accounts: &[AccountInfo]) -> Result<(), Progra
     }
 
     // Derive the PDA for the freeze authority
-    let (pda, bump) = pinocchio::address::find_program_address(&[FREEZE_AUTHORITY_SEED], &ID);
+    let (pda, bump) = Address::find_program_address(&[FREEZE_AUTHORITY_SEED], &Address::from(ID));
 
     // Verify the freeze_authority account is the PDA we expect
-    if pda != *accounts[2].key() {
+    if pda != *accounts[2].address() {
         return Err(ProgramError::InvalidSeeds);
     }
 

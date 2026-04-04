@@ -25,7 +25,6 @@ use light_token_interface::instructions::{
     },
 };
 use light_zero_copy::traits::ZeroCopyAt;
-use pinocchio::address::Address;
 use spl_pod::{optional_keys::OptionalNonZeroPubkey, primitives::PodBool};
 use spl_token_2022::{
     extension::{
@@ -248,14 +247,7 @@ fn run_build_cache_test(
     let (inputs, _) =
         CompressedTokenInstructionDataTransfer2::zero_copy_at(serialized_inputs).unwrap();
 
-    let mint_account = get_account_info(
-        Pubkey::from(owner),
-        owner,
-        false,
-        false,
-        false,
-        mint_data.to_vec(),
-    );
+    let mint_account = get_account_info(owner, owner, false, false, false, mint_data.to_vec());
 
     let accounts = [mint_account];
     let packed_accounts = ProgramPackedAccounts {
@@ -612,7 +604,7 @@ fn test_check_mint_extensions_paused_mint() {
         ..Default::default()
     });
     let mint_account = get_account_info(
-        Pubkey::from(SPL_TOKEN_2022_ID),
+        SPL_TOKEN_2022_ID,
         SPL_TOKEN_2022_ID,
         false,
         false,
@@ -634,7 +626,7 @@ fn test_check_mint_extensions_non_zero_fee() {
         ..Default::default()
     });
     let mint_account = get_account_info(
-        Pubkey::from(SPL_TOKEN_2022_ID),
+        SPL_TOKEN_2022_ID,
         SPL_TOKEN_2022_ID,
         false,
         false,
@@ -657,7 +649,7 @@ fn test_check_mint_extensions_non_nil_hook() {
         ..Default::default()
     });
     let mint_account = get_account_info(
-        Pubkey::from(SPL_TOKEN_2022_ID),
+        SPL_TOKEN_2022_ID,
         SPL_TOKEN_2022_ID,
         false,
         false,
@@ -677,7 +669,7 @@ fn test_check_mint_extensions_deny_restricted_fails() {
         ..Default::default()
     });
     let mint_account = get_account_info(
-        Pubkey::from(SPL_TOKEN_2022_ID),
+        SPL_TOKEN_2022_ID,
         SPL_TOKEN_2022_ID,
         false,
         false,
@@ -697,7 +689,7 @@ fn test_check_mint_extensions_deny_restricted_non_restricted_succeeds() {
         ..Default::default()
     });
     let mint_account = get_account_info(
-        Pubkey::from(SPL_TOKEN_2022_ID),
+        SPL_TOKEN_2022_ID,
         SPL_TOKEN_2022_ID,
         false,
         false,
@@ -726,7 +718,7 @@ fn test_check_mint_extensions_valid_mint_succeeds() {
         ..Default::default()
     });
     let mint_account = get_account_info(
-        Pubkey::from(SPL_TOKEN_2022_ID),
+        SPL_TOKEN_2022_ID,
         SPL_TOKEN_2022_ID,
         false,
         false,

@@ -137,10 +137,13 @@ fn test_successful_parsing_minimal() {
 
     let parsed = result.unwrap();
     assert_eq!(
-        *parsed.compressed_token_program.key(),
-        LIGHT_TOKEN_PROGRAM_ID
+        parsed.compressed_token_program.address().as_array(),
+        &LIGHT_TOKEN_PROGRAM_ID
     );
-    assert_eq!(*parsed.light_system_program.key(), LIGHT_SYSTEM_PROGRAM_ID);
+    assert_eq!(
+        parsed.light_system_program.address().as_array(),
+        &LIGHT_SYSTEM_PROGRAM_ID
+    );
     assert!(parsed.mint_signer.is_none());
     assert!(parsed.authority.is_signer());
     assert!(parsed.cpi_context.is_none());
@@ -959,7 +962,10 @@ fn test_helper_methods() {
     // Test to_account_infos()
     let account_infos = parsed.to_account_infos();
     assert!(!account_infos.is_empty());
-    assert_eq!(*account_infos[0].key(), LIGHT_SYSTEM_PROGRAM_ID); // First should be light_system_program
+    assert_eq!(
+        account_infos[0].address().as_array(),
+        &LIGHT_SYSTEM_PROGRAM_ID
+    ); // First should be light_system_program
 
     let metas_without_program = parsed.to_account_metas();
     assert_eq!(

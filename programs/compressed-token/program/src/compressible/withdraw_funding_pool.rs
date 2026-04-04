@@ -2,8 +2,8 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
 use light_program_profiler::profile;
 use pinocchio::{
+    cpi::{Seed, Signer},
     AccountView as AccountInfo,
-    instruction::{Seed, Signer},
 };
 use pinocchio_system::instructions::Transfer;
 use solana_msg::msg;
@@ -43,11 +43,13 @@ impl<'a> WithdrawFundingPoolAccounts<'a> {
             .validate_not_inactive()
             .map_err(ProgramError::from)?;
 
-        if *config_account.compression_authority.as_array() != *compression_authority.address() {
+        if *config_account.compression_authority.as_array()
+            != *compression_authority.address().as_array()
+        {
             msg!("invalid rent compression_authority");
             return Err(ProgramError::InvalidSeeds);
         }
-        if *config_account.rent_sponsor.as_array() != *rent_sponsor.address() {
+        if *config_account.rent_sponsor.as_array() != *rent_sponsor.address().as_array() {
             msg!("Invalid rent_sponsor");
             return Err(ProgramError::InvalidSeeds);
         }

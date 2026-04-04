@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
 use light_token_interface::{is_restricted_extension, MintExtensionFlags, ALLOWED_EXTENSION_TYPES};
-use pinocchio::{AccountView as AccountInfo, address::Address};
+use pinocchio::{address::Address, AccountView as AccountInfo};
 use solana_msg::msg;
 use spl_token_2022::{
     extension::{
@@ -15,7 +15,9 @@ use spl_token_2022::{
     state::AccountState,
 };
 
-const SPL_TOKEN_2022_ID: [u8; 32] = spl_token_2022::ID.to_bytes();
+use crate::Pubkey;
+
+const SPL_TOKEN_2022_ID: Address = Address::new_from_array(spl_token_2022::ID.to_bytes());
 
 /// Result of checking mint extensions (runtime validation)
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

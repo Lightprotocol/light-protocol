@@ -193,7 +193,7 @@ pub fn process_mint_action(
                 .as_slice(),
             false, // no sol_pool_pda
             None,
-            executing.system.cpi_context.map(|x| *x.address()),
+            executing.system.cpi_context.map(|x| x.address().to_bytes()),
             false, // don't write to cpi context account
         )
     } else {
@@ -209,7 +209,7 @@ pub fn process_mint_action(
             validated_accounts
                 .write_to_cpi_context_system
                 .as_ref()
-                .map(|x| *x.cpi_context.address()),
+                .map(|x| x.cpi_context.address().to_bytes()),
             true,
         )
     }

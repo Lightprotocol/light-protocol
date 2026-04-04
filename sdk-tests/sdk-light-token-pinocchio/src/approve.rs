@@ -1,9 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_pinocchio::instruction::ApproveCpi;
 use pinocchio::{
-    AccountView as AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    AccountView as AccountInfo, Address,
 };
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
@@ -61,10 +61,10 @@ pub fn process_approve_invoke_signed(
     }
 
     // Derive the PDA for the owner
-    let (pda, bump) = pinocchio::address::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
+    let (pda, bump) = Address::find_program_address(&[TOKEN_ACCOUNT_SEED], &Address::from(ID));
 
     // Verify the owner account is the PDA we expect
-    if pda != *accounts[2].key() {
+    if pda != *accounts[2].address() {
         return Err(ProgramError::InvalidSeeds);
     }
     let bump_byte = [bump];

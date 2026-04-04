@@ -43,6 +43,7 @@ light-token-types = { workspace = true }
 light-token-interface = { workspace = true }
 solana-instruction = { workspace = true }
 solana-pubkey = { workspace = true }
+solana-system-interface = { workspace = true }
 light-compressed-account = { workspace = true }
 light-compressible = { workspace = true }
 

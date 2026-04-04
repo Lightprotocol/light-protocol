@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use anchor_compressed_token::ErrorCode;
-use anchor_lang::AnchorSerialize;
 use light_account_checks::{
     account_info::test_account_info::pinocchio::get_account_info,
     packed_accounts::ProgramPackedAccounts,

@@ -50,7 +50,7 @@ pub fn process_mint_action<'a, 'info>(
 
     // Build account structure for CPI write
     let mint_action_account_infos = MintActionCpiWriteAccounts {
-        light_system_program: cpi_accounts.system_program().unwrap(),
+        light_system_program: cpi_accounts.light_system_program().unwrap(),
         mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
         authority: ctx.accounts.mint_authority.as_ref(),
         rent_sponsor: Some(ctx.accounts.rent_sponsor.as_ref()),

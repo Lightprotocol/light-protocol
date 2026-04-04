@@ -5,8 +5,8 @@ use light_account_pinocchio::{
     LightConfig, LightDiscriminator, LightSdkTypesError, PackedAddressTreeInfoExt,
 };
 use pinocchio::{
-    AccountView as AccountInfo,
     sysvars::{clock::Clock, Sysvar},
+    AccountView as AccountInfo,
 };
 
 use super::accounts::{CreateOneByteRecord, CreateOneByteRecordParams};
@@ -44,7 +44,7 @@ pub fn process(
         .map_err(|_| LightSdkTypesError::InvalidInstructionData)?
         .slot;
 
-    let record_key = *ctx.record.address();
+    let record_key = ctx.record.address().to_bytes();
     prepare_compressed_account_on_init(
         &record_key,
         &address_tree_pubkey,

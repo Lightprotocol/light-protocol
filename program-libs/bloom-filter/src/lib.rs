@@ -38,7 +38,6 @@ impl From<BloomFilterError> for solana_program_error::ProgramError {
     }
 }
 
-
 #[derive(Debug)]
 pub struct BloomFilter<'a> {
     pub num_iters: usize,

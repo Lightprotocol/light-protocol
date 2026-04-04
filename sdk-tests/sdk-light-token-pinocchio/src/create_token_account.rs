@@ -1,9 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_pinocchio::instruction::{CompressibleParamsCpi, CreateTokenAccountCpi};
 use pinocchio::{
-    AccountView as AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    AccountView as AccountInfo, Address,
 };
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
@@ -73,10 +73,10 @@ pub fn process_create_token_account_invoke_signed(
     }
 
     // Derive the PDA for the token account
-    let (pda, bump) = pinocchio::address::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
+    let (pda, bump) = Address::find_program_address(&[TOKEN_ACCOUNT_SEED], &Address::from(ID));
 
     // Verify the account to create is the PDA
-    if pda != *accounts[1].key() {
+    if pda != *accounts[1].address() {
         return Err(ProgramError::InvalidSeeds);
     }
 
@@ -153,9 +153,9 @@ pub fn process_create_token_account_invoke_signed_with(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    let (pda, bump) = pinocchio::address::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
+    let (pda, bump) = Address::find_program_address(&[TOKEN_ACCOUNT_SEED], &Address::from(ID));
 
-    if pda != *accounts[1].key() {
+    if pda != *accounts[1].address() {
         return Err(ProgramError::InvalidSeeds);
     }
 

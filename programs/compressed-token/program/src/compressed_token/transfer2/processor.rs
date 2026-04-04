@@ -300,8 +300,10 @@ fn process_with_system_program_cpi<'a>(
             cpi_bytes,
             tree_pubkeys.as_slice(),
             transfer_config.sol_pool_required,
-            system_accounts.sol_decompression_recipient.map(|x| x.address()),
-            system_accounts.cpi_context.map(|x| *x.address()),
+            system_accounts
+                .sol_decompression_recipient
+                .map(|x| x.address().as_array()),
+            system_accounts.cpi_context.map(|x| x.address().to_bytes()),
             false,
         )?;
 
@@ -325,7 +327,7 @@ fn process_with_system_program_cpi<'a>(
             &[],
             false,
             None,
-            Some(*system_accounts.cpi_context.address()),
+            Some(system_accounts.cpi_context.address().to_bytes()),
             true,
         )?;
     } else {

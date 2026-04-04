@@ -4,22 +4,36 @@ use pinocchio::AccountView as AccountInfo;
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount, constants::CPI_AUTHORITY_PDA_SEED,
-    errors::SystemProgramError, processor::sol_compression::SOL_POOL_PDA_SEED,
-    Pubkey,
+    errors::SystemProgramError, processor::sol_compression::SOL_POOL_PDA_SEED, Pubkey,
 };
 #[profile]
 pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
-    solana_pubkey::Pubkey::find_program_address(&[program_id.as_ref()], &solana_pubkey::Pubkey::new_from_array(ACCOUNT_COMPRESSION_PROGRAM_ID)).0.to_bytes()
+    solana_pubkey::Pubkey::find_program_address(
+        &[program_id.as_ref()],
+        &solana_pubkey::Pubkey::new_from_array(ACCOUNT_COMPRESSION_PROGRAM_ID),
+    )
+    .0
+    .to_bytes()
 }
 
 #[profile]
 pub fn get_cpi_authority_pda(program_id: &Pubkey) -> Pubkey {
-    solana_pubkey::Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &solana_pubkey::Pubkey::new_from_array(*program_id)).0.to_bytes()
+    solana_pubkey::Pubkey::find_program_address(
+        &[CPI_AUTHORITY_PDA_SEED],
+        &solana_pubkey::Pubkey::new_from_array(*program_id),
+    )
+    .0
+    .to_bytes()
 }
 
 #[profile]
 pub fn get_sol_pool_pda() -> Pubkey {
-    solana_pubkey::Pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &solana_pubkey::Pubkey::new_from_array(crate::ID)).0.to_bytes()
+    solana_pubkey::Pubkey::find_program_address(
+        &[SOL_POOL_PDA_SEED],
+        &solana_pubkey::Pubkey::new_from_array(crate::ID),
+    )
+    .0
+    .to_bytes()
 }
 
 #[profile]

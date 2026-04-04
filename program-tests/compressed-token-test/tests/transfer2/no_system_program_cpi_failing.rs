@@ -245,7 +245,6 @@ fn build_compressions_only_instruction(
     compressions: Option<Vec<light_token_interface::instructions::transfer2::Compression>>,
     packed_account_metas: Vec<solana_sdk::instruction::AccountMeta>,
 ) -> Result<solana_sdk::instruction::Instruction, RpcError> {
-    use anchor_lang::AnchorSerialize;
     use light_token_interface::{
         instructions::transfer2::CompressedTokenInstructionDataTransfer2, CPI_AUTHORITY, TRANSFER2,
     };

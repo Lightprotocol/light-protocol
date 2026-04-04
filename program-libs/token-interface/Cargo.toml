@@ -53,9 +53,10 @@ light-account-checks = { workspace = true, features = [
     "std",
     "solana",
 ] }
-spl-token-metadata-interface = "0.6.0"
 light-hasher = { workspace = true, features = ["keccak", "sha256", "poseidon"] }
 light-token-interface = { path = ".", features = ["test-only"] }
+solana-program-pack = { workspace = true }
+spl-token-metadata-interface = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

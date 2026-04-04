@@ -221,12 +221,11 @@ fn test_struct_7_derived() {
     assert_eq!(zero_copy.option, Some(3));
     assert_eq!(remaining, &[]);
 
-    let bytes = Struct7Derived {
+    let bytes = borsh::to_vec(&Struct7Derived {
         a: 1,
         b: 2,
         option: None,
-    }
-    .try_to_vec()
+    })
     .unwrap();
     let (zero_copy, remaining) = Struct7Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);

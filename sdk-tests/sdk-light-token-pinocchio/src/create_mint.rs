@@ -5,9 +5,9 @@ use light_token_pinocchio::instruction::{
     CompressedProof, CreateMintCpi, CreateMintParams, ExtensionInstructionData, SystemAccountInfos,
 };
 use pinocchio::{
-    AccountView as AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    AccountView as AccountInfo, Address,
 };
 
 use crate::ID;
@@ -139,10 +139,10 @@ pub fn process_create_mint_invoke_signed(
     }
 
     // Derive the PDA for the mint signer
-    let (pda, bump) = pinocchio::address::find_program_address(&[MINT_SIGNER_SEED], &ID);
+    let (pda, bump) = Address::find_program_address(&[MINT_SIGNER_SEED], &Address::from(ID));
 
     // Verify the mint_signer account is the PDA we expect
-    if pda != *accounts[2].key() {
+    if pda != *accounts[2].address() {
         return Err(ProgramError::InvalidSeeds);
     }
 
@@ -230,19 +230,19 @@ pub fn process_create_mint_with_pda_authority(
 
     // Derive the PDA for the mint signer
     let (mint_signer_pda, mint_signer_bump) =
-        pinocchio::address::find_program_address(&[MINT_SIGNER_SEED], &ID);
+        Address::find_program_address(&[MINT_SIGNER_SEED], &Address::from(ID));
 
     // Derive the PDA for the authority
     let (authority_pda, authority_bump) =
-        pinocchio::address::find_program_address(&[MINT_AUTHORITY_SEED], &ID);
+        Address::find_program_address(&[MINT_AUTHORITY_SEED], &Address::from(ID));
 
     // Verify the mint_signer account is the PDA we expect
-    if mint_signer_pda != *accounts[2].key() {
+    if mint_signer_pda != *accounts[2].address() {
         return Err(ProgramError::InvalidSeeds);
     }
 
     // Verify the authority account is the PDA we expect
-    if authority_pda != *accounts[3].key() {
+    if authority_pda != *accounts[3].address() {
         return Err(ProgramError::InvalidSeeds);
     }
 
@@ -250,7 +250,7 @@ pub fn process_create_mint_with_pda_authority(
     let params = CreateMintParams {
         decimals: data.decimals,
         address_merkle_tree_root_index: data.address_merkle_tree_root_index,
-        mint_authority: authority_pda,
+        mint_authority: authority_pda.to_bytes(),
         proof: data.proof,
         compression_address: data.compression_address,
         mint: data.mint,

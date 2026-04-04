@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use anchor_lang::{prelude::borsh::BorshSerialize, Discriminator};
+use anchor_lang::{prelude::borsh, Discriminator};
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_client::{
     indexer::{AddressWithTree, Indexer},

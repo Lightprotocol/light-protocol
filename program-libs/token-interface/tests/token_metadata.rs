@@ -3,7 +3,6 @@
 // and maintain logical equivalence of metadata fields.
 // Note: Binary compatibility is not tested as the formats differ (Vec<u8> vs String).
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_token_interface::state::extensions::{
     AdditionalMetadata, TokenMetadata as LightTokenMetadata,

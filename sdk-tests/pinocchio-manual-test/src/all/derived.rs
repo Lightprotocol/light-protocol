@@ -31,9 +31,9 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
         const NUM_TOKENS: usize = 1;
         const NUM_ATAS: usize = 1;
 
-        let authority_key = *self.authority.address();
-        let mint_signer_key = *self.mint_signer.address();
-        let mint_key = *self.mint.address();
+        let authority_key = self.authority.address().to_bytes();
+        let mint_signer_key = self.mint_signer.address().to_bytes();
+        let mint_key = self.mint.address().to_bytes();
 
         let mint_signer_seeds: &[&[u8]] = &[
             ALL_MINT_SIGNER_SEED,
@@ -94,13 +94,13 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
                     mint_signer_seeds: Some(mint_signer_seeds),
                     token_metadata: None,
                 }],
-                mint_seed_accounts: [self.mint_signers_slice[0]],
-                mint_accounts: [self.mints_slice[0]],
+                mint_seed_accounts: [self.mint_signers_slice[0].clone()],
+                mint_accounts: [self.mints_slice[0].clone()],
             }),
             [TokenInitParam {
                 account: self.token_vault,
                 mint: self.mint,
-                owner: *self.vault_owner.address(),
+                owner: self.vault_owner.address().to_bytes(),
                 seeds: vault_seeds,
             }],
             [AtaInitParam {

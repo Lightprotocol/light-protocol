@@ -20,7 +20,7 @@
 
 use std::collections::HashMap;
 
-use anchor_lang::{AnchorSerialize, Discriminator};
+use anchor_lang::{prelude::borsh, Discriminator};
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_compressed_account::{
@@ -58,16 +58,16 @@ use light_test_utils::{
     },
 };
 use light_zero_copy::traits::ZeroCopyAt;
-use pinocchio::address::Address as Pubkey as PinocchioPubkey;
+use pinocchio::address::Address as PinocchioPubkey;
 use solana_sdk::{pubkey::Pubkey, signature::Signer};
 
 /// Creates a test CPI context account with the given associated merkle tree.
 fn create_test_cpi_context_account(
     associated_merkle_tree: Option<PinocchioPubkey>,
 ) -> pinocchio::AccountView {
-    let associated_merkle_tree =
-        associated_merkle_tree.unwrap_or_else(|| Pubkey::new_unique().to_bytes());
-    let params = CpiContextAccountInitParams::new(associated_merkle_tree);
+    let associated_merkle_tree = associated_merkle_tree
+        .unwrap_or_else(|| PinocchioPubkey::from(Pubkey::new_unique().to_bytes()));
+    let params = CpiContextAccountInitParams::new(associated_merkle_tree.to_bytes());
     let account_info = get_account_info(
         Pubkey::new_unique().to_bytes(),
         ID,
@@ -127,9 +127,9 @@ fn create_instruction_data_with_new_address_no_inputs(
 #[test]
 fn test_cpi_context_new_address_uses_invoking_program_owner_without_inputs() {
     // The invoking program - this should be used for new addresses
-    let invoking_program: PinocchioPubkey = Pubkey::new_unique().to_bytes();
+    let invoking_program: PinocchioPubkey = PinocchioPubkey::from(Pubkey::new_unique().to_bytes());
     let output_account_owner: [u8; 32] = Pubkey::new_unique().to_bytes();
-    let fee_payer: PinocchioPubkey = Pubkey::new_unique().to_bytes();
+    let fee_payer: PinocchioPubkey = PinocchioPubkey::from(Pubkey::new_unique().to_bytes());
 
     // Create CPI context account
     let cpi_context_account = create_test_cpi_context_account(None);
@@ -147,8 +147,8 @@ fn test_cpi_context_new_address_uses_invoking_program_owner_without_inputs() {
 
     // Store the instruction data in the CPI context with invoking_program
     let result = set_cpi_context(
-        fee_payer,
-        invoking_program,
+        fee_payer.to_bytes(),
+        invoking_program.to_bytes(),
         &cpi_context_account,
         w_instruction_data,
     );
@@ -175,7 +175,8 @@ fn test_cpi_context_new_address_uses_invoking_program_owner_without_inputs() {
 
     // The owner should be the invoking_program, NOT the output account's owner
     assert_eq!(
-        stored_address.owner, invoking_program,
+        stored_address.owner,
+        invoking_program.to_bytes(),
         "New address owner should be the invoking_program"
     );
 
@@ -197,10 +198,10 @@ fn test_cpi_context_new_address_uses_invoking_program_owner_without_inputs() {
 #[test]
 fn test_cpi_context_new_address_uses_invoking_program_owner_with_inputs() {
     // The invoking program - this should be used for new addresses
-    let invoking_program: PinocchioPubkey = Pubkey::new_unique().to_bytes();
+    let invoking_program: PinocchioPubkey = PinocchioPubkey::from(Pubkey::new_unique().to_bytes());
     // Input account owner is different from invoking_program
     let input_account_owner: [u8; 32] = Pubkey::new_unique().to_bytes();
-    let fee_payer: PinocchioPubkey = Pubkey::new_unique().to_bytes();
+    let fee_payer: PinocchioPubkey = PinocchioPubkey::from(Pubkey::new_unique().to_bytes());
 
     // Create CPI context account
     let cpi_context_account = create_test_cpi_context_account(None);
@@ -259,8 +260,8 @@ fn test_cpi_context_new_address_uses_invoking_program_owner_with_inputs() {
 
     // Store the instruction data with invoking_program
     let result = set_cpi_context(
-        fee_payer,
-        invoking_program,
+        fee_payer.to_bytes(),
+        invoking_program.to_bytes(),
         &cpi_context_account,
         w_instruction_data,
     );
@@ -279,7 +280,8 @@ fn test_cpi_context_new_address_uses_invoking_program_owner_with_inputs() {
 
     // The owner should be the invoking_program, NOT the first input account's owner
     assert_eq!(
-        stored_address.owner, invoking_program,
+        stored_address.owner,
+        invoking_program.to_bytes(),
         "New address owner should be the invoking_program, not the input account's owner"
     );
 

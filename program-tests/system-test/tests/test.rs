@@ -47,6 +47,7 @@ use light_test_utils::{
 };
 use quote::format_ident;
 use serial_test::serial;
+#[allow(deprecated)]
 use solana_cli_output::CliAccount;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction, InstructionError},
@@ -1650,6 +1651,7 @@ async fn test_with_compression() {
 #[ignore = "this is a helper function to regenerate accounts"]
 // #[serial]
 #[tokio::test]
+#[allow(deprecated)]
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
 

@@ -86,7 +86,7 @@ pub fn process_token_compression<'a>(
                 .cloned()
                 .ok_or(ErrorCode::MintNotInCache)?;
 
-            match source_or_recipient.owner() {
+            match unsafe { source_or_recipient.owner() }.as_array() {
                 ID => {
                     let decompress_with_compress_only_inputs =
                         DecompressCompressOnlyInputs::try_extract(
@@ -152,11 +152,15 @@ pub fn process_token_compression<'a>(
                 _ => {
                     msg!(
                         "source_or_recipient {:?}",
-                        solana_pubkey::Pubkey::new_from_array(*source_or_recipient.address())
+                        solana_pubkey::Pubkey::new_from_array(
+                            *source_or_recipient.address().as_array()
+                        )
                     );
                     msg!(
                         "Invalid token program ID {:?}",
-                        solana_pubkey::Pubkey::from(*source_or_recipient.owner())
+                        solana_pubkey::Pubkey::from(
+                            *unsafe { source_or_recipient.owner() }.as_array()
+                        )
                     );
                     return Err(ProgramError::InvalidInstructionData);
                 }

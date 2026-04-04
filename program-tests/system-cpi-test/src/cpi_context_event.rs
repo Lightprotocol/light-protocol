@@ -20,7 +20,7 @@ use light_sdk_types::{cpi_context_write::CpiContextWriteAccounts, LIGHT_SYSTEM_P
 
 use crate::LIGHT_CPI_SIGNER;
 
-pub fn process_cpi_context_indexing<'a, 'b, 'c, 'info>(
+pub fn process_cpi_context_indexing<'info>(
     ctx: Context<'info, GenericAnchorAccounts<'info>>,
     mode: u8,
 ) -> Result<()> {

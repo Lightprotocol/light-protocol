@@ -1,5 +1,4 @@
 use anchor_compressed_token::ErrorCode;
-use anchor_lang::AnchorSerialize;
 use light_compressed_token::compressed_token::mint_action::queue_indices::QueueIndices;
 use light_token_interface::instructions::mint_action::CpiContext;
 use light_zero_copy::traits::ZeroCopyAt;

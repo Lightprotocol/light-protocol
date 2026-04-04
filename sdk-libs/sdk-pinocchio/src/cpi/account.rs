@@ -13,9 +13,7 @@ pub trait CpiAccountsTrait {
     fn to_account_metas(&self) -> crate::error::Result<Vec<InstructionAccount<'_>>>;
 
     /// Convert to account infos for invoke.
-    fn to_account_infos_for_invoke(
-        &self,
-    ) -> crate::error::Result<Vec<&pinocchio::AccountView>>;
+    fn to_account_infos_for_invoke(&self) -> crate::error::Result<Vec<&pinocchio::AccountView>>;
 
     /// Get the CPI signer bump.
     fn bump(&self) -> u8;

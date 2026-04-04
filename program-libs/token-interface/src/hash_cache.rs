@@ -1,6 +1,5 @@
 use light_array_map::ArrayMap;
-use light_compressed_account::hash_to_bn254_field_size_be;
-use light_compressed_account::Pubkey;
+use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
 
 use crate::error::TokenError;
 /// Context for caching hashed values to avoid recomputation

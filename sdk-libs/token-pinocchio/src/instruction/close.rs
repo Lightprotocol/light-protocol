@@ -1,11 +1,10 @@
 //! Close CPI for Light Token operations.
 
 use pinocchio::{
-    AccountView as AccountInfo,
-    cpi::{invoke_with_slice, invoke_signed_with_slice, Signer},
-    instruction::{InstructionAccount, InstructionView},
+    cpi::{invoke_signed_with_slice, invoke_with_slice, Signer},
     error::ProgramError,
-    address::Address,
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 /// Close light-token account via CPI.
@@ -46,7 +45,7 @@ impl<'info> CloseAccountCpi<'info> {
         // Build instruction data: discriminator(1) only
         let data = [9u8]; // Close discriminator
 
-        let program_id = Address::from(*self.token_program.address());
+        let program_id = *self.token_program.address();
 
         let account_metas = [
             InstructionAccount::writable(self.account.address()),

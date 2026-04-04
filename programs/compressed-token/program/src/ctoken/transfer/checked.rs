@@ -9,8 +9,9 @@ use pinocchio_token_program::processor::{
 use super::shared::{
     process_transfer_extensions_transfer_checked, validate_self_transfer, TransferAccounts,
 };
-use crate::shared::{
-    convert_pinocchio_token_error, convert_token_error, owner_validation::check_token_program_owner,
+use crate::{
+    ctoken::burn::convert_v9_result,
+    shared::{convert_token_error, owner_validation::check_token_program_owner},
 };
 /// Account indices for CToken transfer_checked instruction
 /// Note: Different from ctoken_transfer - mint is at index 1
@@ -64,8 +65,12 @@ pub fn process_ctoken_transfer_checked(
     // Hot path: 165-byte accounts have no extensions, skip all extension processing
     if source.data_len() == 165 && destination.data_len() == 165 {
         // Slice to exactly 4 accounts: [source, mint, destination, authority]
-        return process_transfer_checked(&accounts[..4], &instruction_data[..9], false)
-            .map_err(convert_pinocchio_token_error);
+        // SAFETY: pinocchio 0.9 AccountInfo and 0.10 AccountView have the same memory layout.
+        return convert_v9_result(process_transfer_checked(
+            unsafe { core::mem::transmute(&accounts[..4]) },
+            &instruction_data[..9],
+            false,
+        ));
     }
 
     let mint = &accounts[ACCOUNT_MINT];
@@ -106,18 +111,23 @@ pub fn process_ctoken_transfer_checked(
         }
         // Create accounts slice without mint: [source, destination, authority]
         // pinocchio expects 3 accounts when expected_decimals is None
-        let transfer_accounts = [*source, *destination, *authority];
-        process_transfer(
-            transfer_accounts.as_slice(),
+        let transfer_accounts = [source.clone(), destination.clone(), authority.clone()];
+        // SAFETY: pinocchio 0.9 AccountInfo and 0.10 AccountView have the same memory layout.
+        convert_v9_result(process_transfer(
+            unsafe { core::mem::transmute(transfer_accounts.as_slice()) },
             amount,
             None,
             signer_is_validated,
-        )
-        .map_err(convert_pinocchio_token_error)
+        ))
     } else {
         check_token_program_owner(mint)?;
         // Slice to exactly 4 accounts: [source, mint, destination, authority]
-        process_transfer(&accounts[..4], amount, Some(decimals), signer_is_validated)
-            .map_err(convert_pinocchio_token_error)
+        // SAFETY: pinocchio 0.9 AccountInfo and 0.10 AccountView have the same memory layout.
+        convert_v9_result(process_transfer(
+            unsafe { core::mem::transmute(&accounts[..4]) },
+            amount,
+            Some(decimals),
+            signer_is_validated,
+        ))
     }
 }

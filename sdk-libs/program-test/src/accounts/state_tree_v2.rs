@@ -1,4 +1,4 @@
-use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use anchor_lang::{InstructionData, ToAccountMetas};
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::get_merkle_tree_account_size, queue::get_output_queue_account_size,

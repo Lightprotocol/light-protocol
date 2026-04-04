@@ -1,6 +1,6 @@
 use anchor_compressed_token::TokenData as AnchorTokenData;
 use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_array_map::ArrayMap;
 use light_compressed_account::{

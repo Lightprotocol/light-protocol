@@ -2,9 +2,10 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::constants::CPI_AUTHORITY_PDA_SEED;
 use light_program_profiler::profile;
 use pinocchio::{
+    address::Address,
+    cpi::{invoke_signed_with_slice, Seed, Signer},
+    instruction::{InstructionAccount, InstructionView},
     AccountView as AccountInfo,
-    instruction::{AccountMeta, Instruction, Seed, Signer},
-    program::invoke_signed,
 };
 
 use crate::{shared::convert_program_error, LIGHT_CPI_SIGNER};
@@ -22,21 +23,22 @@ pub fn mint_to_token_pool(
 ) -> Result<(), ProgramError> {
     // Create SPL mint_to instruction
     let spl_mint_to_ix = spl_token_2022::instruction::mint_to(
-        &solana_pubkey::Pubkey::new_from_array(*token_program.address()),
-        &solana_pubkey::Pubkey::new_from_array(*mint_account.address()),
-        &solana_pubkey::Pubkey::new_from_array(*token_pool_account.address()),
+        &solana_pubkey::Pubkey::new_from_array(token_program.address().to_bytes()),
+        &solana_pubkey::Pubkey::new_from_array(mint_account.address().to_bytes()),
+        &solana_pubkey::Pubkey::new_from_array(token_pool_account.address().to_bytes()),
         &solana_pubkey::Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer),
         &[],
         amount,
     )?;
 
     // Create instruction for CPI call
-    let mint_to_ix = Instruction {
+    let cpi_signer_addr = Address::from(LIGHT_CPI_SIGNER.cpi_signer);
+    let mint_to_ix = InstructionView {
         program_id: token_program.address(),
         accounts: &[
-            AccountMeta::new(mint_account.address(), true, false), // mint (writable)
-            AccountMeta::new(token_pool_account.address(), true, false), // token_pool (writable)
-            AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true), // authority (signer)
+            InstructionAccount::new(mint_account.address(), true, false), // mint (writable)
+            InstructionAccount::new(token_pool_account.address(), true, false), // token_pool (writable)
+            InstructionAccount::new(&cpi_signer_addr, false, true), // authority (signer)
         ],
         data: &spl_mint_to_ix.data,
     };
@@ -50,7 +52,7 @@ pub fn mint_to_token_pool(
     let signer = Signer::from(&seed_array);
 
     // Execute the mint_to CPI call
-    invoke_signed(
+    invoke_signed_with_slice(
         &mint_to_ix,
         &[mint_account, token_pool_account, cpi_authority_pda],
         &[signer],

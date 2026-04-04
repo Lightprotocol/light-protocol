@@ -18,8 +18,7 @@
 
 use borsh::BorshSerialize;
 use light_account_checks::{
-    account_info::test_account_info::pinocchio::get_account_info,
-    AccountInfoTrait,
+    account_info::test_account_info::pinocchio::get_account_info, AccountInfoTrait,
 };
 #[cfg(test)]
 use light_compressed_account::instruction_data::traits::InstructionData;
@@ -337,7 +336,8 @@ fn clean_input_data(instruction_data: &mut InstructionDataInvokeCpi) {
 }
 
 fn create_test_cpi_context_account(associated_merkle_tree: Option<Pubkey>) -> AccountInfo {
-    let associated_merkle_tree = associated_merkle_tree.unwrap_or_else(solana_pubkey::Pubkey::new_unique);
+    let associated_merkle_tree =
+        associated_merkle_tree.unwrap_or_else(solana_pubkey::Pubkey::new_unique);
     let params = CpiContextAccountInitParams::new(associated_merkle_tree.to_bytes());
     let account_info = get_account_info(
         solana_pubkey::Pubkey::new_unique().to_bytes(),
@@ -794,8 +794,9 @@ fn test_process_cpi_no_inputs() {
     instruction_data.new_address_params = vec![];
 
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(Pubkey::new_from_array(merkle_tree_account_info.key())));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
@@ -851,8 +852,9 @@ fn test_process_cpi_context_no_set_context() {
     let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(false, false, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(Pubkey::new_from_array(merkle_tree_account_info.key())));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let remaining_accounts = &[merkle_tree_account_info];
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
@@ -876,8 +878,9 @@ fn test_process_cpi_context_empty_context_error() {
     let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(false, true, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(Pubkey::new_from_array(merkle_tree_account_info.key())));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let remaining_accounts = &[merkle_tree_account_info];
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
@@ -904,8 +907,9 @@ fn test_process_cpi_context_fee_payer_mismatch_error() {
     let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(true, true, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(Pubkey::new_from_array(merkle_tree_account_info.key())));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let remaining_accounts = &[merkle_tree_account_info];
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
@@ -945,8 +949,9 @@ fn test_process_cpi_context_set_context() {
     let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let mut instruction_data = create_test_instruction_data(true, true, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(Pubkey::new_from_array(merkle_tree_account_info.key())));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let remaining_accounts = &[merkle_tree_account_info];
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
@@ -1109,7 +1114,10 @@ fn test_process_cpi_context_scenario() {
     assert_eq!(cpi_context_cleared.output_data.len(), 0);
     assert_eq!(cpi_context_cleared.output_data_len(), 0);
     // Fee payer should be reset to default
-    assert_eq!(cpi_context_cleared.fee_payer.to_bytes(), Pubkey::default().to_bytes());
+    assert_eq!(
+        cpi_context_cleared.fee_payer.to_bytes(),
+        Pubkey::default().to_bytes()
+    );
 
     // Assert raw bytes are zeroed (except discriminator, associated_merkle_tree, and vector capacities)
     assert_cpi_context_cleared_bytes(&cpi_context_account, merkle_tree_pubkey);
@@ -1120,7 +1128,10 @@ fn test_process_cpi_context_scenario() {
         cpi_context.associated_merkle_tree.to_bytes(),
         merkle_tree_pubkey.to_bytes()
     );
-    assert_eq!(cpi_context.fee_payer.to_bytes(), Pubkey::default().to_bytes());
+    assert_eq!(
+        cpi_context.fee_payer.to_bytes(),
+        Pubkey::default().to_bytes()
+    );
     assert!(cpi_context.is_empty());
 }
 
@@ -1255,14 +1266,7 @@ fn test_cpi_context_zero_copy_randomized() {
     let owner = ID;
     let mut key_bytes = [0u8; 32];
     rng.fill(&mut key_bytes);
-    let account_info = get_account_info(
-        key_bytes,
-        owner,
-        false,
-        true,
-        false,
-        account_data,
-    );
+    let account_info = get_account_info(key_bytes, owner, false, true, false, account_data);
 
     // Initialize the account ONCE
     let _initial_context =

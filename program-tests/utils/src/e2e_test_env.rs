@@ -70,7 +70,7 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
     SAFETY_MARGIN,
 };
-use anchor_lang::{prelude::AccountMeta, AnchorSerialize, Discriminator};
+use anchor_lang::{prelude::AccountMeta, Discriminator};
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},

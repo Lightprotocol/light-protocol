@@ -42,6 +42,7 @@ light-token-client = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { version = "1.36.0", features = ["full"] }
 solana-sdk = { workspace = true }
+solana-system-interface = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 anchor-spl = { workspace = true }

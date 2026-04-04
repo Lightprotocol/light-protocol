@@ -68,7 +68,6 @@ impl From<AccountError> for u32 {
     }
 }
 
-
 #[cfg(feature = "solana")]
 impl From<AccountError> for solana_program_error::ProgramError {
     fn from(e: AccountError) -> Self {

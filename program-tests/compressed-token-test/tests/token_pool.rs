@@ -374,7 +374,7 @@ async fn failing_tests_add_token_pool() {
             assert_rpc_error(
                 result,
                 0,
-                anchor_lang::error::ErrorCode::InvalidProgramId.into(),
+                anchor_lang::error::ErrorCode::InvalidProgramExecutable.into(),
             )
             .unwrap();
         }

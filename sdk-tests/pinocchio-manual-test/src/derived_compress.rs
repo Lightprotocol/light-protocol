@@ -8,7 +8,7 @@ use light_account_pinocchio::{
     account_meta::CompressedAccountMetaNoLamportsNoAddress, prepare_account_for_compression,
     process_compress_pda_accounts_idempotent, CompressCtx, LightDiscriminator, LightSdkTypesError,
 };
-use pinocchio::{AccountView as AccountInfo, error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 use crate::{account_loader::ZeroCopyRecord, pda::MinimalRecord};
 

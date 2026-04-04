@@ -7,6 +7,7 @@
 //! (AccountLoader<T>) for demonstrating different compressible PDA patterns.
 
 #![allow(deprecated)]
+#![allow(clippy::diverging_sub_expression)]
 
 use anchor_lang::prelude::*;
 use light_account::{derive_light_cpi_signer, CpiSigner, LightFinalize, LightPreInit};
@@ -156,7 +157,7 @@ pub mod manual_test {
     /// Create two compressed mints using derived PDAs as mint signers.
     /// Manual implementation of what #[light_account(init, mint::...)] generates.
     /// Demonstrates minimal params pattern where program derives everything from accounts.
-    pub fn create_derived_mints<'a, 'info>(
+    pub fn create_derived_mints<'info>(
         ctx: Context<'info, CreateDerivedMintsAccounts<'info>>,
         params: CreateDerivedMintsParams,
     ) -> Result<()> {
@@ -179,7 +180,7 @@ pub mod manual_test {
     /// Create a PDA token vault using CreateTokenAccountCpi.
     /// Manual implementation of what #[light_account(init, token::...)] generates.
     /// Demonstrates rent-free token account creation for program-owned vaults.
-    pub fn create_token_vault<'a, 'info>(
+    pub fn create_token_vault<'info>(
         ctx: Context<'info, CreateTokenVaultAccounts<'info>>,
         params: CreateTokenVaultParams,
     ) -> Result<()> {
@@ -202,7 +203,7 @@ pub mod manual_test {
     /// Create an Associated Token Account using CreateTokenAtaCpi.
     /// Manual implementation of what #[light_account(init, associated_token::...)] generates.
     /// Demonstrates rent-free ATA creation for user wallets.
-    pub fn create_ata<'a, 'info>(
+    pub fn create_ata<'info>(
         ctx: Context<'info, CreateAtaAccounts<'info>>,
         params: CreateAtaParams,
     ) -> Result<()> {
@@ -231,7 +232,7 @@ pub mod manual_test {
     /// - Compressed Mint
     /// - Token Vault
     /// - Associated Token Account (ATA)
-    pub fn create_all<'a, 'info>(
+    pub fn create_all<'info>(
         ctx: Context<'info, CreateAllAccounts<'info>>,
         params: CreateAllParams,
     ) -> Result<()> {

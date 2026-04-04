@@ -31,6 +31,7 @@ light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
 solana-sdk = { workspace = true }
 solana-system-interface = { workspace = true, features = ["bincode"] }
+solana-compute-budget-interface = { workspace = true }
 
 forester-utils = { workspace = true }
 light-client = { workspace = true, features = ["devenv"] }

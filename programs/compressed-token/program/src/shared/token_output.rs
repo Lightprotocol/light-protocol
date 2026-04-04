@@ -80,13 +80,13 @@ pub fn set_output_compressed_account<'a>(
         match token_version {
             TokenDataVersion::ShaFlat => Sha256BE::hash(compressed_account_data.data)?,
             _ => {
-                let hashed_owner = hash_cache.get_or_hash_pubkey(&owner.into());
-                let hashed_mint = hash_cache.get_or_hash_mint(&mint_pubkey.to_bytes())?;
+                let hashed_owner = hash_cache.get_or_hash_pubkey(&owner);
+                let hashed_mint = hash_cache.get_or_hash_mint(&mint_pubkey)?;
 
                 let amount_bytes = token_version.serialize_amount_bytes(amount.into())?;
 
-                let hashed_delegate = delegate
-                    .map(|delegate_pubkey| hash_cache.get_or_hash_pubkey(&delegate_pubkey.into()));
+                let hashed_delegate =
+                    delegate.map(|delegate_pubkey| hash_cache.get_or_hash_pubkey(&delegate_pubkey));
 
                 if !is_frozen {
                     TokenData::hash_with_hashed_values(

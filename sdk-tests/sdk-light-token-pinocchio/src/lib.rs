@@ -47,7 +47,7 @@ pub use ctoken_mint_to::{
 pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 use light_macros::pubkey_array;
 use pinocchio::{
-    AccountView as AccountInfo, entrypoint, error::ProgramError, ProgramResult,
+    entrypoint, error::ProgramError, AccountView as AccountInfo, Address, ProgramResult,
 };
 pub use revoke::{
     process_revoke_invoke, process_revoke_invoke_signed, process_revoke_invoke_with_fee_payer,
@@ -225,13 +225,13 @@ impl TryFrom<u8> for InstructionType {
 
 /// Main program entrypoint
 pub fn process_instruction(
-    program_id: &[u8; 32],
+    program_id: &Address,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
     use borsh::BorshDeserialize;
 
-    if *program_id != ID {
+    if *program_id.as_array() != ID {
         return Err(ProgramError::IncorrectProgramId);
     }
 

@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_program_profiler::profile;
-use pinocchio::{AccountView as AccountInfo, address::Address};
+use pinocchio::AccountView as AccountInfo;
 use solana_msg::msg;
 
 use crate::{
@@ -113,7 +113,7 @@ impl<'info> Transfer2Accounts<'info> {
         &self,
         all_accounts: &'info [AccountInfo],
         packed_accounts: &'info ProgramPackedAccounts<'info, AccountInfo>,
-    ) -> Result<(&'info [AccountInfo], Vec<&'info Pubkey>), ProgramError> {
+    ) -> Result<(&'info [AccountInfo], Vec<&'info [u8; 32]>), ProgramError> {
         // Extract tree accounts using highest index approach
         let tree_accounts = extract_tree_accounts(packed_accounts);
 
@@ -142,14 +142,14 @@ impl<'info> Transfer2Accounts<'info> {
 #[inline(always)]
 pub fn extract_tree_accounts<'info>(
     packed_accounts: &'info ProgramPackedAccounts<'info, AccountInfo>,
-) -> Vec<&'info Pubkey> {
+) -> Vec<&'info [u8; 32]> {
     let mut tree_accounts = Vec::with_capacity(8);
     for account_info in packed_accounts.accounts {
         // As heuristic which accounts are tree or queue accounts we
         // check that the first 8 bytes of the account compression program
         // equal the first 8 bytes of the account owner.
-        if account_info.owner()[0..8] == [9, 44, 54, 236, 34, 245, 23, 131] {
-            tree_accounts.push(account_info.address());
+        if unsafe { account_info.owner() }.as_array()[0..8] == [9, 44, 54, 236, 34, 245, 23, 131] {
+            tree_accounts.push(account_info.address().as_array());
         }
     }
     tree_accounts

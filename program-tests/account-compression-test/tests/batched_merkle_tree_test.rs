@@ -55,8 +55,8 @@ use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
-    system_instruction,
 };
+use solana_system_interface::instruction as system_instruction;
 
 pub enum TestMode {
     InvalidMerkleTree,

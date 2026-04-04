@@ -2,7 +2,7 @@
 
 use light_program_test::{program_test::LightProgramTest, ProgramTestConfig, Rpc};
 use pinocchio_nostd_test::test_helpers::get_program_id;
-use solana_sdk::{instruction::InstructionView, pubkey::Pubkey, signature::Signer};
+use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Signer};
 
 #[tokio::test]
 async fn test_nostd_basic() {

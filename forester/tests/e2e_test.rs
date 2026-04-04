@@ -2,7 +2,6 @@ use std::{collections::HashMap, env, sync::Arc, time::Duration};
 
 use account_compression::{state::StateMerkleTreeAccount, AddressMerkleTreeAccount};
 use anchor_lang::Discriminator;
-use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{
     config::{ExternalServicesConfig, GeneralConfig, RpcPoolConfig, TransactionConfig},

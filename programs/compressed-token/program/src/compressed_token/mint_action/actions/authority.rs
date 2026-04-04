@@ -31,7 +31,7 @@ pub fn check_authority(
     })?;
 
     // Validate signer matches authority
-    if authority.to_bytes() != *signer {
+    if authority.to_bytes() != *signer.as_array() {
         let location = Location::caller();
         // Check if authority has been revoked (set to zero)
         if authority.to_bytes() == [0u8; 32] {
@@ -47,7 +47,7 @@ pub fn check_authority(
         msg!(
             "Invalid {}: signer {:?} doesn't match expected {:?}. {}:{}:{}",
             authority_name,
-            solana_pubkey::Pubkey::new_from_array(*signer),
+            solana_pubkey::Pubkey::new_from_array(*signer.as_array()),
             solana_pubkey::Pubkey::new_from_array(authority.to_bytes()),
             location.file(),
             location.line(),

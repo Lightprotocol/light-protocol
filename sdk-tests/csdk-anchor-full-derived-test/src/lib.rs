@@ -1,5 +1,6 @@
 #![allow(deprecated)]
 #![allow(clippy::useless_asref)] // Testing macro handling of .as_ref() patterns
+#![allow(clippy::diverging_sub_expression)]
 
 use anchor_lang::prelude::*;
 use light_account::{

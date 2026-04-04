@@ -137,7 +137,6 @@ impl From<CompressedAccountError> for solana_program_error::ProgramError {
     }
 }
 
-
 pub const NULLIFIER_QUEUE_TYPE_V1: u64 = 1;
 pub const ADDRESS_QUEUE_TYPE_V1: u64 = 2;
 pub const INPUT_STATE_QUEUE_TYPE_V2: u64 = 3;
@@ -197,6 +196,9 @@ pub enum TreeType {
     AddressV2 = ADDRESS_MERKLE_TREE_TYPE_V2,
     Unknown = 255,
 }
+
+#[cfg(feature = "idl-build")]
+impl anchor_lang::IdlBuild for TreeType {}
 
 impl Display for TreeType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

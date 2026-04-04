@@ -8,7 +8,6 @@ use light_token_interface::{
     TokenError,
 };
 use light_zero_copy::traits::ZeroCopyAtMut;
-use pinocchio::address::pubkey_eq;
 use solana_msg::msg;
 
 use super::{
@@ -171,7 +170,7 @@ fn validate_ctoken(
     }
 
     // Validate mint matches
-    if !pubkey_eq(ctoken.mint.array_ref(), mint) {
+    if ctoken.mint.array_ref() != mint {
         msg!(
             "mint mismatch: ctoken.mint {:?}, expected {:?}",
             solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes()),

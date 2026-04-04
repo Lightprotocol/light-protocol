@@ -1,6 +1,5 @@
 #![cfg(all(test, feature = "new-unique"))]
 
-use borsh::BorshSerialize;
 use light_compressed_account::{
     compressed_account::{CompressedAccount, PackedMerkleContext},
     instruction_data::{

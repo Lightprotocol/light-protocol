@@ -6,7 +6,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_token_interface::state::BaseMint;
 use rand::{thread_rng, Rng};
-use spl_token_2022::{solana_program::program_pack::Pack, state::Mint as SplMint};
+use solana_program_pack::Pack;
+use spl_token_2022::state::Mint as SplMint;
 
 /// Generate random test data for a mint
 fn generate_random_mint_data() -> (Option<Pubkey>, Option<Pubkey>, u64, u8, bool) {

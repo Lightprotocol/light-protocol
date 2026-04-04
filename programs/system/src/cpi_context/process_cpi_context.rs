@@ -1,4 +1,3 @@
-use crate::Pubkey;
 use light_account_checks::discriminator::Discriminator;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::{
@@ -19,7 +18,7 @@ use solana_msg::msg;
 use super::state::{deserialize_cpi_context_account, ZCpiContextAccount2};
 use crate::{
     context::WrappedInstructionData, cpi_context::state::deserialize_cpi_context_account_cleared,
-    errors::SystemProgramError, Result,
+    errors::SystemProgramError, Pubkey, Result,
 };
 
 /// Cpi context enables the use of input compressed accounts owned by different

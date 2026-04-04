@@ -163,7 +163,7 @@ impl CodegenBackend for PinocchioBackend {
     }
 
     fn account_info_type(&self) -> TokenStream {
-        quote! { pinocchio::AccountView as AccountInfo }
+        quote! { pinocchio::AccountView }
     }
 
     fn packed_accounts_type(&self) -> TokenStream {
@@ -171,7 +171,7 @@ impl CodegenBackend for PinocchioBackend {
     }
 
     fn account_meta_type(&self) -> TokenStream {
-        quote! { light_account_pinocchio::solana_instruction::InstructionAccount }
+        quote! { light_account_pinocchio::solana_instruction::AccountMeta }
     }
 
     fn is_pinocchio(&self) -> bool {

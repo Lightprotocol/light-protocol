@@ -1,10 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{CreateAccountsProof, LightAccount};
 use pinocchio::{
-    AccountView as AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
+    cpi::{Seed, Signer},
+    error::ProgramError,
     sysvars::Sysvar,
+    AccountView as AccountInfo,
 };
 
 use crate::state::{MinimalRecord, OneByteRecord, ZeroCopyRecord};
@@ -75,14 +75,19 @@ impl<'a> CreateAllAccounts<'a> {
         {
             let space = 8 + MinimalRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"minimal_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if borsh_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
 
             let rent = pinocchio::sysvars::rent::Rent::get()
                 .map_err(|_| ProgramError::UnsupportedSysvar)?;
-            let lamports = rent.minimum_balance(space);
+            let lamports = rent
+                .try_minimum_balance(space)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
 
             let bump_bytes = [bump];
             let seed_array = [
@@ -96,7 +101,7 @@ impl<'a> CreateAllAccounts<'a> {
                 to: borsh_record,
                 lamports,
                 space: space as u64,
-                owner: &crate::ID,
+                owner: &pinocchio::Address::from(crate::ID),
             }
             .invoke_signed(&[signer])?;
 
@@ -111,14 +116,19 @@ impl<'a> CreateAllAccounts<'a> {
         {
             let space = 8 + ZeroCopyRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[crate::RECORD_SEED, &params.owner];
-            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if zero_copy_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
 
             let rent = pinocchio::sysvars::rent::Rent::get()
                 .map_err(|_| ProgramError::UnsupportedSysvar)?;
-            let lamports = rent.minimum_balance(space);
+            let lamports = rent
+                .try_minimum_balance(space)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
 
             let bump_bytes = [bump];
             let seed_array = [
@@ -132,7 +142,7 @@ impl<'a> CreateAllAccounts<'a> {
                 to: zero_copy_record,
                 lamports,
                 space: space as u64,
-                owner: &crate::ID,
+                owner: &pinocchio::Address::from(crate::ID),
             }
             .invoke_signed(&[signer])?;
 
@@ -149,13 +159,18 @@ impl<'a> CreateAllAccounts<'a> {
             let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
             let space = disc_len + OneByteRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[b"one_byte_record", &params.owner];
-            let (expected_pda, bump) = pinocchio::address::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if one_byte_record.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             let rent = pinocchio::sysvars::rent::Rent::get()
                 .map_err(|_| ProgramError::UnsupportedSysvar)?;
-            let lamports = rent.minimum_balance(space);
+            let lamports = rent
+                .try_minimum_balance(space)
+                .map_err(|_| ProgramError::ArithmeticOverflow)?;
             let bump_bytes = [bump];
             let seed_array = [
                 Seed::from(b"one_byte_record" as &[u8]),
@@ -168,7 +183,7 @@ impl<'a> CreateAllAccounts<'a> {
                 to: one_byte_record,
                 lamports,
                 space: space as u64,
-                owner: &crate::ID,
+                owner: &pinocchio::Address::from(crate::ID),
             }
             .invoke_signed(&[signer])?;
 
@@ -181,9 +196,11 @@ impl<'a> CreateAllAccounts<'a> {
         // Validate mint_signer PDA
         {
             let authority_key = authority.address();
-            let seeds: &[&[u8]] = &[crate::MINT_SIGNER_SEED_A, authority_key];
-            let (expected_pda, expected_bump) =
-                pinocchio::address::find_program_address(seeds, &crate::ID);
+            let seeds: &[&[u8]] = &[crate::MINT_SIGNER_SEED_A, authority_key.as_ref()];
+            let (expected_pda, expected_bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if mint_signer.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
@@ -195,9 +212,11 @@ impl<'a> CreateAllAccounts<'a> {
         // Validate token_vault PDA
         {
             let mint_key = mint.address();
-            let seeds: &[&[u8]] = &[crate::VAULT_SEED, mint_key];
-            let (expected_pda, expected_bump) =
-                pinocchio::address::find_program_address(seeds, &crate::ID);
+            let seeds: &[&[u8]] = &[crate::VAULT_SEED, mint_key.as_ref()];
+            let (expected_pda, expected_bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
             if token_vault.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }

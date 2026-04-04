@@ -1,8 +1,7 @@
-use crate::Pubkey;
 use light_compressed_account::instruction_data::zero_copy::ZPackedCompressedAccountWithMerkleContext;
 use solana_msg::msg;
 
-use crate::{errors::SystemProgramError, Result};
+use crate::{errors::SystemProgramError, Pubkey, Result};
 
 pub fn input_compressed_accounts_signer_check(
     input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext],
@@ -34,7 +33,6 @@ pub fn input_compressed_accounts_signer_check(
 
 #[cfg(test)]
 mod test {
-    use borsh::BorshSerialize;
     use light_compressed_account::compressed_account::{
         CompressedAccount, PackedCompressedAccountWithMerkleContext,
     };

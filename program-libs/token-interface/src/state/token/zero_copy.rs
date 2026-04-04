@@ -542,7 +542,9 @@ impl Token {
         account_info: &pinocchio::AccountView,
     ) -> Result<ZToken<'a>, crate::error::TokenError> {
         // 1. Check program ownership
-        if !account_info.owned_by(&pinocchio::address::Address::from(crate::LIGHT_TOKEN_PROGRAM_ID)) {
+        if !account_info.owned_by(&pinocchio::address::Address::from(
+            crate::LIGHT_TOKEN_PROGRAM_ID,
+        )) {
             return Err(crate::error::TokenError::InvalidTokenOwner);
         }
 
@@ -577,7 +579,9 @@ impl Token {
         account_info: &pinocchio::AccountView,
     ) -> Result<ZTokenMut<'a>, crate::error::TokenError> {
         // 1. Check program ownership
-        if !account_info.owned_by(&pinocchio::address::Address::from(crate::LIGHT_TOKEN_PROGRAM_ID)) {
+        if !account_info.owned_by(&pinocchio::address::Address::from(
+            crate::LIGHT_TOKEN_PROGRAM_ID,
+        )) {
             return Err(crate::error::TokenError::InvalidTokenOwner);
         }
 

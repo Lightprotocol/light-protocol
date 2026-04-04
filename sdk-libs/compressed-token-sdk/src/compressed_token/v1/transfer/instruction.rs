@@ -10,7 +10,6 @@ use super::account_metas::{get_transfer_instruction_account_metas, TokenAccounts
 use crate::{
     compressed_token::v1::account::CTokenAccount,
     error::{Result, TokenSdkError},
-    AnchorSerialize,
 };
 // CTokenAccount abstraction to bundle inputs and create outputs.
 // Users don't really need to interact with this struct directly.

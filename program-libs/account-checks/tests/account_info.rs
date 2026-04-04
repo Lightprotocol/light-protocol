@@ -399,8 +399,7 @@ fn test_pinocchio_account_info_trait() {
         let seeds = &[b"test_seed".as_ref(), &[1, 2, 3]];
 
         // Test find_program_address() - functional
-        let (pda, bump) =
-            pinocchio::AccountView::find_program_address(seeds, &program_id);
+        let (pda, bump) = pinocchio::AccountView::find_program_address(seeds, &program_id);
 
         // Verify the PDA is valid by using Solana's function
         let (expected_pda, expected_bump) = solana_pubkey::Pubkey::find_program_address(
@@ -412,19 +411,13 @@ fn test_pinocchio_account_info_trait() {
 
         // Test create_program_address() - functional
         let seeds_with_bump = &[b"test_seed".as_ref(), &[1, 2, 3], &[bump]];
-        let created_pda = pinocchio::AccountView::create_program_address(
-            seeds_with_bump,
-            &program_id,
-        )
-        .unwrap();
+        let created_pda =
+            pinocchio::AccountView::create_program_address(seeds_with_bump, &program_id).unwrap();
         assert_eq!(created_pda, pda);
 
         // Test create_program_address() - failing (invalid bump)
         let invalid_seeds = &[b"test_seed".as_ref(), &[1, 2, 3], &[255u8]]; // Invalid bump
-        let result = pinocchio::AccountView::create_program_address(
-            invalid_seeds,
-            &program_id,
-        );
+        let result = pinocchio::AccountView::create_program_address(invalid_seeds, &program_id);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), AccountError::InvalidSeeds);
     }

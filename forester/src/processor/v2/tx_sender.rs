@@ -1,7 +1,5 @@
 use std::{sync::Arc, time::Duration};
 
-use borsh::BorshSerialize;
-
 const MAX_BUFFER_SIZE: usize = 1000;
 const V2_IXS_PER_TX_WITH_LUT: usize = 5;
 const V2_IXS_PER_TX_WITHOUT_LUT: usize = 4;

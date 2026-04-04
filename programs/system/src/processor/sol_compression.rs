@@ -2,8 +2,8 @@ use aligned_sized::*;
 use light_compressed_account::instruction_data::traits::InstructionData;
 use light_program_profiler::profile;
 use pinocchio::{
-    AccountView as AccountInfo,
     cpi::{Seed, Signer},
+    AccountView as AccountInfo,
 };
 
 use crate::{

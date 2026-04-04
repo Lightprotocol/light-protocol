@@ -16,6 +16,7 @@ test-sbf = []
 
 
 [dev-dependencies]
+borsh = { workspace = true }
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 light-compressed-token = { workspace = true, features = ["cpi"] }

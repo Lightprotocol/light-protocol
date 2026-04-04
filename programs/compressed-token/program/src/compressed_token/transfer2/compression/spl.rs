@@ -8,10 +8,11 @@ use light_token_interface::{
     is_valid_spl_interface_pda,
 };
 use pinocchio::{
+    cpi::{Seed, Signer},
+    instruction::{InstructionAccount, InstructionView},
     AccountView as AccountInfo,
-    instruction::{AccountMeta, Seed, Signer},
-    msg,
 };
+use solana_msg::msg;
 
 use super::validate_compression_mode_fields;
 use crate::{constants::BUMP_CPI_AUTHORITY, shared::convert_pinocchio_token_error};
@@ -32,7 +33,7 @@ pub(super) fn process_spl_compressions(
 
     let mint_account_info =
         packed_accounts.get_u8(compression.mint, "process_spl_compression: token mint")?;
-    let mint_account = *mint_account_info.address();
+    let mint_account = mint_account_info.address().to_bytes();
 
     let decimals = compression.decimals;
 
@@ -42,7 +43,7 @@ pub(super) fn process_spl_compressions(
     )?;
     if !is_valid_spl_interface_pda(
         &mint_account,
-        &solana_pubkey::Pubkey::new_from_array(*token_pool_account_info.address()),
+        &solana_pubkey::Pubkey::new_from_array(*token_pool_account_info.address().as_array()),
         compression.pool_index,
         Some(compression.bump),
         is_restricted,
@@ -151,14 +152,15 @@ fn spl_token_transfer_checked_common(
 
     // Account order for TransferChecked: source, mint, destination, authority
     let account_metas = [
-        AccountMeta::new(from.address(), true, false),
-        AccountMeta::new(mint.address(), false, false), // mint is not writable
-        AccountMeta::new(to.address(), true, false),
-        AccountMeta::new(authority.address(), false, true),
+        InstructionAccount::new(from.address(), true, false),
+        InstructionAccount::new(mint.address(), false, false), // mint is not writable
+        InstructionAccount::new(to.address(), true, false),
+        InstructionAccount::new(authority.address(), false, true),
     ];
 
-    let instruction = pinocchio::instruction::InstructionView {
-        program_id: token_program,
+    let token_program_address = pinocchio::address::Address::new_from_array(*token_program);
+    let instruction = InstructionView {
+        program_id: &token_program_address,
         accounts: &account_metas,
         data: &instruction_data,
     };

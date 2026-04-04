@@ -5,7 +5,9 @@ use pinocchio_token_program::processor::{
     mint_to::process_mint_to, mint_to_checked::process_mint_to_checked,
 };
 
-use super::burn::{process_ctoken_supply_change_inner, BASE_LEN_CHECKED, BASE_LEN_UNCHECKED};
+use super::burn::{
+    convert_v9_result, process_ctoken_supply_change_inner, BASE_LEN_CHECKED, BASE_LEN_UNCHECKED,
+};
 
 /// Mint account indices: [cmint=0, ctoken=1, authority=2]
 pub(crate) const MINT_CMINT_IDX: usize = 0;
@@ -32,7 +34,7 @@ pub fn process_ctoken_mint_to(
     process_ctoken_supply_change_inner::<BASE_LEN_UNCHECKED, MINT_CMINT_IDX, MINT_CTOKEN_IDX>(
         accounts,
         instruction_data,
-        process_mint_to,
+        |a, d| convert_v9_result(process_mint_to(unsafe { core::mem::transmute(a) }, d)),
     )
 }
 
@@ -57,6 +59,11 @@ pub fn process_ctoken_mint_to_checked(
     process_ctoken_supply_change_inner::<BASE_LEN_CHECKED, MINT_CMINT_IDX, MINT_CTOKEN_IDX>(
         accounts,
         instruction_data,
-        process_mint_to_checked,
+        |a, d| {
+            convert_v9_result(process_mint_to_checked(
+                unsafe { core::mem::transmute(a) },
+                d,
+            ))
+        },
     )
 }

@@ -10,8 +10,8 @@ pub fn process(
     params: &CreateMintParams,
     remaining_accounts: &[AccountInfo],
 ) -> Result<(), LightSdkTypesError> {
-    let authority = *ctx.authority.address();
-    let mint_signer_key = *ctx.mint_signer.address();
+    let authority = ctx.authority.address().to_bytes();
+    let mint_signer_key = ctx.mint_signer.address().to_bytes();
 
     let mint_signer_seeds: &[&[u8]] = &[
         crate::MINT_SIGNER_SEED_A,
@@ -33,8 +33,8 @@ pub fn process(
                 mint_signer_seeds: Some(mint_signer_seeds),
                 token_metadata: None,
             }],
-            mint_seed_accounts: [*ctx.mint_signer],
-            mint_accounts: [*ctx.mint],
+            mint_seed_accounts: [ctx.mint_signer.clone()],
+            mint_accounts: [ctx.mint.clone()],
         }),
         [],
         [],

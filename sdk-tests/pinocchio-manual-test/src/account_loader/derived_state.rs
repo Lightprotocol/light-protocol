@@ -76,7 +76,7 @@ impl LightAccount for ZeroCopyRecord {
         // Note: key() returns [u8; 32] directly, no conversion needed
         Ok(ZeroCopyRecord {
             compression_info: CompressionInfo::compressed(),
-            owner: owner_account.address(),
+            owner: owner_account.key(),
             value: packed.value,
         })
     }
