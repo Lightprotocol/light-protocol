@@ -4,6 +4,7 @@
 
 use light_client::rpc::{Rpc, RpcError};
 use light_token::instruction::Revoke as RevokeInstruction;
+use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
@@ -37,7 +38,31 @@ pub struct Revoke {
     pub owner: Option<Pubkey>,
 }
 
+pub fn create_revoke_instructions(
+    revoke: &Revoke,
+    fee_payer: Pubkey,
+    owner: Pubkey,
+) -> Result<Vec<Instruction>, RpcError> {
+    let ix = RevokeInstruction {
+        token_account: revoke.token_account,
+        owner,
+        fee_payer,
+    }
+    .instruction()
+    .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+
+    Ok(vec![ix])
+}
+
 impl Revoke {
+    pub fn instructions(
+        &self,
+        fee_payer: Pubkey,
+        owner: Pubkey,
+    ) -> Result<Vec<Instruction>, RpcError> {
+        create_revoke_instructions(self, fee_payer, owner)
+    }
+
     /// Execute the revoke action via RPC where payer is the owner.
     ///
     /// This method only supports cases where `owner == payer`. If you need a
@@ -66,15 +91,9 @@ impl Revoke {
             ));
         }
 
-        let ix = RevokeInstruction {
-            token_account: self.token_account,
-            owner: owner_pubkey,
-            fee_payer: payer.pubkey(),
-        }
-        .instruction()
-        .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+        let instructions = create_revoke_instructions(&self, payer.pubkey(), owner_pubkey)?;
 
-        rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[payer])
+        rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
             .await
     }
 
@@ -107,20 +126,14 @@ impl Revoke {
             }
         }
 
-        let ix = RevokeInstruction {
-            token_account: self.token_account,
-            owner: owner.pubkey(),
-            fee_payer: payer.pubkey(),
-        }
-        .instruction()
-        .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+        let instructions = create_revoke_instructions(&self, payer.pubkey(), owner.pubkey())?;
 
         let mut signers: Vec<&Keypair> = vec![payer];
         if owner.pubkey() != payer.pubkey() {
             signers.push(owner);
         }
 
-        rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &signers)
+        rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &signers)
             .await
     }
 }

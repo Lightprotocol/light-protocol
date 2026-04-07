@@ -4,6 +4,7 @@
 
 use light_client::rpc::{Rpc, RpcError};
 use light_token::instruction::TransferChecked as TransferCheckedInstruction;
+use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
@@ -39,7 +40,35 @@ pub struct TransferChecked {
     pub decimals: u8,
 }
 
+pub fn create_transfer_checked_instructions(
+    transfer: &TransferChecked,
+    fee_payer: Pubkey,
+    authority: Pubkey,
+) -> Result<Vec<Instruction>, RpcError> {
+    let ix = TransferCheckedInstruction {
+        source: transfer.source,
+        mint: transfer.mint,
+        destination: transfer.destination,
+        amount: transfer.amount,
+        decimals: transfer.decimals,
+        authority,
+        fee_payer,
+    }
+    .instruction()
+    .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+
+    Ok(vec![ix])
+}
+
 impl TransferChecked {
+    pub fn instructions(
+        &self,
+        fee_payer: Pubkey,
+        authority: Pubkey,
+    ) -> Result<Vec<Instruction>, RpcError> {
+        create_transfer_checked_instructions(self, fee_payer, authority)
+    }
+
     /// Execute the transfer_checked action via RPC.
     ///
     /// # Arguments
@@ -55,24 +84,15 @@ impl TransferChecked {
         payer: &Keypair,
         authority: &Keypair,
     ) -> Result<Signature, RpcError> {
-        let ix = TransferCheckedInstruction {
-            source: self.source,
-            mint: self.mint,
-            destination: self.destination,
-            amount: self.amount,
-            decimals: self.decimals,
-            authority: authority.pubkey(),
-            fee_payer: payer.pubkey(),
-        }
-        .instruction()
-        .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+        let instructions =
+            create_transfer_checked_instructions(&self, payer.pubkey(), authority.pubkey())?;
 
         let mut signers = vec![payer];
         if authority.pubkey() != payer.pubkey() {
             signers.push(authority);
         }
 
-        rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &signers)
+        rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &signers)
             .await
     }
 }
