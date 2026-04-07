@@ -6,8 +6,9 @@ default:
 build:
     cd stateless.js && pnpm build
     cd compressed-token && pnpm build
+    cd token-interface && pnpm build
 
-test: test-stateless test-compressed-token
+test: test-stateless test-compressed-token test-token-interface
 
 test-stateless:
     cd stateless.js && pnpm test
@@ -15,13 +16,24 @@ test-stateless:
 test-compressed-token:
     cd compressed-token && pnpm test
 
+test-token-interface:
+    cd token-interface && pnpm test
+
+test-token-interface-unit-v2:
+    cd token-interface && pnpm test:unit:all
+
+test-token-interface-e2e-v2:
+    cd token-interface && pnpm test:e2e:all
+
 test-compressed-token-unit-v2:
     cd compressed-token && pnpm test:unit:all:v2
 
 lint:
     cd stateless.js && pnpm lint
     cd compressed-token && pnpm lint
+    cd token-interface && pnpm lint
 
 format:
     cd stateless.js && pnpm format
     cd compressed-token && pnpm format
+    cd token-interface && pnpm format

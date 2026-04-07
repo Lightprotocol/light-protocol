@@ -95,7 +95,7 @@ describe('transferDelegatedInterface - failure cases', () => {
                 undefined,
                 undefined,
             ),
-        ).rejects.toThrow();
+        ).rejects.toThrow(/Insufficient delegated balance/);
     }, 30_000);
 
     it('rejects transfer from unapproved signer', async () => {
@@ -112,7 +112,7 @@ describe('transferDelegatedInterface - failure cases', () => {
                 undefined,
                 undefined,
             ),
-        ).rejects.toThrow();
+        ).rejects.toThrow(/Signer is not the owner or a delegate/);
     }, 30_000);
 
     it('rejects transfer after revoke', async () => {
@@ -132,6 +132,6 @@ describe('transferDelegatedInterface - failure cases', () => {
                 undefined,
                 undefined,
             ),
-        ).rejects.toThrow();
+        ).rejects.toThrow(/Signer is not the owner or a delegate/);
     }, 60_000);
 });

@@ -5,6 +5,7 @@ set -e
 # JS formatting
 cd js/stateless.js && pnpm format && cd ../..
 cd js/compressed-token && pnpm format && cd ../..
+cd js/token-interface && pnpm format && cd ../..
 
 # Rust formatting
 cargo +nightly fmt --all

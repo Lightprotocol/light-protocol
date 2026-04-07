@@ -4,43 +4,59 @@ import {
     SystemProgram,
 } from '@solana/web3.js';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
-import { MAX_TOP_UP } from '../../constants';
-import { CompressedTokenProgram } from '../../program';
-import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
+import {
+    COMPRESSED_TOKEN_PROGRAM_ID,
+    deriveCpiAuthorityPda,
+    MAX_TOP_UP,
+} from '../constants';
+import type { SplInterface } from '../spl-interface';
 import {
     encodeTransfer2InstructionData,
-    createCompressSpl,
-    createDecompressLightToken,
-    Transfer2InstructionData,
-    Compression,
-} from '../layout/layout-transfer2';
+    createCompressLightToken,
+    createDecompressSpl,
+    type Transfer2InstructionData,
+    type Compression,
+} from './layout/layout-transfer2';
+
+export interface CreateUnwrapInstructionInput {
+    source: PublicKey;
+    destination: PublicKey;
+    owner: PublicKey;
+    mint: PublicKey;
+    amount: bigint;
+    splInterface: SplInterface;
+    decimals: number;
+    payer?: PublicKey;
+    maxTopUp?: number;
+}
 
 /**
- * Create a wrap instruction that moves tokens from an SPL/T22 account to a
- * light-token account.
+ * Create an unwrap instruction that moves tokens from a light-token account to an
+ * SPL/T22 account.
  *
- * @param source            Source SPL/T22 token account
- * @param destination       Destination light-token account
- * @param owner             Owner of the source account (signer)
- * @param mint              Mint address
- * @param amount            Amount to wrap,
- * @param splInterfaceInfo  SPL interface info for the compression
- * @param decimals          Mint decimals (required for transfer_checked)
- * @param payer             Fee payer (defaults to owner)
- * @param maxTopUp          Optional cap on rent top-up (units of 1k lamports; default no cap)
- * @returns Instruction to wrap tokens
+ * @param input             Unwrap instruction input.
+ * @param input.source      Source light-token account.
+ * @param input.destination Destination SPL/T22 token account.
+ * @param input.owner       Owner/authority of the source account (signer).
+ * @param input.mint        Mint address.
+ * @param input.amount      Amount to unwrap.
+ * @param input.splInterface SPL interface info for the decompression.
+ * @param input.decimals    Mint decimals (required for transfer_checked).
+ * @param input.payer       Fee payer (defaults to owner).
+ * @param input.maxTopUp    Optional cap on rent top-up (units of 1k lamports; default no cap).
+ * @returns Instruction to unwrap tokens
  */
-export function createWrapInstruction(
-    source: PublicKey,
-    destination: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    amount: bigint,
-    splInterfaceInfo: SplInterfaceInfo,
-    decimals: number,
-    payer: PublicKey = owner,
-    maxTopUp?: number,
-): TransactionInstruction {
+export function createUnwrapInstruction({
+    source,
+    destination,
+    owner,
+    mint,
+    amount,
+    splInterface,
+    decimals,
+    payer = owner,
+    maxTopUp,
+}: CreateUnwrapInstructionInput): TransactionInstruction {
     const MINT_INDEX = 0;
     const OWNER_INDEX = 1;
     const SOURCE_INDEX = 2;
@@ -49,21 +65,21 @@ export function createWrapInstruction(
     const LIGHT_TOKEN_PROGRAM_INDEX = 6;
 
     const compressions: Compression[] = [
-        createCompressSpl(
+        createCompressLightToken(
             amount,
             MINT_INDEX,
             SOURCE_INDEX,
             OWNER_INDEX,
-            POOL_INDEX,
-            splInterfaceInfo.poolIndex,
-            splInterfaceInfo.bump,
-            decimals,
+            LIGHT_TOKEN_PROGRAM_INDEX,
         ),
-        createDecompressLightToken(
+        createDecompressSpl(
             amount,
             MINT_INDEX,
             DESTINATION_INDEX,
-            LIGHT_TOKEN_PROGRAM_INDEX,
+            POOL_INDEX,
+            splInterface.derivationIndex,
+            splInterface.bump,
+            decimals,
         ),
     ];
 
@@ -89,7 +105,7 @@ export function createWrapInstruction(
 
     const keys = [
         {
-            pubkey: CompressedTokenProgram.deriveCpiAuthorityPda,
+            pubkey: deriveCpiAuthorityPda(),
             isSigner: false,
             isWritable: false,
         },
@@ -99,12 +115,12 @@ export function createWrapInstruction(
         { pubkey: source, isSigner: false, isWritable: true },
         { pubkey: destination, isSigner: false, isWritable: true },
         {
-            pubkey: splInterfaceInfo.splInterfacePda,
+            pubkey: splInterface.poolPda,
             isSigner: false,
             isWritable: true,
         },
         {
-            pubkey: splInterfaceInfo.tokenProgram,
+            pubkey: splInterface.tokenProgramId,
             isSigner: false,
             isWritable: false,
         },
@@ -113,7 +129,6 @@ export function createWrapInstruction(
             isSigner: false,
             isWritable: false,
         },
-        // System program needed for top-up CPIs when destination has compressible extension
         {
             pubkey: SystemProgram.programId,
             isSigner: false,
@@ -122,7 +137,7 @@ export function createWrapInstruction(
     ];
 
     return new TransactionInstruction({
-        programId: CompressedTokenProgram.programId,
+        programId: COMPRESSED_TOKEN_PROGRAM_ID,
         keys,
         data,
     });
