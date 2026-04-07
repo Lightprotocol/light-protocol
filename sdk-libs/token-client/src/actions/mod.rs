@@ -27,9 +27,7 @@ pub mod wrap;
 // Re-export all action structs
 pub use approve::{create_approve_instructions, Approve};
 pub use create_ata::{create_ata_instructions, CreateAta};
-pub use create_mint::{
-    create_mint_instructions, CreateMint, CreateMintInstructions, TokenMetadata,
-};
+pub use create_mint::{create_mint_instructions, CreateMint, TokenMetadata};
 pub use light_token::instruction::{
     derive_associated_token_account, get_associated_token_address,
     get_associated_token_address_and_bump,
