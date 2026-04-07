@@ -67,11 +67,43 @@ pub struct CreateMint {
     pub seed: Option<Keypair>,
 }
 
-fn build_token_metadata_extensions(
-    token_metadata: Option<&TokenMetadata>,
+pub async fn create_mint_instructions<R: Rpc + Indexer>(
+    rpc: &R,
+    create_mint: &CreateMint,
+    payer: Pubkey,
     mint_authority: Pubkey,
-) -> Option<Vec<ExtensionInstructionData>> {
-    token_metadata.map(|metadata| {
+) -> Result<Vec<Instruction>, RpcError> {
+    let mint_seed_pubkey = create_mint.seed.as_ref().map(|seed| seed.pubkey()).ok_or_else(|| {
+        RpcError::CustomError(
+            "create_mint_instructions requires CreateMint.seed = Some(Keypair) so caller can sign; use execute() for auto-generated seed".to_string(),
+        )
+    })?;
+
+    let address_tree = rpc.get_address_tree_v2();
+    let output_queue = rpc.get_random_state_tree_info()?.queue;
+
+    // Derive compression address
+    let compression_address = derive_mint_compressed_address(&mint_seed_pubkey, &address_tree.tree);
+
+    // Find mint PDA
+    let (mint, bump) = find_mint_address(&mint_seed_pubkey);
+
+    // Get validity proof for the address
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![AddressWithTree {
+                address: compression_address,
+                tree: address_tree.tree,
+            }],
+            None,
+        )
+        .await
+        .map_err(|e| RpcError::CustomError(format!("Failed to get validity proof: {}", e)))?
+        .value;
+
+    // Build extensions if token metadata is provided
+    let extensions = create_mint.token_metadata.as_ref().map(|metadata| {
         let additional_metadata = metadata.additional_metadata.as_ref().map(|items| {
             items
                 .iter()
@@ -97,44 +129,11 @@ fn build_token_metadata_extensions(
                 additional_metadata,
             },
         )]
-    })
-}
-
-async fn build_create_mint_instructions<R: Rpc + Indexer>(
-    rpc: &R,
-    decimals: u8,
-    freeze_authority: Option<Pubkey>,
-    token_metadata: Option<&TokenMetadata>,
-    mint_seed_pubkey: Pubkey,
-    payer: Pubkey,
-    mint_authority: Pubkey,
-) -> Result<(Vec<Instruction>, Pubkey), RpcError> {
-    let address_tree = rpc.get_address_tree_v2();
-    let output_queue = rpc.get_random_state_tree_info()?.queue;
-
-    // Derive compression address
-    let compression_address = derive_mint_compressed_address(&mint_seed_pubkey, &address_tree.tree);
-
-    // Find mint PDA
-    let (mint, bump) = find_mint_address(&mint_seed_pubkey);
-
-    // Get validity proof for the address
-    let rpc_result = rpc
-        .get_validity_proof(
-            vec![],
-            vec![AddressWithTree {
-                address: compression_address,
-                tree: address_tree.tree,
-            }],
-            None,
-        )
-        .await
-        .map_err(|e| RpcError::CustomError(format!("Failed to get validity proof: {}", e)))?
-        .value;
+    });
 
     // Build params
     let params = CreateMintInstructionParams {
-        decimals,
+        decimals: create_mint.decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         mint_authority,
         proof: rpc_result.proof.0.ok_or_else(|| {
@@ -143,8 +142,8 @@ async fn build_create_mint_instructions<R: Rpc + Indexer>(
         compression_address,
         mint,
         bump,
-        freeze_authority,
-        extensions: build_token_metadata_extensions(token_metadata, mint_authority),
+        freeze_authority: create_mint.freeze_authority,
+        extensions,
         rent_payment: 16,  // ~24 hours rent
         write_top_up: 766, // ~3 hours per write
     };
@@ -157,36 +156,10 @@ async fn build_create_mint_instructions<R: Rpc + Indexer>(
         address_tree.tree,
         output_queue,
     )
-    .instruction()
-    .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+        .instruction()
+        .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
 
-    Ok((vec![instruction], mint))
-}
-
-pub async fn create_mint_instructions<R: Rpc + Indexer>(
-    rpc: &R,
-    create_mint: &CreateMint,
-    payer: Pubkey,
-    mint_authority: Pubkey,
-) -> Result<Vec<Instruction>, RpcError> {
-    let mint_seed_pubkey = create_mint.seed.as_ref().map(|seed| seed.pubkey()).ok_or_else(|| {
-        RpcError::CustomError(
-            "create_mint_instructions requires CreateMint.seed = Some(Keypair) so caller can sign; use execute() for auto-generated seed".to_string(),
-        )
-    })?;
-
-    let (instructions, _) = build_create_mint_instructions(
-        rpc,
-        create_mint.decimals,
-        create_mint.freeze_authority,
-        create_mint.token_metadata.as_ref(),
-        mint_seed_pubkey,
-        payer,
-        mint_authority,
-    )
-    .await?;
-
-    Ok(instructions)
+    Ok(vec![instruction])
 }
 
 impl CreateMint {
@@ -214,23 +187,87 @@ impl CreateMint {
         payer: &Keypair,
         mint_authority: &Keypair,
     ) -> Result<(Signature, Pubkey), RpcError> {
-        let CreateMint {
-            decimals,
-            freeze_authority,
-            token_metadata,
-            seed,
-        } = self;
-        let mint_seed = seed.unwrap_or_else(Keypair::new);
-        let (instructions, mint) = build_create_mint_instructions(
-            rpc,
-            decimals,
-            freeze_authority,
-            token_metadata.as_ref(),
+        let mint_seed = self.seed.unwrap_or_else(Keypair::new);
+        let address_tree = rpc.get_address_tree_v2();
+        let output_queue = rpc.get_random_state_tree_info()?.queue;
+
+        // Derive compression address
+        let compression_address =
+            derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree.tree);
+
+        // Find mint PDA
+        let (mint, bump) = find_mint_address(&mint_seed.pubkey());
+
+        // Get validity proof for the address
+        let rpc_result = rpc
+            .get_validity_proof(
+                vec![],
+                vec![AddressWithTree {
+                    address: compression_address,
+                    tree: address_tree.tree,
+                }],
+                None,
+            )
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Failed to get validity proof: {}", e)))?
+            .value;
+
+        // Build extensions if token metadata is provided
+        let extensions = self.token_metadata.map(|metadata| {
+            let additional_metadata = metadata.additional_metadata.map(|items| {
+                items
+                    .into_iter()
+                    .map(|(key, value)| AdditionalMetadata {
+                        key: key.into_bytes(),
+                        value: value.into_bytes(),
+                    })
+                    .collect()
+            });
+
+            vec![ExtensionInstructionData::TokenMetadata(
+                TokenMetadataInstructionData {
+                    update_authority: Some(
+                        metadata
+                            .update_authority
+                            .unwrap_or_else(|| mint_authority.pubkey())
+                            .to_bytes()
+                            .into(),
+                    ),
+                    name: metadata.name.into_bytes(),
+                    symbol: metadata.symbol.into_bytes(),
+                    uri: metadata.uri.into_bytes(),
+                    additional_metadata,
+                },
+            )]
+        });
+
+        // Build params
+        let params = CreateMintInstructionParams {
+            decimals: self.decimals,
+            address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
+            mint_authority: mint_authority.pubkey(),
+            proof: rpc_result.proof.0.ok_or_else(|| {
+                RpcError::CustomError("Validity proof is required for create_mint".to_string())
+            })?,
+            compression_address,
+            mint,
+            bump,
+            freeze_authority: self.freeze_authority,
+            extensions,
+            rent_payment: 16,  // ~24 hours rent
+            write_top_up: 766, // ~3 hours per write
+        };
+
+        // Create instruction
+        let instruction = CreateMintInstruction::new(
+            params,
             mint_seed.pubkey(),
             payer.pubkey(),
-            mint_authority.pubkey(),
+            address_tree.tree,
+            output_queue,
         )
-        .await?;
+            .instruction()
+            .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
 
         // Build signers list
         let mut signers: Vec<&Keypair> = vec![payer, &mint_seed];
@@ -240,7 +277,7 @@ impl CreateMint {
 
         // Send transaction
         let signature = rpc
-            .create_and_send_transaction(&instructions, &payer.pubkey(), &signers)
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &signers)
             .await?;
 
         Ok((signature, mint))
