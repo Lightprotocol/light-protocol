@@ -251,6 +251,17 @@ async fn test_invalid_registered_program() {
     )
     .await
     .unwrap();
+    // Init reimbursement PDA for the state tree so registry wrapper nullify works.
+    {
+        let ix =
+            light_registry::account_compression_cpi::sdk::create_init_reimbursement_pda_instruction(
+                payer.pubkey(),
+                invalid_group_state_merkle_tree.pubkey(),
+            );
+        rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
+            .await
+            .unwrap();
+    }
     let invalid_group_address_merkle_tree = Keypair::new();
     let invalid_group_address_queue = Keypair::new();
     create_address_merkle_tree_and_queue_account(

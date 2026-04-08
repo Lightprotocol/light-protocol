@@ -287,3 +287,10 @@ CompressAndClose: [96, 94, 135, 18, 121, 42, 213, 117]
 - Building instructions manually without Anchor's `InstructionData` trait
 - Creating SDK functions that don't depend on Anchor crate
 - Verifying instruction data in tests or validators
+
+## Active Technologies
+- Rust (Solana BPF target), Anchor framework for account-compression and registry programs + anchor-lang, light-batched-merkle-tree, light-merkle-tree-metadata, light-account-checks, light-compressed-accoun (001-tree-fee-distribution)
+- Solana on-chain accounts (tree/queue accounts owned by account-compression, PDA owned by registry) (001-tree-fee-distribution)
+
+## Recent Changes
+- 001-tree-fee-distribution: Added Rust (Solana BPF target), Anchor framework for account-compression and registry programs + anchor-lang, light-batched-merkle-tree, light-merkle-tree-metadata, light-account-checks, light-compressed-accoun

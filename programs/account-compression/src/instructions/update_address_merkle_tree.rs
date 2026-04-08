@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use light_concurrent_merkle_tree::event::{IndexedMerkleTreeEvent, MerkleTreeEvent};
 use light_indexed_merkle_tree::array::IndexedElement;
+use light_merkle_tree_metadata::fee::FORESTER_REIMBURSEMENT_CAP;
 use num_bigint::BigUint;
 
 use crate::{
@@ -133,7 +134,7 @@ pub fn process_update_address_merkle_tree<'info>(
             transfer_lamports(
                 &ctx.accounts.queue.to_account_info(),
                 &fee_payer.to_account_info(),
-                network_fee,
+                network_fee.min(FORESTER_REIMBURSEMENT_CAP),
             )?;
         }
     }

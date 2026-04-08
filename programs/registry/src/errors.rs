@@ -42,4 +42,8 @@ pub enum RegistryError {
     BorrowAccountDataFailed,
     #[msg("Failed to serialize instruction data")]
     SerializationFailed,
+    #[msg("Fee recipient does not match protocol_config.protocol_fee_recipient")]
+    InvalidFeeRecipient,
+    #[msg("Tree account is not a valid state tree for reimbursement PDA")]
+    InvalidTreeForReimbursementPda,
 }

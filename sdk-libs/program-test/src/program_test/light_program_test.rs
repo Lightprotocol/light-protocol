@@ -2,6 +2,8 @@ use std::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "devenv")]
 use account_compression::QueueAccount;
+#[cfg(feature = "devenv")]
+use light_client::rpc::Rpc;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{merkle_tree::MerkleTreeExt, RpcError},
@@ -390,6 +392,40 @@ impl LightProgramTest {
 
         // reset tx counter after program setup.
         context.transaction_counter = 0;
+
+        // Initialize reimbursement PDAs for genesis state trees owned by
+        // account-compression. Skip trees owned by other programs (CPI test trees).
+        #[cfg(feature = "devenv")]
+        {
+            let payer = context.get_payer().insecure_clone();
+            let all_state_trees: Vec<_> = context
+                .test_accounts
+                .v1_state_trees
+                .iter()
+                .map(|t| t.merkle_tree)
+                .chain(
+                    context
+                        .test_accounts
+                        .v2_state_trees
+                        .iter()
+                        .map(|t| t.merkle_tree),
+                )
+                .collect();
+            for tree_pubkey in all_state_trees {
+                // Only init PDA if the tree is owned by account-compression.
+                if let Some(account) = context.get_account(tree_pubkey).await.ok().flatten() {
+                    if account.owner == account_compression::ID {
+                        let ix = light_registry::account_compression_cpi::sdk::create_init_reimbursement_pda_instruction(
+                            payer.pubkey(),
+                            tree_pubkey,
+                        );
+                        let _ = context
+                            .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
+                            .await;
+                    }
+                }
+            }
+        }
 
         #[cfg(feature = "devenv")]
         {
