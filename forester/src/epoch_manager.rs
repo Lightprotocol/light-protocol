@@ -46,7 +46,10 @@ use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
 use crate::{
     compressible::{
-        traits::{Cancelled, CompressibleTracker, CompressionOutcome, CompressionTaskError},
+        traits::{
+            Cancelled, CompressibleState, CompressibleTracker, CompressionOutcome,
+            CompressionTaskError,
+        },
         CTokenAccountTracker, CTokenCompressor, CompressibleConfig,
     },
     errors::{
@@ -2534,7 +2537,18 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .compressible_config
             .as_ref()
             .ok_or_else(|| anyhow!("Compressible config not set"))?;
-        let accounts = tracker.get_ready_to_compress(current_slot);
+        // CToken compress_batch needs full account state for instruction building,
+        // so collect states in a single pass rather than pubkeys-then-lookup.
+        let pending = tracker.pending();
+        let accounts: Vec<_> = tracker
+            .accounts()
+            .iter()
+            .filter(|entry| {
+                entry.value().is_ready_to_compress(current_slot) && !pending.contains(entry.key())
+            })
+            .map(|entry| entry.value().clone())
+            .collect();
+        drop(pending);
 
         if accounts.is_empty() {
             trace!("No compressible accounts ready for compression");
@@ -2554,7 +2568,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let compressor = CTokenCompressor::new(
             self.rpc_pool.clone(),
             tracker.clone(),
-            self.config.payer_keypair.insecure_clone(),
+            self.authority.clone(),
             self.transaction_policy(),
         );
 
@@ -2791,7 +2805,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             let pda_compressor = crate::compressible::pda::PdaCompressor::new(
                 self.rpc_pool.clone(),
                 pda_tracker.clone(),
-                self.config.payer_keypair.insecure_clone(),
+                self.authority.clone(),
                 self.transaction_policy(),
             );
 
@@ -2840,26 +2854,26 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 match result {
                     CompressionOutcome::Compressed {
                         signature: sig,
-                        state: account_state,
+                        pubkey,
                     } => {
                         debug!(
                             "Compressed PDA {} for program {}: {}",
-                            account_state.pubkey, program_config.program_id, sig
+                            pubkey, program_config.program_id, sig
                         );
                         total_compressed += 1;
                     }
                     CompressionOutcome::Failed {
-                        state: _account_state,
                         error: CompressionTaskError::Cancelled,
+                        ..
                     } => {}
                     CompressionOutcome::Failed {
-                        state: account_state,
+                        pubkey,
                         error: CompressionTaskError::Failed(e),
                     } => {
                         error!(
                             event = "compression_pda_account_failed",
                             run_id = %self.run_id,
-                            account = %account_state.pubkey,
+                            account = %pubkey,
                             program = %program_config.program_id,
                             error = ?e,
                             "Failed to compress PDA account"
@@ -2915,7 +2929,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let mint_compressor = crate::compressible::mint::MintCompressor::new(
             self.rpc_pool.clone(),
             mint_tracker.clone(),
-            self.config.payer_keypair.insecure_clone(),
+            self.authority.clone(),
             self.transaction_policy(),
         );
 
@@ -2933,23 +2947,23 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             match result {
                 CompressionOutcome::Compressed {
                     signature: sig,
-                    state: mint_state,
+                    pubkey,
                 } => {
-                    debug!("Compressed Mint {}: {}", mint_state.pubkey, sig);
+                    debug!("Compressed Mint {}: {}", pubkey, sig);
                     total_compressed += 1;
                 }
                 CompressionOutcome::Failed {
-                    state: _mint_state,
                     error: CompressionTaskError::Cancelled,
+                    ..
                 } => {}
                 CompressionOutcome::Failed {
-                    state: mint_state,
+                    pubkey,
                     error: CompressionTaskError::Failed(e),
                 } => {
                     error!(
                         event = "compression_mint_account_failed",
                         run_id = %self.run_id,
-                        mint = %mint_state.pubkey,
+                        mint = %pubkey,
                         error = ?e,
                         "Failed to compress mint account"
                     );

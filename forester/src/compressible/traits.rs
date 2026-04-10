@@ -47,20 +47,20 @@ pub enum CompressionTaskError {
 }
 
 #[derive(Debug)]
-pub enum CompressionOutcome<S> {
+pub enum CompressionOutcome {
     Compressed {
         signature: Signature,
-        state: S,
+        pubkey: Pubkey,
     },
     Failed {
-        state: S,
+        pubkey: Pubkey,
         error: CompressionTaskError,
     },
 }
 
-pub type CompressionOutcomes<S> = Vec<CompressionOutcome<S>>;
+pub type CompressionOutcomes = Vec<CompressionOutcome>;
 
-pub trait CompressibleState: Clone + Send + Sync {
+pub trait CompressibleState: Send + Sync {
     fn pubkey(&self) -> &Pubkey;
     fn lamports(&self) -> u64;
     fn compressible_slot(&self) -> u64;
@@ -128,14 +128,14 @@ pub trait CompressibleTracker<S: CompressibleState>: Send + Sync {
         self.len() == 0
     }
 
-    fn get_ready_to_compress(&self, current_slot: u64) -> Vec<S> {
+    fn get_ready_to_compress(&self, current_slot: u64) -> Vec<Pubkey> {
         let pending = self.pending();
         self.accounts()
             .iter()
             .filter(|entry| {
                 entry.value().is_ready_to_compress(current_slot) && !pending.contains(entry.key())
             })
-            .map(|entry| entry.value().clone())
+            .map(|entry| *entry.key())
             .collect()
     }
 }
