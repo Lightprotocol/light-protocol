@@ -13,7 +13,7 @@ use super::types::PdaAccountState;
 use crate::{
     compressible::{
         config::PdaProgramConfig,
-        traits::{CompressibleTracker, SubscriptionHandler},
+        traits::{CompressibleState, CompressibleTracker, SubscriptionHandler},
     },
     Result,
 };
@@ -72,10 +72,16 @@ impl PdaAccountTracker {
         &self,
         program_id: &Pubkey,
         current_slot: u64,
-    ) -> Vec<PdaAccountState> {
-        self.get_ready_to_compress(current_slot)
-            .into_iter()
-            .filter(|state| state.program_id == *program_id)
+    ) -> Vec<Pubkey> {
+        let pending = self.pending();
+        self.accounts()
+            .iter()
+            .filter(|entry| {
+                entry.value().program_id == *program_id
+                    && entry.value().is_ready_to_compress(current_slot)
+                    && !pending.contains(entry.key())
+            })
+            .map(|entry| *entry.key())
             .collect()
     }
 

@@ -30,16 +30,16 @@ use crate::{
 pub struct MintCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<MintAccountTracker>,
-    payer_keypair: Keypair,
+    payer_keypair: Arc<Keypair>,
     transaction_policy: TransactionPolicy,
 }
 
 impl<R: Rpc + Indexer> Clone for MintCompressor<R> {
     fn clone(&self) -> Self {
         Self {
-            rpc_pool: Arc::clone(&self.rpc_pool),
-            tracker: Arc::clone(&self.tracker),
-            payer_keypair: self.payer_keypair.insecure_clone(),
+            rpc_pool: self.rpc_pool.clone(),
+            tracker: self.tracker.clone(),
+            payer_keypair: self.payer_keypair.clone(),
             transaction_policy: self.transaction_policy,
         }
     }
@@ -49,7 +49,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
     pub fn new(
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<MintAccountTracker>,
-        payer_keypair: Keypair,
+        payer_keypair: Arc<Keypair>,
         transaction_policy: TransactionPolicy,
     ) -> Self {
         Self {
@@ -133,21 +133,20 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
     /// Use this when you need fine-grained control over individual compressions.
     pub async fn compress_batch_concurrent(
         &self,
-        mint_states: &[MintAccountState],
+        pubkeys: &[Pubkey],
         max_concurrent: usize,
         cancelled: Arc<AtomicBool>,
-    ) -> CompressionOutcomes<MintAccountState> {
-        if mint_states.is_empty() {
+    ) -> CompressionOutcomes {
+        if pubkeys.is_empty() {
             return Vec::new();
         }
 
         // Guard against max_concurrent == 0 to avoid buffer_unordered panic
         if max_concurrent == 0 {
-            return mint_states
+            return pubkeys
                 .iter()
-                .cloned()
-                .map(|mint_state| CompressionOutcome::Failed {
-                    state: mint_state,
+                .map(|&pubkey| CompressionOutcome::Failed {
+                    pubkey,
                     error: CompressionTaskError::Failed(anyhow::anyhow!(
                         "max_concurrent must be > 0"
                     )),
@@ -156,30 +155,44 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         }
 
         // Mark all as pending upfront
-        let all_pubkeys: Vec<Pubkey> = mint_states.iter().map(|s| s.pubkey).collect();
-        self.tracker.mark_pending(&all_pubkeys);
+        self.tracker.mark_pending(pubkeys);
 
         // Create futures for each mint
-        let compression_futures = mint_states.iter().cloned().map(|mint_state| {
+        let compression_futures = pubkeys.iter().copied().map(|pubkey| {
             let compressor = self.clone();
             let cancelled = cancelled.clone();
             async move {
                 // Check cancellation before processing
                 if cancelled.load(Ordering::Relaxed) {
-                    compressor.tracker.unmark_pending(&[mint_state.pubkey]);
+                    compressor.tracker.unmark_pending(&[pubkey]);
                     return CompressionOutcome::Failed {
-                        state: mint_state,
+                        pubkey,
                         error: CompressionTaskError::Cancelled,
                     };
                 }
 
+                let mint_state =
+                    match compressor.tracker.accounts().get(&pubkey).map(|r| r.clone()) {
+                        Some(state) => state,
+                        None => {
+                            compressor.tracker.unmark_pending(&[pubkey]);
+                            return CompressionOutcome::Failed {
+                                pubkey,
+                                error: CompressionTaskError::Failed(anyhow::anyhow!(
+                                    "mint {} removed from tracker before compression",
+                                    pubkey
+                                )),
+                            };
+                        }
+                    };
+
                 match compressor.compress(&mint_state).await {
                     Ok(sig) => CompressionOutcome::Compressed {
                         signature: sig,
-                        state: mint_state,
+                        pubkey,
                     },
                     Err(e) => CompressionOutcome::Failed {
-                        state: mint_state,
+                        pubkey,
                         error: e.into(),
                     },
                 }
@@ -195,11 +208,11 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         // Remove successfully compressed mints; unmark failed ones
         for result in &results {
             match result {
-                CompressionOutcome::Compressed { state, .. } => {
-                    self.tracker.remove_compressed(&state.pubkey);
+                CompressionOutcome::Compressed { pubkey, .. } => {
+                    self.tracker.remove_compressed(pubkey);
                 }
-                CompressionOutcome::Failed { state, .. } => {
-                    self.tracker.unmark_pending(&[state.pubkey]);
+                CompressionOutcome::Failed { pubkey, .. } => {
+                    self.tracker.unmark_pending(&[*pubkey]);
                 }
             }
         }
