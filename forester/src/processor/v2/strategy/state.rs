@@ -11,7 +11,8 @@ use tracing::{debug, instrument};
 use crate::processor::v2::{
     batch_job_builder::BatchJobBuilder,
     common::{batch_range, get_leaves_hashchain},
-    helpers::{fetch_onchain_state_root, fetch_paginated_batches, fetch_zkp_batch_size},
+    indexer_fetch::fetch_paginated_batches,
+    tree_data::{fetch_onchain_state_root, fetch_zkp_batch_size},
     proof_worker::ProofInput,
     root_guard::{reconcile_alignment, AlignmentDecision},
     strategy::{CircuitType, QueueData, TreeStrategy},
