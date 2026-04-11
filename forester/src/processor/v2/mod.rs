@@ -1,12 +1,14 @@
 mod batch_job_builder;
 pub mod common;
 pub mod errors;
-mod helpers;
+mod indexer_fetch;
 mod processor;
 pub mod proof_cache;
 mod proof_worker;
 mod root_guard;
 pub mod strategy;
+pub(crate) mod streaming_queue;
+mod tree_data;
 mod tx_sender;
 
 pub use common::{BatchContext, ProverConfig};
