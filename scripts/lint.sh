@@ -3,7 +3,7 @@
 set -e
 
 # Keep formatter deterministic across local + CI.
-RUSTFMT_NIGHTLY_TOOLCHAIN="${RUSTFMT_NIGHTLY_TOOLCHAIN:-nightly-2025-10-26}"
+RUSTFMT_NIGHTLY_TOOLCHAIN="${RUSTFMT_NIGHTLY_TOOLCHAIN:-nightly}"
 
 # JS linting (use subshells to avoid directory issues)
 (cd js/stateless.js && pnpm prettier --write . && pnpm lint)
