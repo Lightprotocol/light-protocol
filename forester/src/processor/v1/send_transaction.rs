@@ -192,10 +192,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             let confirmation_poll_interval = config.confirmation_poll_interval;
 
             async move {
-                // Safety margin: stop 3s before deadline to avoid sending txs
-                // that land after our light slot ends (ForesterNotEligible).
-                let safe_deadline = timeout_deadline - std::time::Duration::from_secs(3);
-                if cancel_signal.load(Ordering::SeqCst) || Instant::now() >= safe_deadline {
+                if cancel_signal.load(Ordering::SeqCst) || Instant::now() >= timeout_deadline {
                     return Ok(());
                 }
 
@@ -228,7 +225,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
                 };
                 trace!(tree = %tree_id, "Built {} transactions in {:?}", transactions_to_send.len(), build_start_time.elapsed());
 
-                if transactions_to_send.is_empty() || Instant::now() >= safe_deadline {
+                if transactions_to_send.is_empty() || Instant::now() >= timeout_deadline {
                     return Ok(());
                 }
 
