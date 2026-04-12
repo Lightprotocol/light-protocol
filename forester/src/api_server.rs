@@ -1,11 +1,10 @@
 use std::{
     collections::HashMap,
     net::SocketAddr,
-    sync::Arc,
+    sync::{mpsc, Arc},
+    thread::JoinHandle,
     time::Duration,
 };
-
-use tokio::task::JoinHandle;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, oneshot, watch};
@@ -599,20 +598,28 @@ const COMPRESSIBLE_FETCH_TIMEOUT: Duration = Duration::from_secs(90);
 
 /// Handle returned by spawn_api_server for graceful shutdown
 pub struct ApiServerHandle {
-    /// Task handle for the API server
-    task_handle: JoinHandle<()>,
+    /// Thread handle for the API server
+    pub thread_handle: JoinHandle<()>,
     /// Sender to trigger graceful shutdown
-    shutdown_tx: Option<oneshot::Sender<()>>,
+    pub shutdown_tx: oneshot::Sender<()>,
     pub run_id: Arc<str>,
 }
 
 impl ApiServerHandle {
-    /// Trigger graceful shutdown of the API server.
-    pub fn shutdown(mut self) {
-        if let Some(tx) = self.shutdown_tx.take() {
-            let _ = tx.send(());
+    /// Trigger graceful shutdown and wait for the server to stop
+    pub fn shutdown(self) {
+        let run_id = self.run_id.clone();
+        // Send shutdown signal (ignore error if receiver already dropped)
+        let _ = self.shutdown_tx.send(());
+        // Wait for the thread to finish
+        if let Err(e) = self.thread_handle.join() {
+            error!(
+                event = "api_server_thread_panicked",
+                run_id = %run_id,
+                error = ?e,
+                "API server thread panicked"
+            );
         }
-        self.task_handle.abort();
     }
 }
 
@@ -1022,188 +1029,255 @@ async fn run_compressible_provider(
 
 /// Spawn the HTTP API server with graceful shutdown support.
 ///
-/// Setup (bind, route construction) runs inline so errors are returned
-/// directly. Only the long-running serve loop is spawned as a task.
-pub async fn spawn_api_server(config: ApiServerConfig) -> anyhow::Result<ApiServerHandle> {
+/// # Returns
+/// An `ApiServerHandle` that can be used to trigger graceful shutdown
+pub fn spawn_api_server(config: ApiServerConfig) -> anyhow::Result<ApiServerHandle> {
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
-    let run_id = config.run_id.clone();
+    let (startup_tx, startup_rx) = mpsc::sync_channel(1);
+    let run_id_for_handle = config.run_id.clone();
 
-    let addr = if config.allow_public_bind {
-        warn!(
-            event = "api_server_public_bind_enabled",
-            run_id = %run_id,
-            port = config.port,
-            "API server binding to 0.0.0.0; endpoints will be publicly accessible"
-        );
-        SocketAddr::from(([0, 0, 0, 0], config.port))
-    } else {
-        SocketAddr::from(([127, 0, 0, 1], config.port))
-    };
-
-    let http_client = reqwest::Client::builder()
-        .timeout(EXTERNAL_HTTP_TIMEOUT)
-        .build()
-        .map_err(|e| anyhow::anyhow!("Failed to create HTTP client for API server: {e}"))?;
-
-    let trackers = config
-        .compressible_state
-        .as_ref()
-        .map(|s| CompressibleTrackers {
-            ctoken: s.ctoken_tracker.clone(),
-            pda: s.pda_tracker.clone(),
-            mint: s.mint_tracker.clone(),
-        });
-
-    let (metrics_tx, metrics_rx) = watch::channel(MetricsSnapshot::empty());
-    let (compressible_tx, compressible_rx) = watch::channel(CompressibleSnapshot::empty());
-    let (provider_shutdown_tx, _) = broadcast::channel::<()>(1);
-
-    tokio::spawn(run_metrics_provider(
-        metrics_tx,
-        http_client.clone(),
-        config.prometheus_url.clone(),
-        provider_shutdown_tx.subscribe(),
-        run_id.clone(),
-    ));
-
-    tokio::spawn(run_compressible_provider(
-        compressible_tx,
-        trackers,
-        config.forester_api_urls.clone(),
-        config.rpc_url.clone(),
-        provider_shutdown_tx.subscribe(),
-        config.helius_rpc,
-        run_id.clone(),
-    ));
-
-    let cors = warp::cors()
-        .allow_any_origin()
-        .allow_methods(vec!["GET"])
-        .allow_headers(vec!["Content-Type"]);
-
-    let health_route = warp::path("health").and(warp::get()).map(|| {
-        warp::reply::json(&HealthResponse {
-            status: "ok".to_string(),
-        })
-    });
-
-    let rpc_url_for_status = config.rpc_url.clone();
-    let run_id_for_status = run_id.to_string();
-    let status_route = warp::path("status").and(warp::get()).and_then(move || {
-        let rpc_url = rpc_url_for_status.clone();
-        let run_id = run_id_for_status.clone();
-        async move {
-            let timeout_duration = Duration::from_secs(STATUS_TIMEOUT_SECS);
-            match tokio::time::timeout(timeout_duration, get_forester_status(&rpc_url))
-                .await
-            {
-                Ok(Ok(status)) => Ok::<_, warp::Rejection>(warp::reply::with_status(
-                    warp::reply::json(&status),
-                    warp::http::StatusCode::OK,
-                )),
-                Ok(Err(e)) => {
-                    error!(
-                        event = "api_server_status_fetch_failed",
-                        run_id = %run_id,
-                        error = ?e,
-                        "Failed to get forester status"
-                    );
-                    let error_response = ErrorResponse {
-                        error: format!("Failed to get forester status: {}", e),
-                    };
-                    Ok(warp::reply::with_status(
-                        warp::reply::json(&error_response),
-                        warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    ))
-                }
-                Err(_elapsed) => {
-                    error!(
-                        event = "api_server_status_timeout",
-                        run_id = %run_id,
-                        timeout_seconds = STATUS_TIMEOUT_SECS,
-                        "Forester status request timed out"
-                    );
-                    let error_response = ErrorResponse {
-                        error: format!(
-                            "Request timed out after {} seconds",
-                            STATUS_TIMEOUT_SECS
-                        ),
-                    };
-                    Ok(warp::reply::with_status(
-                        warp::reply::json(&error_response),
-                        warp::http::StatusCode::GATEWAY_TIMEOUT,
-                    ))
-                }
+    let thread_handle = std::thread::spawn(move || {
+        let run_id = config.run_id.clone();
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(error) => {
+                error!(
+                    event = "api_server_runtime_create_failed",
+                    run_id = %run_id,
+                    error = %error,
+                    "Failed to create tokio runtime for API server"
+                );
+                let _ = startup_tx.send(Err(anyhow::anyhow!(
+                    "Failed to create tokio runtime for API server: {error}"
+                )));
+                return;
             }
-        }
-    });
-
-    let metrics_rx_clone = metrics_rx.clone();
-    let metrics_route = warp::path!("metrics" / "json")
-        .and(warp::get())
-        .map(move || warp::reply::json(&*metrics_rx_clone.borrow()));
-
-    let prometheus_route = warp::path!("metrics").and(warp::get()).and_then(|| async {
-        crate::metrics::metrics_handler()
-            .await
-            .map_err(|_| warp::reject::reject())
-    });
-
-    let compressible_rx_clone = compressible_rx.clone();
-    let compressible_route = warp::path("compressible")
-        .and(warp::get())
-        .map(move || warp::reply::json(&*compressible_rx_clone.borrow()));
-
-    let routes = health_route
-        .or(status_route)
-        .or(metrics_route)
-        .or(prometheus_route)
-        .or(compressible_route)
-        .with(cors);
-
-    info!(
-        event = "api_server_started",
-        run_id = %run_id,
-        address = %addr,
-        "HTTP API server listening"
-    );
-
-    // bind_with_graceful_shutdown returns a 'static future safe for tokio::spawn.
-    let run_id_for_task = run_id.clone();
-    let (bound_addr, server_future) = warp::serve(routes).bind_with_graceful_shutdown(addr, {
-        let run_id_for_shutdown = run_id.clone();
-        async move {
-            let _ = shutdown_rx.await;
+        };
+        rt.block_on(async move {
+            let addr = if config.allow_public_bind {
+                warn!(
+                    event = "api_server_public_bind_enabled",
+                    run_id = %run_id,
+                    port = config.port,
+                    "API server binding to 0.0.0.0; endpoints will be publicly accessible"
+                );
+                SocketAddr::from(([0, 0, 0, 0], config.port))
+            } else {
+                SocketAddr::from(([127, 0, 0, 1], config.port))
+            };
             info!(
-                event = "api_server_shutdown_signal_received",
-                run_id = %run_id_for_shutdown,
-                "API server received shutdown signal"
+                event = "api_server_started",
+                run_id = %run_id,
+                address = %addr,
+                "Starting HTTP API server"
             );
-            let _ = provider_shutdown_tx.send(());
+
+            // Shared HTTP client with timeout for external requests (Prometheus)
+            let http_client = match reqwest::Client::builder()
+                .timeout(EXTERNAL_HTTP_TIMEOUT)
+                .build()
+            {
+                Ok(client) => client,
+                Err(error) => {
+                    error!(
+                        event = "api_server_http_client_create_failed",
+                        run_id = %run_id,
+                        error = %error,
+                        "Failed to create shared HTTP client for API server"
+                    );
+                    let _ = startup_tx.send(Err(anyhow::anyhow!(
+                        "Failed to create shared HTTP client for API server: {error}"
+                    )));
+                    return;
+                }
+            };
+
+            // Build trackers from config
+            let trackers = config
+                .compressible_state
+                .as_ref()
+                .map(|s| CompressibleTrackers {
+                    ctoken: s.ctoken_tracker.clone(),
+                    pda: s.pda_tracker.clone(),
+                    mint: s.mint_tracker.clone(),
+                });
+
+            // Create watch channels with empty initial values
+            let (metrics_tx, metrics_rx) = watch::channel(MetricsSnapshot::empty());
+            let (compressible_tx, compressible_rx) = watch::channel(CompressibleSnapshot::empty());
+
+            // Create shutdown broadcast for providers
+            let (provider_shutdown_tx, _) = broadcast::channel::<()>(1);
+
+            // Spawn background providers
+            tokio::spawn(run_metrics_provider(
+                metrics_tx,
+                http_client.clone(),
+                config.prometheus_url.clone(),
+                provider_shutdown_tx.subscribe(),
+                run_id.clone(),
+            ));
+
+            tokio::spawn(run_compressible_provider(
+                compressible_tx,
+                trackers,
+                config.forester_api_urls.clone(),
+                config.rpc_url.clone(),
+                provider_shutdown_tx.subscribe(),
+                config.helius_rpc,
+                run_id.clone(),
+            ));
+
+            let cors = warp::cors()
+                .allow_any_origin()
+                .allow_methods(vec!["GET"])
+                .allow_headers(vec!["Content-Type"]);
+
+            let health_route = warp::path("health").and(warp::get()).map(|| {
+                warp::reply::json(&HealthResponse {
+                    status: "ok".to_string(),
+                })
+            });
+
+            // --- Status route (unchanged — per-request RPC call) ---
+            let rpc_url_for_status = config.rpc_url.clone();
+            let run_id_for_status = run_id.clone();
+            let status_route = warp::path("status").and(warp::get()).and_then(move || {
+                let rpc_url = rpc_url_for_status.clone();
+                let run_id = run_id_for_status.clone();
+                async move {
+                    let timeout_duration = Duration::from_secs(STATUS_TIMEOUT_SECS);
+                    match tokio::time::timeout(timeout_duration, get_forester_status(&rpc_url))
+                        .await
+                    {
+                        Ok(Ok(status)) => Ok::<_, warp::Rejection>(warp::reply::with_status(
+                            warp::reply::json(&status),
+                            warp::http::StatusCode::OK,
+                        )),
+                        Ok(Err(e)) => {
+                            error!(
+                                event = "api_server_status_fetch_failed",
+                                run_id = %run_id,
+                                error = ?e,
+                                "Failed to get forester status"
+                            );
+                            let error_response = ErrorResponse {
+                                error: format!("Failed to get forester status: {}", e),
+                            };
+                            Ok(warp::reply::with_status(
+                                warp::reply::json(&error_response),
+                                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                            ))
+                        }
+                        Err(_elapsed) => {
+                            error!(
+                                event = "api_server_status_timeout",
+                                run_id = %run_id,
+                                timeout_seconds = STATUS_TIMEOUT_SECS,
+                                "Forester status request timed out"
+                            );
+                            let error_response = ErrorResponse {
+                                error: format!(
+                                    "Request timed out after {} seconds",
+                                    STATUS_TIMEOUT_SECS
+                                ),
+                            };
+                            Ok(warp::reply::with_status(
+                                warp::reply::json(&error_response),
+                                warp::http::StatusCode::GATEWAY_TIMEOUT,
+                            ))
+                        }
+                    }
+                }
+            });
+
+            // --- Metrics route (reads latest snapshot from watch channel) ---
+            let metrics_rx_clone = metrics_rx.clone();
+            let metrics_route = warp::path!("metrics" / "json")
+                .and(warp::get())
+                .map(move || warp::reply::json(&*metrics_rx_clone.borrow()));
+
+            // --- Prometheus text metrics route (scrape endpoint) ---
+            let prometheus_route = warp::path!("metrics").and(warp::get()).and_then(|| async {
+                crate::metrics::metrics_handler()
+                    .await
+                    .map_err(|_| warp::reject::reject())
+            });
+
+            // --- Compressible route (reads latest snapshot from watch channel) ---
+            let compressible_rx_clone = compressible_rx.clone();
+            let compressible_route = warp::path("compressible")
+                .and(warp::get())
+                .map(move || warp::reply::json(&*compressible_rx_clone.borrow()));
+
+            let routes = health_route
+                .or(status_route)
+                .or(metrics_route)
+                .or(prometheus_route)
+                .or(compressible_route)
+                .with(cors);
+
+            let listener = match tokio::net::TcpListener::bind(addr).await {
+                Ok(listener) => listener,
+                Err(error) => {
+                    error!(
+                        event = "api_server_bind_failed",
+                        run_id = %run_id,
+                        address = %addr,
+                        error = %error,
+                        "Failed to bind API server socket"
+                    );
+                    let _ = startup_tx.send(Err(anyhow::anyhow!(
+                        "Failed to bind API server to {addr}: {error}"
+                    )));
+                    return;
+                }
+            };
+
+            let _ = startup_tx.send(Ok(()));
+
+            warp::serve(routes)
+                .incoming(listener)
+                .graceful({
+                    let run_id_for_shutdown = run_id.clone();
+                    async move {
+                        let _ = shutdown_rx.await;
+                        info!(
+                            event = "api_server_shutdown_signal_received",
+                            run_id = %run_id_for_shutdown,
+                            "API server received shutdown signal"
+                        );
+                        // Signal providers to stop
+                        let _ = provider_shutdown_tx.send(());
+                    }
+                })
+                .run()
+                .await;
+            info!(
+                event = "api_server_stopped",
+                run_id = %run_id,
+                "API server shut down gracefully"
+            );
+        });
+    });
+
+    match startup_rx.recv() {
+        Ok(Ok(())) => Ok(ApiServerHandle {
+            thread_handle,
+            shutdown_tx,
+            run_id: run_id_for_handle,
+        }),
+        Ok(Err(error)) => {
+            let _ = thread_handle.join();
+            Err(error)
         }
-    });
-
-    info!(
-        event = "api_server_bound",
-        run_id = %run_id,
-        address = %bound_addr,
-        "API server bound successfully"
-    );
-
-    let task_handle = tokio::spawn(async move {
-        server_future.await;
-        info!(
-            event = "api_server_stopped",
-            run_id = %run_id_for_task,
-            "API server shut down gracefully"
-        );
-    });
-
-    Ok(ApiServerHandle {
-        task_handle,
-        shutdown_tx: Some(shutdown_tx),
-        run_id,
-    })
+        Err(_) => {
+            let _ = thread_handle.join();
+            Err(anyhow::anyhow!(
+                "API server startup acknowledgment channel closed before initialization completed"
+            ))
+        }
+    }
 }
 
 fn is_metrics_empty(m: &MetricsResponse) -> bool {
