@@ -19,7 +19,10 @@ use solana_transaction_status::TransactionConfirmationStatus;
 use thiserror::Error;
 use tokio::time::{sleep, Instant};
 
-use crate::{errors::{is_blockhash_not_found, rpc_is_already_processed}, priority_fee::PriorityFeeConfig};
+use crate::{
+    errors::{is_blockhash_not_found, rpc_is_already_processed},
+    priority_fee::PriorityFeeConfig,
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ComputeBudgetConfig {
