@@ -19,7 +19,7 @@ use solana_transaction_status::TransactionConfirmationStatus;
 use thiserror::Error;
 use tokio::time::{sleep, Instant};
 
-use crate::{errors::rpc_is_already_processed, priority_fee::PriorityFeeConfig};
+use crate::{errors::{is_blockhash_not_found, rpc_is_already_processed}, priority_fee::PriorityFeeConfig};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ComputeBudgetConfig {
@@ -457,6 +457,11 @@ async fn send_prepared_transaction<R: Rpc>(
         match transaction.send_with_confirmation_config(rpc).await {
             Ok(_) => last_send_error = None,
             Err(error) if rpc_is_already_processed(&error) => last_send_error = None,
+            // BlockhashNotFound is transient: the sending RPC may not have
+            // propagated the blockhash from the fetcher yet. Retry until the
+            // blockhash either propagates or the outer `get_block_height >
+            // last_valid_block_height` check exits with BlockhashExpired.
+            Err(error) if is_blockhash_not_found(&error) => last_send_error = Some(error),
             Err(error) if rpc.should_retry(&error) => last_send_error = Some(error),
             Err(error) => return Err(error.into()),
         }
