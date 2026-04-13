@@ -171,20 +171,24 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
                     };
                 }
 
-                let mint_state =
-                    match compressor.tracker.accounts().get(&pubkey).map(|r| r.clone()) {
-                        Some(state) => state,
-                        None => {
-                            compressor.tracker.unmark_pending(&[pubkey]);
-                            return CompressionOutcome::Failed {
-                                pubkey,
-                                error: CompressionTaskError::Failed(anyhow::anyhow!(
-                                    "mint {} removed from tracker before compression",
-                                    pubkey
-                                )),
-                            };
-                        }
-                    };
+                let mint_state = match compressor
+                    .tracker
+                    .accounts()
+                    .get(&pubkey)
+                    .map(|r| r.clone())
+                {
+                    Some(state) => state,
+                    None => {
+                        compressor.tracker.unmark_pending(&[pubkey]);
+                        return CompressionOutcome::Failed {
+                            pubkey,
+                            error: CompressionTaskError::Failed(anyhow::anyhow!(
+                                "mint {} removed from tracker before compression",
+                                pubkey
+                            )),
+                        };
+                    }
+                };
 
                 match compressor.compress(&mint_state).await {
                     Ok(sig) => CompressionOutcome::Compressed {

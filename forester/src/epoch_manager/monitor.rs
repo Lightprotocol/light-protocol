@@ -3,24 +3,18 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::anyhow;
-use forester_utils::forester_epoch::{
-    get_epoch_phases, TreeAccounts, TreeForesterSchedule,
-};
+use forester_utils::forester_epoch::{get_epoch_phases, TreeAccounts, TreeForesterSchedule};
 use light_client::{indexer::Indexer, rpc::Rpc};
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
 use solana_sdk::signature::Signer;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
+use super::{context::should_skip_tree, EpochManager};
 use crate::{
     metrics::update_forester_sol_balance,
     slot_tracker::wait_until_slot_reached,
     tree_data_sync::{fetch_protocol_group_authority, fetch_trees},
-};
-
-use super::{
-    context::should_skip_tree,
-    EpochManager,
 };
 
 impl<R: Rpc + Indexer> EpochManager<R> {
@@ -31,7 +25,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         loop {
             interval.tick().await;
             match self.ctx.rpc_pool.get_connection().await {
-                Ok(rpc) => match rpc.get_balance(&self.ctx.config.payer_keypair.pubkey()).await {
+                Ok(rpc) => match rpc
+                    .get_balance(&self.ctx.config.payer_keypair.pubkey())
+                    .await
+                {
                     Ok(balance) => {
                         let balance_in_sol = balance as f64 / (LAMPORTS_PER_SOL as f64);
                         update_forester_sol_balance(
@@ -63,7 +60,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     }
 
     pub(super) async fn discover_trees_periodically(self: Arc<Self>) -> crate::Result<()> {
-        let interval_secs = self.ctx.config.general_config.tree_discovery_interval_seconds;
+        let interval_secs = self
+            .ctx
+            .config
+            .general_config
+            .tree_discovery_interval_seconds;
         if interval_secs == 0 {
             info!(event = "tree_discovery_disabled", run_id = %self.ctx.run_id, "Tree discovery disabled (interval=0)");
             return Ok(());
@@ -429,7 +430,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     );
 
                     if let Err(e) =
-                        wait_until_slot_reached(&mut *rpc, &self.ctx.slot_tracker, wait_target).await
+                        wait_until_slot_reached(&mut *rpc, &self.ctx.slot_tracker, wait_target)
+                            .await
                     {
                         error!(
                             event = "epoch_monitor_wait_for_registration_failed",

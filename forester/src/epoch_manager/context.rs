@@ -1,23 +1,22 @@
-use std::{sync::Arc, time::Duration};
-
-use light_client::{
-    indexer::Indexer,
-    rpc::Rpc,
+use std::{
+    sync::{atomic::AtomicU64, Arc},
+    time::Duration,
 };
-use light_compressed_account::TreeType;
-use light_registry::utils::get_forester_epoch_pda_from_authority;
-use solana_sdk::{
-    address_lookup_table::AddressLookupTableAccount,
-    signature::{Keypair, Signer},
-};
-use tokio::sync::Mutex;
 
 use forester_utils::{
     forester_epoch::{Epoch, TreeAccounts},
     rpc_pool::SolanaRpcPool,
 };
-use light_registry::protocol_config::state::ProtocolConfig;
-use std::sync::atomic::AtomicU64;
+use light_client::{indexer::Indexer, rpc::Rpc};
+use light_compressed_account::TreeType;
+use light_registry::{
+    protocol_config::state::ProtocolConfig, utils::get_forester_epoch_pda_from_authority,
+};
+use solana_sdk::{
+    address_lookup_table::AddressLookupTableAccount,
+    signature::{Keypair, Signer},
+};
+use tokio::sync::Mutex;
 
 use crate::{
     logging::ServiceHeartbeat,

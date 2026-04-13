@@ -3,9 +3,7 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use forester_utils::forester_epoch::{
-    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule,
-};
+use forester_utils::forester_epoch::{get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule};
 use light_client::{
     indexer::Indexer,
     rpc::{LightClient, LightClientConfig, Rpc, RpcError},
@@ -20,20 +18,14 @@ use solana_sdk::signature::Signer;
 use tokio::time::sleep;
 use tracing::{debug, error, info, instrument, warn};
 
+use super::{tracker::RegistrationTracker, EpochManager};
 use crate::{
     errors::{ForesterError, RegistrationError},
     pagerduty::send_pagerduty_alert,
     slot_tracker::{slot_duration, wait_until_slot_reached},
-    smart_transaction::{
-        send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig,
-    },
+    smart_transaction::{send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig},
     transaction_timing::scheduled_confirmation_deadline,
     ForesterEpochInfo,
-};
-
-use super::{
-    tracker::RegistrationTracker,
-    EpochManager,
 };
 
 impl<R: Rpc + Indexer> EpochManager<R> {
@@ -157,8 +149,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     if attempt < max_retries - 1 {
                         sleep(retry_delay).await;
                     } else {
-                        if let Some(pagerduty_key) =
-                            self.ctx.config.external_services.pagerduty_routing_key.clone()
+                        if let Some(pagerduty_key) = self
+                            .ctx
+                            .config
+                            .external_services
+                            .pagerduty_routing_key
+                            .clone()
                         {
                             if let Err(alert_err) = send_pagerduty_alert(
                                 &pagerduty_key,

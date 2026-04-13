@@ -9,9 +9,11 @@ use anyhow::anyhow;
 use light_client::{indexer::AddressQueueData, rpc::Rpc};
 use light_hasher::hash_chain::create_hash_chain_from_slice;
 
+use super::{
+    indexer_fetch::{fetch_address_batches, ADDRESS_PAGE_SIZE_BATCHES},
+    BatchContext,
+};
 use crate::logging::should_emit_rate_limited_warning;
-
-use super::{indexer_fetch::{fetch_address_batches, ADDRESS_PAGE_SIZE_BATCHES}, BatchContext};
 
 fn lock_recover<'a, T>(mutex: &'a Mutex<T>, name: &'static str) -> MutexGuard<'a, T> {
     match mutex.lock() {

@@ -251,7 +251,10 @@ mod tests {
         };
         tracker.add_processing_metrics(1, new_metrics).await;
         let metrics = tracker.get_processing_metrics(1).await;
-        assert_eq!(metrics.tx_sending_duration, std::time::Duration::from_secs(5));
+        assert_eq!(
+            metrics.tx_sending_duration,
+            std::time::Duration::from_secs(5)
+        );
     }
 
     #[tokio::test]
@@ -265,6 +268,9 @@ mod tests {
 
         // After cleanup, items and metrics are gone
         assert_eq!(tracker.get_processed_items_count(1).await, 0);
-        assert_eq!(tracker.get_processing_metrics(1).await.total(), std::time::Duration::ZERO);
+        assert_eq!(
+            tracker.get_processing_metrics(1).await.total(),
+            std::time::Duration::ZERO
+        );
     }
 }
