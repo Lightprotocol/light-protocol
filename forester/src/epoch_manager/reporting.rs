@@ -5,24 +5,20 @@ use light_client::{
     rpc::{LightClient, LightClientConfig, Rpc, RpcError},
 };
 use light_registry::{
-    sdk::create_report_work_instruction,
-    utils::get_forester_epoch_pda_from_authority,
+    sdk::create_report_work_instruction, utils::get_forester_epoch_pda_from_authority,
     ForesterEpochPda,
 };
 use solana_program::instruction::InstructionError;
 use solana_sdk::{signature::Signer, transaction::TransactionError};
 use tracing::{info, instrument};
 
+use super::{EpochManager, WorkReport};
 use crate::{
     errors::{rpc_is_already_processed, ChannelError, ForesterError, WorkReportError},
     slot_tracker::wait_until_slot_reached,
-    smart_transaction::{
-        send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig,
-    },
+    smart_transaction::{send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig},
     ForesterEpochInfo,
 };
-
-use super::{EpochManager, WorkReport};
 
 impl<R: Rpc + Indexer> EpochManager<R> {
     #[instrument(level = "debug", skip(self, epoch_info), fields(forester = %self.ctx.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch))]

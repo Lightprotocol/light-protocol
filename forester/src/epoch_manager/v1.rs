@@ -1,7 +1,6 @@
 //! V1 tree processing and rollover.
 
-use std::sync::Arc;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use forester_utils::forester_epoch::{Epoch, ForesterSlot, TreeAccounts};
 use light_client::{indexer::Indexer, rpc::Rpc};
@@ -10,6 +9,7 @@ use light_registry::ForesterEpochPda;
 use solana_sdk::signature::Keypair;
 use tracing::{debug, error, info, warn};
 
+use super::EpochManager;
 use crate::{
     errors::ForesterError,
     processor::v1::{
@@ -23,8 +23,6 @@ use crate::{
     },
     transaction_timing::scheduled_v1_batch_timeout,
 };
-
-use super::EpochManager;
 
 impl<R: Rpc + Indexer> EpochManager<R> {
     pub(crate) async fn process_v1(
@@ -53,7 +51,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             num_batches: 1,
             build_transaction_batch_config: BuildTransactionBatchConfig {
                 batch_size: self.ctx.config.transaction_config.legacy_ixs_per_tx as u64,
-                compute_unit_price: self.ctx.config.transaction_config.priority_fee_microlamports,
+                compute_unit_price: self
+                    .ctx
+                    .config
+                    .transaction_config
+                    .priority_fee_microlamports,
                 compute_unit_limit: Some(self.ctx.config.transaction_config.cu_limit),
                 enable_priority_fees: self.ctx.config.transaction_config.enable_priority_fees,
                 max_concurrent_sends: Some(self.ctx.config.transaction_config.max_concurrent_sends),
@@ -65,7 +67,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             },
             light_slot_length: epoch_pda.protocol_config.slot_length,
             confirmation_poll_interval: Duration::from_millis(
-                self.ctx.config.transaction_config.confirmation_poll_interval_ms,
+                self.ctx
+                    .config
+                    .transaction_config
+                    .confirmation_poll_interval_ms,
             ),
             confirmation_max_attempts: self.ctx.config.transaction_config.confirmation_max_attempts
                 as usize,

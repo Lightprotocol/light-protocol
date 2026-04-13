@@ -7,9 +7,8 @@ use light_client::{
     rpc::Rpc,
 };
 
-use crate::processor::v2::common::clamp_to_u16;
-
 use super::BatchContext;
+use crate::processor::v2::common::clamp_to_u16;
 
 const INDEXER_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 const ADDRESS_INDEXER_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);

@@ -7,26 +7,18 @@ use forester_utils::forester_epoch::{
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
-use light_registry::{
-    protocol_config::state::EpochState,
-    ForesterEpochPda,
-};
+use light_registry::{protocol_config::state::EpochState, ForesterEpochPda};
 use solana_sdk::signature::Signer;
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument, trace, warn};
 
+use super::{context::should_skip_tree, tracker::RegistrationTracker, EpochManager};
 use crate::{
     errors::ForesterError,
     logging::should_emit_rate_limited_warning,
     metrics::{push_metrics, queue_metric_update, update_epoch_detected, update_epoch_registered},
     slot_tracker::wait_until_slot_reached,
     ForesterEpochInfo,
-};
-
-use super::{
-    context::should_skip_tree,
-    tracker::RegistrationTracker,
-    EpochManager,
 };
 
 impl<R: Rpc + Indexer> EpochManager<R> {

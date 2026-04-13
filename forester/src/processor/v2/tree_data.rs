@@ -51,9 +51,7 @@ pub async fn fetch_onchain_state_root<R: Rpc>(
     Ok(root)
 }
 
-pub async fn fetch_address_zkp_batch_size<R: Rpc>(
-    context: &BatchContext<R>,
-) -> crate::Result<u64> {
+pub async fn fetch_address_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> crate::Result<u64> {
     let rpc = context.rpc_pool.get_connection().await?;
     let mut account = rpc
         .get_account(context.merkle_tree)

@@ -60,7 +60,7 @@ pub enum CompressionOutcome {
 
 pub type CompressionOutcomes = Vec<CompressionOutcome>;
 
-pub trait CompressibleState: Send + Sync {
+pub trait CompressibleState: Clone + Send + Sync {
     fn pubkey(&self) -> &Pubkey;
     fn lamports(&self) -> u64;
     fn compressible_slot(&self) -> u64;
@@ -136,6 +136,19 @@ pub trait CompressibleTracker<S: CompressibleState>: Send + Sync {
                 entry.value().is_ready_to_compress(current_slot) && !pending.contains(entry.key())
             })
             .map(|entry| *entry.key())
+            .collect()
+    }
+
+    /// Clone of ready-to-compress states. Prefer `get_ready_to_compress` in
+    /// production; this helper exists for tests that need full state fields.
+    fn get_ready_states(&self, current_slot: u64) -> Vec<S> {
+        let pending = self.pending();
+        self.accounts()
+            .iter()
+            .filter(|entry| {
+                entry.value().is_ready_to_compress(current_slot) && !pending.contains(entry.key())
+            })
+            .map(|entry| entry.value().clone())
             .collect()
     }
 }

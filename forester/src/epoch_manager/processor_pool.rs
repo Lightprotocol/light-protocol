@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use forester_utils::forester_epoch::{Epoch, TreeAccounts};
 use light_client::{indexer::Indexer, rpc::Rpc};
 use solana_program::pubkey::Pubkey;
 use tokio::sync::Mutex;
 use tracing::debug;
 
-use forester_utils::forester_epoch::{Epoch, TreeAccounts};
-
+use super::context::ForesterContext;
 use crate::{
     processor::v2::{
         strategy::{AddressTreeStrategy, StateTreeStrategy},
@@ -15,8 +15,6 @@ use crate::{
     },
     Result,
 };
-
-use super::context::ForesterContext;
 
 pub(crate) type StateBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>)>>;

@@ -7,31 +7,23 @@ use borsh::BorshSerialize;
 use forester_utils::forester_epoch::{Epoch, TreeAccounts};
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
-use light_registry::{
-    account_compression_cpi::sdk::{
-        create_batch_append_instruction, create_batch_nullify_instruction,
-        create_batch_update_address_tree_instruction,
-    },
+use light_registry::account_compression_cpi::sdk::{
+    create_batch_append_instruction, create_batch_nullify_instruction,
+    create_batch_update_address_tree_instruction,
 };
 use solana_sdk::signature::Signer;
 use tokio::time::Instant;
 use tracing::{debug, info, warn};
 
+use super::{context::should_skip_tree, EpochManager};
 use crate::{
     errors::ForesterError,
     logging::should_emit_rate_limited_warning,
     processor::v2::{BatchInstruction, ProcessingResult},
     slot_tracker::slot_duration,
-    smart_transaction::{
-        send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig,
-    },
+    smart_transaction::{send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig},
     transaction_timing::scheduled_confirmation_deadline,
     ForesterEpochInfo,
-};
-
-use super::{
-    context::should_skip_tree,
-    EpochManager,
 };
 
 impl<R: Rpc + Indexer> EpochManager<R> {

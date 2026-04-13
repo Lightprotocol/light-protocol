@@ -1,3 +1,4 @@
+mod compression;
 pub(crate) mod context;
 mod monitor;
 mod pipeline;
@@ -7,7 +8,6 @@ mod reporting;
 pub(crate) mod tracker;
 mod v1;
 mod v2;
-mod compression;
 
 use std::{
     sync::Arc,
@@ -15,20 +15,11 @@ use std::{
 };
 
 use anyhow::anyhow;
-use light_client::{
-    indexer::Indexer,
-    rpc::Rpc,
-};
+use forester_utils::{forester_epoch::TreeAccounts, rpc_pool::SolanaRpcPool};
+use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
-use forester_utils::{
-    forester_epoch::TreeAccounts,
-    rpc_pool::SolanaRpcPool,
-};
 use light_registry::protocol_config::state::ProtocolConfig;
-use solana_sdk::{
-    address_lookup_table::AddressLookupTableAccount,
-    signature::Signer,
-};
+use solana_sdk::{address_lookup_table::AddressLookupTableAccount, signature::Signer};
 use tokio::{
     sync::{mpsc, oneshot, watch, Mutex},
     task::JoinHandle,
@@ -36,23 +27,17 @@ use tokio::{
 };
 use tracing::{debug, error, info, info_span};
 
+use self::{context::ForesterContext, processor_pool::ProcessorPool, tracker::EpochTracker};
 use crate::{
     compressible::CTokenAccountTracker,
     errors::InitializationError,
     logging::ServiceHeartbeat,
     processor::tx_cache::ProcessedHashCache,
+    queue_helpers::QueueItemData,
     slot_tracker::SlotTracker,
     tree_data_sync::{fetch_protocol_group_authority, fetch_trees},
     ForesterConfig, Result,
 };
-
-use self::{
-    context::ForesterContext,
-    processor_pool::ProcessorPool,
-    tracker::EpochTracker,
-};
-
-use crate::queue_helpers::QueueItemData;
 
 // ── Public re-exports (preserve existing public API) ─────────────────────
 
@@ -438,7 +423,9 @@ fn spawn_heartbeat_task(
             let delta_queues_finished = current
                 .queues_finished
                 .saturating_sub(previous.queues_finished);
-            let delta_items = current.items_processed.saturating_sub(previous.items_processed);
+            let delta_items = current
+                .items_processed
+                .saturating_sub(previous.items_processed);
             let delta_work_reports = current
                 .work_reports_sent
                 .saturating_sub(previous.work_reports_sent);
@@ -1005,7 +992,10 @@ mod tests {
         };
         let work_item = WorkItem {
             tree_account,
-            queue_item_data: QueueItemData { hash: [0u8; 32], index: 0 },
+            queue_item_data: QueueItemData {
+                hash: [0u8; 32],
+                index: 0,
+            },
         };
         assert!(work_item.is_address_tree());
         assert!(!work_item.is_state_tree());
@@ -1022,7 +1012,10 @@ mod tests {
         };
         let work_item = WorkItem {
             tree_account,
-            queue_item_data: QueueItemData { hash: [0u8; 32], index: 0 },
+            queue_item_data: QueueItemData {
+                hash: [0u8; 32],
+                index: 0,
+            },
         };
         assert!(!work_item.is_address_tree());
         assert!(work_item.is_state_tree());

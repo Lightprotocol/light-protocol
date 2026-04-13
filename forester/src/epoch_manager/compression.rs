@@ -12,17 +12,13 @@ use light_registry::ForesterEpochPda;
 use solana_program::pubkey::Pubkey;
 use tracing::{debug, error, info, trace, warn};
 
-use crate::{
-    compressible::{
-        traits::{
-            Cancelled, CompressibleState, CompressibleTracker, CompressionOutcome,
-            CompressionTaskError,
-        },
-        CTokenCompressor, CompressibleConfig,
-    },
-};
-
 use super::EpochManager;
+use crate::compressible::{
+    traits::{
+        Cancelled, CompressibleState, CompressibleTracker, CompressionOutcome, CompressionTaskError,
+    },
+    CTokenCompressor, CompressibleConfig,
+};
 
 impl<R: Rpc + Indexer> EpochManager<R> {
     pub(crate) async fn dispatch_compression(

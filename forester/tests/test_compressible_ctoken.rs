@@ -442,7 +442,7 @@ async fn test_compressible_ctoken_compression() {
         .expect("Failed to register forester");
     let rpc_from_pool = ctx.rpc_pool.get_connection().await.unwrap();
     let current_slot = rpc_from_pool.get_slot().await.unwrap();
-    let ready_accounts = tracker.get_ready_to_compress(current_slot);
+    let ready_accounts = tracker.get_ready_states(current_slot);
     assert_eq!(ready_accounts.len(), 1, "Should have 1 account ready");
     assert_eq!(ready_accounts[0].pubkey, token_account_pubkey_2);
 
@@ -453,7 +453,7 @@ async fn test_compressible_ctoken_compression() {
     let compressor = CTokenCompressor::new(
         ctx.rpc_pool.clone(),
         tracker.clone(),
-        ctx.forester_keypair,
+        Arc::new(ctx.forester_keypair),
         forester::smart_transaction::TransactionPolicy::default(),
     );
     let compressor_handle = tokio::spawn(async move {

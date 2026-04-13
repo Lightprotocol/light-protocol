@@ -15,13 +15,13 @@ use tracing::{debug, info, instrument};
 use crate::processor::v2::{
     batch_job_builder::BatchJobBuilder,
     errors::V2Error,
+    proof_worker::ProofInput,
+    root_guard::{reconcile_alignment, AlignmentDecision},
+    strategy::{CircuitType, QueueData, TreeStrategy},
     streaming_queue::{
         fetch_streaming_address_batches, AddressBatchSnapshot, StreamingAddressQueue,
     },
     tree_data::{fetch_address_zkp_batch_size, fetch_onchain_address_root},
-    proof_worker::ProofInput,
-    root_guard::{reconcile_alignment, AlignmentDecision},
-    strategy::{CircuitType, QueueData, TreeStrategy},
     BatchContext,
 };
 
