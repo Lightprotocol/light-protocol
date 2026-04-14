@@ -32,6 +32,8 @@
 
    **Permissionless ATA decompress:** When the input has CompressedOnly extension with `is_ata=true`, Decompress skips the owner/delegate signer check (permissionless). This is safe because the destination is a deterministic PDA (ATA derivation is still validated). ATA decompress is restricted to exactly 1 input and 1 decompress compression per instruction (error: `AtaDecompressRequiresSingleInput` if violated). It also includes a bloom filter idempotency check -- if the compressed account is already spent, the transaction returns Ok as a no-op.
 
+   **Known behavior -- permissionless freeze via ATA decompress:** ATA decompression is permissionless and merges into the existing balance. A third party can trigger decompression of a frozen compressed token into its owner's ATA, freezing the ATA's existing balance and increasing it. Standard SPL ATAs do not allow this -- an account's frozen state and balance cannot be changed without owner consent. Permissionless decompression is required; changing the merge behavior for frozen accounts would create other inconsistencies.
+
 4. Global sum check enforces transaction balance:
    - Input sum = compressed inputs + compress operations (tokens entering compressed state)
    - Output sum = compressed outputs + decompress operations (tokens leaving compressed state)
