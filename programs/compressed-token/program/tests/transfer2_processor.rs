@@ -116,6 +116,46 @@ fn test_is_idempotent_ata_decompress_not_ata() {
 }
 
 #[test]
+fn test_is_idempotent_ata_decompress_multiple_tlv_entries() {
+    let mut data = base_data();
+    data.in_token_data = vec![base_input()];
+    data.compressions = Some(vec![Compression::decompress(100, 0, 0)]);
+    let compressed_only =
+        ExtensionInstructionData::CompressedOnly(CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: true,
+            bump: 0,
+            owner_index: 0,
+        });
+    // Two TLV entries for a single input -- should reject.
+    data.in_tlv = Some(vec![vec![compressed_only.clone(), compressed_only]]);
+    assert!(!check(&data));
+}
+
+#[test]
+fn test_is_idempotent_ata_decompress_extra_tlv_outer_vec() {
+    let mut data = base_data();
+    data.in_token_data = vec![base_input()];
+    data.compressions = Some(vec![Compression::decompress(100, 0, 0)]);
+    let compressed_only =
+        ExtensionInstructionData::CompressedOnly(CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: true,
+            bump: 0,
+            owner_index: 0,
+        });
+    // Two outer TLV vecs despite single input -- should reject.
+    data.in_tlv = Some(vec![vec![compressed_only.clone()], vec![compressed_only]]);
+    assert!(!check(&data));
+}
+
+#[test]
 fn test_is_idempotent_ata_decompress_random_always_false() {
     let mut rng = StdRng::seed_from_u64(42);
     for _ in 0..1000 {

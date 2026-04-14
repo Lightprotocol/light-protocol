@@ -359,9 +359,9 @@ pub fn is_idempotent_ata_decompress(inputs: &ZCompressedTokenInstructionDataTran
             .as_ref()
             .is_some_and(|c| c.len() == 1 && c.iter().any(|c| c.mode.is_decompress()))
         && inputs.in_tlv.as_ref().is_some_and(|tlvs| {
-            tlvs.iter().flatten().any(|ext| {
-                matches!(ext, ZExtensionInstructionData::CompressedOnly(data) if data.is_ata())
-            })
+            tlvs.len() == 1
+                && tlvs[0].len() == 1
+                && matches!(&tlvs[0][0], ZExtensionInstructionData::CompressedOnly(data) if data.is_ata())
         })
 }
 
