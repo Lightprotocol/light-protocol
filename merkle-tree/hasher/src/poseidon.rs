@@ -14,6 +14,22 @@ impl Hasher for Poseidon {
     }
 
     fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
+        // Poseidon syscall requires exactly 32-byte inputs.
+        // Leading zeros preserve big-endian field element values.
+        let padded_bufs: Vec<[u8; 32]> = vals
+            .iter()
+            .map(|v| {
+                if v.len() > 32 {
+                    return Err(HasherError::InputTooLarge(v.len(), 32));
+                }
+                let mut buf = [0u8; 32];
+                buf[32 - v.len()..].copy_from_slice(v);
+                Ok(buf)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let vals: Vec<&[u8]> = padded_bufs.iter().map(|b| b.as_slice()).collect();
+        let vals: &[&[u8]] = vals.as_slice();
+
         // Perform the calculation inline, calling this from within a program is
         // not supported.
         #[cfg(not(target_os = "solana"))]
