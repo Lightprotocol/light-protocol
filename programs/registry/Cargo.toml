@@ -31,6 +31,7 @@ light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-account-checks = { workspace = true, features = ["solana", "std", "msg"] }
 light-program-profiler = { workspace = true }
 light-macros = { workspace = true }
+bitvec = { workspace = true }
 borsh = { workspace = true }
 solana-account-info = { workspace = true }
 solana-instruction = { workspace = true }

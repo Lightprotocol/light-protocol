@@ -92,6 +92,8 @@ async fn test_priority_fee_request() {
         tree_ids: vec![],
         enable_compressible: true,
         lookup_table_address: None,
+        min_queue_items: None,
+        enable_v1_multi_nullify: false,
         api_server_port: 8080,
         group_authority: None,
         light_pda_programs: vec![],
@@ -101,6 +103,7 @@ async fn test_priority_fee_request() {
         fallback_indexer_url: None,
         rpc_pool_failure_threshold: 3,
         rpc_pool_primary_probe_interval_secs: 30,
+        work_item_batch_size: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

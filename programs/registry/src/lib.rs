@@ -420,6 +420,40 @@ pub mod light_registry {
         )
     }
 
+    /// Nullifies 2-4 leaves in a single instruction via sequential CPIs.
+    /// Uses proof deduplication: nearby leaves share Merkle proof nodes at
+    /// common ancestor levels. The `nodes` vec is a deduplicated pool of
+    /// unique nodes, and each proof's bitvec selects which 16 nodes from
+    /// the pool form that proof.
+    pub fn nullify_state_v1_multi<'info>(
+        ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
+        change_log_index: u16,
+        queue_indices: [u16; 4],
+        leaf_indices: [u32; 4],
+        proof_bitvecs: [u32; 4],
+        nodes: Vec<[u8; 32]>,
+    ) -> Result<()> {
+        let metadata = ctx.accounts.merkle_tree.load()?.metadata;
+        let count = account_compression_cpi::nullify::count_from_leaf_indices(&leaf_indices)?;
+        check_forester(
+            &metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.nullifier_queue.key(),
+            &mut ctx.accounts.registered_forester_pda,
+            count as u64 * DEFAULT_WORK_V1,
+        )?;
+
+        process_nullify_state_v1_multi(
+            &ctx,
+            count,
+            change_log_index,
+            queue_indices,
+            leaf_indices,
+            proof_bitvecs,
+            nodes,
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_address_merkle_tree(
         ctx: Context<UpdateAddressMerkleTree>,

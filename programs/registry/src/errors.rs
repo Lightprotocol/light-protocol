@@ -42,4 +42,6 @@ pub enum RegistryError {
     BorrowAccountDataFailed,
     #[msg("Failed to serialize instruction data")]
     SerializationFailed,
+    #[msg("Invalid proof dedup encoding")]
+    InvalidProofEncoding,
 }

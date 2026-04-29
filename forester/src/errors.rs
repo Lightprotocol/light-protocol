@@ -285,6 +285,13 @@ pub fn rpc_is_already_processed(error: &RpcError) -> bool {
     )
 }
 
+pub fn is_blockhash_not_found(error: &RpcError) -> bool {
+    matches!(
+        rpc_transaction_error(error),
+        Some(TransactionError::BlockhashNotFound)
+    )
+}
+
 impl From<tokio::task::JoinError> for ForesterError {
     fn from(err: tokio::task::JoinError) -> Self {
         Self::Other(err.into())

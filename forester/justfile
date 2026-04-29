@@ -20,6 +20,10 @@ build-test-deps:
 test: build-test-deps
     cargo test --package forester e2e_test -- --nocapture
 
+# Run e2e test without rebuilding SBF programs
+local:
+    cargo test --package forester e2e_test -- --nocapture
+
 # Builds csdk-anchor-full-derived-test program for compressible tests
 build-compressible-test-deps:
     cargo build-sbf --manifest-path ../sdk-tests/csdk-anchor-full-derived-test/Cargo.toml

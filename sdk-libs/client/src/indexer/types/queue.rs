@@ -317,3 +317,11 @@ pub struct QueueElementsResult {
     pub state_queue: Option<StateQueueData>,
     pub address_queue: Option<AddressQueueData>,
 }
+
+/// Queue leaf index item returned by getQueueLeafIndices
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct QueueLeafIndex {
+    pub hash: [u8; 32],
+    pub leaf_index: u64,
+    pub queue_index: u64,
+}

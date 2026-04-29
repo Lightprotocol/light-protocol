@@ -37,7 +37,7 @@ jobs:
       - name: Run linters
         run: |
           set -euxo pipefail
-          RUSTFMT_NIGHTLY_TOOLCHAIN=nightly-2025-10-26
+          RUSTFMT_NIGHTLY_TOOLCHAIN=nightly
           rustup install "$RUSTFMT_NIGHTLY_TOOLCHAIN"
           rustup target add x86_64-unknown-linux-gnu --toolchain "$RUSTFMT_NIGHTLY_TOOLCHAIN"
           rustup component add --toolchain "$RUSTFMT_NIGHTLY_TOOLCHAIN" rustfmt

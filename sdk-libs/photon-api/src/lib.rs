@@ -358,6 +358,17 @@ pub mod apis {
             }
         }
 
+        pub fn make_get_queue_leaf_indices_body(
+            params: types::PostGetQueueLeafIndicesBodyParams,
+        ) -> types::PostGetQueueLeafIndicesBody {
+            types::PostGetQueueLeafIndicesBody {
+                id: types::PostGetQueueLeafIndicesBodyId::TestAccount,
+                jsonrpc: types::PostGetQueueLeafIndicesBodyJsonrpc::X20,
+                method: types::PostGetQueueLeafIndicesBodyMethod::GetQueueLeafIndices,
+                params,
+            }
+        }
+
         pub fn make_get_queue_info_body(
             params: types::PostGetQueueInfoBodyParams,
         ) -> types::PostGetQueueInfoBody {
@@ -575,6 +586,12 @@ pub mod apis {
             "getQueueElements",
             types::PostGetQueueElementsBody,
             types::PostGetQueueElementsResponse
+        );
+        api_call!(
+            get_queue_leaf_indices_post,
+            "getQueueLeafIndices",
+            types::PostGetQueueLeafIndicesBody,
+            types::PostGetQueueLeafIndicesResponse
         );
         api_call!(
             get_queue_info_post,

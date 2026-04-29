@@ -16,7 +16,8 @@ pub use proof::{
     NewAddressProofWithContext, RootIndex, ValidityProofWithContext,
 };
 pub use queue::{
-    AddressQueueData, InputQueueData, OutputQueueData, QueueElementsResult, StateQueueData,
+    AddressQueueData, InputQueueData, OutputQueueData, QueueElementsResult, QueueLeafIndex,
+    StateQueueData,
 };
 pub use signature::SignatureWithMetadata;
 pub use token::{CompressedTokenAccount, OwnerBalance, TokenBalance};
