@@ -55,16 +55,16 @@ pub struct CachedProgramConfig {
 pub struct PdaCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<PdaAccountTracker>,
-    payer_keypair: Keypair,
+    payer_keypair: Arc<Keypair>,
     transaction_policy: TransactionPolicy,
 }
 
 impl<R: Rpc + Indexer> Clone for PdaCompressor<R> {
     fn clone(&self) -> Self {
         Self {
-            rpc_pool: Arc::clone(&self.rpc_pool),
-            tracker: Arc::clone(&self.tracker),
-            payer_keypair: self.payer_keypair.insecure_clone(),
+            rpc_pool: self.rpc_pool.clone(),
+            tracker: self.tracker.clone(),
+            payer_keypair: self.payer_keypair.clone(),
             transaction_policy: self.transaction_policy,
         }
     }
@@ -74,7 +74,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
     pub fn new(
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<PdaAccountTracker>,
-        payer_keypair: Keypair,
+        payer_keypair: Arc<Keypair>,
         transaction_policy: TransactionPolicy,
     ) -> Self {
         Self {
@@ -156,22 +156,21 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
     /// Successfully compressed accounts are removed from the tracker.
     pub async fn compress_batch_concurrent(
         &self,
-        account_states: &[PdaAccountState],
+        pubkeys: &[Pubkey],
         program_config: &PdaProgramConfig,
         cached_config: &CachedProgramConfig,
         max_concurrent: usize,
         cancelled: Arc<AtomicBool>,
-    ) -> CompressionOutcomes<PdaAccountState> {
-        if account_states.is_empty() {
+    ) -> CompressionOutcomes {
+        if pubkeys.is_empty() {
             return Vec::new();
         }
 
         // Mark all accounts as pending upfront so concurrent cycles skip them
-        let all_pubkeys: Vec<Pubkey> = account_states.iter().map(|s| s.pubkey).collect();
-        self.tracker.mark_pending(&all_pubkeys);
+        self.tracker.mark_pending(pubkeys);
 
         // Create futures for each account
-        let compression_futures = account_states.iter().cloned().map(|account_state| {
+        let compression_futures = pubkeys.iter().copied().map(|pubkey| {
             let compressor = self.clone();
             let program_config = program_config.clone();
             let cached_config = cached_config.clone();
@@ -180,13 +179,32 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             async move {
                 // Check cancellation before processing
                 if cancelled.load(Ordering::Relaxed) {
-                    // Unmark since we won't process this account
-                    compressor.tracker.unmark_pending(&[account_state.pubkey]);
+                    compressor.tracker.unmark_pending(&[pubkey]);
                     return CompressionOutcome::Failed {
-                        state: account_state,
+                        pubkey,
                         error: CompressionTaskError::Cancelled,
                     };
                 }
+
+                // Look up account state from tracker; it may have been removed
+                let account_state = match compressor
+                    .tracker
+                    .accounts()
+                    .get(&pubkey)
+                    .map(|r| r.clone())
+                {
+                    Some(state) => state,
+                    None => {
+                        compressor.tracker.unmark_pending(&[pubkey]);
+                        return CompressionOutcome::Failed {
+                            pubkey,
+                            error: CompressionTaskError::Failed(anyhow::anyhow!(
+                                "account {} removed from tracker before compression",
+                                pubkey
+                            )),
+                        };
+                    }
+                };
 
                 match compressor
                     .compress(&account_state, &program_config, &cached_config)
@@ -194,10 +212,10 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 {
                     Ok(sig) => CompressionOutcome::Compressed {
                         signature: sig,
-                        state: account_state,
+                        pubkey,
                     },
                     Err(e) => CompressionOutcome::Failed {
-                        state: account_state,
+                        pubkey,
                         error: e.into(),
                     },
                 }
@@ -213,11 +231,11 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         // Remove successfully compressed PDAs; unmark failed ones
         for result in &results {
             match result {
-                CompressionOutcome::Compressed { state, .. } => {
-                    self.tracker.remove_compressed(&state.pubkey);
+                CompressionOutcome::Compressed { pubkey, .. } => {
+                    self.tracker.remove_compressed(pubkey);
                 }
-                CompressionOutcome::Failed { state, .. } => {
-                    self.tracker.unmark_pending(&[state.pubkey]);
+                CompressionOutcome::Failed { pubkey, .. } => {
+                    self.tracker.unmark_pending(&[*pubkey]);
                 }
             }
         }
@@ -396,7 +414,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         );
 
         let payer_pubkey = self.payer_keypair.pubkey();
-        let signers = [&self.payer_keypair];
+        let signers = [self.payer_keypair.as_ref()];
         let instructions = vec![ix];
         let priority_fee_accounts = collect_priority_fee_accounts(payer_pubkey, &instructions);
         let signature = send_transaction_with_policy(

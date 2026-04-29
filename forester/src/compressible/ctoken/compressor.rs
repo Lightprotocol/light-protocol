@@ -30,16 +30,16 @@ use crate::{
 pub struct CTokenCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<CTokenAccountTracker>,
-    payer_keypair: Keypair,
+    payer_keypair: Arc<Keypair>,
     transaction_policy: TransactionPolicy,
 }
 
 impl<R: Rpc + Indexer> Clone for CTokenCompressor<R> {
     fn clone(&self) -> Self {
         Self {
-            rpc_pool: Arc::clone(&self.rpc_pool),
-            tracker: Arc::clone(&self.tracker),
-            payer_keypair: self.payer_keypair.insecure_clone(),
+            rpc_pool: self.rpc_pool.clone(),
+            tracker: self.tracker.clone(),
+            payer_keypair: self.payer_keypair.clone(),
             transaction_policy: self.transaction_policy,
         }
     }
@@ -49,7 +49,7 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
     pub fn new(
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<CTokenAccountTracker>,
-        payer_keypair: Keypair,
+        payer_keypair: Arc<Keypair>,
         transaction_policy: TransactionPolicy,
     ) -> Self {
         Self {
