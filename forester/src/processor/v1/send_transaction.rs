@@ -16,8 +16,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
 };
-use tokio::sync::Semaphore;
-use tokio::time::Instant;
+use tokio::{sync::Semaphore, time::Instant};
 use tracing::{error, info, trace, warn};
 
 use crate::{
