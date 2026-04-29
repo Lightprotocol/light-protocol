@@ -16,6 +16,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
 };
+use tokio::sync::Semaphore;
 use tokio::time::Instant;
 use tracing::{error, info, trace, warn};
 
@@ -40,6 +41,7 @@ struct PreparedBatchData {
 struct ChunkSendContext<R: Rpc> {
     pool: Arc<SolanaRpcPool<R>>,
     max_concurrent_sends: usize,
+    global_send_semaphore: Arc<Semaphore>,
     timeout_deadline: Instant,
     cancel_signal: Arc<AtomicBool>,
     num_sent_transactions: Arc<AtomicUsize>,
@@ -171,19 +173,26 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         .collect();
 
     let num_chunks = chunks.len();
+    let chunk_concurrency_limit = effective_max_concurrent_sends.min(num_chunks).max(1);
+    let global_send_semaphore = Arc::new(Semaphore::new(effective_max_concurrent_sends));
+
     info!(
         tree = %tree_accounts.merkle_tree,
-        "Processing {} concurrent chunks of up to {} items each",
-        num_chunks, work_item_batch_size
+        "Processing up to {} concurrent chunks ({} total) of up to {} items each",
+        chunk_concurrency_limit,
+        num_chunks,
+        work_item_batch_size
     );
 
-    let chunk_futures: Vec<_> = chunks
-        .into_iter()
+    let mut chunk_results = futures::stream::iter(
+        chunks
+            .into_iter()
         .map(|work_chunk| {
             let pool = Arc::clone(&pool);
             let transaction_builder = Arc::clone(&transaction_builder);
             let cancel_signal = Arc::clone(&operation_cancel_signal);
             let num_sent = Arc::clone(&num_sent_transactions);
+            let global_send_semaphore = Arc::clone(&global_send_semaphore);
             let payer = payer.insecure_clone();
             let derivation = *derivation;
             let tree_id = tree_accounts.merkle_tree;
@@ -232,6 +241,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
                 let send_context = ChunkSendContext {
                     pool: Arc::clone(&pool),
                     max_concurrent_sends: effective_max_concurrent_sends,
+                    global_send_semaphore: Arc::clone(&global_send_semaphore),
                     timeout_deadline,
                     cancel_signal: Arc::clone(&cancel_signal),
                     num_sent_transactions: Arc::clone(&num_sent),
@@ -252,10 +262,10 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
                 Ok::<(), ForesterError>(())
             }
         })
-        .collect();
+    )
+    .buffer_unordered(chunk_concurrency_limit);
 
-    let results = futures::future::join_all(chunk_futures).await;
-    for result in results {
+    while let Some(result) = chunk_results.next().await {
         if let Err(ForesterError::NotEligible) = result {
             return Err(ForesterError::NotEligible);
         }
@@ -404,6 +414,7 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
     let pool = Arc::clone(&context.pool);
     let cancel_signal = Arc::clone(&context.cancel_signal);
     let num_sent_transactions = Arc::clone(&context.num_sent_transactions);
+    let global_send_semaphore = Arc::clone(&context.global_send_semaphore);
     let timeout_deadline = context.timeout_deadline;
     let max_concurrent_sends = context.max_concurrent_sends;
     let confirmation = context.confirmation;
@@ -411,12 +422,21 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
         let pool_clone = Arc::clone(&pool);
         let cancel_signal_clone = Arc::clone(&cancel_signal);
         let num_sent_transactions_clone = Arc::clone(&num_sent_transactions);
+        let global_send_semaphore_clone = Arc::clone(&global_send_semaphore);
         let tx_label = prepared_transaction.label().to_string();
 
         async move {
             if cancel_signal_clone.load(Ordering::SeqCst) || Instant::now() >= timeout_deadline {
                 return TransactionSendResult::Cancelled; // Or Timeout
             }
+
+            let _send_permit = match global_send_semaphore_clone.acquire_owned().await {
+                Ok(permit) => permit,
+                Err(_) => {
+                    warn!("Global send semaphore closed unexpectedly");
+                    return TransactionSendResult::Cancelled;
+                }
+            };
 
             let tx_signature = prepared_transaction
                 .signature()
