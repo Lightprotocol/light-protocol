@@ -306,6 +306,7 @@ pub struct StartArgs {
     #[arg(
         long,
         env = "WORK_ITEM_BATCH_SIZE",
+        value_parser = clap::value_parser!(usize).range(1..),
         help = "Number of queue items to process per batch cycle. Smaller values reduce blockhash expiry risk, larger values reduce per-batch overhead."
     )]
     pub work_item_batch_size: Option<usize>,
