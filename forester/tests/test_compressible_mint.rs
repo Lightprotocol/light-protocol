@@ -389,7 +389,7 @@ async fn test_compressible_mint_compression() {
     rpc.warp_to_slot(future_slot).await.expect("warp_to_slot");
 
     let current_slot = rpc.get_slot().await.unwrap();
-    let ready_accounts = tracker.get_ready_to_compress(current_slot);
+    let ready_accounts = tracker.get_ready_states(current_slot);
     println!("Ready to compress: {} mints", ready_accounts.len());
 
     assert!(
@@ -401,7 +401,7 @@ async fn test_compressible_mint_compression() {
     let compressor = MintCompressor::new(
         rpc_pool.clone(),
         tracker.clone(),
-        payer.insecure_clone(),
+        Arc::new(payer.insecure_clone()),
         forester::smart_transaction::TransactionPolicy::default(),
     );
 
@@ -593,7 +593,7 @@ async fn test_compressible_mint_subscription() {
 
     // Get ready-to-compress accounts
     let current_slot = rpc.get_slot().await.unwrap();
-    let ready_accounts = tracker.get_ready_to_compress(current_slot);
+    let ready_accounts = tracker.get_ready_states(current_slot);
     println!(
         "Ready to compress: {} mints (current_slot: {})",
         ready_accounts.len(),
@@ -611,7 +611,7 @@ async fn test_compressible_mint_subscription() {
     let compressor = MintCompressor::new(
         rpc_pool.clone(),
         tracker.clone(),
-        payer.insecure_clone(),
+        Arc::new(payer.insecure_clone()),
         forester::smart_transaction::TransactionPolicy::default(),
     );
 
@@ -656,7 +656,7 @@ async fn test_compressible_mint_subscription() {
     println!("Tracker updated: now has {} mint(s)", tracker.len());
 
     // Verify the remaining mint is the second one
-    let remaining_accounts = tracker.get_ready_to_compress(current_slot);
+    let remaining_accounts = tracker.get_ready_states(current_slot);
     assert_eq!(remaining_accounts.len(), 1);
     assert_eq!(
         remaining_accounts[0].pubkey, mint_pda_2,

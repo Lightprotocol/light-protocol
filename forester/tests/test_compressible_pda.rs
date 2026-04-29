@@ -604,8 +604,7 @@ async fn test_compressible_pda_compression() {
     // compressible_slot threshold for testing. We can't warp slots in the test validator,
     // so this tricks get_ready_to_compress_for_program into returning accounts as if
     // enough time has passed (ready_accounts will include accounts where compressible_slot < current_slot + 1000).
-    let ready_accounts =
-        tracker.get_ready_to_compress_for_program(&program_id, current_slot + 1000);
+    let ready_accounts = tracker.get_ready_states_for_program(&program_id, current_slot + 1000);
     println!("Ready to compress: {} accounts", ready_accounts.len());
 
     if !ready_accounts.is_empty() {
@@ -613,7 +612,7 @@ async fn test_compressible_pda_compression() {
         let compressor = PdaCompressor::new(
             ctx.rpc_pool.clone(),
             tracker.clone(),
-            ctx.forester_keypair.insecure_clone(),
+            Arc::new(ctx.forester_keypair.insecure_clone()),
             forester::smart_transaction::TransactionPolicy::default(),
         );
 
@@ -919,8 +918,7 @@ async fn test_compressible_pda_subscription() {
     let current_slot = rpc_from_pool.get_slot().await.unwrap();
 
     // These should be ready since they're rent-free PDAs
-    let ready_accounts =
-        tracker.get_ready_to_compress_for_program(&program_id, current_slot + 1000);
+    let ready_accounts = tracker.get_ready_states_for_program(&program_id, current_slot + 1000);
     println!(
         "Ready to compress: {} PDAs (current_slot: {})",
         ready_accounts.len(),
@@ -936,7 +934,7 @@ async fn test_compressible_pda_subscription() {
     let compressor = PdaCompressor::new(
         ctx.rpc_pool.clone(),
         tracker.clone(),
-        ctx.forester_keypair.insecure_clone(),
+        Arc::new(ctx.forester_keypair.insecure_clone()),
         forester::smart_transaction::TransactionPolicy::default(),
     );
 
@@ -977,7 +975,7 @@ async fn test_compressible_pda_subscription() {
     println!("Tracker updated: now has {} PDA(s)", tracker.len());
 
     // Verify the remaining PDA is the second one
-    let remaining = tracker.get_ready_to_compress_for_program(&program_id, current_slot + 1000);
+    let remaining = tracker.get_ready_states_for_program(&program_id, current_slot + 1000);
     assert_eq!(remaining.len(), 1);
     assert_eq!(
         remaining[0].pubkey, record_pda_2,

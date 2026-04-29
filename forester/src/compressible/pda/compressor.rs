@@ -187,20 +187,24 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 }
 
                 // Look up account state from tracker; it may have been removed
-                let account_state =
-                    match compressor.tracker.accounts().get(&pubkey).map(|r| r.clone()) {
-                        Some(state) => state,
-                        None => {
-                            compressor.tracker.unmark_pending(&[pubkey]);
-                            return CompressionOutcome::Failed {
-                                pubkey,
-                                error: CompressionTaskError::Failed(anyhow::anyhow!(
-                                    "account {} removed from tracker before compression",
-                                    pubkey
-                                )),
-                            };
-                        }
-                    };
+                let account_state = match compressor
+                    .tracker
+                    .accounts()
+                    .get(&pubkey)
+                    .map(|r| r.clone())
+                {
+                    Some(state) => state,
+                    None => {
+                        compressor.tracker.unmark_pending(&[pubkey]);
+                        return CompressionOutcome::Failed {
+                            pubkey,
+                            error: CompressionTaskError::Failed(anyhow::anyhow!(
+                                "account {} removed from tracker before compression",
+                                pubkey
+                            )),
+                        };
+                    }
+                };
 
                 match compressor
                     .compress(&account_state, &program_config, &cached_config)

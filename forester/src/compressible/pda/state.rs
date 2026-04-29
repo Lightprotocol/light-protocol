@@ -85,6 +85,23 @@ impl PdaAccountTracker {
             .collect()
     }
 
+    pub fn get_ready_states_for_program(
+        &self,
+        program_id: &Pubkey,
+        current_slot: u64,
+    ) -> Vec<PdaAccountState> {
+        let pending = self.pending();
+        self.accounts()
+            .iter()
+            .filter(|entry| {
+                entry.value().program_id == *program_id
+                    && entry.value().is_ready_to_compress(current_slot)
+                    && !pending.contains(entry.key())
+            })
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
     pub fn update_from_account(
         &self,
         pubkey: Pubkey,
