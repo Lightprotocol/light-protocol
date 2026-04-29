@@ -10,7 +10,7 @@ import (
 type NonInclusionProofInputsJSON struct {
 	Root                 string   `json:"root"`
 	Value                string   `json:"value"`
-	PathIndex            uint32   `json:"pathIndex"`
+	PathIndex            uint64   `json:"pathIndex"`
 	PathElements         []string `json:"pathElements"`
 	LeafLowerRangeValue  string   `json:"leafLowerRangeValue"`
 	LeafHigherRangeValue string   `json:"leafHigherRangeValue"`

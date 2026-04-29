@@ -212,7 +212,6 @@ pub fn get_test_batch_address_append_inputs(
 
     let mut low_element_values = Vec::new();
     let mut low_element_indices = Vec::new();
-    let mut low_element_next_indices = Vec::new();
     let mut low_element_next_values = Vec::new();
     let mut low_element_proofs = Vec::new();
     let mut new_element_values = Vec::new();
@@ -230,7 +229,6 @@ pub fn get_test_batch_address_append_inputs(
             &non_inclusion_proof.leaf_lower_range_value,
         ));
         low_element_indices.push(non_inclusion_proof.leaf_index.into());
-        low_element_next_indices.push(non_inclusion_proof.next_index.into());
         low_element_next_values.push(BigUint::from_bytes_be(
             &non_inclusion_proof.leaf_higher_range_value,
         ));
@@ -275,7 +273,6 @@ pub fn get_test_batch_address_append_inputs(
         hashchain_hash: BigUint::from_bytes_be(&leaves_hashchain),
         low_element_values,
         low_element_indices,
-        low_element_next_indices,
         low_element_next_values,
         low_element_proofs,
         new_element_values,

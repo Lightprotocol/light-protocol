@@ -189,41 +189,57 @@ pub struct PackedTreeInfos {
 }
 
 impl ValidityProofWithContext {
-    pub fn pack_tree_infos(&self, packed_accounts: &mut PackedAccounts) -> PackedTreeInfos {
-        let mut packed_tree_infos = Vec::new();
+    pub fn pack_state_tree_infos(
+        &self,
+        packed_accounts: &mut PackedAccounts,
+    ) -> Vec<PackedStateTreeInfo> {
+        self.accounts
+            .iter()
+            .map(|account| PackedStateTreeInfo {
+                root_index: account.root_index.root_index().unwrap_or_default(),
+                merkle_tree_pubkey_index: packed_accounts.insert_or_get(account.tree_info.tree),
+                queue_pubkey_index: packed_accounts.insert_or_get(account.tree_info.queue),
+                leaf_index: account.leaf_index as u32,
+                prove_by_index: account.root_index.proof_by_index(),
+            })
+            .collect()
+    }
+
+    pub fn pack_tree_infos(
+        &self,
+        packed_accounts: &mut PackedAccounts,
+    ) -> Result<PackedTreeInfos, IndexerError> {
+        let packed_tree_infos = self.pack_state_tree_infos(packed_accounts);
         let mut address_trees = Vec::new();
         let mut output_tree_index = None;
         for account in self.accounts.iter() {
-            // Pack TreeInfo
-            let merkle_tree_pubkey_index = packed_accounts.insert_or_get(account.tree_info.tree);
-            let queue_pubkey_index = packed_accounts.insert_or_get(account.tree_info.queue);
-            let tree_info_packed = PackedStateTreeInfo {
-                root_index: account.root_index.root_index,
-                merkle_tree_pubkey_index,
-                queue_pubkey_index,
-                leaf_index: account.leaf_index as u32,
-                prove_by_index: account.root_index.proof_by_index(),
-            };
-            packed_tree_infos.push(tree_info_packed);
-
             // If a next Merkle tree exists the Merkle tree is full -> use the next Merkle tree for new state.
             // Else use the current Merkle tree for new state.
             if let Some(next) = account.tree_info.next_tree_info {
                 // SAFETY: account will always have a state Merkle tree context.
                 // pack_output_tree_index only panics on an address Merkle tree context.
-                let index = next.pack_output_tree_index(packed_accounts).unwrap();
-                if output_tree_index.is_none() {
-                    output_tree_index = Some(index);
+                let index = next.pack_output_tree_index(packed_accounts)?;
+                match output_tree_index {
+                    Some(existing) if existing != index => {
+                        return Err(IndexerError::InvalidParameters(format!(
+                            "mixed output tree indices in state proof: {existing} != {index}"
+                        )));
+                    }
+                    Some(_) => {}
+                    None => output_tree_index = Some(index),
                 }
             } else {
                 // SAFETY: account will always have a state Merkle tree context.
                 // pack_output_tree_index only panics on an address Merkle tree context.
-                let index = account
-                    .tree_info
-                    .pack_output_tree_index(packed_accounts)
-                    .unwrap();
-                if output_tree_index.is_none() {
-                    output_tree_index = Some(index);
+                let index = account.tree_info.pack_output_tree_index(packed_accounts)?;
+                match output_tree_index {
+                    Some(existing) if existing != index => {
+                        return Err(IndexerError::InvalidParameters(format!(
+                            "mixed output tree indices in state proof: {existing} != {index}"
+                        )));
+                    }
+                    Some(_) => {}
+                    None => output_tree_index = Some(index),
                 }
             }
         }
@@ -244,13 +260,17 @@ impl ValidityProofWithContext {
         } else {
             Some(PackedStateTreeInfos {
                 packed_tree_infos,
-                output_tree_index: output_tree_index.unwrap(),
+                output_tree_index: output_tree_index.ok_or_else(|| {
+                    IndexerError::InvalidParameters(
+                        "missing output tree index for non-empty state proof".to_string(),
+                    )
+                })?,
             })
         };
-        PackedTreeInfos {
+        Ok(PackedTreeInfos {
             state_trees: packed_tree_infos,
             address_trees,
-        }
+        })
     }
 
     pub fn from_api_model(
@@ -363,5 +383,135 @@ impl ValidityProofWithContext {
             accounts,
             addresses,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use light_compressed_account::TreeType;
+
+    use super::*;
+    use crate::indexer::NextTreeInfo;
+
+    /// Helper to build an `AccountProofInputs` with a given tree and queue pubkey.
+    fn account_with_tree(tree: Pubkey, queue: Pubkey) -> AccountProofInputs {
+        AccountProofInputs {
+            hash: [0u8; 32],
+            root: [0u8; 32],
+            root_index: RootIndex::new_some(0),
+            leaf_index: 0,
+            tree_info: TreeInfo {
+                tree,
+                queue,
+                cpi_context: None,
+                next_tree_info: None,
+                tree_type: TreeType::StateV1,
+            },
+        }
+    }
+
+    #[test]
+    fn test_pack_tree_infos_mixed_output_tree_indices_error() {
+        let tree_a = Pubkey::new_unique();
+        let tree_b = Pubkey::new_unique();
+        let queue_a = Pubkey::new_unique();
+        let queue_b = Pubkey::new_unique();
+
+        let proof_ctx = ValidityProofWithContext {
+            proof: ValidityProof::default(),
+            accounts: vec![
+                account_with_tree(tree_a, queue_a),
+                account_with_tree(tree_b, queue_b),
+            ],
+            addresses: vec![],
+        };
+
+        let mut packed = PackedAccounts::default();
+        let result = proof_ctx.pack_tree_infos(&mut packed);
+
+        assert!(result.is_err(), "expected error for mixed output trees");
+        let err = result.unwrap_err();
+        match &err {
+            IndexerError::InvalidParameters(msg) => {
+                assert!(
+                    msg.contains("mixed output tree indices"),
+                    "unexpected error message: {msg}"
+                );
+            }
+            other => panic!("expected InvalidParameters, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_pack_tree_infos_mixed_next_tree_indices_error() {
+        // Both accounts use the same input tree but have different *next* trees.
+        let input_tree = Pubkey::new_unique();
+        let input_queue = Pubkey::new_unique();
+        let next_tree_a = Pubkey::new_unique();
+        let next_queue_a = Pubkey::new_unique();
+        let next_tree_b = Pubkey::new_unique();
+        let next_queue_b = Pubkey::new_unique();
+
+        let mut acc1 = account_with_tree(input_tree, input_queue);
+        acc1.tree_info.next_tree_info = Some(NextTreeInfo {
+            tree: next_tree_a,
+            queue: next_queue_a,
+            cpi_context: None,
+            tree_type: TreeType::StateV1,
+        });
+
+        let mut acc2 = account_with_tree(input_tree, input_queue);
+        acc2.tree_info.next_tree_info = Some(NextTreeInfo {
+            tree: next_tree_b,
+            queue: next_queue_b,
+            cpi_context: None,
+            tree_type: TreeType::StateV1,
+        });
+
+        let proof_ctx = ValidityProofWithContext {
+            proof: ValidityProof::default(),
+            accounts: vec![acc1, acc2],
+            addresses: vec![],
+        };
+
+        let mut packed = PackedAccounts::default();
+        let result = proof_ctx.pack_tree_infos(&mut packed);
+
+        assert!(
+            result.is_err(),
+            "expected error for mixed next-tree output indices"
+        );
+        let err = result.unwrap_err();
+        match &err {
+            IndexerError::InvalidParameters(msg) => {
+                assert!(
+                    msg.contains("mixed output tree indices"),
+                    "unexpected error message: {msg}"
+                );
+            }
+            other => panic!("expected InvalidParameters, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_pack_tree_infos_same_output_tree_ok() {
+        let tree = Pubkey::new_unique();
+        let queue = Pubkey::new_unique();
+
+        let proof_ctx = ValidityProofWithContext {
+            proof: ValidityProof::default(),
+            accounts: vec![
+                account_with_tree(tree, queue),
+                account_with_tree(tree, queue),
+            ],
+            addresses: vec![],
+        };
+
+        let mut packed = PackedAccounts::default();
+        let result = proof_ctx.pack_tree_infos(&mut packed);
+        assert!(
+            result.is_ok(),
+            "same output trees should succeed: {result:?}"
+        );
     }
 }

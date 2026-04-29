@@ -23,6 +23,39 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
 };
 
+#[allow(clippy::result_large_err)]
+fn pack_selected_output_tree_context(
+    tree_info: light_client::indexer::TreeInfo,
+    remaining_accounts: &mut PackedAccounts,
+) -> Result<(u8, u8, u8), RpcError> {
+    let (tree, queue, output_state_tree_index) = if let Some(next) = tree_info.next_tree_info {
+        (
+            next.tree,
+            next.queue,
+            next.pack_output_tree_index(remaining_accounts)
+                .map_err(|error| {
+                    RpcError::CustomError(format!("Failed to pack output tree index: {error}"))
+                })?,
+        )
+    } else {
+        (
+            tree_info.tree,
+            tree_info.queue,
+            tree_info
+                .pack_output_tree_index(remaining_accounts)
+                .map_err(|error| {
+                    RpcError::CustomError(format!("Failed to pack output tree index: {error}"))
+                })?,
+        )
+    };
+
+    Ok((
+        remaining_accounts.insert_or_get(tree),
+        remaining_accounts.insert_or_get(queue),
+        output_state_tree_index,
+    ))
+}
+
 #[ignore = "fix cpi context usage"]
 #[tokio::test]
 async fn test_deposit_compressed_account() {
@@ -206,7 +239,7 @@ async fn create_deposit_compressed_account(
         )
         .await?
         .value;
-    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts).unwrap();
     println!("packed_accounts {:?}", packed_accounts.state_trees);
 
     // Create token meta from compressed account
@@ -302,9 +335,14 @@ async fn update_deposit_compressed_account(
         "rpc_result.accounts[0].tree_info.queue {:?}",
         rpc_result.accounts[0].tree_info.queue.to_bytes()
     );
-    // We need to pack the tree after the cpi context.
-    let index = remaining_accounts.insert_or_get(rpc_result.accounts[0].tree_info.tree);
-    println!("index {}", index);
+    let (output_tree_index, output_tree_queue_index, output_state_tree_index) =
+        pack_selected_output_tree_context(
+            rpc_result.accounts[0].tree_info,
+            &mut remaining_accounts,
+        )?;
+    println!("output_tree_index {}", output_tree_index);
+    println!("output_tree_queue_index {}", output_tree_queue_index);
+    println!("output_state_tree_index {}", output_state_tree_index);
     // Get mint from the compressed token account
     let mint = deposit_ctoken_account.token.mint;
     println!(
@@ -318,15 +356,11 @@ async fn update_deposit_compressed_account(
     // Get validity proof for the compressed token account and new address
     println!("rpc_result {:?}", rpc_result);
 
-    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts);
-    println!("packed_accounts {:?}", packed_accounts.state_trees);
+    let packed_tree_infos = rpc_result.pack_state_tree_infos(&mut remaining_accounts);
+    println!("packed_tree_infos {:?}", packed_tree_infos);
     // TODO: investigate why packed_tree_infos seem to be out of order
     // Create token meta from compressed account
-    let tree_info = packed_accounts
-        .state_trees
-        .as_ref()
-        .unwrap()
-        .packed_tree_infos[1];
+    let tree_info = packed_tree_infos[1];
     let depositing_token_metas = vec![TokenAccountMeta {
         amount: deposit_ctoken_account.token.amount,
         delegate_index: None,
@@ -335,11 +369,7 @@ async fn update_deposit_compressed_account(
         tlv: None,
     }];
     println!("depositing_token_metas {:?}", depositing_token_metas);
-    let tree_info = packed_accounts
-        .state_trees
-        .as_ref()
-        .unwrap()
-        .packed_tree_infos[2];
+    let tree_info = packed_tree_infos[2];
     let escrowed_token_meta = TokenAccountMeta {
         amount: escrow_ctoken_account.token.amount,
         delegate_index: None,
@@ -354,19 +384,11 @@ async fn update_deposit_compressed_account(
     let system_accounts_start_offset = system_accounts_start_offset as u8;
     println!("remaining_accounts {:?}", remaining_accounts);
 
-    let tree_info = packed_accounts
-        .state_trees
-        .as_ref()
-        .unwrap()
-        .packed_tree_infos[0];
+    let tree_info = packed_tree_infos[0];
     let account_meta = CompressedAccountMeta {
         tree_info,
         address: escrow_pda.address.unwrap(),
-        output_state_tree_index: packed_accounts
-            .state_trees
-            .as_ref()
-            .unwrap()
-            .output_tree_index,
+        output_state_tree_index,
     };
 
     let instruction = Instruction {
@@ -381,14 +403,8 @@ async fn update_deposit_compressed_account(
         .concat(),
         data: sdk_token_test::instruction::UpdateDeposit {
             proof: rpc_result.proof,
-            output_tree_index: packed_accounts
-                .state_trees
-                .as_ref()
-                .unwrap()
-                .packed_tree_infos[0]
-                .merkle_tree_pubkey_index,
-            output_tree_queue_index: packed_accounts.state_trees.unwrap().packed_tree_infos[0]
-                .queue_pubkey_index,
+            output_tree_index,
+            output_tree_queue_index,
             system_accounts_start_offset,
             token_params: sdk_token_test::TokenParams {
                 deposit_amount: amount,

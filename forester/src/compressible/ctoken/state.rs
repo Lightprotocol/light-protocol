@@ -91,9 +91,13 @@ impl CTokenAccountTracker {
     /// Returns all tracked token accounts (not mints), ignoring compressible_slot.
     /// Use `get_ready_to_compress(current_slot)` to get only accounts ready for compression.
     pub fn get_all_token_accounts(&self) -> Vec<CTokenAccountState> {
-        self.get_ready_to_compress(u64::MAX)
-            .into_iter()
-            .filter(|state| state.account.is_token_account())
+        let pending = self.pending();
+        self.accounts()
+            .iter()
+            .filter(|entry| {
+                entry.value().account.is_token_account() && !pending.contains(entry.key())
+            })
+            .map(|entry| entry.value().clone())
             .collect()
     }
 

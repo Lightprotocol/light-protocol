@@ -9,7 +9,7 @@ import (
 
 type InclusionProofInputsJSON struct {
 	Root         string   `json:"root"`
-	PathIndex    uint32   `json:"pathIndex"`
+	PathIndex    uint64   `json:"pathIndex"`
 	PathElements []string `json:"pathElements"`
 	Leaf         string   `json:"leaf"`
 }

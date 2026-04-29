@@ -220,7 +220,7 @@ fn group_pda_specs<'a, V>(
     specs: &[&'a PdaSpec<V>],
     max_per_group: usize,
 ) -> Vec<Vec<&'a PdaSpec<V>>> {
-    assert!(max_per_group > 0, "max_per_group must be non-zero");
+    debug_assert!(max_per_group > 0, "max_per_group must be non-zero");
     if specs.is_empty() {
         return Vec::new();
     }
@@ -424,11 +424,7 @@ fn build_transfer2(
     fee_payer: Pubkey,
 ) -> Result<Instruction, LoadAccountsError> {
     let mut packed = PackedAccounts::default();
-    let packed_trees = proof.pack_tree_infos(&mut packed);
-    let tree_infos = packed_trees
-        .state_trees
-        .as_ref()
-        .ok_or_else(|| LoadAccountsError::BuildInstruction("no state trees".into()))?;
+    let tree_infos = proof.pack_state_tree_infos(&mut packed);
 
     let mut token_accounts = Vec::with_capacity(contexts.len());
     let mut tlv_data: Vec<Vec<ExtensionInstructionData>> = Vec::with_capacity(contexts.len());
@@ -436,12 +432,12 @@ fn build_transfer2(
 
     for (i, ctx) in contexts.iter().enumerate() {
         let token = &ctx.compressed.token;
-        let tree = tree_infos.packed_tree_infos.get(i).ok_or(
-            LoadAccountsError::TreeInfoIndexOutOfBounds {
+        let tree = tree_infos
+            .get(i)
+            .ok_or(LoadAccountsError::TreeInfoIndexOutOfBounds {
                 index: i,
-                len: tree_infos.packed_tree_infos.len(),
-            },
-        )?;
+                len: tree_infos.len(),
+            })?;
 
         let owner_idx = packed.insert_or_get_config(ctx.wallet_owner, true, false);
         let ata_idx = packed.insert_or_get(derive_token_ata(&ctx.wallet_owner, &ctx.mint));

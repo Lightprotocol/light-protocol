@@ -95,6 +95,20 @@ use crate::accounts::{
 };
 use crate::indexer::TestIndexerExtensions;
 
+fn build_compressed_proof(body: &str) -> Result<CompressedProof, IndexerError> {
+    let proof_json = deserialize_gnark_proof_json(body)
+        .map_err(|error| IndexerError::CustomError(error.to_string()))?;
+    let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json)
+        .map_err(|error| IndexerError::CustomError(error.to_string()))?;
+    let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+
+    Ok(CompressedProof {
+        a: proof_a,
+        b: proof_b,
+        c: proof_c,
+    })
+}
+
 #[derive(Debug)]
 pub struct TestIndexer {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
@@ -1706,11 +1720,13 @@ impl TestIndexer {
                         DEFAULT_BATCH_ROOT_HISTORY_LEN,
 
                     ));
-                    (FeeConfig::test_batched().state_merkle_tree_rollover as i64,merkle_tree, Some(params.output_queue_batch_size as usize))
+                    (FeeConfig::test_batched().state_merkle_tree_rollover as i64, merkle_tree, Some(params.output_queue_batch_size as usize))
                 }
 
                 #[cfg(not(feature = "devenv"))]
-                panic!("Batched state merkle trees require the 'devenv' feature to be enabled")
+                {
+                    panic!("Batched state merkle trees require the 'devenv' feature to be enabled")
+                }
             }
             _ => panic!(
                 "add_state_merkle_tree: tree_type not supported, {}. tree_type: 1 concurrent, 2 batched",
@@ -2367,7 +2383,8 @@ impl TestIndexer {
                     Some(
                         BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
                             &non_inclusion_proof_inputs,
-                        ),
+                        )
+                        .map_err(|error| IndexerError::CustomError(error.to_string()))?,
                     ),
                     None,
                 )
@@ -2595,20 +2612,10 @@ impl TestIndexer {
                         })?;
 
                         if status.is_success() {
-                            let proof_json = deserialize_gnark_proof_json(&body)
-                                .map_err(|error| IndexerError::CustomError(error.to_string()))?;
-                            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-                            let (proof_a, proof_b, proof_c) =
-                                compress_proof(&proof_a, &proof_b, &proof_c);
                             return Ok(ValidityProofWithContext {
                                 accounts: account_proof_inputs,
                                 addresses: address_proof_inputs,
-                                proof: CompressedProof {
-                                    a: proof_a,
-                                    b: proof_b,
-                                    c: proof_c,
-                                }
-                                .into(),
+                                proof: build_compressed_proof(&body)?.into(),
                             });
                         }
 

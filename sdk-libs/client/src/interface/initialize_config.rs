@@ -7,6 +7,8 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
+use crate::interface::instructions::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR;
+
 /// Default address tree v2 pubkey.
 pub const ADDRESS_TREE_V2: Pubkey =
     solana_pubkey::pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx");
@@ -115,16 +117,14 @@ impl InitializeRentFreeConfig {
             address_space: self.address_space,
         };
 
-        // Anchor discriminator for "initialize_compression_config"
-        // SHA256("global:initialize_compression_config")[..8]
-        const DISCRIMINATOR: [u8; 8] = [133, 228, 12, 169, 56, 76, 222, 61];
-
         let serialized_data = instruction_data
             .try_to_vec()
             .expect("Failed to serialize instruction data");
 
-        let mut data = Vec::with_capacity(DISCRIMINATOR.len() + serialized_data.len());
-        data.extend_from_slice(&DISCRIMINATOR);
+        let mut data = Vec::with_capacity(
+            INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR.len() + serialized_data.len(),
+        );
+        data.extend_from_slice(&INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR);
         data.extend_from_slice(&serialized_data);
 
         let instruction = Instruction {

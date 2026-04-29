@@ -306,7 +306,7 @@ pub struct StartArgs {
     #[arg(
         long,
         env = "WORK_ITEM_BATCH_SIZE",
-        value_parser = clap::value_parser!(usize).range(1..),
+        value_parser = parse_nonzero_usize,
         help = "Number of queue items to process per batch cycle. Smaller values reduce blockhash expiry risk, larger values reduce per-batch overhead."
     )]
     pub work_item_batch_size: Option<usize>,
@@ -390,6 +390,16 @@ impl StartArgs {
     pub fn enable_metrics(&self) -> bool {
         self.push_gateway_url.is_some()
     }
+}
+
+fn parse_nonzero_usize(value: &str) -> Result<usize, String> {
+    let parsed = value
+        .parse::<usize>()
+        .map_err(|err| format!("invalid positive integer: {err}"))?;
+    if parsed == 0 {
+        return Err("value must be at least 1".to_string());
+    }
+    Ok(parsed)
 }
 
 impl StatusArgs {

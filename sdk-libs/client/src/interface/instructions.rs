@@ -234,12 +234,7 @@ where
     let output_queue = get_output_queue(&cold_accounts[0].0.tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
-    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts);
-    let tree_infos = &packed_tree_infos
-        .state_trees
-        .as_ref()
-        .ok_or("missing state_trees in packed_tree_infos")?
-        .packed_tree_infos;
+    let tree_infos = proof.pack_state_tree_infos(&mut remaining_accounts);
 
     let mut accounts = program_account_metas.to_vec();
     let mut typed_accounts = Vec::with_capacity(cold_accounts.len());
@@ -313,14 +308,9 @@ pub fn build_compress_accounts_idempotent(
     let output_queue = get_output_queue(&proof.accounts[0].tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
-    let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts);
-    let tree_infos = packed_tree_infos
-        .state_trees
-        .as_ref()
-        .ok_or("missing state_trees in packed_tree_infos")?;
+    let tree_infos = proof.pack_state_tree_infos(&mut remaining_accounts);
 
     let cold_metas: Vec<_> = tree_infos
-        .packed_tree_infos
         .iter()
         .map(|tree_info| CompressedAccountMetaNoLamportsNoAddress {
             tree_info: *tree_info,

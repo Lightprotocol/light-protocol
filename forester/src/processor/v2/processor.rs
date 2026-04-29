@@ -118,6 +118,14 @@ where
         self.proof_cache = Some(cache);
     }
 
+    fn ensure_worker_pool(&mut self) -> crate::Result<()> {
+        if self.worker_pool.is_none() {
+            let job_tx = spawn_proof_workers(&self.context.prover_config)?;
+            self.worker_pool = Some(WorkerPool { job_tx });
+        }
+        Ok(())
+    }
+
     pub async fn process(&mut self) -> std::result::Result<ProcessingResult, ForesterError> {
         let queue_size = self.zkp_batch_size * self.context.max_batches_per_tree as u64;
         self.process_queue_update(queue_size).await
@@ -131,10 +139,7 @@ where
             return Ok(ProcessingResult::default());
         }
 
-        if self.worker_pool.is_none() {
-            let job_tx = spawn_proof_workers(&self.context.prover_config);
-            self.worker_pool = Some(WorkerPool { job_tx });
-        }
+        self.ensure_worker_pool()?;
 
         if let Some(cached) = self.cached_state.take() {
             let actual_available = self
@@ -531,10 +536,7 @@ where
         let max_batches =
             ((queue_size / self.zkp_batch_size) as usize).min(self.context.max_batches_per_tree);
 
-        if self.worker_pool.is_none() {
-            let job_tx = spawn_proof_workers(&self.context.prover_config);
-            self.worker_pool = Some(WorkerPool { job_tx });
-        }
+        self.ensure_worker_pool()?;
 
         let queue_data = match self
             .strategy
@@ -560,10 +562,7 @@ where
 
         let max_batches = max_batches.min(self.context.max_batches_per_tree);
 
-        if self.worker_pool.is_none() {
-            let job_tx = spawn_proof_workers(&self.context.prover_config);
-            self.worker_pool = Some(WorkerPool { job_tx });
-        }
+        self.ensure_worker_pool()?;
 
         let queue_data = match self
             .strategy

@@ -47,18 +47,18 @@ pub enum CompressionTaskError {
 }
 
 #[derive(Debug)]
-pub enum CompressionOutcome<S> {
+pub enum CompressionOutcome {
     Compressed {
         signature: Signature,
-        state: S,
+        pubkey: Pubkey,
     },
     Failed {
-        state: S,
+        pubkey: Pubkey,
         error: CompressionTaskError,
     },
 }
 
-pub type CompressionOutcomes<S> = Vec<CompressionOutcome<S>>;
+pub type CompressionOutcomes = Vec<CompressionOutcome>;
 
 pub trait CompressibleState: Clone + Send + Sync {
     fn pubkey(&self) -> &Pubkey;
@@ -128,7 +128,20 @@ pub trait CompressibleTracker<S: CompressibleState>: Send + Sync {
         self.len() == 0
     }
 
-    fn get_ready_to_compress(&self, current_slot: u64) -> Vec<S> {
+    fn get_ready_to_compress(&self, current_slot: u64) -> Vec<Pubkey> {
+        let pending = self.pending();
+        self.accounts()
+            .iter()
+            .filter(|entry| {
+                entry.value().is_ready_to_compress(current_slot) && !pending.contains(entry.key())
+            })
+            .map(|entry| *entry.key())
+            .collect()
+    }
+
+    /// Clone of ready-to-compress states. Prefer `get_ready_to_compress` in
+    /// production; this helper exists for tests that need full state fields.
+    fn get_ready_states(&self, current_slot: u64) -> Vec<S> {
         let pending = self.pending();
         self.accounts()
             .iter()
