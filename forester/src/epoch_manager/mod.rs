@@ -906,6 +906,9 @@ mod tests {
             state_tree_data: vec![],
             compressible_config: None,
             lookup_table_address: None,
+            min_queue_items: None,
+            enable_v1_multi_nullify: false,
+            work_item_batch_size: 50,
         }
     }
 
@@ -995,6 +998,7 @@ mod tests {
             queue_item_data: QueueItemData {
                 hash: [0u8; 32],
                 index: 0,
+                leaf_index: None,
             },
         };
         assert!(work_item.is_address_tree());
@@ -1015,6 +1019,7 @@ mod tests {
             queue_item_data: QueueItemData {
                 hash: [0u8; 32],
                 index: 0,
+                leaf_index: None,
             },
         };
         assert!(!work_item.is_address_tree());
