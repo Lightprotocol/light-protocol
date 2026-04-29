@@ -11,10 +11,18 @@ type LazyKeyManager struct {
 	mu                sync.RWMutex
 	merkleSystems     map[string]*MerkleProofSystem
 	batchSystems      map[string]*BatchProofSystem
+	maspSystems       map[string]*MaspProofSystem
+	maspBuilders      map[string]MaspSystemBuilder
 	keysDir           string
 	downloadConfig    *DownloadConfig
 	loadingInProgress map[string]chan struct{}
 }
+
+// MaspSystemBuilder compiles a MaspProofSystem on demand from circuit code.
+// It exists because MASP circuits do not yet ship with downloadable .key
+// files; until they do, the prover compiles the constraint system and runs an
+// in-process Groth16 setup so end-to-end proof tests can run locally.
+type MaspSystemBuilder func(nInputs, nOutputs uint32) (*MaspProofSystem, error)
 
 func NewLazyKeyManager(keysDir string, downloadConfig *DownloadConfig) *LazyKeyManager {
 	if downloadConfig == nil {
@@ -23,10 +31,21 @@ func NewLazyKeyManager(keysDir string, downloadConfig *DownloadConfig) *LazyKeyM
 	return &LazyKeyManager{
 		merkleSystems:     make(map[string]*MerkleProofSystem),
 		batchSystems:      make(map[string]*BatchProofSystem),
+		maspSystems:       make(map[string]*MaspProofSystem),
+		maspBuilders:      make(map[string]MaspSystemBuilder),
 		keysDir:           keysDir,
 		downloadConfig:    downloadConfig,
 		loadingInProgress: make(map[string]chan struct{}),
 	}
+}
+
+// RegisterMaspBuilder lets a caller (typically the prover/masp package) attach
+// an in-process compile+setup function for a given MASP circuit type. The
+// builder is invoked on the first GetMaspSystem call that misses the cache.
+func (m *LazyKeyManager) RegisterMaspBuilder(circuitType CircuitType, builder MaspSystemBuilder) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.maspBuilders[string(circuitType)] = builder
 }
 
 func (m *LazyKeyManager) GetMerkleSystem(
@@ -58,6 +77,57 @@ func (m *LazyKeyManager) GetMerkleSystem(
 	m.mu.RUnlock()
 
 	return m.loadMerkleSystem(key, inclusionTreeHeight, inclusionCompressedAccounts, nonInclusionTreeHeight, nonInclusionCompressedAccounts, version)
+}
+
+func (m *LazyKeyManager) GetMaspSystem(circuitType CircuitType, nInputs uint32, nOutputs uint32) (*MaspProofSystem, error) {
+	if !IsMaspCircuit(circuitType) {
+		return nil, fmt.Errorf("not a MASP circuit type: %s", circuitType)
+	}
+	key := fmt.Sprintf("%s_%d_%d", circuitType, nInputs, nOutputs)
+
+	m.mu.RLock()
+	if ps, exists := m.maspSystems[key]; exists {
+		m.mu.RUnlock()
+		logging.Logger().Debug().
+			Str("key", key).
+			Msg("Found cached MaspProofSystem")
+		return ps, nil
+	}
+	builder, hasBuilder := m.maspBuilders[string(circuitType)]
+	m.mu.RUnlock()
+
+	if !hasBuilder {
+		return nil, fmt.Errorf("no MASP system builder registered for %s; call RegisterMaspBuilder", circuitType)
+	}
+
+	loadChan := m.acquireLoadingLock(key)
+	if loadChan == nil {
+		m.waitForLoading(key)
+		m.mu.RLock()
+		ps, exists := m.maspSystems[key]
+		m.mu.RUnlock()
+		if exists {
+			return ps, nil
+		}
+		return nil, fmt.Errorf("loading completed but MASP system not found in cache")
+	}
+	defer m.releaseLoadingLock(key, loadChan)
+
+	logging.Logger().Info().
+		Str("circuit_type", string(circuitType)).
+		Uint32("n_inputs", nInputs).
+		Uint32("n_outputs", nOutputs).
+		Msg("Building MaspProofSystem")
+
+	ps, err := builder(nInputs, nOutputs)
+	if err != nil {
+		return nil, fmt.Errorf("build MASP system %s: %w", key, err)
+	}
+
+	m.mu.Lock()
+	m.maspSystems[key] = ps
+	m.mu.Unlock()
+	return ps, nil
 }
 
 func (m *LazyKeyManager) GetBatchSystem(circuitType CircuitType, treeHeight uint32, batchSize uint32) (*BatchProofSystem, error) {

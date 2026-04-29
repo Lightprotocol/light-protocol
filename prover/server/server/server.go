@@ -1176,6 +1176,11 @@ func (handler proveHandler) processProofSync(buf []byte) (*common.Proof, *Error)
 		return handler.batchAppendHandler(buf)
 	case common.BatchAddressAppendCircuitType:
 		return handler.batchAddressAppendProof(buf)
+	case common.MaspUtxoCircuitType, common.MaspTreeCircuitType, common.MaspBundleCircuitType:
+		return nil, provingError(fmt.Errorf(
+			"masp proof type %s is registered but server-side proving is not wired through this endpoint yet; use the MASP TEE proof worker (Phase 7.4) or call the masp package directly in tests",
+			proofRequestMeta.CircuitType,
+		))
 	default:
 		return nil, malformedBodyError(fmt.Errorf("unknown circuit type: %s", proofRequestMeta.CircuitType))
 	}

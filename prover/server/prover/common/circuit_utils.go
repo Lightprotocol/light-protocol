@@ -41,6 +41,22 @@ type BatchProofSystem struct {
 	ConstraintSystem constraint.ConstraintSystem
 }
 
+// MaspProofSystem holds compiled circuit + keys for a single MASP shape
+// (n_inputs, n_outputs). Tree height is fixed per circuit at compile time and
+// is part of the circuit identity rather than a per-request parameter.
+type MaspProofSystem struct {
+	CircuitType          CircuitType
+	NInputs              uint32
+	NOutputs             uint32
+	StateTreeDepth       uint32
+	NullifierTreeDepth   uint32
+	ProvingKey           groth16.ProvingKey
+	VerifyingKey         groth16.VerifyingKey
+	ConstraintSystem     constraint.ConstraintSystem
+	ProvingKeyChecksum   string
+	VerifyingKeyChecksum string
+}
+
 type ProveParentHash struct {
 	Bit     frontend.Variable
 	Hash    frontend.Variable

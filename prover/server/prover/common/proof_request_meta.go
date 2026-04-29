@@ -19,6 +19,8 @@ type ProofRequestMeta struct {
 	// BatchIndex is the batch sequence number within a tree - used to process batches in order
 	// Lower batch indices should be processed first to enable sequential transaction submission
 	BatchIndex int64
+	// MASP-specific shape. NumOutputs defaults to 0 for non-MASP circuits.
+	NumOutputs uint32
 }
 
 // ParseProofRequestMeta parses a JSON input and extracts CircuitType, tree heights, and additional metrics.
@@ -56,8 +58,12 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 		return ProofRequestMeta{}, fmt.Errorf("missing or invalid 'circuitType' %s", rawInput)
 	}
 
-	if addressTreeHeight == 0 && stateTreeHeight == 0 && treeHeight == 0 {
-		return ProofRequestMeta{}, fmt.Errorf("no 'addressTreeHeight' or stateTreeHeight'or 'treeHeight' provided")
+	// MASP requests carry nInputs/nOutputs and a rootContext rather than a
+	// per-request tree height, so the legacy height check does not apply.
+	if !IsMaspCircuit(CircuitType(circuitType)) {
+		if addressTreeHeight == 0 && stateTreeHeight == 0 && treeHeight == 0 {
+			return ProofRequestMeta{}, fmt.Errorf("no 'addressTreeHeight' or stateTreeHeight'or 'treeHeight' provided")
+		}
 	}
 
 	version := uint32(1)
@@ -76,6 +82,18 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 	numAddresses := 0
 	if nonInclusionInputs, ok := rawInput["newAddresses"].([]interface{}); ok {
 		numAddresses = len(nonInclusionInputs)
+	}
+
+	// MASP shape: nInputs/nOutputs are top-level on MASP requests rather than
+	// being inferred from a slice length. Tolerate JSON numbers and integers.
+	numOutputs := 0
+	if IsMaspCircuit(CircuitType(circuitType)) {
+		if v, ok := rawInput["nInputs"].(float64); ok && v >= 0 {
+			numInputs = int(v)
+		}
+		if v, ok := rawInput["nOutputs"].(float64); ok && v >= 0 {
+			numOutputs = int(v)
+		}
 	}
 
 	// Extract TreeID for fair queuing
@@ -98,6 +116,7 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 		AddressTreeHeight: addressTreeHeight,
 		NumInputs:         uint32(numInputs),
 		NumAddresses:      uint32(numAddresses),
+		NumOutputs:        uint32(numOutputs),
 		TreeID:            treeID,
 		BatchIndex:        batchIndex,
 	}, nil

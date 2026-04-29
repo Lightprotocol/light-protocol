@@ -9,7 +9,18 @@ const (
 	BatchAppendCircuitType        CircuitType = "append"
 	BatchUpdateCircuitType        CircuitType = "update"
 	BatchAddressAppendCircuitType CircuitType = "address-append"
+	MaspUtxoCircuitType           CircuitType = "masp-utxo"
+	MaspTreeCircuitType           CircuitType = "masp-tree"
+	MaspBundleCircuitType         CircuitType = "masp-bundle"
 )
+
+func IsMaspCircuit(t CircuitType) bool {
+	switch t {
+	case MaspUtxoCircuitType, MaspTreeCircuitType, MaspBundleCircuitType:
+		return true
+	}
+	return false
+}
 
 // JSON input structures (these are not in circuit_utils.go)
 type InclusionProofInputsJSON struct {
