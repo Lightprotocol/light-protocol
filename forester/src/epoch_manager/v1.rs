@@ -47,6 +47,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             return Ok(0);
         };
 
+        let use_lookup_tables = !self.ctx.address_lookup_tables.is_empty();
+        let enable_v1_multi_nullify = self.ctx.config.enable_v1_multi_nullify && use_lookup_tables;
+
         let batched_tx_config = SendBatchedTransactionsConfig {
             num_batches: 1,
             build_transaction_batch_config: BuildTransactionBatchConfig {
@@ -74,12 +77,21 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             ),
             confirmation_max_attempts: self.ctx.config.transaction_config.confirmation_max_attempts
                 as usize,
+            min_queue_items: if use_lookup_tables {
+                self.ctx.config.min_queue_items
+            } else {
+                None
+            },
+            enable_presort: enable_v1_multi_nullify,
+            work_item_batch_size: self.ctx.config.work_item_batch_size,
         };
 
         let transaction_builder = Arc::new(EpochManagerTransactions::new(
             self.ctx.rpc_pool.clone(),
             epoch_info.epoch,
             self.tx_cache.clone(),
+            self.ctx.address_lookup_tables.as_ref().clone(),
+            enable_v1_multi_nullify,
         ));
 
         let num_sent = send_batched_transactions(
