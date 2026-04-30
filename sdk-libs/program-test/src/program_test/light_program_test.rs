@@ -393,7 +393,9 @@ impl LightProgramTest {
 
         #[cfg(feature = "devenv")]
         {
-            spawn_prover().await;
+            if config.with_prover {
+                spawn_prover().await;
+            }
         }
         #[cfg(not(feature = "devenv"))]
         if config.with_prover {

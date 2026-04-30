@@ -669,10 +669,8 @@ async fn proofless_shielded_append_emits_light_and_shielded_events() {
         }]
     );
     let compressed_account = &public_event.output_compressed_accounts[0].compressed_account;
-    assert_eq!(
-        compressed_account.owner,
-        create_address_test_program::ID.into()
-    );
+    let expected_owner: light_compressed_account::Pubkey = create_address_test_program::ID.into();
+    assert_eq!(compressed_account.owner, expected_owner);
     let compressed_data = compressed_account
         .data
         .as_ref()
