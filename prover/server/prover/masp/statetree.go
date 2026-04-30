@@ -7,8 +7,8 @@ import (
 	"light/light-prover/prover/masp/poseidon"
 )
 
-// StateTreeHeight is the height of the binary state Merkle tree for MASP
-// input commitments. 40 levels → 2^40 leaves.
+// StateTreeHeight is the height of the binary state Merkle tree for Light
+// compressed-account leaves. 40 levels → 2^40 leaves.
 const StateTreeHeight = 40
 
 // StateNodeHash computes the binary Merkle node hash = Poseidon2(left, right).

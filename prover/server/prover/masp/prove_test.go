@@ -205,17 +205,20 @@ func localTreeWitnessFromWitness(w *Witness) *MaspTreeLocalWitness {
 	}
 
 	return &MaspTreeLocalWitness{
-		InCommit:       bigStrings(w.InCommits),
-		StatePath:      statePath,
-		StateDirs:      stateDirs,
-		DomainDNS:      bigStrings(w.DomainSecrets),
-		NfLowValue:     nonInclusionLowValues(w),
-		NfNextValue:    nonInclusionNextValues(w),
-		NfLowPath:      nfLowPath,
-		NfLowDirs:      nfLowDirs,
-		StateRoots:     bigStrings(stateRoots),
-		NullifierRoots: bigStrings(nullifierRoots),
-		Nullifiers:     bigStrings(w.Nullifiers),
+		InCommit:             bigStrings(w.InCommits),
+		AccountOwnerHash:     bigStrings(w.AccountOwnerHash),
+		AccountTreeHash:      bigStrings(w.AccountTreeHash),
+		AccountDiscriminator: bigStrings(w.AccountDiscriminator),
+		StatePath:            statePath,
+		StateDirs:            stateDirs,
+		DomainDNS:            bigStrings(w.DomainSecrets),
+		NfLowValue:           nonInclusionLowValues(w),
+		NfNextValue:          nonInclusionNextValues(w),
+		NfLowPath:            nfLowPath,
+		NfLowDirs:            nfLowDirs,
+		StateRoots:           bigStrings(stateRoots),
+		NullifierRoots:       bigStrings(nullifierRoots),
+		Nullifiers:           bigStrings(w.Nullifiers),
 	}
 }
 

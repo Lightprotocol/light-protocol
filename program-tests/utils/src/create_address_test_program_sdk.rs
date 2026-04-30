@@ -10,6 +10,7 @@ use light_compressed_account::{
     address::derive_address,
     instruction_data::{compressed_proof::CompressedProof, data::NewAddressParams},
 };
+use light_hasher::{Hasher, Poseidon};
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexerExtensions};
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 
@@ -79,6 +80,85 @@ pub struct ProoflessShieldedAppendInstructionInputs<'a> {
     pub args: create_address_test_program::ProoflessShieldedAppendArgs,
 }
 
+#[derive(Debug, Clone)]
+pub struct ProoflessShieldedAppendPlaintext {
+    pub zone_config_hash: [u8; 32],
+    pub operation_commitment: [u8; 32],
+    pub owner_hash: [u8; 32],
+    pub token_mint: [u8; 32],
+    pub spl_amount: u64,
+    pub sol_amount: u64,
+    pub blinding: [u8; 32],
+    pub encrypted_utxo: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProoflessShieldedAppendCommitments {
+    pub utxo_hash: [u8; 32],
+    pub data_hash: [u8; 32],
+    pub encrypted_utxo_hash: [u8; 32],
+}
+
+pub fn proofless_shielded_append_args_from_plaintext(
+    plaintext: ProoflessShieldedAppendPlaintext,
+) -> (
+    create_address_test_program::ProoflessShieldedAppendArgs,
+    ProoflessShieldedAppendCommitments,
+) {
+    let data_hash = shielded_utxo_data_hash(plaintext.token_mint, plaintext.zone_config_hash);
+    let utxo_hash = shielded_utxo_hash(
+        plaintext.owner_hash,
+        plaintext.spl_amount,
+        plaintext.sol_amount,
+        plaintext.blinding,
+        data_hash,
+    );
+    let encrypted_utxo_hash =
+        Poseidon::hashv(&[&utxo_hash]).expect("encrypted UTXO hash fixture should hash");
+    (
+        create_address_test_program::ProoflessShieldedAppendArgs {
+            zone_config_hash: plaintext.zone_config_hash,
+            operation_commitment: plaintext.operation_commitment,
+            utxo_hash,
+            encrypted_utxo: plaintext.encrypted_utxo,
+            encrypted_utxo_hash,
+        },
+        ProoflessShieldedAppendCommitments {
+            utxo_hash,
+            data_hash,
+            encrypted_utxo_hash,
+        },
+    )
+}
+
+pub fn shielded_utxo_data_hash(token_mint: [u8; 32], zone_config_hash: [u8; 32]) -> [u8; 32] {
+    Poseidon::hashv(&[&field_bytes(token_mint), &field_bytes(zone_config_hash)])
+        .expect("shielded UTXO data hash fixture should hash")
+}
+
+pub fn shielded_utxo_hash(
+    owner_hash: [u8; 32],
+    spl_amount: u64,
+    sol_amount: u64,
+    blinding: [u8; 32],
+    data_hash: [u8; 32],
+) -> [u8; 32] {
+    Poseidon::hashv(&[
+        &u64_to_be_32(0),
+        &owner_hash,
+        &u64_to_be_32(spl_amount),
+        &u64_to_be_32(sol_amount),
+        &field_bytes(blinding),
+        &data_hash,
+    ])
+    .expect("shielded UTXO hash fixture should hash")
+}
+
+pub fn shielded_program_owner_hash(program_id: [u8; 32], seed: u64) -> [u8; 32] {
+    Poseidon::hashv(&[&program_id, &u64_to_be_32(seed)])
+        .expect("shielded program owner hash fixture should hash")
+}
+
 pub fn proofless_shielded_append_instruction(
     input_params: ProoflessShieldedAppendInstructionInputs,
 ) -> Instruction {
@@ -118,6 +198,17 @@ pub fn proofless_shielded_append_instruction(
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     }
+}
+
+fn field_bytes(mut bytes: [u8; 32]) -> [u8; 32] {
+    bytes[0] = 0;
+    bytes
+}
+
+fn u64_to_be_32(value: u64) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    out[24..].copy_from_slice(&value.to_be_bytes());
+    out
 }
 
 pub async fn perform_create_pda_with_event_rnd<

@@ -8,8 +8,10 @@ import (
 )
 
 // TreeCircuit proves:
-//   - Per-input in_commit_i is included in state_roots[i] via a 40-level
-//     binary Merkle path.
+//   - Per-input Light compressed-account hash is included in state_roots[i]
+//     via a 40-level binary Merkle path.
+//   - That compressed-account hash is the canonical no-lamports/no-address
+//     Light account leaf whose data_hash is in_commit_i.
 //   - Per-input nullifier (public) is NOT in nullifier_roots[i] via an
 //     indexed-tree non-inclusion proof (low leaf inclusion + strict range).
 //   - nullifiers[i] == Poseidon3(in_commit_i, leaf_index_i, dns_i) where
@@ -23,33 +25,44 @@ type TreeCircuit struct {
 	NInputs int `gnark:"-"`
 
 	// Per-input private witness.
-	InCommit   []frontend.Variable
-	StatePath  [][]frontend.Variable // [N][height] siblings
-	StateDirs  [][]frontend.Variable // [N][height] direction bits (0 = current is left, 1 = right)
-	DomainDNS  []frontend.Variable   // per-input domain_nullifier_secret
+	InCommit             []frontend.Variable
+	AccountOwnerHash     []frontend.Variable
+	AccountTreeHash      []frontend.Variable
+	AccountDiscriminator []frontend.Variable
+	StatePath            [][]frontend.Variable // [N][height] siblings
+	StateDirs            [][]frontend.Variable // [N][height] direction bits (0 = current is left, 1 = right)
+	DomainDNS            []frontend.Variable   // per-input domain_nullifier_secret
 
 	// Non-inclusion witnesses for nullifiers.
-	NfLowValue   []frontend.Variable
-	NfNextValue  []frontend.Variable
-	NfLowPath    [][]frontend.Variable // [N][height] siblings
-	NfLowDirs    [][]frontend.Variable // [N][height] direction bits
+	NfLowValue  []frontend.Variable
+	NfNextValue []frontend.Variable
+	NfLowPath   [][]frontend.Variable // [N][height] siblings
+	NfLowDirs   [][]frontend.Variable // [N][height] direction bits
 
 	// ==== Logical "public" inputs, folded into PublicInputsHash ====
 	StateRoots     []frontend.Variable
 	NullifierRoots []frontend.Variable
 	Nullifiers     []frontend.Variable
 
-	// PublicInputsHash is the one real public input. It folds three
+	// PublicInputsHash is the one real public input. It folds six
 	// sub-chains (each of length N), in this order:
 	//
 	//   StateRootsChain     = HashChain(StateRoots[0..N-1])
 	//   NullifierRootsChain = HashChain(NullifierRoots[0..N-1])
 	//   NullifierChain      = HashChain(Nullifiers[0..N-1])
-	//   PublicInputsHash    = HashChain([StateRootsChain, NullifierRootsChain, NullifierChain])
+	//   OwnerHashChain      = HashChain(AccountOwnerHash[0..N-1])
+	//   TreeHashChain       = HashChain(AccountTreeHash[0..N-1])
+	//   DiscriminatorChain  = HashChain(AccountDiscriminator[0..N-1])
+	//   PublicInputsHash    = HashChain([StateRootsChain, NullifierRootsChain,
+	//                         NullifierChain, OwnerHashChain, TreeHashChain,
+	//                         DiscriminatorChain])
 	//
 	// NullifierChain matches utxo_circuit's binding term — both circuits
 	// compute it from their nullifier witnesses and the on-chain verifier
-	// feeds the same digest into both Groth16 verifies.
+	// feeds the same digest into both Groth16 verifies. The account metadata
+	// chains let the verifier bind the proof to the expected Light owner,
+	// state tree, and shielded UTXO discriminator instead of accepting an
+	// arbitrary compressed-account preimage.
 	PublicInputsHash frontend.Variable `gnark:",public"`
 }
 
@@ -61,6 +74,9 @@ func NewTreeCircuit(n int) *TreeCircuit {
 	}
 	c := &TreeCircuit{NInputs: n}
 	c.InCommit = make([]frontend.Variable, n)
+	c.AccountOwnerHash = make([]frontend.Variable, n)
+	c.AccountTreeHash = make([]frontend.Variable, n)
+	c.AccountDiscriminator = make([]frontend.Variable, n)
 	c.DomainDNS = make([]frontend.Variable, n)
 	c.StatePath = make([][]frontend.Variable, n)
 	c.StateDirs = make([][]frontend.Variable, n)
@@ -86,12 +102,25 @@ func (c *TreeCircuit) Define(api frontend.API) error {
 	}
 
 	for i := 0; i < c.NInputs; i++ {
-		// 1. State inclusion: fold in_commit_i up the binary path.
-		foldedState := merkleFold(api, c.InCommit[i], c.StatePath[i], c.StateDirs[i])
-		api.AssertIsEqual(foldedState, c.StateRoots[i])
-
 		// Reconstruct leaf_index_i from directions, LSB-first.
 		leafIndex := bitsToField(api, c.StateDirs[i])
+		// Light compressed-account hashes use u32 leaf indices.
+		api.ToBinary(leafIndex, 32)
+		// The discriminator witness is the raw 8-byte account discriminator.
+		api.ToBinary(c.AccountDiscriminator[i], 64)
+
+		// 1. State inclusion: fold the Light compressed-account hash up the
+		//    binary path. The account data_hash is the MASP UTXO commitment.
+		stateLeaf := lightCompressedAccountLeafCircuit(
+			api,
+			c.AccountOwnerHash[i],
+			leafIndex,
+			c.AccountTreeHash[i],
+			c.AccountDiscriminator[i],
+			c.InCommit[i],
+		)
+		foldedState := merkleFold(api, stateLeaf, c.StatePath[i], c.StateDirs[i])
+		api.AssertIsEqual(foldedState, c.StateRoots[i])
 
 		// 2. Indexed non-inclusion: fold Poseidon2(low_value, next_value)
 		//    up the nullifier tree path, assert low_value < nullifier < next_value.
@@ -110,20 +139,38 @@ func (c *TreeCircuit) Define(api frontend.API) error {
 		api.AssertIsEqual(computedNf, c.Nullifiers[i])
 	}
 
-	// Per-slot sub-chains, then a 3-element PublicInputsHash.
+	// Per-slot sub-chains, then a fixed-length PublicInputsHash.
 	stateRootsChain := hashChainCircuit(api, c.StateRoots)
 	nullifierRootsChain := hashChainCircuit(api, c.NullifierRoots)
 	nullifierChain := hashChainCircuit(api, c.Nullifiers)
+	ownerHashChain := hashChainCircuit(api, c.AccountOwnerHash)
+	treeHashChain := hashChainCircuit(api, c.AccountTreeHash)
+	discriminatorChain := hashChainCircuit(api, c.AccountDiscriminator)
 	api.AssertIsEqual(
 		hashChainCircuit(api, []frontend.Variable{
 			stateRootsChain,
 			nullifierRootsChain,
 			nullifierChain,
+			ownerHashChain,
+			treeHashChain,
+			discriminatorChain,
 		}),
 		c.PublicInputsHash,
 	)
 
 	return nil
+}
+
+func lightCompressedAccountLeafCircuit(
+	api frontend.API,
+	ownerHash frontend.Variable,
+	leafIndex frontend.Variable,
+	treeHash frontend.Variable,
+	discriminator frontend.Variable,
+	utxoCommit frontend.Variable,
+) frontend.Variable {
+	discriminatorField := api.Add(discriminator, lightAccountDataDiscriminatorDomain)
+	return hashT6(api, ownerHash, leafIndex, treeHash, discriminatorField, utxoCommit)
 }
 
 // merkleFold folds a leaf up a Merkle path using Poseidon2 at each level.

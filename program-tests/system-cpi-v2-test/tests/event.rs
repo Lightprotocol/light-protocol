@@ -42,7 +42,9 @@ use light_program_test::{
 use light_sdk::address::NewAddressParamsAssigned;
 use light_test_utils::{
     create_address_test_program_sdk::{
-        proofless_shielded_append_instruction, ProoflessShieldedAppendInstructionInputs,
+        proofless_shielded_append_args_from_plaintext, proofless_shielded_append_instruction,
+        shielded_program_owner_hash, ProoflessShieldedAppendInstructionInputs,
+        ProoflessShieldedAppendPlaintext,
     },
     pack::{
         pack_compressed_accounts, pack_new_address_params_assigned, pack_output_compressed_accounts,
@@ -556,23 +558,27 @@ async fn proofless_shielded_append_emits_light_and_shielded_events() {
         .await
         .unwrap();
 
-    let utxo_hash = hash_to_bn254_field_size_be(&[0xA7; 32]);
-    let encrypted_utxo = vec![0xC1, 0xC2, 0xC3, 0xC4];
-    let encrypted_utxo_hash = hash_to_bn254_field_size_be(&[0xE7; 32]);
     let zone_config_hash = hash_to_bn254_field_size_be(&[0x51; 32]);
     let operation_commitment = hash_to_bn254_field_size_be(&[0x0C; 32]);
+    let owner_hash = shielded_program_owner_hash([0x10; 32], 0x1001);
+    let encrypted_utxo = vec![0xC1, 0xC2, 0xC3, 0xC4];
+    let (append_args, commitments) =
+        proofless_shielded_append_args_from_plaintext(ProoflessShieldedAppendPlaintext {
+            zone_config_hash,
+            operation_commitment,
+            owner_hash,
+            token_mint: [0xB7; 32],
+            spl_amount: 1_000_000,
+            sol_amount: 42,
+            blinding: [0xC7; 32],
+            encrypted_utxo: encrypted_utxo.clone(),
+        });
     let instruction =
         proofless_shielded_append_instruction(ProoflessShieldedAppendInstructionInputs {
             signer: &payer.pubkey(),
             output_compressed_account_merkle_tree_pubkey: &env.v2_state_trees[0].output_queue,
             registered_program_pda: &env.protocol.registered_program_pda,
-            args: create_address_test_program::ProoflessShieldedAppendArgs {
-                zone_config_hash,
-                operation_commitment,
-                utxo_hash,
-                encrypted_utxo: encrypted_utxo.clone(),
-                encrypted_utxo_hash,
-            },
+            args: append_args,
         });
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -609,11 +615,11 @@ async fn proofless_shielded_append_emits_light_and_shielded_events() {
     assert_eq!(shielded_event.operation_commitment, operation_commitment);
     assert_eq!(shielded_event.outputs.len(), 1);
     assert_eq!(shielded_event.outputs[0].compressed_output_index, 0);
-    assert_eq!(shielded_event.outputs[0].utxo_hash, utxo_hash);
+    assert_eq!(shielded_event.outputs[0].utxo_hash, commitments.utxo_hash);
     assert_eq!(shielded_event.outputs[0].encrypted_utxo, encrypted_utxo);
     assert_eq!(
         shielded_event.outputs[0].encrypted_utxo_hash,
-        encrypted_utxo_hash
+        commitments.encrypted_utxo_hash
     );
 
     let mut instruction_data = Vec::new();
@@ -679,7 +685,14 @@ async fn proofless_shielded_append_emits_light_and_shielded_events() {
         compressed_data.discriminator,
         create_address_test_program::SHIELDED_UTXO_ACCOUNT_DISCRIMINATOR
     );
-    assert_eq!(compressed_data.data_hash, utxo_hash);
+    assert_eq!(compressed_data.data_hash, commitments.utxo_hash);
+    let compressed_account_hash = compressed_account
+        .hash(&env.v2_state_trees[0].merkle_tree.into(), &0u32, true)
+        .expect("shielded compressed account should hash");
+    assert_eq!(
+        public_event.output_compressed_account_hashes[0],
+        compressed_account_hash
+    );
 
     rpc.context
         .send_transaction(transaction)

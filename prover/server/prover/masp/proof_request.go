@@ -38,24 +38,24 @@ type EncryptedWitnessPayload struct {
 // will not accept a request that lacks a valid signature for any flow that
 // uses spend-scoped material such as `domain_nullifier_secret_i`.
 type SignedUserIntent struct {
-	OwnerPubkey       string `json:"ownerPubkey"`
-	OperationCommit   string `json:"operationCommitment"`
-	Expiry            uint64 `json:"expiry"`
-	OwnerNonce        uint64 `json:"ownerNonce"`
-	TransitionTag     string `json:"transitionTag"`
-	Signature         string `json:"signature"`
+	OwnerPubkey     string `json:"ownerPubkey"`
+	OperationCommit string `json:"operationCommitment"`
+	Expiry          uint64 `json:"expiry"`
+	OwnerNonce      uint64 `json:"ownerNonce"`
+	TransitionTag   string `json:"transitionTag"`
+	Signature       string `json:"signature"`
 }
 
 // MaspBaseRequest holds the fields shared by every MASP proof request.
 type MaspBaseRequest struct {
-	CircuitType        common.CircuitType       `json:"circuitType"`
-	NInputs            uint32                   `json:"nInputs"`
-	NOutputs           uint32                   `json:"nOutputs"`
-	RootContext        RootContext              `json:"rootContext"`
-	OperationCommit    string                   `json:"operationCommitment,omitempty"`
-	PublicInputsHash   string                   `json:"publicInputsHash,omitempty"`
-	UserIntent         *SignedUserIntent        `json:"userIntent,omitempty"`
-	EncryptedWitness   *EncryptedWitnessPayload `json:"encryptedWitness,omitempty"`
+	CircuitType      common.CircuitType       `json:"circuitType"`
+	NInputs          uint32                   `json:"nInputs"`
+	NOutputs         uint32                   `json:"nOutputs"`
+	RootContext      RootContext              `json:"rootContext"`
+	OperationCommit  string                   `json:"operationCommitment,omitempty"`
+	PublicInputsHash string                   `json:"publicInputsHash,omitempty"`
+	UserIntent       *SignedUserIntent        `json:"userIntent,omitempty"`
+	EncryptedWitness *EncryptedWitnessPayload `json:"encryptedWitness,omitempty"`
 }
 
 // MaspUtxoProofRequest produces the UtxoCircuit proof: nullifiers from
@@ -124,10 +124,13 @@ type MaspUtxoLocalWitness struct {
 
 // MaspTreeLocalWitness mirrors TreeCircuit's private witness fields.
 type MaspTreeLocalWitness struct {
-	InCommit  []string   `json:"inCommit"`
-	StatePath [][]string `json:"statePath"`
-	StateDirs [][]string `json:"stateDirs"`
-	DomainDNS []string   `json:"domainDns"`
+	InCommit             []string   `json:"inCommit"`
+	AccountOwnerHash     []string   `json:"accountOwnerHash"`
+	AccountTreeHash      []string   `json:"accountTreeHash"`
+	AccountDiscriminator []string   `json:"accountDiscriminator"`
+	StatePath            [][]string `json:"statePath"`
+	StateDirs            [][]string `json:"stateDirs"`
+	DomainDNS            []string   `json:"domainDns"`
 
 	NfLowValue  []string   `json:"nfLowValue"`
 	NfNextValue []string   `json:"nfNextValue"`

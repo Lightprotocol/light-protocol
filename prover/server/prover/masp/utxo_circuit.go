@@ -3,11 +3,11 @@ package masp
 import (
 	"fmt"
 
-	"light/light-prover/prover/masp/poseidon"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/algebra/emulated/sw_emulated"
 	"github.com/consensys/gnark/std/math/emulated"
 	gnarkecdsa "github.com/consensys/gnark/std/signature/ecdsa"
+	"light/light-prover/prover/masp/poseidon"
 )
 
 // UtxoCircuit proves:
@@ -306,6 +306,10 @@ func hashT4(api frontend.API, a, b, c frontend.Variable) frontend.Variable {
 
 func hashT5(api frontend.API, a, b, c, d frontend.Variable) frontend.Variable {
 	return poseidon.HashCircuitWithT(api, 5, []frontend.Variable{a, b, c, d})
+}
+
+func hashT6(api frontend.API, a, b, c, d, e frontend.Variable) frontend.Variable {
+	return poseidon.HashCircuitWithT(api, 6, []frontend.Variable{a, b, c, d, e})
 }
 
 func hashT7(api frontend.API, a, b, c, d, e, f frontend.Variable) frontend.Variable {

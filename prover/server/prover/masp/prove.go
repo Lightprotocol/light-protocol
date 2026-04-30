@@ -275,6 +275,15 @@ func TreeAssignmentFromLocalWitness(nInputs uint32, publicInputsHash string, loc
 	if err := setVector(c.InCommit, local.InCommit, "localWitness.inCommit"); err != nil {
 		return nil, err
 	}
+	if err := setVector(c.AccountOwnerHash, local.AccountOwnerHash, "localWitness.accountOwnerHash"); err != nil {
+		return nil, err
+	}
+	if err := setVector(c.AccountTreeHash, local.AccountTreeHash, "localWitness.accountTreeHash"); err != nil {
+		return nil, err
+	}
+	if err := setVector(c.AccountDiscriminator, local.AccountDiscriminator, "localWitness.accountDiscriminator"); err != nil {
+		return nil, err
+	}
 	if err := setVector(c.DomainDNS, local.DomainDNS, "localWitness.domainDns"); err != nil {
 		return nil, err
 	}

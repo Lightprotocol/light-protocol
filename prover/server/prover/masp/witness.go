@@ -29,6 +29,13 @@ type Witness struct {
 	InProgramID []*big.Int
 	InLeafIndex []*big.Int
 
+	// Light compressed-account leaf binding for each input. TreeProof proves
+	// inclusion of LightCompressedAccountLeafHash(..., InCommit), not direct
+	// inclusion of InCommit.
+	AccountOwnerHash     []*big.Int
+	AccountTreeHash      []*big.Int
+	AccountDiscriminator []*big.Int
+
 	// Master spending secret.
 	NullifierSecret *big.Int
 
@@ -47,6 +54,7 @@ type Witness struct {
 	// Computed.
 	InCommits          []*big.Int
 	OutCommits         []*big.Int
+	StateLeaves        []*big.Int
 	DomainSecrets      []*big.Int
 	Nullifiers         []*big.Int
 	NullifierChain     *big.Int
@@ -124,6 +132,9 @@ func NewSampleWitness(n, m int, mode SampleMode) (*Witness, error) {
 	w.InSeed = make([]*big.Int, n)
 	w.InProgramID = make([]*big.Int, n)
 	w.InLeafIndex = make([]*big.Int, n)
+	w.AccountOwnerHash = make([]*big.Int, n)
+	w.AccountTreeHash = make([]*big.Int, n)
+	w.AccountDiscriminator = make([]*big.Int, n)
 
 	// Flat amounts so value conservation (Σ in == Σ out) is trivial to satisfy.
 	const splPerInput = 100
@@ -135,6 +146,9 @@ func NewSampleWitness(n, m int, mode SampleMode) (*Witness, error) {
 		w.InDataHash[i] = big.NewInt(0)
 		w.InProgramID[i] = big.NewInt(int64(0x10 + i))
 		w.InLeafIndex[i] = big.NewInt(int64(1 + i*7))
+		w.AccountOwnerHash[i] = SampleShieldedAccountOwnerHash()
+		w.AccountTreeHash[i] = SampleUtxoTreeHash()
+		w.AccountDiscriminator[i] = SampleShieldedUtxoDiscriminator()
 
 		keypairOwned := false
 		switch mode {
@@ -210,8 +224,10 @@ func NewSampleWitness(n, m int, mode SampleMode) (*Witness, error) {
 // the derived state stays consistent.
 func (w *Witness) Recompute() error {
 	n, m := w.N, w.M
+	w.ensureAccountBindingFields()
 
 	w.InCommits = make([]*big.Int, n)
+	w.StateLeaves = make([]*big.Int, n)
 	w.DomainSecrets = make([]*big.Int, n)
 	w.Nullifiers = make([]*big.Int, n)
 	for i := 0; i < n; i++ {
@@ -219,6 +235,13 @@ func (w *Witness) Recompute() error {
 			Owner: w.InOwner[i], Spl: w.InSpl[i], Sol: w.InSol[i],
 			Blinding: w.InBlinding[i], DataHash: w.InDataHash[i],
 		})
+		w.StateLeaves[i] = LightCompressedAccountLeafHash(
+			w.AccountOwnerHash[i],
+			w.InLeafIndex[i],
+			w.AccountTreeHash[i],
+			w.AccountDiscriminator[i],
+			w.InCommits[i],
+		)
 		// dns source: program_id if program-owned, else master secret.
 		var source *big.Int
 		if w.InSeed[i].Sign() == 0 {
@@ -279,7 +302,7 @@ func (w *Witness) Recompute() error {
 	if w.StateRoot == nil || len(w.StateProofs) != n {
 		entries := make(map[uint64]*big.Int, n)
 		for i := 0; i < n; i++ {
-			entries[w.InLeafIndex[i].Uint64()] = w.InCommits[i]
+			entries[w.InLeafIndex[i].Uint64()] = w.StateLeaves[i]
 		}
 		root, proofs := BuildSparseStateTree(entries)
 		w.StateRoot = root
@@ -327,7 +350,7 @@ func (w *Witness) Recompute() error {
 		w.NullifierChain,
 	})
 
-	// tree_circuit: 3-element chain over sub-chains of the logical publics.
+	// tree_circuit: fixed-length chain over sub-chains of the logical publics.
 	stateRootsList := make([]*big.Int, n)
 	nullifierRootsList := make([]*big.Int, n)
 	for i := 0; i < n; i++ {
@@ -336,12 +359,41 @@ func (w *Witness) Recompute() error {
 	}
 	stateRootsChain := HashChain(stateRootsList)
 	nullifierRootsChain := HashChain(nullifierRootsList)
+	ownerHashChain := HashChain(w.AccountOwnerHash)
+	treeHashChain := HashChain(w.AccountTreeHash)
+	discriminatorChain := HashChain(w.AccountDiscriminator)
 	w.TreePublicInputsHash = HashChain([]*big.Int{
 		stateRootsChain,
 		nullifierRootsChain,
 		w.NullifierChain,
+		ownerHashChain,
+		treeHashChain,
+		discriminatorChain,
 	})
 	return nil
+}
+
+func (w *Witness) ensureAccountBindingFields() {
+	if len(w.AccountOwnerHash) != w.N {
+		w.AccountOwnerHash = make([]*big.Int, w.N)
+	}
+	if len(w.AccountTreeHash) != w.N {
+		w.AccountTreeHash = make([]*big.Int, w.N)
+	}
+	if len(w.AccountDiscriminator) != w.N {
+		w.AccountDiscriminator = make([]*big.Int, w.N)
+	}
+	for i := 0; i < w.N; i++ {
+		if w.AccountOwnerHash[i] == nil {
+			w.AccountOwnerHash[i] = SampleShieldedAccountOwnerHash()
+		}
+		if w.AccountTreeHash[i] == nil {
+			w.AccountTreeHash[i] = SampleUtxoTreeHash()
+		}
+		if w.AccountDiscriminator[i] == nil {
+			w.AccountDiscriminator[i] = SampleShieldedUtxoDiscriminator()
+		}
+	}
 }
 
 func sortDedup(vs []*big.Int) []*big.Int {
@@ -431,6 +483,9 @@ func (w *Witness) TreeAssignment() *TreeCircuit {
 	c := NewTreeCircuit(w.N)
 	for i := 0; i < w.N; i++ {
 		c.InCommit[i] = w.InCommits[i]
+		c.AccountOwnerHash[i] = w.AccountOwnerHash[i]
+		c.AccountTreeHash[i] = w.AccountTreeHash[i]
+		c.AccountDiscriminator[i] = w.AccountDiscriminator[i]
 		c.DomainDNS[i] = w.DomainSecrets[i]
 		sp := w.StateProofs[i]
 		for j := 0; j < StateTreeHeight; j++ {
@@ -451,4 +506,3 @@ func (w *Witness) TreeAssignment() *TreeCircuit {
 	c.PublicInputsHash = w.TreePublicInputsHash
 	return c
 }
-
