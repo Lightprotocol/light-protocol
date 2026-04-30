@@ -8,6 +8,7 @@ import (
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover/common"
+	"light/light-prover/prover/masp"
 	v1 "light/light-prover/prover/v1"
 	v2 "light/light-prover/prover/v2"
 	"net/http"
@@ -468,7 +469,8 @@ func (handler proveHandler) shouldUseQueueForCircuit(circuitType common.CircuitT
 	// This prevents cross-contamination in clustered deployments
 	if circuitType == common.BatchUpdateCircuitType ||
 		circuitType == common.BatchAppendCircuitType ||
-		circuitType == common.BatchAddressAppendCircuitType {
+		circuitType == common.BatchAddressAppendCircuitType ||
+		common.IsMaspCircuit(circuitType) {
 		return true
 	}
 
@@ -502,8 +504,8 @@ func (handler queueStatsHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 	response := map[string]interface{}{
 		"queues":        stats,
-		"total_pending": stats["zk_update_queue"] + stats["zk_append_queue"] + stats["zk_address_append_queue"],
-		"total_active":  stats["zk_update_processing_queue"] + stats["zk_append_processing_queue"] + stats["zk_address_append_processing_queue"],
+		"total_pending": stats["zk_update_queue"] + stats["zk_append_queue"] + stats["zk_address_append_queue"] + stats["zk_masp_queue"],
+		"total_active":  stats["zk_update_processing_queue"] + stats["zk_append_processing_queue"] + stats["zk_address_append_processing_queue"] + stats["zk_masp_processing_queue"],
 		"total_failed":  stats["zk_failed_queue"],
 		"timestamp":     time.Now().Unix(),
 	}
@@ -1099,7 +1101,10 @@ func (handler proveHandler) isBatchOperation(circuitType common.CircuitType) boo
 	switch circuitType {
 	case common.BatchAppendCircuitType,
 		common.BatchUpdateCircuitType,
-		common.BatchAddressAppendCircuitType:
+		common.BatchAddressAppendCircuitType,
+		common.MaspUtxoCircuitType,
+		common.MaspTreeCircuitType,
+		common.MaspBundleCircuitType:
 		return true
 	default:
 		return false
@@ -1114,6 +1119,8 @@ func GetQueueNameForCircuit(circuitType common.CircuitType) string {
 		return "zk_append_queue"
 	case common.BatchAddressAppendCircuitType:
 		return "zk_address_append_queue"
+	case common.MaspUtxoCircuitType, common.MaspTreeCircuitType, common.MaspBundleCircuitType:
+		return "zk_masp_queue"
 	default:
 		return "zk_update_queue"
 	}
@@ -1133,6 +1140,12 @@ func (handler proveHandler) getEstimatedTime(circuitType common.CircuitType) str
 		return "10-30 seconds"
 	case common.BatchAddressAppendCircuitType:
 		return "10-30 seconds"
+	case common.MaspUtxoCircuitType:
+		return "1-10 seconds"
+	case common.MaspTreeCircuitType:
+		return "1-10 seconds"
+	case common.MaspBundleCircuitType:
+		return "2-20 seconds"
 	default:
 		return "1-3 seconds"
 	}
@@ -1152,6 +1165,10 @@ func (handler proveHandler) getEstimatedTimeSeconds(circuitType common.CircuitTy
 		return 30
 	case common.BatchAddressAppendCircuitType:
 		return 30
+	case common.MaspUtxoCircuitType, common.MaspTreeCircuitType:
+		return 10
+	case common.MaspBundleCircuitType:
+		return 20
 	default:
 		return 1
 	}
@@ -1176,14 +1193,39 @@ func (handler proveHandler) processProofSync(buf []byte) (*common.Proof, *Error)
 		return handler.batchAppendHandler(buf)
 	case common.BatchAddressAppendCircuitType:
 		return handler.batchAddressAppendProof(buf)
-	case common.MaspUtxoCircuitType, common.MaspTreeCircuitType, common.MaspBundleCircuitType:
-		return nil, provingError(fmt.Errorf(
-			"masp proof type %s is registered but server-side proving is not wired through this endpoint yet; use the MASP TEE proof worker (Phase 7.4) or call the masp package directly in tests",
-			proofRequestMeta.CircuitType,
-		))
+	case common.MaspUtxoCircuitType:
+		return handler.maspUtxoProof(buf)
+	case common.MaspTreeCircuitType:
+		return handler.maspTreeProof(buf)
+	case common.MaspBundleCircuitType:
+		return nil, provingError(fmt.Errorf("masp bundle proving is not wired yet; submit masp-utxo and masp-tree requests separately"))
 	default:
 		return nil, malformedBodyError(fmt.Errorf("unknown circuit type: %s", proofRequestMeta.CircuitType))
 	}
+}
+
+func (handler proveHandler) maspUtxoProof(buf []byte) (*common.Proof, *Error) {
+	req, err := masp.ParseMaspUtxoProofRequest(buf)
+	if err != nil {
+		return nil, malformedBodyError(err)
+	}
+	proof, err := masp.ProveUtxoRequest(handler.keyManager, req)
+	if err != nil {
+		return nil, provingError(fmt.Errorf("masp utxo proof: %w", err))
+	}
+	return proof, nil
+}
+
+func (handler proveHandler) maspTreeProof(buf []byte) (*common.Proof, *Error) {
+	req, err := masp.ParseMaspTreeProofRequest(buf)
+	if err != nil {
+		return nil, malformedBodyError(err)
+	}
+	proof, err := masp.ProveTreeRequest(handler.keyManager, req)
+	if err != nil {
+		return nil, provingError(fmt.Errorf("masp tree proof: %w", err))
+	}
+	return proof, nil
 }
 
 func (handler proveHandler) batchAddressAppendProof(buf []byte) (*common.Proof, *Error) {

@@ -163,6 +163,16 @@ pub mod system_cpi_test {
         }
         Ok(())
     }
+
+    /// Test-only fixture: appends one compressed UTXO leaf through the real
+    /// Light CPI path, then emits the matching shielded-pool event.
+    pub fn proofless_shielded_append<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+        args: ProoflessShieldedAppendArgs,
+        bump: u8,
+    ) -> Result<()> {
+        process_proofless_shielded_append(&ctx, args, bump)
+    }
 }
 
 pub fn process_invoke_cpi<'info>(

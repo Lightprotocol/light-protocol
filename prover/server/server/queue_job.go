@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover/common"
+	"light/light-prover/prover/masp"
 	v1 "light/light-prover/prover/v1"
 	v2 "light/light-prover/prover/v2"
 	"log"
@@ -30,8 +31,9 @@ const (
 	// Proving keys can be 10-20GB depending on which circuits are loaded
 	MemoryReserveGB = 20
 
-	// NumQueueWorkers is the number of queue workers (update, append, address-append)
-	NumQueueWorkers = 3
+	// NumQueueWorkers is the number of queue workers (update, append,
+	// address-append, MASP).
+	NumQueueWorkers = 4
 
 	// MinConcurrencyPerWorker is the minimum concurrency per worker
 	MinConcurrencyPerWorker = 1
@@ -137,6 +139,10 @@ type AddressAppendQueueWorker struct {
 	*BaseQueueWorker
 }
 
+type MaspQueueWorker struct {
+	*BaseQueueWorker
+}
+
 func NewUpdateQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyManager) *UpdateQueueWorker {
 	maxConcurrency := getMaxConcurrency()
 	return &UpdateQueueWorker{
@@ -176,6 +182,21 @@ func NewAddressAppendQueueWorker(redisQueue *RedisQueue, keyManager *common.Lazy
 			stopChan:            make(chan struct{}),
 			queueName:           "zk_address_append_queue",
 			processingQueueName: "zk_address_append_processing_queue",
+			maxConcurrency:      maxConcurrency,
+			semaphore:           make(chan struct{}, maxConcurrency),
+		},
+	}
+}
+
+func NewMaspQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyManager) *MaspQueueWorker {
+	maxConcurrency := getMaxConcurrency()
+	return &MaspQueueWorker{
+		BaseQueueWorker: &BaseQueueWorker{
+			queue:               redisQueue,
+			keyManager:          keyManager,
+			stopChan:            make(chan struct{}),
+			queueName:           "zk_masp_queue",
+			processingQueueName: "zk_masp_processing_queue",
 			maxConcurrency:      maxConcurrency,
 			semaphore:           make(chan struct{}, maxConcurrency),
 		},
@@ -248,6 +269,8 @@ func (w *BaseQueueWorker) processJobs() {
 			circuitType = "append"
 		case "zk_address_append_queue":
 			circuitType = "address-append"
+		case "zk_masp_queue":
+			circuitType = "masp"
 		}
 		QueueWaitTime.WithLabelValues(circuitType).Observe(queueWaitTime)
 	}
@@ -491,6 +514,14 @@ func (w *AddressAppendQueueWorker) Stop() {
 	w.BaseQueueWorker.Stop()
 }
 
+func (w *MaspQueueWorker) Start() {
+	w.BaseQueueWorker.Start()
+}
+
+func (w *MaspQueueWorker) Stop() {
+	w.BaseQueueWorker.Stop()
+}
+
 // generateProof generates a proof for the given job and returns it.
 // Result storage is handled by the caller to include timing information.
 func (w *BaseQueueWorker) generateProof(job *ProofJob) (*common.Proof, error) {
@@ -520,6 +551,12 @@ func (w *BaseQueueWorker) generateProof(job *ProofJob) (*common.Proof, error) {
 		proof, proofError = w.processBatchAppendProof(job.Payload)
 	case common.BatchAddressAppendCircuitType:
 		proof, proofError = w.processBatchAddressAppendProof(job.Payload)
+	case common.MaspUtxoCircuitType:
+		proof, proofError = w.processMaspUtxoProof(job.Payload)
+	case common.MaspTreeCircuitType:
+		proof, proofError = w.processMaspTreeProof(job.Payload)
+	case common.MaspBundleCircuitType:
+		proofError = fmt.Errorf("masp bundle proof jobs are not wired yet; submit masp-utxo and masp-tree jobs separately")
 	default:
 		return nil, fmt.Errorf("unknown circuit type: %s", proofRequestMeta.CircuitType)
 	}
@@ -683,6 +720,22 @@ func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage
 
 	logging.Logger().Info().Msg("Processing batch address append proof")
 	return v2.ProveBatchAddressAppend(ps, &params)
+}
+
+func (w *BaseQueueWorker) processMaspUtxoProof(payload json.RawMessage) (*common.Proof, error) {
+	req, err := masp.ParseMaspUtxoProofRequest(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal MASP UTXO request: %w", err)
+	}
+	return masp.ProveUtxoRequest(w.keyManager, req)
+}
+
+func (w *BaseQueueWorker) processMaspTreeProof(payload json.RawMessage) (*common.Proof, error) {
+	req, err := masp.ParseMaspTreeProofRequest(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal MASP Tree request: %w", err)
+	}
+	return masp.ProveTreeRequest(w.keyManager, req)
 }
 
 func (w *BaseQueueWorker) removeFromProcessingQueue(jobID string) {

@@ -8,6 +8,7 @@ import (
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover/common"
+	"light/light-prover/prover/masp"
 	v1 "light/light-prover/prover/v1"
 	v2 "light/light-prover/prover/v2"
 	"light/light-prover/server"
@@ -572,7 +573,7 @@ func runCli() {
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringSliceFlag{
 						Name:  "circuit",
-						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append, update, append-test, update-test, address-append, address-append-test)",
+						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append, update, append-test, update-test, address-append, address-append-test, masp)",
 					},
 					&cli.StringFlag{
 						Name:  "preload-keys",
@@ -631,6 +632,7 @@ func runCli() {
 					}
 
 					keyManager := common.NewLazyKeyManager(keysDirPath, downloadConfig)
+					masp.RegisterDefaultBuilders(keyManager)
 
 					preloadKeys := context.String("preload-keys")
 					preloadCircuits := context.StringSlice("preload-circuits")
@@ -748,6 +750,13 @@ func runCli() {
 							workers = append(workers, addressAppendWorker)
 							go addressAppendWorker.Start()
 							workersStarted = append(workersStarted, "address-append")
+						}
+
+						if startAll || enabledCircuitsMap["masp"] || enabledCircuitsMap["masp-utxo"] || enabledCircuitsMap["masp-tree"] {
+							maspWorker := server.NewMaspQueueWorker(redisQueue, keyManager)
+							workers = append(workers, maspWorker)
+							go maspWorker.Start()
+							workersStarted = append(workersStarted, "masp")
 						}
 
 						logging.Logger().Info().

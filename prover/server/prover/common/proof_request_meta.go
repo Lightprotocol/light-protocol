@@ -101,6 +101,13 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 	if id, ok := rawInput["treeId"].(string); ok {
 		treeID = id
 	}
+	if treeID == "" && IsMaspCircuit(CircuitType(circuitType)) {
+		if rootContext, ok := rawInput["rootContext"].(map[string]interface{}); ok {
+			if id, ok := rootContext["utxoTreeId"].(string); ok {
+				treeID = id
+			}
+		}
+	}
 
 	// Extract BatchIndex for ordering proofs within a tree
 	// Default to -1 to indicate no batch index (legacy requests)

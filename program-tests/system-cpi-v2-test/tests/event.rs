@@ -2,7 +2,10 @@
 
 use std::collections::HashMap;
 
-use anchor_lang::{prelude::borsh::BorshSerialize, Discriminator};
+use anchor_lang::{
+    prelude::borsh::{BorshDeserialize, BorshSerialize},
+    Discriminator,
+};
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_client::{
     indexer::{AddressWithTree, Indexer},
@@ -15,6 +18,7 @@ use light_compressed_account::{
         CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
         MerkleContext, PackedCompressedAccountWithMerkleContext,
     },
+    hash_to_bn254_field_size_be,
     instruction_data::{
         compressed_proof::CompressedProof,
         data::{OutputCompressedAccountWithContext, OutputCompressedAccountWithPackedContext},
@@ -25,22 +29,28 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_event::event::{
-    BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
-    MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
+use light_event::{
+    event::{
+        BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
+        MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
+    },
+    parse::event_from_light_transaction,
 };
 use light_program_test::{
     accounts::test_accounts::TestAccounts, LightProgramTest, ProgramTestConfig,
 };
 use light_sdk::address::NewAddressParamsAssigned;
 use light_test_utils::{
+    create_address_test_program_sdk::{
+        proofless_shielded_append_instruction, ProoflessShieldedAppendInstructionInputs,
+    },
     pack::{
         pack_compressed_accounts, pack_new_address_params_assigned, pack_output_compressed_accounts,
     },
     LightClient, Rpc, RpcError,
 };
 use serial_test::serial;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 // TODO: add test with multiple batched address trees before we activate batched addresses
 #[tokio::test]
@@ -525,6 +535,157 @@ async fn parse_multiple_batched_events_functional() {
             assert_eq!(events[i as usize], expected_event);
         }
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 32)]
+#[serial]
+async fn proofless_shielded_append_emits_light_and_shielded_events() {
+    let mut config = ProgramTestConfig::default_with_batched_trees(false);
+    config.with_prover = false;
+    config.additional_programs = Some(vec![(
+        "create_address_test_program",
+        create_address_test_program::ID,
+    )]);
+
+    let mut rpc = LightProgramTest::new(config)
+        .await
+        .expect("Failed to setup test programs with accounts");
+    let env = rpc.test_accounts.clone();
+    let payer = rpc.get_payer().insecure_clone();
+    rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let utxo_hash = hash_to_bn254_field_size_be(&[0xA7; 32]);
+    let encrypted_utxo = vec![0xC1, 0xC2, 0xC3, 0xC4];
+    let encrypted_utxo_hash = hash_to_bn254_field_size_be(&[0xE7; 32]);
+    let zone_config_hash = hash_to_bn254_field_size_be(&[0x51; 32]);
+    let operation_commitment = hash_to_bn254_field_size_be(&[0x0C; 32]);
+    let instruction =
+        proofless_shielded_append_instruction(ProoflessShieldedAppendInstructionInputs {
+            signer: &payer.pubkey(),
+            output_compressed_account_merkle_tree_pubkey: &env.v2_state_trees[0].output_queue,
+            registered_program_pda: &env.protocol.registered_program_pda,
+            args: create_address_test_program::ProoflessShieldedAppendArgs {
+                zone_config_hash,
+                operation_commitment,
+                utxo_hash,
+                encrypted_utxo: encrypted_utxo.clone(),
+                encrypted_utxo_hash,
+            },
+        });
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer],
+        rpc.context.latest_blockhash(),
+    );
+
+    let simulation = rpc
+        .context
+        .simulate_transaction(transaction.clone())
+        .expect("proofless shielded append simulation should succeed");
+
+    let shielded_event = simulation
+        .meta
+        .inner_instructions
+        .iter()
+        .flatten()
+        .find_map(|inner_instruction| {
+            let data = &inner_instruction.instruction.data;
+            create_address_test_program::ShieldedPoolTxEvent::matches_discriminator(data).then(
+                || {
+                    create_address_test_program::ShieldedPoolTxEvent::try_from_slice(data)
+                        .expect("shielded event should decode")
+                },
+            )
+        })
+        .expect("shielded event should be emitted through Noop CPI");
+    assert_eq!(
+        shielded_event.tx_kind,
+        create_address_test_program::ShieldedPoolTxKind::ProoflessShield
+    );
+    assert_eq!(shielded_event.zone_config_hash, Some(zone_config_hash));
+    assert_eq!(shielded_event.operation_commitment, operation_commitment);
+    assert_eq!(shielded_event.outputs.len(), 1);
+    assert_eq!(shielded_event.outputs[0].compressed_output_index, 0);
+    assert_eq!(shielded_event.outputs[0].utxo_hash, utxo_hash);
+    assert_eq!(shielded_event.outputs[0].encrypted_utxo, encrypted_utxo);
+    assert_eq!(
+        shielded_event.outputs[0].encrypted_utxo_hash,
+        encrypted_utxo_hash
+    );
+
+    let mut instruction_data = Vec::new();
+    let mut program_ids = Vec::new();
+    let mut instruction_accounts = Vec::new();
+    for instruction in transaction.message.instructions.iter() {
+        program_ids.push(transaction.message.account_keys[instruction.program_id_index as usize]);
+        instruction_data.push(instruction.data.clone());
+        instruction_accounts.push(
+            instruction
+                .accounts
+                .iter()
+                .map(|index| transaction.message.account_keys[*index as usize])
+                .collect::<Vec<_>>(),
+        );
+    }
+    for inner_instruction in simulation.meta.inner_instructions.iter().flatten() {
+        program_ids.push(
+            transaction.message.account_keys
+                [inner_instruction.instruction.program_id_index as usize],
+        );
+        instruction_data.push(inner_instruction.instruction.data.clone());
+        instruction_accounts.push(
+            inner_instruction
+                .instruction
+                .accounts
+                .iter()
+                .map(|index| transaction.message.account_keys[*index as usize])
+                .collect::<Vec<_>>(),
+        );
+    }
+    let public_events = event_from_light_transaction(
+        &program_ids.iter().map(|x| (*x).into()).collect::<Vec<_>>(),
+        instruction_data.as_slice(),
+        instruction_accounts
+            .iter()
+            .map(|accounts| accounts.iter().map(|x| (*x).into()).collect())
+            .collect(),
+    )
+    .expect("Light public event parser should accept the simulated transaction")
+    .expect("Light public event should be present");
+    assert_eq!(public_events.len(), 1);
+
+    let public_event = &public_events[0].event;
+    assert_eq!(public_event.input_compressed_account_hashes.len(), 0);
+    assert_eq!(public_event.output_compressed_accounts.len(), 1);
+    assert_eq!(public_event.output_leaf_indices, vec![0]);
+    assert_eq!(
+        public_event.sequence_numbers,
+        vec![MerkleTreeSequenceNumberV1 {
+            tree_pubkey: env.v2_state_trees[0].merkle_tree.into(),
+            seq: 0,
+        }]
+    );
+    let compressed_account = &public_event.output_compressed_accounts[0].compressed_account;
+    assert_eq!(
+        compressed_account.owner,
+        create_address_test_program::ID.into()
+    );
+    let compressed_data = compressed_account
+        .data
+        .as_ref()
+        .expect("shielded UTXO compressed account must carry data hash");
+    assert_eq!(
+        compressed_data.discriminator,
+        create_address_test_program::SHIELDED_UTXO_ACCOUNT_DISCRIMINATOR
+    );
+    assert_eq!(compressed_data.data_hash, utxo_hash);
+
+    rpc.context
+        .send_transaction(transaction)
+        .expect("proofless shielded append transaction should land");
 }
 
 /// 1 output compressed account

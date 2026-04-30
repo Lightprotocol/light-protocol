@@ -97,7 +97,8 @@ func (rq *RedisQueue) EnqueueProof(queueName string, job *ProofJob) error {
 func isFairQueueEnabled(queueName string) bool {
 	return queueName == "zk_update_queue" ||
 		queueName == "zk_append_queue" ||
-		queueName == "zk_address_append_queue"
+		queueName == "zk_address_append_queue" ||
+		queueName == "zk_masp_queue"
 }
 
 // StoreJobMeta stores job metadata when a job is submitted to enable reliable status lookups.
@@ -389,7 +390,7 @@ func (rq *RedisQueue) dequeueLowestBatchIndex(queueName string) (*ProofJob, erro
 func (rq *RedisQueue) GetQueueStats() (map[string]int64, error) {
 	stats := make(map[string]int64)
 
-	queues := []string{"zk_update_queue", "zk_append_queue", "zk_address_append_queue", "zk_update_processing_queue", "zk_append_processing_queue", "zk_address_append_processing_queue", "zk_failed_queue", "zk_results_queue"}
+	queues := []string{"zk_update_queue", "zk_append_queue", "zk_address_append_queue", "zk_masp_queue", "zk_update_processing_queue", "zk_append_processing_queue", "zk_address_append_processing_queue", "zk_masp_processing_queue", "zk_failed_queue", "zk_results_queue"}
 
 	for _, queue := range queues {
 		length, err := rq.Client.LLen(rq.Ctx, queue).Result()
@@ -429,8 +430,8 @@ func (rq *RedisQueue) GetQueueHealth() (map[string]interface{}, error) {
 	health["queue_lengths"] = stats
 	health["timestamp"] = time.Now().Unix()
 
-	health["total_pending"] = stats["zk_update_queue"] + stats["zk_append_queue"] + stats["zk_address_append_queue"]
-	health["total_processing"] = stats["zk_update_processing_queue"] + stats["zk_append_processing_queue"] + stats["zk_address_append_processing_queue"]
+	health["total_pending"] = stats["zk_update_queue"] + stats["zk_append_queue"] + stats["zk_address_append_queue"] + stats["zk_masp_queue"]
+	health["total_processing"] = stats["zk_update_processing_queue"] + stats["zk_append_processing_queue"] + stats["zk_address_append_processing_queue"] + stats["zk_masp_processing_queue"]
 	health["total_failed"] = stats["zk_failed_queue"]
 	health["total_results"] = stats["zk_results_queue"]
 
@@ -455,6 +456,7 @@ func (rq *RedisQueue) countStuckJobs() int64 {
 		"zk_update_processing_queue",
 		"zk_append_processing_queue",
 		"zk_address_append_processing_queue",
+		"zk_masp_processing_queue",
 	}
 
 	var totalStuck int64
@@ -620,6 +622,7 @@ func (rq *RedisQueue) CleanupOldRequests() error {
 		"zk_update_queue",
 		"zk_append_queue",
 		"zk_address_append_queue",
+		"zk_masp_queue",
 	}
 
 	totalRemoved := int64(0)
@@ -724,6 +727,7 @@ func (rq *RedisQueue) CleanupStuckProcessingJobs() error {
 		"zk_update_processing_queue",
 		"zk_append_processing_queue",
 		"zk_address_append_processing_queue",
+		"zk_masp_processing_queue",
 	}
 
 	totalRecovered := int64(0)
@@ -894,6 +898,8 @@ func getOriginalQueueFromProcessing(processingQueueName string) string {
 		return "zk_append_queue"
 	case "zk_address_append_processing_queue":
 		return "zk_address_append_queue"
+	case "zk_masp_processing_queue":
+		return "zk_masp_queue"
 	default:
 		return ""
 	}
