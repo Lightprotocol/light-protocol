@@ -19,7 +19,9 @@ use light_system_program::program::LightSystemProgram;
 
 pub const SHIELDED_POOL_TX_EVENT_V1_DISCRIMINATOR: [u8; 8] =
     [b's', b'h', b'l', b'd', b'p', b'l', b'v', b'1'];
+pub const SHIELDED_POOL_NULLIFIER_EVENT_V1_DISCRIMINATOR: [u8; 8] = *b"shldnlv1";
 pub const SHIELDED_POOL_TX_EVENT_VERSION: u8 = 1;
+pub const SHIELDED_POOL_NULLIFIER_EVENT_VERSION: u8 = 1;
 pub const SHIELDED_UTXO_ACCOUNT_DISCRIMINATOR: [u8; 8] = *b"shldutx1";
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
@@ -97,12 +99,41 @@ impl ShieldedPoolTxEvent {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
+pub struct ShieldedNullifierEvent {
+    pub event_discriminator: [u8; 8],
+    pub version: u8,
+    pub nullifier: [u8; 32],
+    pub nullifier_tree: [u8; 32],
+    pub tx_event_index: u32,
+}
+
+impl ShieldedNullifierEvent {
+    pub fn matches_discriminator(data: &[u8]) -> bool {
+        data.len() >= SHIELDED_POOL_NULLIFIER_EVENT_V1_DISCRIMINATOR.len()
+            && data[..SHIELDED_POOL_NULLIFIER_EVENT_V1_DISCRIMINATOR.len()]
+                == SHIELDED_POOL_NULLIFIER_EVENT_V1_DISCRIMINATOR
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct ProoflessShieldedAppendArgs {
     pub zone_config_hash: [u8; 32],
     pub operation_commitment: [u8; 32],
     pub utxo_hash: [u8; 32],
     pub encrypted_utxo: Vec<u8>,
     pub encrypted_utxo_hash: [u8; 32],
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
+pub struct ProoflessShieldedSpendArgs {
+    pub zone_config_hash: [u8; 32],
+    pub operation_commitment: [u8; 32],
+    pub nullifier_tree: [u8; 32],
+    pub nullifiers: Vec<[u8; 32]>,
+    pub nullifier_chain: Option<[u8; 32]>,
+    pub utxo_public_inputs_hash: Option<[u8; 32]>,
+    pub tree_public_inputs_hash: Option<[u8; 32]>,
+    pub public_input_hash: Option<[u8; 32]>,
 }
 
 pub fn process_create_pda<'info>(
@@ -179,6 +210,53 @@ pub fn process_proofless_shielded_append<'info>(
     emit_indexer_event(event.try_to_vec()?, &ctx.accounts.noop_program)
 }
 
+pub fn process_proofless_shielded_spend<'info>(
+    ctx: &Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+    args: ProoflessShieldedSpendArgs,
+    proof: Option<CompressedProof>,
+    nullifier_address_params: Vec<NewAddressParamsPacked>,
+    bump: u8,
+) -> Result<()> {
+    if !nullifier_address_params.is_empty() {
+        cpi_nullifier_addresses_as_program(ctx, proof, nullifier_address_params, bump)?;
+    }
+
+    let event = ShieldedPoolTxEvent {
+        event_discriminator: SHIELDED_POOL_TX_EVENT_V1_DISCRIMINATOR,
+        version: SHIELDED_POOL_TX_EVENT_VERSION,
+        tx_event_index: 0,
+        instruction_tag: 1,
+        tx_kind: ShieldedPoolTxKind::Transact,
+        protocol_config: [0x42; 32],
+        zone_config_hash: Some(args.zone_config_hash),
+        tx_ephemeral_pubkey: [0x33; 32],
+        encrypted_tx_ephemeral_keys: Vec::new(),
+        operation_commitment: args.operation_commitment,
+        public_input_hash: args.public_input_hash,
+        utxo_public_inputs_hash: args.utxo_public_inputs_hash,
+        tree_public_inputs_hash: args.tree_public_inputs_hash,
+        nullifier_chain: args.nullifier_chain,
+        input_nullifiers: args.nullifiers.clone(),
+        public_delta: ShieldedPublicDelta::default(),
+        relayer_fee: None,
+        outputs: Vec::new(),
+    };
+    emit_indexer_event(event.try_to_vec()?, &ctx.accounts.noop_program)?;
+
+    for nullifier in args.nullifiers {
+        let event = ShieldedNullifierEvent {
+            event_discriminator: SHIELDED_POOL_NULLIFIER_EVENT_V1_DISCRIMINATOR,
+            version: SHIELDED_POOL_NULLIFIER_EVENT_VERSION,
+            nullifier,
+            nullifier_tree: args.nullifier_tree,
+            tx_event_index: 0,
+        };
+        emit_indexer_event(event.try_to_vec()?, &ctx.accounts.noop_program)?;
+    }
+
+    Ok(())
+}
+
 fn cpi_compressed_pda_transfer_as_program<'info>(
     ctx: &Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
     proof: Option<CompressedProof>,
@@ -243,6 +321,51 @@ fn cpi_compressed_account_append_as_program<'info>(
         output_compressed_accounts: vec![compressed_account],
         proof: None,
         new_address_params: Vec::new(),
+        compress_or_decompress_lamports: None,
+        is_compress: false,
+        cpi_context: None,
+    };
+    let seeds: [&[u8]; 2] = [CPI_AUTHORITY_PDA_SEED, &[bump]];
+    let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
+
+    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
+        fee_payer: ctx.accounts.signer.to_account_info(),
+        authority: ctx.accounts.cpi_signer.to_account_info(),
+        registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+        noop_program: ctx.accounts.noop_program.to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
+        account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
+        invoking_program: ctx.accounts.self_program.to_account_info(),
+        sol_pool_pda: None,
+        decompression_recipient: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
+        cpi_context_account: None,
+    };
+
+    let mut cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.light_system_program.to_account_info(),
+        cpi_accounts,
+        &signer_seeds,
+    );
+    cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+
+    let mut inputs = Vec::new();
+    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs)?;
+    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)
+}
+
+fn cpi_nullifier_addresses_as_program<'info>(
+    ctx: &Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+    proof: Option<CompressedProof>,
+    new_address_params: Vec<NewAddressParamsPacked>,
+    bump: u8,
+) -> Result<()> {
+    let inputs_struct = InstructionDataInvokeCpi {
+        relay_fee: None,
+        input_compressed_accounts_with_merkle_context: Vec::new(),
+        output_compressed_accounts: Vec::new(),
+        proof,
+        new_address_params,
         compress_or_decompress_lamports: None,
         is_compress: false,
         cpi_context: None,

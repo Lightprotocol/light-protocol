@@ -173,6 +173,15 @@ pub mod system_cpi_test {
     ) -> Result<()> {
         process_proofless_shielded_append(&ctx, args, bump)
     }
+
+    /// Test-only fixture: emits a production-shaped shielded-pool spend event
+    /// plus one canonical nullifier event per spent MASP nullifier.
+    pub fn proofless_shielded_spend<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+        args: ProoflessShieldedSpendArgs,
+    ) -> Result<()> {
+        process_proofless_shielded_spend(&ctx, args)
+    }
 }
 
 pub fn process_invoke_cpi<'info>(
