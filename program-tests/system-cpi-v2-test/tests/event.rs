@@ -560,7 +560,9 @@ async fn proofless_shielded_append_emits_light_and_shielded_events() {
 
     let zone_config_hash = hash_to_bn254_field_size_be(&[0x51; 32]);
     let operation_commitment = hash_to_bn254_field_size_be(&[0x0C; 32]);
-    let owner_hash = shielded_program_owner_hash([0x10; 32], 0x1001);
+    let mut local_dev_masp_program_id = [0u8; 32];
+    local_dev_masp_program_id[31] = 0x10;
+    let owner_hash = shielded_program_owner_hash(local_dev_masp_program_id, 0x1001);
     let encrypted_utxo = vec![0xC1, 0xC2, 0xC3, 0xC4];
     let (append_args, commitments) =
         proofless_shielded_append_args_from_plaintext(ProoflessShieldedAppendPlaintext {
