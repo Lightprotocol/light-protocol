@@ -2,6 +2,7 @@
 name = "csdk-anchor-full-derived-test-sdk"
 version = "0.1.0"
 description = "Client SDK for csdk-anchor-full-derived-test program"
+license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]

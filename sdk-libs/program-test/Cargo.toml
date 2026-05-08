@@ -2,7 +2,7 @@
 name = "light-program-test"
 version = "0.23.0"
 description = "A fast local test environment for Solana programs using compressed accounts and tokens."
-license = "MIT"
+license = "Apache-2.0"
 edition = "2021"
 
 [features]

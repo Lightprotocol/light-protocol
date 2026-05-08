@@ -1,0 +1,23 @@
+Light Protocol
+Copyright 2021-2026 Light Protocol Labs
+
+This product is licensed under the Apache License, Version 2.0.
+
+The previous LICENSE file in this repository contained GPL-3.0 text
+inherited from the Light Protocol v1 codebase. Apache-2.0 has been the
+intended and declared license for the on-chain programs, SDK crates, and
+npm packages, as reflected in their respective Cargo.toml and
+package.json manifests. The root LICENSE file has been updated to
+reflect the actual licensing intent.
+
+Third-party components:
+
+  prover/server/ contains MIT-licensed code derived from work
+  Copyright (c) 2023 Worldcoin Foundation. See prover/server/LICENSE.
+
+  program-libs/hasher/src/syscalls/ contains code adapted from
+  solana-labs/solana, licensed under the Apache License, Version 2.0.
+  See file headers for attribution.
+
+  program-libs/aligned-sized/ is licensed under MIT, Copyright (c) 2023
+  Light Protocol Labs. See program-libs/aligned-sized/LICENSE.
