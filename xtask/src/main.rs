@@ -1,5 +1,6 @@
 use clap::{Parser, ValueEnum};
 
+mod analyze_block;
 mod bench;
 mod close_buffer;
 mod create_batch_address_tree;
@@ -102,6 +103,11 @@ enum Command {
     /// Serializes the Close instruction as a bs58 message for the Squads TX builder.
     /// Example: cargo xtask close-buffer --buffer FMkzXMexKDUKGxAm7oGsjs4LGEMhzk9C6uuYJBwJbjiN
     CloseBuffer(close_buffer::Options),
+    /// Fetch a block by slot, filter to txs touching a program id, and decode
+    /// every (top-level + inner) instruction using the Light Protocol decoder
+    /// registry.
+    /// Example: cargo xtask analyze-block --slot 403541318 --network mainnet
+    AnalyzeBlock(analyze_block::Options),
 }
 
 #[tokio::main]
@@ -147,5 +153,6 @@ async fn main() -> Result<(), anyhow::Error> {
             create_ctoken_account::create_ctoken_account(opts).await
         }
         Command::CloseBuffer(opts) => close_buffer::close_buffer(opts),
+        Command::AnalyzeBlock(opts) => analyze_block::analyze_block(opts).await,
     }
 }

@@ -12549,6 +12549,7 @@ dependencies = [
  "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
+ "light-instruction-decoder",
  "light-merkle-tree-metadata",
  "light-program-test",
  "light-registry",

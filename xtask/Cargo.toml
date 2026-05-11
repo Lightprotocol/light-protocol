@@ -41,4 +41,5 @@ solana-loader-v3-interface = { workspace = true, features = ["bincode"] }
 light-compressible = { workspace = true }
 anchor-lang = { workspace = true }
 light-token = { workspace = true }
+light-instruction-decoder = { workspace = true }
 chrono = "0.4"
