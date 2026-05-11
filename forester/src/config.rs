@@ -431,7 +431,7 @@ impl ForesterConfig {
                 .transpose()?,
             min_queue_items: args.min_queue_items,
             enable_v1_multi_nullify: args.enable_v1_multi_nullify,
-            work_item_batch_size: args.work_item_batch_size.unwrap_or(50).max(1),
+            work_item_batch_size: args.work_item_batch_size.unwrap_or(50) as usize,
         })
     }
 
