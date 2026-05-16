@@ -43,6 +43,7 @@ light-batched-merkle-tree = { workspace = true }
 solana-program = { workspace = true }
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
+solana-compute-budget-interface = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

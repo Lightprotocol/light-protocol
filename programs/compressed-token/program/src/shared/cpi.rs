@@ -190,11 +190,13 @@ pub fn slice_invoke_signed(
             return Err(ProgramError::InvalidArgument);
         }
 
-        if account_meta.is_writable {
-            if account_info.is_borrowed_mut() {
-                return Err(ProgramError::AccountBorrowFailed);
-            }
-        } else if account_info.is_borrowed() {
+        let borrowed = if account_meta.is_writable {
+            account_info.is_borrowed()
+        } else {
+            account_info.is_borrowed_mut()
+        };
+
+        if borrowed {
             return Err(ProgramError::AccountBorrowFailed);
         }
 

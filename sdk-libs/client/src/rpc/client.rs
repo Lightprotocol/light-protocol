@@ -666,8 +666,16 @@ impl Rpc for LightClient {
                 ..Default::default()
             };
             self.client
-                .get_program_accounts_with_config(program_id, config)
-                .map_err(RpcError::from)
+                .get_program_ui_accounts_with_config(program_id, config)
+                .map_err(RpcError::from)?
+                .into_iter()
+                .map(|(pubkey, account)| {
+                    account
+                        .to_account()
+                        .map(|account| (pubkey, account))
+                        .ok_or(RpcError::InvalidResponseData)
+                })
+                .collect()
         })
         .await
     }

@@ -11,7 +11,7 @@ export PHOTON_VERSION=$(grep '^version' "${REPO_ROOT}/external/photon/Cargo.toml
 
 # Versions to bump manually (edit below)
 export NODE_VERSION="22.16.0"
-export SOLANA_VERSION="3.1.11"
+export SOLANA_VERSION="4.0.0-rc.0"
 export ANCHOR_VERSION="1.0.0-rc.5"
 export JQ_VERSION="1.8.0"
 export REDIS_VERSION="8.0.1"

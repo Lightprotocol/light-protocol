@@ -317,18 +317,15 @@ impl CompressBuilder {
                 }
             }
 
-            #[cfg(feature = "idl-build")]
             impl<'info> CompressAccountsIdempotent<'info> {
-                pub fn __anchor_private_gen_idl_accounts(
-                    _accounts: &mut std::collections::BTreeMap<
-                        String,
-                        anchor_lang::idl::types::IdlAccount,
-                    >,
-                    _types: &mut std::collections::BTreeMap<
-                        String,
-                        anchor_lang::idl::types::IdlTypeDef,
-                    >,
-                ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+                pub fn __anchor_private_gen_idl_accounts<
+                    __IdlAccount,
+                    __IdlTypeDef,
+                    __IdlInstructionAccountItem,
+                >(
+                    _accounts: &mut std::collections::BTreeMap<String, __IdlAccount>,
+                    _types: &mut std::collections::BTreeMap<String, __IdlTypeDef>,
+                ) -> Vec<__IdlInstructionAccountItem> {
                     Vec::new()
                 }
             }

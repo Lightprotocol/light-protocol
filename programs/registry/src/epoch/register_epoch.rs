@@ -362,13 +362,7 @@ mod test {
 
             for i in 0..protocol_config.active_phase_length {
                 assert!(protocol_config.is_active_phase(current_slot, epoch).is_ok());
-                if protocol_config.active_phase_length.saturating_sub(i)
-                    <= protocol_config.registration_phase_length
-                {
-                    assert!(protocol_config.is_registration_phase(current_slot).is_ok());
-                } else {
-                    assert!(protocol_config.is_registration_phase(current_slot).is_err());
-                }
+                assert!(protocol_config.is_registration_phase(current_slot).is_ok());
                 if epoch == 0 {
                     assert!(protocol_config.is_post_epoch(current_slot, epoch).is_err());
                 } else {

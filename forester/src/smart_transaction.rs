@@ -14,7 +14,7 @@ use solana_sdk::{
     signer::keypair::Keypair,
     transaction::{Transaction, VersionedTransaction},
 };
-use solana_transaction_status::TransactionConfirmationStatus;
+use solana_transaction_status_client_types::TransactionConfirmationStatus;
 use thiserror::Error;
 use tokio::time::{sleep, Instant};
 

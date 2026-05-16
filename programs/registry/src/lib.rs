@@ -427,7 +427,7 @@ pub mod light_registry {
     /// unique nodes, and each proof's bitvec selects which 16 nodes from
     /// the pool form that proof.
     pub fn nullify_state_v1_multi<'info>(
-        ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
+        ctx: Context<'info, NullifyLeaves<'info>>,
         change_log_index: u16,
         queue_indices: [u16; 4],
         leaf_indices: [u32; 4],

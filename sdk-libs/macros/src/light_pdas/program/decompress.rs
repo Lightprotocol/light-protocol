@@ -75,8 +75,8 @@ impl DecompressBuilder {
                     remaining_accounts: &[solana_account_info::AccountInfo<'info>],
                     params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
                 ) -> Result<()> {
-                    use solana_program::{clock::Clock, sysvar::Sysvar};
-                    let current_slot = Clock::get()?.slot;
+                    let current_slot =
+                        <solana_program::clock::Clock as solana_program::sysvar::Sysvar>::get()?.slot;
                     light_account::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
                         remaining_accounts,
                         params,
@@ -94,8 +94,8 @@ impl DecompressBuilder {
                     remaining_accounts: &[solana_account_info::AccountInfo<'info>],
                     params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
                 ) -> Result<()> {
-                    use solana_program::{clock::Clock, sysvar::Sysvar};
-                    let current_slot = Clock::get()?.slot;
+                    let current_slot =
+                        <solana_program::clock::Clock as solana_program::sysvar::Sysvar>::get()?.slot;
                     light_account::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
                         remaining_accounts,
                         params,
@@ -201,18 +201,15 @@ impl DecompressBuilder {
                 }
             }
 
-            #[cfg(feature = "idl-build")]
             impl<'info> DecompressAccountsIdempotent<'info> {
-                pub fn __anchor_private_gen_idl_accounts(
-                    _accounts: &mut std::collections::BTreeMap<
-                        String,
-                        anchor_lang::idl::types::IdlAccount,
-                    >,
-                    _types: &mut std::collections::BTreeMap<
-                        String,
-                        anchor_lang::idl::types::IdlTypeDef,
-                    >,
-                ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+                pub fn __anchor_private_gen_idl_accounts<
+                    __IdlAccount,
+                    __IdlTypeDef,
+                    __IdlInstructionAccountItem,
+                >(
+                    _accounts: &mut std::collections::BTreeMap<String, __IdlAccount>,
+                    _types: &mut std::collections::BTreeMap<String, __IdlTypeDef>,
+                ) -> Vec<__IdlInstructionAccountItem> {
                     Vec::new()
                 }
             }

@@ -6,8 +6,8 @@ use forester_utils::rpc_pool::SolanaRpcPool;
 use light_client::rpc::Rpc;
 use solana_program::hash::Hash;
 use solana_sdk::{
-    address_lookup_table::AddressLookupTableAccount,
     instruction::Instruction,
+    message::AddressLookupTableAccount,
     signature::{Keypair, Signer},
 };
 use tokio::sync::Mutex;

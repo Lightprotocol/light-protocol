@@ -4,4 +4,4 @@
 [submodule "external/anchor"]
 	path = external/anchor
 	url = https://github.com/Lightprotocol/anchor.git
-	branch = swen/ctoken-interface
+	branch = sergey/anchor-1.0-migration

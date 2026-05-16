@@ -72,7 +72,7 @@ fn common_lookup_table_accounts() -> Vec<Pubkey> {
         account_compression::ID,
         Pubkey::new_from_array(NOOP_PUBKEY),
         crate::ID,
-        solana_sdk::compute_budget::ID,
+        solana_compute_budget_interface::ID,
     ]
 }
 

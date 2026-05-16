@@ -123,49 +123,49 @@ edition = "2021"
 # Pin time <0.3.46 -- 0.3.46+ pulls time-core 0.1.8 which uses edition2024,
 # incompatible with Solana platform-tools Cargo 1.84.
 time = ">=0.3, <0.3.46"
-solana-banks-client = { version = "3.1" }
-solana-banks-interface = { version = "3.1" }
-solana-program = "3.0"
-solana-pubkey = "3.0"
+solana-banks-client = { version = "4.0.0-rc.0", features = ["agave-unstable-api"] }
+solana-banks-interface = { version = "4.0.0-rc.0", features = ["agave-unstable-api"] }
+solana-program = "4.0"
+solana-pubkey = "4.2"
 solana-sdk = "3.0"
-solana-cpi = "3.0"
-solana-client = "3.1"
-solana-cli-output = "3.1"
-solana-transaction-status = "3.1"
-solana-account-decoder = "3.1"
-solana-account-decoder-client-types = "3.1"
-solana-transaction-status-client-types = "3.1"
-solana-rpc = "3.1"
-solana-rpc-client-api = "3.1"
-solana-transaction-context = "3.1"
-solana-frozen-abi = "3.2"
-solana-frozen-abi-macro = "3.2"
+solana-cpi = "3.1"
+solana-client = "4.0.0-rc.0"
+solana-cli-output = "4.0.0-rc.0"
+solana-transaction-status = "4.0.0-rc.0"
+solana-account-decoder = "4.0.0-rc.0"
+solana-account-decoder-client-types = "4.0.0-rc.0"
+solana-transaction-status-client-types = "4.0.0-rc.0"
+solana-rpc = "4.0.0-rc.0"
+solana-rpc-client-api = "4.0.0-rc.0"
+solana-transaction-context = "4.0.0-rc.0"
+solana-frozen-abi = "3.4"
+solana-frozen-abi-macro = "3.4"
 solana-msg = { version = "3.1" }
-solana-message = "3.0"
-solana-zk-token-sdk = "3.1"
+solana-message = "3.1"
+solana-zk-token-sdk = "4.0"
 solana-logger = "3.0"
 solana-bn254 = "3.2.1"
-solana-sysvar = { version = "3.1" }
-solana-rent = { version = "3.0" }
+solana-sysvar = { version = "4.0" }
+solana-rent = { version = "4.2" }
 solana-program-error = { version = "3.0" }
 solana-account-info = { version = "3.1" }
-solana-transaction = { version = "3.0" }
+solana-transaction = { version = "3.1" }
 solana-transaction-error = { version = "3.0" }
-solana-hash = { version = "3.0" }
+solana-hash = { version = "4.3" }
 solana-clock = { version = "3.0" }
-solana-signature = { version = "3.2" }
-solana-loader-v3-interface = { version = "6.0" }
+solana-signature = { version = "3.4" }
+solana-loader-v3-interface = { version = "8.0" }
 solana-commitment-config = { version = "3.1" }
-solana-account = { version = "3.2" }
+solana-account = { version = "3.4" }
 solana-epoch-info = { version = "3.1" }
-solana-keypair = { version = "3.1.0" }
+solana-keypair = { version = "3.1.2" }
 solana-compute-budget-interface = { version = "3.0" }
 solana-signer = { version = "3.0" }
-solana-instruction = "3.0"
-solana-rpc-client = "3.1"
+solana-instruction = "3.4"
+solana-rpc-client = "4.0.0-rc.0"
 solana-compute-budget = { version = "3.1" }
 
-solana-system-interface = { version = "2.0" }
+solana-system-interface = { version = "3.2" }
 solana-security-txt = "1.1.2"
 spl-token = "9.0"
 spl-token-2022 = { version = "10.0", features = ["no-entrypoint"] }
@@ -179,7 +179,7 @@ pinocchio-system = { version = "0.5.0" }
 bs58 = "^0.5.1"
 sha2 = "0.10"
 hex = "0.4"
-litesvm = "0.10"
+litesvm = "0.12"
 # Anchor
 anchor-lang = { version = "1.0.0-rc.5" }
 anchor-spl = { version = "1.0.0-rc.5" }

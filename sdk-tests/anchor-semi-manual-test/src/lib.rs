@@ -71,8 +71,8 @@ pub mod anchor_semi_manual_test {
         ctx: Context<'info, EmptyAccounts<'info>>,
         params: light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
     ) -> Result<()> {
-        use solana_program::{clock::Clock, sysvar::Sysvar};
-        let current_slot = Clock::get()?.slot;
+        let current_slot =
+            <solana_program::clock::Clock as solana_program::sysvar::Sysvar>::get()?.slot;
         ProgramAccounts::decompress_dispatch(
             ctx.remaining_accounts,
             &params,
@@ -300,12 +300,15 @@ impl<'info> anchor_lang::AccountsExit<'info> for EmptyAccounts<'info> {
     }
 }
 
-#[cfg(feature = "idl-build")]
 impl<'info> EmptyAccounts<'info> {
-    pub fn __anchor_private_gen_idl_accounts(
-        _accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
-        _types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
-    ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+    pub fn __anchor_private_gen_idl_accounts<
+        __IdlAccount,
+        __IdlTypeDef,
+        __IdlInstructionAccountItem,
+    >(
+        _accounts: &mut std::collections::BTreeMap<String, __IdlAccount>,
+        _types: &mut std::collections::BTreeMap<String, __IdlTypeDef>,
+    ) -> Vec<__IdlInstructionAccountItem> {
         Vec::new()
     }
 }
