@@ -453,11 +453,19 @@ async fn test_create_ata_failing() {
     // Payer doesn't have enough lamports for rent payment.
     // Error: 1 (InsufficientFunds from system program)
     {
-        // Create a payer with insufficient funds (only enough for tx fees)
+        // Solana 4 rejects dust transfers to new system accounts, so fund the
+        // poor payer above the zero-data rent floor while keeping it below the
+        // amount required for ATA rent and top-ups.
         let poor_payer = solana_sdk::signature::Keypair::new();
+        let poor_payer_lamports = context
+            .rpc
+            .get_minimum_balance_for_rent_exemption(0)
+            .await
+            .unwrap()
+            + 20_000;
         context
             .rpc
-            .airdrop_lamports(&poor_payer.pubkey(), 10000) // Not enough for rent
+            .airdrop_lamports(&poor_payer.pubkey(), poor_payer_lamports)
             .await
             .unwrap();
 

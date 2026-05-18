@@ -274,8 +274,14 @@ async fn test_create_ata_with_prefunded_lamports() {
     // Derive ATA address
     let ata = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
 
-    // Pre-fund the ATA address with lamports (simulating attacker donation DoS attempt)
-    let prefund_amount = 1_000; // 1000 lamports
+    // Pre-fund the ATA address with enough lamports for Solana 4 to allow the
+    // transfer to create a zero-data system account.
+    let prefund_amount = context
+        .rpc
+        .get_minimum_balance_for_rent_exemption(0)
+        .await
+        .unwrap()
+        + 1_000;
     let transfer_ix =
         solana_system_interface::instruction::transfer(&payer_pubkey, &ata, prefund_amount);
 
@@ -362,8 +368,14 @@ async fn test_create_token_account_with_prefunded_lamports() {
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    // Pre-fund the token account address with lamports (simulating attacker donation DoS attempt)
-    let prefund_amount = 1_000; // 1000 lamports
+    // Pre-fund the token account address with enough lamports for Solana 4 to
+    // allow the transfer to create a zero-data system account.
+    let prefund_amount = context
+        .rpc
+        .get_minimum_balance_for_rent_exemption(0)
+        .await
+        .unwrap()
+        + 1_000;
     let transfer_ix = solana_system_interface::instruction::transfer(
         &payer_pubkey,
         &token_account_pubkey,
