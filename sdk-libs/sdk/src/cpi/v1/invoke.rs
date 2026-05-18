@@ -75,7 +75,6 @@ use crate::{
 /// #     &mut data,
 /// #     &owner,
 /// #     false,
-/// #     0,
 /// # );
 /// # let cpi_accounts = light_sdk::cpi::v1::CpiAccounts::new(fee_payer, &[], LIGHT_CPI_SIGNER);
 /// LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
@@ -124,7 +123,6 @@ use crate::{
 /// #     &mut data,
 /// #     &owner,
 /// #     false,
-/// #     0,
 /// # );
 /// # let cpi_accounts = light_sdk::cpi::v1::CpiAccounts::new(fee_payer, &[], LIGHT_CPI_SIGNER);
 /// LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
