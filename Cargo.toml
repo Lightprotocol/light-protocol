@@ -181,8 +181,8 @@ sha2 = "0.10"
 hex = "0.4"
 litesvm = "0.12"
 # Anchor
-anchor-lang = { version = "1.0.0-rc.5" }
-anchor-spl = { version = "1.0.0-rc.5" }
+anchor-lang = { version = "1.0.2" }
+anchor-spl = { version = "1.0.2" }
 light-anchor-spl = { path = "external/anchor/spl", features = ["memo"] }
 
 # Borsh (anchor 1.0 uses borsh 1.x)
