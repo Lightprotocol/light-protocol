@@ -462,7 +462,7 @@ async fn test_create_ata_failing() {
             .get_minimum_balance_for_rent_exemption(0)
             .await
             .unwrap()
-            + 20_000;
+            + 10_000;
         context
             .rpc
             .airdrop_lamports(&poor_payer.pubkey(), poor_payer_lamports)
@@ -499,8 +499,17 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[create_ata_ix], &poor_payer_pubkey, &[&poor_payer])
             .await;
 
-        // Should fail with InsufficientFunds (1) from system program
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 1).unwrap();
+        // Solana 4 reports this before instruction execution when the payer
+        // would be left below the zero-data rent floor.
+        assert!(
+            matches!(
+                result,
+                Err(RpcError::TransactionError(
+                    solana_sdk::transaction::TransactionError::InsufficientFundsForRent { .. }
+                ))
+            ),
+            "expected insufficient funds for rent, got {result:?}"
+        );
     }
 
     // Test 4: compress_to_account_pubkey provided (forbidden for ATAs)
