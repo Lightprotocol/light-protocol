@@ -2,6 +2,7 @@
 name = "single-account-loader-test"
 version = "0.1.0"
 description = "Minimal Anchor program test for single AccountLoader (zero-copy) macro validation"
+license = "Apache-2.0"
 edition = "2021"
 
 [lib]

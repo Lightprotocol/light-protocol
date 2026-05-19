@@ -2,6 +2,7 @@
 name = "csdk-anchor-full-derived-test"
 version = "0.1.0"
 description = "Anchor program test using add_compressible_instructions macro for all compressible instructions"
+license = "Apache-2.0"
 edition = "2021"
 
 [lib]

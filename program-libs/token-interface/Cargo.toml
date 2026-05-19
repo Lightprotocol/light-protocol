@@ -4,7 +4,7 @@ version = "0.5.0"
 edition = { workspace = true }
 description = "Light Protocol token instruction data types."
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 
 [features]
 anchor = ["light-compressed-account/anchor", "dep:anchor-lang", "light-compressible/anchor"]
