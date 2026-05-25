@@ -147,15 +147,36 @@ impl<'info> SystemContext<'info> {
         }
     }
 
-    pub fn set_rollover_fee(&mut self, ix_data_index: u8, fee: u64) {
+    pub fn set_rollover_fee(&mut self, ix_data_index: u8, fee: u64) -> Result<()> {
         let payment = self
             .rollover_fee_payments
             .iter_mut()
             .find(|a| a.0 == ix_data_index);
         match payment {
-            Some(payment) => payment.1 += fee,
+            Some(payment) => {
+                payment.1 = payment
+                    .1
+                    .checked_add(fee)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
+            }
             None => self.rollover_fee_payments.push((ix_data_index, fee)),
         };
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn new_for_test() -> SystemContext<'static> {
+        SystemContext {
+            account_indices: Vec::new(),
+            accounts: Vec::new(),
+            account_infos: Vec::new(),
+            hashed_pubkeys: Vec::new(),
+            addresses: Vec::new(),
+            rollover_fee_payments: Vec::new(),
+            network_fee_is_set: false,
+            legacy_merkle_context: Vec::new(),
+            invoking_program_id: None,
+        }
     }
 
     /// Network fee distribution (fees read from tree metadata as `network_fee`):
@@ -179,6 +200,22 @@ impl<'info> SystemContext<'info> {
             transfer_lamports_invoke(fee_payer, &accounts[*i as usize], *fee)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_rollover_fee_accumulates_checked() {
+        let mut context = SystemContext::new_for_test();
+
+        context.set_rollover_fee(3, u64::MAX).unwrap();
+        let err = context.set_rollover_fee(3, 1).unwrap_err();
+
+        assert_eq!(err, ProgramError::ArithmeticOverflow);
+        assert_eq!(context.rollover_fee_payments, vec![(3, u64::MAX)]);
     }
 }
 
