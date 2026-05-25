@@ -147,7 +147,11 @@ impl<'info> SystemContext<'info> {
         }
     }
 
-    pub fn set_rollover_fee(&mut self, ix_data_index: u8, fee: u64) -> Result<()> {
+    pub fn set_rollover_fee(
+        &mut self,
+        ix_data_index: u8,
+        fee: u64,
+    ) -> std::result::Result<(), ProgramError> {
         let payment = self
             .rollover_fee_payments
             .iter_mut()
