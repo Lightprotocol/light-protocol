@@ -2,10 +2,11 @@
 //!
 //! Extracted from `light_pdas/program/parsing.rs`.
 
+use quote::quote;
 use syn::punctuated::Punctuated;
 
 use crate::light_pdas::program::parsing::{
-    call_has_ctx_arg, extract_context_and_params, ExtractResult,
+    call_has_ctx_arg, extract_context_and_params, wrap_function_with_light, ExtractResult,
 };
 
 fn parse_args(code: &str) -> Punctuated<syn::Expr, syn::token::Comma> {
@@ -215,4 +216,38 @@ fn test_extract_context_and_params_multiple_args_detected() {
         }
         _ => panic!("Expected ExtractResult::MultipleParams"),
     }
+}
+
+#[test]
+fn test_wrap_single_expression_mut_context_runs_finalize() {
+    let fn_item: syn::ItemFn = syn::parse_quote! {
+        pub fn handler(ctx: Context<MyAccounts>, params: Params) -> Result<()> {
+            instructions::handler(&mut ctx)
+        }
+    };
+    let params_ident: syn::Ident = syn::parse_quote!(params);
+    let ctx_ident: syn::Ident = syn::parse_quote!(ctx);
+
+    let wrapped = wrap_function_with_light(&fn_item, &params_ident, &ctx_ident);
+    let wrapped_tokens = quote!(#wrapped).to_string();
+
+    assert!(wrapped_tokens.contains("__user_result"));
+    assert!(wrapped_tokens.contains("light_finalize"));
+}
+
+#[test]
+fn test_wrap_moved_context_delegation_skips_finalize() {
+    let fn_item: syn::ItemFn = syn::parse_quote! {
+        pub fn handler(ctx: Context<MyAccounts>, params: Params) -> Result<()> {
+            instructions::handler(ctx)
+        }
+    };
+    let params_ident: syn::Ident = syn::parse_quote!(params);
+    let ctx_ident: syn::Ident = syn::parse_quote!(ctx);
+
+    let wrapped = wrap_function_with_light(&fn_item, &params_ident, &ctx_ident);
+    let wrapped_tokens = quote!(#wrapped).to_string();
+
+    assert!(!wrapped_tokens.contains("__user_result"));
+    assert!(!wrapped_tokens.contains("light_finalize"));
 }

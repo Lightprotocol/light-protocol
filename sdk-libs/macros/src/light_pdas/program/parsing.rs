@@ -617,13 +617,36 @@ fn is_delegation_body(block: &syn::Block, ctx_name: &str) -> bool {
         syn::Stmt::Expr(expr, _) => {
             // Check if it's a function call that takes ctx as an argument
             match expr {
-                syn::Expr::Call(call) => call_has_ctx_arg(&call.args, ctx_name),
-                syn::Expr::MethodCall(call) => call_has_ctx_arg(&call.args, ctx_name),
+                syn::Expr::Call(call) => call_moves_ctx_arg(&call.args, ctx_name),
+                syn::Expr::MethodCall(call) => call_moves_ctx_arg(&call.args, ctx_name),
                 _ => false,
             }
         }
         _ => false,
     }
+}
+
+/// Check if any argument consumes the context param.
+///
+/// Passing `&ctx` or `&mut ctx` lets the wrapper continue using `ctx` for
+/// finalization after the handler returns, so those are intentionally excluded.
+fn call_moves_ctx_arg(
+    args: &syn::punctuated::Punctuated<syn::Expr, syn::token::Comma>,
+    ctx_name: &str,
+) -> bool {
+    for arg in args {
+        match arg {
+            syn::Expr::Path(path) if path.path.is_ident(ctx_name) => return true,
+            syn::Expr::MethodCall(method_call)
+                if method_call.method == "into"
+                    && matches!(&*method_call.receiver, syn::Expr::Path(path) if path.path.is_ident(ctx_name)) =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
 }
 
 /// Check if any argument in the call is the context param (moving the context).
