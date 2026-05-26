@@ -1,5 +1,5 @@
 use light_account_checks::{
-    account_info::test_account_info::pinocchio::{get_account_info, pubkey_unique},
+    account_info::test_account_info::pinocchio::{address_unique, get_account_info},
     error::AccountError,
     AccountInfoTrait,
 };
@@ -30,12 +30,12 @@ fn get_valid_cpi_context_account_info() -> AccountInfo {
     data[0..8].copy_from_slice(&CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR);
 
     get_account_info(
-        pubkey_unique(), // Random pubkey
-        program_id,      // Owned by the system program
-        false,           // Not a signer
-        true,            // Is writable
-        false,           // Not executable
-        data,            // Data with discriminator
+        address_unique(), // Random address
+        program_id,       // Owned by the system program
+        false,            // Not a signer
+        true,             // Is writable
+        false,            // Not executable
+        data,             // Data with discriminator
     )
 }
 
@@ -43,12 +43,12 @@ fn get_valid_cpi_context_account_info() -> AccountInfo {
 fn get_decompression_recipient_account_info() -> AccountInfo {
     // Create a regular account
     get_account_info(
-        pubkey_unique(), // Random pubkey
-        pubkey_unique(), // Random owner
-        false,           // Not a signer
-        true,            // Is writable
-        false,           // Not executable
-        vec![],          // Minimal data
+        address_unique(), // Random address
+        address_unique(), // Random owner
+        false,            // Not a signer
+        true,             // Is writable
+        false,            // Not executable
+        vec![],           // Minimal data
     )
 }
 

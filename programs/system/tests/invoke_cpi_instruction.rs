@@ -1,7 +1,7 @@
 use std::panic::catch_unwind;
 
 use light_account_checks::{
-    account_info::test_account_info::pinocchio::{get_account_info, pubkey_unique},
+    account_info::test_account_info::pinocchio::{address_unique, get_account_info},
     error::AccountError,
 };
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
@@ -9,17 +9,17 @@ use light_system_program_pinocchio::invoke_cpi::instruction::InvokeCpiInstructio
 use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 pub fn get_fee_payer_account_info() -> AccountInfo {
-    get_account_info(pubkey_unique(), [0u8; 32], true, true, false, Vec::new())
+    get_account_info(address_unique(), [0u8; 32], true, true, false, Vec::new())
 }
 
 pub fn get_authority_account_info() -> AccountInfo {
-    get_account_info(pubkey_unique(), [0u8; 32], true, false, false, Vec::new())
+    get_account_info(address_unique(), [0u8; 32], true, false, false, Vec::new())
 }
 
 /// Random account info since it is not tested
 pub fn get_registered_program_pda_account_info() -> AccountInfo {
     get_account_info(
-        pubkey_unique(),
+        address_unique(),
         ACCOUNT_COMPRESSION_PROGRAM_ID,
         false,
         false,
@@ -30,8 +30,8 @@ pub fn get_registered_program_pda_account_info() -> AccountInfo {
 
 pub fn get_noop_program_account_info() -> AccountInfo {
     get_account_info(
-        pubkey_unique(),
-        pubkey_unique(),
+        address_unique(),
+        address_unique(),
         false,
         false,
         true,
@@ -42,7 +42,7 @@ pub fn get_noop_program_account_info() -> AccountInfo {
 pub fn get_account_compression_program_account_info() -> AccountInfo {
     get_account_info(
         ACCOUNT_COMPRESSION_PROGRAM_ID,
-        pubkey_unique(),
+        address_unique(),
         false,
         false,
         true,
@@ -53,7 +53,7 @@ pub fn get_account_compression_program_account_info() -> AccountInfo {
 pub fn get_non_executable_account_compression_program_account_info() -> AccountInfo {
     get_account_info(
         ACCOUNT_COMPRESSION_PROGRAM_ID,
-        pubkey_unique(),
+        address_unique(),
         false,
         false,
         false,
@@ -64,8 +64,8 @@ pub fn get_non_executable_account_compression_program_account_info() -> AccountI
 /// Random account info since it is not tested
 pub fn get_account_compression_authority_account_info() -> AccountInfo {
     get_account_info(
-        pubkey_unique(),
-        pubkey_unique(),
+        address_unique(),
+        address_unique(),
         false,
         false,
         false,
@@ -76,8 +76,8 @@ pub fn get_account_compression_authority_account_info() -> AccountInfo {
 /// Random account info executable is true.
 pub fn get_program_account_info() -> AccountInfo {
     get_account_info(
-        pubkey_unique(),
-        pubkey_unique(),
+        address_unique(),
+        address_unique(),
         false,
         false,
         true,
@@ -88,8 +88,8 @@ pub fn get_program_account_info() -> AccountInfo {
 /// Random account info mutable is true.
 pub fn get_mut_account_info() -> AccountInfo {
     get_account_info(
-        pubkey_unique(),
-        pubkey_unique(),
+        address_unique(),
+        address_unique(),
         false,
         true,
         false,
@@ -99,7 +99,7 @@ pub fn get_mut_account_info() -> AccountInfo {
 
 /// Random account info executable is true.
 pub fn get_system_program_account_info() -> AccountInfo {
-    get_account_info([0u8; 32], pubkey_unique(), false, false, true, Vec::new())
+    get_account_info([0u8; 32], address_unique(), false, false, true, Vec::new())
 }
 
 /// Random account info
@@ -108,7 +108,7 @@ pub fn get_system_program_account_info() -> AccountInfo {
 pub fn get_self_program_account_info() -> AccountInfo {
     get_account_info(
         light_system_program_pinocchio::ID,
-        pubkey_unique(),
+        address_unique(),
         false,
         false,
         true,

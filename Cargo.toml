@@ -183,6 +183,7 @@ litesvm = "0.12"
 # Anchor
 anchor-lang = { version = "1.0.2" }
 anchor-spl = { version = "1.0.2" }
+# light-anchor-spl lives in our Anchor fork while the Anchor 1.0 migration patches live there.
 light-anchor-spl = { path = "external/anchor/spl", features = ["memo"] }
 
 # Borsh (anchor 1.0 uses borsh 1.x)

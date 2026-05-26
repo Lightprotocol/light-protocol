@@ -8,7 +8,7 @@ pub mod pinocchio {
     use pinocchio::{account::RuntimeAccount, AccountView as AccountInfo};
     use rand::{prelude::Rng, thread_rng};
 
-    pub fn pubkey_unique() -> [u8; 32] {
+    pub fn address_unique() -> [u8; 32] {
         let mut rng = thread_rng();
         rng.gen::<[u8; 32]>()
     }
@@ -67,8 +67,8 @@ pub mod pinocchio {
     fn test_get_account_info() {
         let mut rng = thread_rng();
         for _ in 0..1000 {
-            let address = pubkey_unique();
-            let owner = pubkey_unique();
+            let address = address_unique();
+            let owner = address_unique();
             let is_signer = rng.gen();
             let is_writable = rng.gen();
             let is_executable = rng.gen();
