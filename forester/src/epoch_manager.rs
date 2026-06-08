@@ -2265,8 +2265,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
-        // Polling interval for checking queue
-        const POLL_INTERVAL: Duration = Duration::from_millis(200);
+        // Adaptive queue polling: start responsive, then back off (capped) while the
+        // queue has nothing ready to process, and reset to the minimum as soon as work
+        // is found. A fixed 200ms poll made idle V2 trees re-fetch the queue ~5x/sec for
+        // the whole eligible window, which is the dominant source of wasted RPC/indexer
+        // load (and can exhaust a shared RPC credit budget).
+        const POLL_INTERVAL_MIN: Duration = Duration::from_millis(200);
+        const POLL_INTERVAL_MAX: Duration = Duration::from_secs(10);
+        let mut poll_interval = POLL_INTERVAL_MIN;
 
         'inner_processing_loop: loop {
             if estimated_slot >= forester_slot_details.end_solana_slot {
@@ -2334,9 +2340,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             processing_start_time.elapsed(),
                         )
                         .await;
+                        // Work found: stay responsive while the queue drains.
+                        poll_interval = POLL_INTERVAL_MIN;
                     } else {
-                        // No items to process, wait before polling again
-                        tokio::time::sleep(POLL_INTERVAL).await;
+                        // Nothing ready: wait, then back off (capped) to avoid hammering RPC.
+                        tokio::time::sleep(poll_interval).await;
+                        poll_interval = (poll_interval * 2).min(POLL_INTERVAL_MAX);
                     }
                 }
                 Err(e) => {
@@ -2350,7 +2359,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         error = ?e,
                         "V2 processing failed for tree"
                     );
-                    tokio::time::sleep(POLL_INTERVAL).await;
+                    tokio::time::sleep(poll_interval).await;
+                    poll_interval = (poll_interval * 2).min(POLL_INTERVAL_MAX);
                 }
             }
 
@@ -3062,8 +3072,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             } else {
                 None
             },
-            enable_presort: self.config.enable_v1_multi_nullify
-                && !self.address_lookup_tables.is_empty(),
+            enable_presort: self.config.enable_v1_presort,
             work_item_batch_size: self.config.work_item_batch_size,
         };
 
@@ -4730,6 +4739,7 @@ mod tests {
             lookup_table_address: None,
             min_queue_items: None,
             enable_v1_multi_nullify: false,
+            enable_v1_presort: false,
             work_item_batch_size: 50,
         }
     }

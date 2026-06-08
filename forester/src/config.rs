@@ -36,6 +36,10 @@ pub struct ForesterConfig {
     /// Enable nullify_state_v1_multi instruction for batching 2-4 V1 state nullifications.
     /// Requires lookup_table_address to be set.
     pub enable_v1_multi_nullify: bool,
+    /// Enable the get_queue_leaf_indices pre-sort path for V1 work items.
+    /// Best-effort optimization; disabled by default. Only enable against an indexer
+    /// that implements the endpoint.
+    pub enable_v1_presort: bool,
     /// Number of queue items to process per batch cycle. Default: 50.
     pub work_item_batch_size: usize,
 }
@@ -431,6 +435,7 @@ impl ForesterConfig {
                 .transpose()?,
             min_queue_items: args.min_queue_items,
             enable_v1_multi_nullify: args.enable_v1_multi_nullify,
+            enable_v1_presort: args.enable_v1_presort,
             work_item_batch_size: args.work_item_batch_size.unwrap_or(50) as usize,
         })
     }
@@ -488,6 +493,7 @@ impl ForesterConfig {
             lookup_table_address: None,
             min_queue_items: None,
             enable_v1_multi_nullify: false,
+            enable_v1_presort: false,
             work_item_batch_size: 50,
         })
     }
@@ -511,6 +517,7 @@ impl Clone for ForesterConfig {
             lookup_table_address: self.lookup_table_address,
             min_queue_items: self.min_queue_items,
             enable_v1_multi_nullify: self.enable_v1_multi_nullify,
+            enable_v1_presort: self.enable_v1_presort,
             work_item_batch_size: self.work_item_batch_size,
         }
     }
