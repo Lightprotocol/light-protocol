@@ -39,7 +39,7 @@ use solana_sdk::{
     transaction::TransactionError,
 };
 use tokio::{
-    sync::{mpsc, oneshot, Mutex},
+    sync::{mpsc, oneshot, Mutex, Semaphore},
     task::JoinHandle,
     time::{sleep, Instant, MissedTickBehavior},
 };
@@ -280,6 +280,8 @@ pub struct EpochManager<R: Rpc + Indexer> {
     run_id: Arc<str>,
     /// Per-epoch registration trackers to coordinate re-finalization when new foresters register mid-epoch
     registration_trackers: Arc<DashMap<u64, Arc<RegistrationTracker>>>,
+    /// Process-wide limiter for V1 transaction sends across all trees.
+    v1_send_permits: Arc<Semaphore>,
 }
 
 impl<R: Rpc + Indexer> Clone for EpochManager<R> {
@@ -310,6 +312,7 @@ impl<R: Rpc + Indexer> Clone for EpochManager<R> {
             heartbeat: self.heartbeat.clone(),
             run_id: self.run_id.clone(),
             registration_trackers: self.registration_trackers.clone(),
+            v1_send_permits: self.v1_send_permits.clone(),
         }
     }
 }
@@ -333,6 +336,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         run_id: String,
     ) -> Result<Self> {
         let authority = Arc::new(config.payer_keypair.insecure_clone());
+        let v1_send_permit_count = config.transaction_config.max_concurrent_sends.max(1);
         Ok(Self {
             config,
             protocol_config,
@@ -359,6 +363,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             heartbeat,
             run_id: Arc::<str>::from(run_id),
             registration_trackers: Arc::new(DashMap::new()),
+            v1_send_permits: Arc::new(Semaphore::new(v1_send_permit_count)),
         })
     }
 
@@ -3092,6 +3097,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             &batched_tx_config,
             *tree_accounts,
             transaction_builder,
+            self.v1_send_permits.clone(),
         )
         .await?;
 

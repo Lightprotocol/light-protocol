@@ -45,6 +45,8 @@ impl Default for ConfirmationConfig {
     }
 }
 
+const MIN_TRANSACTION_RESEND_INTERVAL: Duration = Duration::from_secs(2);
+
 #[derive(Debug, Clone, Copy)]
 pub struct TransactionPolicy {
     pub priority_fee_config: PriorityFeeConfig,
@@ -440,6 +442,11 @@ async fn send_prepared_transaction<R: Rpc>(
     let last_valid_block_height = transaction.last_valid_block_height();
     let rpc = &*rpc;
     let mut last_send_error = None;
+    let resend_interval = confirmation
+        .poll_interval
+        .saturating_mul(4)
+        .max(MIN_TRANSACTION_RESEND_INTERVAL);
+    let mut next_send_at = Instant::now();
 
     for attempt in 0..confirmation.max_attempts {
         if let Some(signature) = confirmed_signature_or_error(rpc, signature).await? {
@@ -457,16 +464,19 @@ async fn send_prepared_transaction<R: Rpc>(
             });
         }
 
-        match transaction.send_with_confirmation_config(rpc).await {
-            Ok(_) => last_send_error = None,
-            Err(error) if rpc_is_already_processed(&error) => last_send_error = None,
-            // BlockhashNotFound is transient: the sending RPC may not have
-            // propagated the blockhash from the fetcher yet. Retry until the
-            // blockhash either propagates or the outer `get_block_height >
-            // last_valid_block_height` check exits with BlockhashExpired.
-            Err(error) if is_blockhash_not_found(&error) => last_send_error = Some(error),
-            Err(error) if rpc.should_retry(&error) => last_send_error = Some(error),
-            Err(error) => return Err(error.into()),
+        if Instant::now() >= next_send_at {
+            match transaction.send_with_confirmation_config(rpc).await {
+                Ok(_) => last_send_error = None,
+                Err(error) if rpc_is_already_processed(&error) => last_send_error = None,
+                // BlockhashNotFound is transient: the sending RPC may not have
+                // propagated the blockhash from the fetcher yet. Retry until the
+                // blockhash either propagates or the outer `get_block_height >
+                // last_valid_block_height` check exits with BlockhashExpired.
+                Err(error) if is_blockhash_not_found(&error) => last_send_error = Some(error),
+                Err(error) if rpc.should_retry(&error) => last_send_error = Some(error),
+                Err(error) => return Err(error.into()),
+            }
+            next_send_at = Instant::now() + resend_interval;
         }
 
         if let Some(signature) = confirmed_signature_or_error(rpc, signature).await? {

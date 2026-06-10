@@ -16,7 +16,10 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
 };
-use tokio::time::Instant;
+use tokio::{
+    sync::{OwnedSemaphorePermit, Semaphore},
+    time::{timeout, Instant},
+};
 use tracing::{error, info, trace, warn};
 
 use crate::{
@@ -40,6 +43,8 @@ struct PreparedBatchData {
 struct ChunkSendContext<R: Rpc> {
     pool: Arc<SolanaRpcPool<R>>,
     max_concurrent_sends: usize,
+    send_permits: Arc<Semaphore>,
+    permits_pre_acquired: bool,
     timeout_deadline: Instant,
     cancel_signal: Arc<AtomicBool>,
     num_sent_transactions: Arc<AtomicUsize>,
@@ -67,6 +72,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
     config: &SendBatchedTransactionsConfig,
     tree_accounts: TreeAccounts,
     transaction_builder: Arc<T>,
+    send_permits: Arc<Semaphore>,
 ) -> std::result::Result<usize, ForesterError> {
     let function_start_time = Instant::now();
 
@@ -144,17 +150,19 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
     let effective_max_concurrent_sends =
         compute_effective_max_concurrent_sends(config, max_concurrent_sends, data.work_items.len());
 
+    let configured_work_item_batch_size = config.work_item_batch_size.max(1);
+    let work_item_batch_size = configured_work_item_batch_size.min(effective_max_concurrent_sends);
+
     info!(
         tree = %tree_accounts.merkle_tree,
-        "Starting transaction sending loop. work_items={}, work_batch_size={}, timeout={:?}, max_concurrent_sends={} (requested={})",
+        "Starting transaction sending loop. work_items={}, work_batch_size={} (configured={}), timeout={:?}, max_concurrent_sends={} (requested={})",
         data.work_items.len(),
-        config.work_item_batch_size,
+        work_item_batch_size,
+        configured_work_item_batch_size,
         config.retry_config.timeout,
         effective_max_concurrent_sends,
         max_concurrent_sends
     );
-
-    let work_item_batch_size = config.work_item_batch_size;
 
     // Cap total items to stay within the merkle tree changelog capacity.
     const MAX_ITEMS_PER_CYCLE: usize = 1400;
@@ -164,17 +172,25 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         &data.work_items
     };
 
-    // Process all chunks concurrently: each chunk fetches proofs, builds, and sends in parallel.
+    // Process chunks concurrently: each chunk fetches proofs and builds independently,
+    // while transaction sends share the process-wide V1 concurrency limit.
     let chunks: Vec<Vec<WorkItem>> = items_to_process
         .chunks(work_item_batch_size)
         .map(|c| c.to_vec())
         .collect();
 
     let num_chunks = chunks.len();
+    let max_concurrent_chunks = effective_max_concurrent_sends
+        .div_ceil(work_item_batch_size)
+        .max(1)
+        .min(num_chunks.max(1));
     info!(
         tree = %tree_accounts.merkle_tree,
-        "Processing {} concurrent chunks of up to {} items each",
-        num_chunks, work_item_batch_size
+        "Processing {} chunks of up to {} items each with chunk_concurrency={} and send_concurrency={}",
+        num_chunks,
+        work_item_batch_size,
+        max_concurrent_chunks,
+        effective_max_concurrent_sends
     );
 
     let chunk_futures: Vec<_> = chunks
@@ -190,13 +206,37 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             let timeout_deadline = data.timeout_deadline;
             let confirmation_max_attempts = config.confirmation_max_attempts;
             let confirmation_poll_interval = config.confirmation_poll_interval;
+            let send_permits = Arc::clone(&send_permits);
 
             async move {
                 if cancel_signal.load(Ordering::SeqCst) || Instant::now() >= timeout_deadline {
                     return Ok(());
                 }
 
-                // Each chunk gets a fresh blockhash
+                let permits_to_reserve = work_chunk.len().min(effective_max_concurrent_sends).max(1);
+                let _chunk_send_permits = match acquire_send_permits(
+                    &send_permits,
+                    permits_to_reserve,
+                    timeout_deadline,
+                )
+                .await
+                {
+                    Ok(permits) => permits,
+                    Err(e) => {
+                        warn!(
+                            tree = %tree_id,
+                            error = ?e,
+                            "Skipping chunk because send concurrency permits were not available before deadline"
+                        );
+                        return Ok(());
+                    }
+                };
+
+                if cancel_signal.load(Ordering::SeqCst) || Instant::now() >= timeout_deadline {
+                    return Ok(());
+                }
+
+                // Each chunk gets a fresh blockhash after it owns send capacity.
                 let (recent_blockhash, last_valid_block_height) = {
                     let mut rpc = pool.get_connection().await.map_err(ForesterError::from)?;
                     rpc.get_latest_blockhash().await.map_err(|e| {
@@ -232,6 +272,8 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
                 let send_context = ChunkSendContext {
                     pool: Arc::clone(&pool),
                     max_concurrent_sends: effective_max_concurrent_sends,
+                    send_permits,
+                    permits_pre_acquired: true,
                     timeout_deadline,
                     cancel_signal: Arc::clone(&cancel_signal),
                     num_sent_transactions: Arc::clone(&num_sent),
@@ -254,7 +296,10 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         })
         .collect();
 
-    let results = futures::future::join_all(chunk_futures).await;
+    let results = futures::stream::iter(chunk_futures)
+        .buffer_unordered(max_concurrent_chunks)
+        .collect::<Vec<_>>()
+        .await;
     for result in results {
         if let Err(ForesterError::NotEligible) = result {
             return Err(ForesterError::NotEligible);
@@ -392,6 +437,35 @@ fn compute_effective_max_concurrent_sends(
     effective.max(1)
 }
 
+async fn acquire_send_permits(
+    send_permits: &Arc<Semaphore>,
+    permit_count: usize,
+    timeout_deadline: Instant,
+) -> std::result::Result<Vec<OwnedSemaphorePermit>, ForesterError> {
+    let mut permits = Vec::with_capacity(permit_count);
+
+    for _ in 0..permit_count {
+        if Instant::now() >= timeout_deadline {
+            return Err(ForesterError::General {
+                error: "Timed out waiting for send concurrency permits".to_string(),
+            });
+        }
+
+        let permit_wait = timeout_deadline.saturating_duration_since(Instant::now());
+        let permit = timeout(permit_wait, send_permits.clone().acquire_owned())
+            .await
+            .map_err(|_| ForesterError::General {
+                error: "Timed out waiting for send concurrency permits".to_string(),
+            })?
+            .map_err(|_| ForesterError::General {
+                error: "send concurrency limiter closed".to_string(),
+            })?;
+        permits.push(permit);
+    }
+
+    Ok(permits)
+}
+
 async fn execute_transaction_chunk_sending<R: Rpc>(
     transactions: Vec<PreparedTransaction>,
     context: &ChunkSendContext<R>,
@@ -406,11 +480,14 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
     let num_sent_transactions = Arc::clone(&context.num_sent_transactions);
     let timeout_deadline = context.timeout_deadline;
     let max_concurrent_sends = context.max_concurrent_sends;
+    let send_permits = Arc::clone(&context.send_permits);
+    let permits_pre_acquired = context.permits_pre_acquired;
     let confirmation = context.confirmation;
     let transaction_send_futures = transactions.into_iter().map(|prepared_transaction| {
         let pool_clone = Arc::clone(&pool);
         let cancel_signal_clone = Arc::clone(&cancel_signal);
         let num_sent_transactions_clone = Arc::clone(&num_sent_transactions);
+        let send_permits_clone = Arc::clone(&send_permits);
         let tx_label = prepared_transaction.label().to_string();
 
         async move {
@@ -422,6 +499,32 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                 .signature()
                 .unwrap_or_default();
             let tx_signature_str = tx_signature.to_string();
+
+            let _send_permit = if permits_pre_acquired {
+                None
+            } else {
+                let permit_wait = timeout_deadline.saturating_duration_since(Instant::now());
+                match timeout(permit_wait, send_permits_clone.acquire_owned()).await {
+                    Ok(Ok(permit)) => Some(permit),
+                    Ok(Err(_)) => {
+                        error!(
+                            tx.signature_attempt = %tx_signature_str,
+                            "Send concurrency limiter was closed"
+                        );
+                        return TransactionSendResult::SendFailure(
+                            ForesterError::General {
+                                error: "send concurrency limiter closed".to_string(),
+                            },
+                            Some(tx_signature),
+                        );
+                    }
+                    Err(_) => return TransactionSendResult::Timeout,
+                }
+            };
+
+            if cancel_signal_clone.load(Ordering::SeqCst) || Instant::now() >= timeout_deadline {
+                return TransactionSendResult::Cancelled;
+            }
 
             match pool_clone.get_connection().await {
                 Ok(mut rpc) => {
