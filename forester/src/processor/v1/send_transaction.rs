@@ -441,29 +441,28 @@ async fn acquire_send_permits(
     send_permits: &Arc<Semaphore>,
     permit_count: usize,
     timeout_deadline: Instant,
-) -> std::result::Result<Vec<OwnedSemaphorePermit>, ForesterError> {
-    let mut permits = Vec::with_capacity(permit_count);
-
-    for _ in 0..permit_count {
-        if Instant::now() >= timeout_deadline {
-            return Err(ForesterError::General {
-                error: "Timed out waiting for send concurrency permits".to_string(),
-            });
-        }
-
-        let permit_wait = timeout_deadline.saturating_duration_since(Instant::now());
-        let permit = timeout(permit_wait, send_permits.clone().acquire_owned())
-            .await
-            .map_err(|_| ForesterError::General {
-                error: "Timed out waiting for send concurrency permits".to_string(),
-            })?
-            .map_err(|_| ForesterError::General {
-                error: "send concurrency limiter closed".to_string(),
-            })?;
-        permits.push(permit);
+) -> std::result::Result<OwnedSemaphorePermit, ForesterError> {
+    if Instant::now() >= timeout_deadline {
+        return Err(ForesterError::General {
+            error: "Timed out waiting for send concurrency permits".to_string(),
+        });
     }
 
-    Ok(permits)
+    let permit_count = u32::try_from(permit_count).map_err(|_| ForesterError::General {
+        error: "send concurrency permit count exceeds supported limit".to_string(),
+    })?;
+    let permit_wait = timeout_deadline.saturating_duration_since(Instant::now());
+    timeout(
+        permit_wait,
+        send_permits.clone().acquire_many_owned(permit_count),
+    )
+    .await
+    .map_err(|_| ForesterError::General {
+        error: "Timed out waiting for send concurrency permits".to_string(),
+    })?
+    .map_err(|_| ForesterError::General {
+        error: "send concurrency limiter closed".to_string(),
+    })
 }
 
 async fn execute_transaction_chunk_sending<R: Rpc>(
@@ -664,4 +663,64 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
         return Err(ForesterError::NotEligible);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn acquire_send_permits_acquires_requested_permits() {
+        let send_permits = Arc::new(Semaphore::new(3));
+        let permit = acquire_send_permits(
+            &send_permits,
+            2,
+            Instant::now() + Duration::from_millis(100),
+        )
+        .await
+        .expect("permit reservation should succeed");
+
+        assert_eq!(send_permits.available_permits(), 1);
+
+        drop(permit);
+        assert_eq!(send_permits.available_permits(), 3);
+    }
+
+    #[tokio::test]
+    async fn acquire_send_permits_waits_for_full_reservation() {
+        let send_permits = Arc::new(Semaphore::new(2));
+        let first_permit = acquire_send_permits(
+            &send_permits,
+            2,
+            Instant::now() + Duration::from_millis(100),
+        )
+        .await
+        .expect("first reservation should succeed");
+        let waiter_permits = Arc::clone(&send_permits);
+
+        let waiter = tokio::spawn(async move {
+            acquire_send_permits(
+                &waiter_permits,
+                2,
+                Instant::now() + Duration::from_millis(500),
+            )
+            .await
+        });
+
+        tokio::time::sleep(Duration::from_millis(25)).await;
+
+        assert!(!waiter.is_finished());
+
+        drop(first_permit);
+        let second_permit = timeout(Duration::from_millis(100), waiter)
+            .await
+            .expect("second reservation should complete after permits are released")
+            .expect("waiter task should not panic")
+            .expect("second reservation should succeed");
+
+        assert_eq!(send_permits.available_permits(), 0);
+
+        drop(second_permit);
+        assert_eq!(send_permits.available_permits(), 2);
+    }
 }
