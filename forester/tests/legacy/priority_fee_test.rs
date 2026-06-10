@@ -89,6 +89,7 @@ async fn test_priority_fee_request() {
         lookup_table_address: None,
         min_queue_items: None,
         enable_v1_multi_nullify: false,
+        enable_v1_presort: false,
         api_server_port: 8080,
         api_server_public_bind: false,
         group_authority: None,
