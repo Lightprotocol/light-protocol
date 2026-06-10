@@ -1118,15 +1118,23 @@ pub fn spawn_api_server(config: ApiServerConfig) -> anyhow::Result<ApiServerHand
                 run_id.clone(),
             ));
 
-            tokio::spawn(run_compressible_provider(
-                compressible_tx,
-                trackers,
-                config.forester_api_urls.clone(),
-                config.rpc_url.clone(),
-                provider_shutdown_tx.subscribe(),
-                config.helius_rpc,
-                run_id.clone(),
-            ));
+            // Only run the compressible-count provider when there is a CHEAP source:
+            // in-memory trackers (compression enabled) or upstream forester APIs to
+            // aggregate. With neither, it falls back to a full getProgramAccounts scan
+            // every 30s, which ties up RPC pool connections and triggers pool failures
+            // on mainnet. When compressible tracking is disabled (the default) skip it
+            // entirely — the dashboard simply reports no compressible counts.
+            if trackers.is_some() || !config.forester_api_urls.is_empty() {
+                tokio::spawn(run_compressible_provider(
+                    compressible_tx,
+                    trackers,
+                    config.forester_api_urls.clone(),
+                    config.rpc_url.clone(),
+                    provider_shutdown_tx.subscribe(),
+                    config.helius_rpc,
+                    run_id.clone(),
+                ));
+            }
 
             let cors = warp::cors()
                 .allow_any_origin()
