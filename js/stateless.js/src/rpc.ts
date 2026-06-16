@@ -289,13 +289,22 @@ export function createRpc(
  * @returns {string} - The preprocessed JSON string with numbers wrapped as strings
  */
 export function wrapBigNumbersAsStrings(text: string): string {
-    return text.replace(/(":\s*)(-?\d+)(\s*[},])/g, (match, p1, p2, p3) => {
-        const num = Number(p2);
+    return text.replace(/-?\d+(?=\s*[,}\]])/g, (match, offset) => {
+        let prefixIndex = offset - 1;
+        while (prefixIndex >= 0 && /\s/.test(text[prefixIndex])) {
+            prefixIndex--;
+        }
+
+        if (prefixIndex < 0 || !':[,'.includes(text[prefixIndex])) {
+            return match;
+        }
+
+        const num = Number(match);
         if (
             !Number.isNaN(num) &&
             (num > Number.MAX_SAFE_INTEGER || num < Number.MIN_SAFE_INTEGER)
         ) {
-            return `${p1}"${p2}"${p3}`;
+            return `"${match}"`;
         }
         return match;
     });
