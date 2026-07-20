@@ -1,9 +1,10 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_trait::async_trait;
 use forester_utils::rpc_pool::SolanaRpcPool;
 use light_client::rpc::Rpc;
+use light_registry::account_compression_cpi::sdk::nullify_state_v1_multi_lookup_table_accounts;
 use solana_program::hash::Hash;
 use solana_sdk::{
     address_lookup_table::AddressLookupTableAccount,
@@ -11,7 +12,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 use tokio::sync::Mutex;
-use tracing::{trace, warn};
+use tracing::{debug, trace, warn};
 
 use crate::{
     epoch_manager::WorkItem,
@@ -69,6 +70,31 @@ impl<R: Rpc> EpochManagerTransactions<R> {
     }
 }
 
+fn lookup_tables_cover_v1_multi_nullify(
+    lookup_tables: &[AddressLookupTableAccount],
+    work_items: &[WorkItem],
+) -> bool {
+    let Some(first_item) = work_items.first() else {
+        return false;
+    };
+    if lookup_tables.is_empty() {
+        return false;
+    }
+
+    let required_accounts = nullify_state_v1_multi_lookup_table_accounts(
+        first_item.tree_account.merkle_tree,
+        first_item.tree_account.queue,
+    );
+    let lookup_accounts = lookup_tables
+        .iter()
+        .flat_map(|table| table.addresses.iter().copied())
+        .collect::<HashSet<_>>();
+
+    required_accounts
+        .iter()
+        .all(|account| lookup_accounts.contains(account))
+}
+
 #[async_trait]
 impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
     fn epoch(&self) -> u64 {
@@ -124,8 +150,19 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             .map(|&item| item.clone())
             .collect::<Vec<_>>();
 
-        let use_multi_nullify =
-            self.enable_v1_multi_nullify && !self.address_lookup_tables.is_empty();
+        let use_multi_nullify = self.enable_v1_multi_nullify
+            && lookup_tables_cover_v1_multi_nullify(&self.address_lookup_tables, &work_items);
+        if self.enable_v1_multi_nullify && !use_multi_nullify {
+            let tree = work_items
+                .first()
+                .map(|item| item.tree_account.merkle_tree.to_string())
+                .unwrap_or_default();
+            debug!(
+                tree,
+                lookup_tables = self.address_lookup_tables.len(),
+                "V1 multi-nullify disabled for batch because lookup tables do not cover required accounts"
+            );
+        }
         let mut transactions = vec![];
         let all_instructions = match fetch_proofs_and_create_instructions(
             payer.pubkey(),

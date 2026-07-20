@@ -39,6 +39,15 @@ struct PreparedBatchData {
     timeout_deadline: Instant,
 }
 
+// Stay within the merkle tree changelog capacity even when the configured
+// per-cycle batch size is larger than expected.
+const MAX_ITEMS_PER_CYCLE: usize = 1400;
+
+// Keep one tree from reserving the entire process-wide send semaphore while it
+// waits on proof building and transaction confirmation.
+const MAX_WORK_ITEMS_PER_SEND_CHUNK: usize = 4;
+const MAX_CONCURRENT_CHUNKS_PER_TREE: usize = 1;
+
 #[derive(Clone)]
 struct ChunkSendContext<R: Rpc> {
     pool: Arc<SolanaRpcPool<R>>,
@@ -151,12 +160,17 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         compute_effective_max_concurrent_sends(config, max_concurrent_sends, data.work_items.len());
 
     let configured_work_item_batch_size = config.work_item_batch_size.max(1);
-    let work_item_batch_size = configured_work_item_batch_size.min(effective_max_concurrent_sends);
+    let work_item_batch_size = chunk_item_limit(
+        configured_work_item_batch_size,
+        effective_max_concurrent_sends,
+    );
+    let cycle_item_count = cycle_item_limit(configured_work_item_batch_size, data.work_items.len());
 
     info!(
         tree = %tree_accounts.merkle_tree,
-        "Starting transaction sending loop. work_items={}, work_batch_size={} (configured={}), timeout={:?}, max_concurrent_sends={} (requested={})",
+        "Starting transaction sending loop. work_items={}, items_this_cycle={}, work_batch_size={} (configured={}), timeout={:?}, max_concurrent_sends={} (requested={})",
         data.work_items.len(),
+        cycle_item_count,
         work_item_batch_size,
         configured_work_item_batch_size,
         config.retry_config.timeout,
@@ -164,13 +178,17 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         max_concurrent_sends
     );
 
-    // Cap total items to stay within the merkle tree changelog capacity.
-    const MAX_ITEMS_PER_CYCLE: usize = 1400;
-    let items_to_process = if data.work_items.len() > MAX_ITEMS_PER_CYCLE {
-        &data.work_items[..MAX_ITEMS_PER_CYCLE]
-    } else {
-        &data.work_items
-    };
+    if cycle_item_count < data.work_items.len() {
+        info!(
+            tree = %tree_accounts.merkle_tree,
+            total_work_items = data.work_items.len(),
+            items_this_cycle = cycle_item_count,
+            configured_work_item_batch_size,
+            "Capping V1 work items for this cycle"
+        );
+    }
+
+    let items_to_process = &data.work_items[..cycle_item_count];
 
     // Process chunks concurrently: each chunk fetches proofs and builds independently,
     // while transaction sends share the process-wide V1 concurrency limit.
@@ -180,10 +198,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         .collect();
 
     let num_chunks = chunks.len();
-    let max_concurrent_chunks = effective_max_concurrent_sends
-        .div_ceil(work_item_batch_size)
-        .max(1)
-        .min(num_chunks.max(1));
+    let max_concurrent_chunks = MAX_CONCURRENT_CHUNKS_PER_TREE.min(num_chunks.max(1));
     info!(
         tree = %tree_accounts.merkle_tree,
         "Processing {} chunks of up to {} items each with chunk_concurrency={} and send_concurrency={}",
@@ -213,24 +228,18 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
                     return Ok(());
                 }
 
-                let permits_to_reserve = work_chunk.len().min(effective_max_concurrent_sends).max(1);
-                let _chunk_send_permits = match acquire_send_permits(
-                    &send_permits,
-                    permits_to_reserve,
-                    timeout_deadline,
-                )
-                .await
-                {
-                    Ok(permits) => permits,
-                    Err(e) => {
-                        warn!(
-                            tree = %tree_id,
-                            error = ?e,
-                            "Skipping chunk because send concurrency permits were not available before deadline"
-                        );
-                        return Ok(());
-                    }
-                };
+                let chunk_admission_permit =
+                    match acquire_send_permits(&send_permits, 1, timeout_deadline).await {
+                        Ok(permit) => permit,
+                        Err(e) => {
+                            warn!(
+                                tree = %tree_id,
+                                error = ?e,
+                                "Skipping chunk because send concurrency permits were not available before deadline"
+                            );
+                            return Ok(());
+                        }
+                    };
 
                 if cancel_signal.load(Ordering::SeqCst) || Instant::now() >= timeout_deadline {
                     return Ok(());
@@ -269,11 +278,13 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
                     return Ok(());
                 }
 
+                drop(chunk_admission_permit);
+
                 let send_context = ChunkSendContext {
                     pool: Arc::clone(&pool),
                     max_concurrent_sends: effective_max_concurrent_sends,
                     send_permits,
-                    permits_pre_acquired: true,
+                    permits_pre_acquired: false,
                     timeout_deadline,
                     cancel_signal: Arc::clone(&cancel_signal),
                     num_sent_transactions: Arc::clone(&num_sent),
@@ -435,6 +446,23 @@ fn compute_effective_max_concurrent_sends(
     }
 
     effective.max(1)
+}
+
+fn cycle_item_limit(configured_work_item_batch_size: usize, work_item_count: usize) -> usize {
+    let limit = configured_work_item_batch_size
+        .max(1)
+        .min(MAX_ITEMS_PER_CYCLE);
+    work_item_count.min(limit)
+}
+
+fn chunk_item_limit(
+    configured_work_item_batch_size: usize,
+    effective_max_concurrent_sends: usize,
+) -> usize {
+    configured_work_item_batch_size
+        .max(1)
+        .min(effective_max_concurrent_sends.max(1))
+        .min(MAX_WORK_ITEMS_PER_SEND_CHUNK)
 }
 
 async fn acquire_send_permits(
@@ -722,5 +750,25 @@ mod tests {
 
         drop(second_permit);
         assert_eq!(send_permits.available_permits(), 2);
+    }
+
+    #[test]
+    fn cycle_item_limit_uses_configured_batch_size_as_total_cycle_cap() {
+        assert_eq!(cycle_item_limit(50, 1252), 50);
+        assert_eq!(cycle_item_limit(50, 12), 12);
+    }
+
+    #[test]
+    fn cycle_item_limit_stays_within_changelog_cap() {
+        assert_eq!(cycle_item_limit(10_000, 2_000), MAX_ITEMS_PER_CYCLE);
+        assert_eq!(cycle_item_limit(0, 10), 1);
+    }
+
+    #[test]
+    fn chunk_item_limit_caps_single_tree_send_reservation() {
+        assert_eq!(chunk_item_limit(50, 10), MAX_WORK_ITEMS_PER_SEND_CHUNK);
+        assert_eq!(chunk_item_limit(3, 10), 3);
+        assert_eq!(chunk_item_limit(50, 2), 2);
+        assert_eq!(chunk_item_limit(0, 10), 1);
     }
 }
