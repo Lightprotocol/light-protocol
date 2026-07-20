@@ -5,7 +5,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use solana_sdk::{signature::Signer, transaction::Transaction};
-use tracing::{error, warn};
+use tracing::error;
 
 use crate::error::ForesterUtilsError;
 
@@ -45,10 +45,6 @@ pub async fn wait_for_indexer<R: Rpc>(rpc: &R) -> Result<(), ForesterUtilsError>
         .unwrap_or(100);
     let lag = rpc_slot.saturating_sub(indexer_slot);
     if lag > max_lag_slots {
-        warn!(
-            lag,
-            max_lag_slots, rpc_slot, indexer_slot, "indexer freshness gate rejected proof work"
-        );
         return Err(ForesterUtilsError::Indexer(format!(
             "Indexer is behind {lag} slots (maximum allowed: {max_lag_slots})"
         )));

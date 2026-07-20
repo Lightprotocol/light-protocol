@@ -13,6 +13,7 @@ use dashmap::DashMap;
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
     rpc_pool::SolanaRpcPool,
+    utils::wait_for_indexer,
 };
 use futures::future::join_all;
 use light_client::{
@@ -2246,6 +2247,19 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             forester_slot_details.start_solana_slot,
         )
         .await?;
+
+        if let Err(error) = wait_for_indexer(&*rpc).await {
+            if should_emit_rate_limited_warning("v2_wait_for_indexer", Duration::from_secs(30)) {
+                warn!(
+                    event = "v2_wait_for_indexer_error",
+                    run_id = %self.run_id,
+                    tree = %tree_pubkey,
+                    error = %error,
+                    "Skipping V2 proof work because the indexer is not fresh"
+                );
+            }
+            return Ok(());
+        }
 
         // Try to send any cached proofs first
         let cached_send_start = Instant::now();
