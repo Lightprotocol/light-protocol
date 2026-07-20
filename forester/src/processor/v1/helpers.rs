@@ -96,15 +96,16 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     };
 
     let rpc = pool.get_connection().await?;
-    if let Err(e) = wait_for_indexer(&*rpc).await {
+    wait_for_indexer(&*rpc).await.map_err(|e| {
         if should_emit_rate_limited_warning("v1_wait_for_indexer", Duration::from_secs(30)) {
             warn!(
                 event = "v1_wait_for_indexer_error",
                 error = %e,
-                "Indexer not fully caught up, but proceeding anyway"
+                "Skipping V1 proof work because the indexer is not fresh"
             );
         }
-    }
+        e
+    })?;
 
     let address_proofs = if let Some((merkle_tree, addresses)) = address_data {
         let total_addresses = addresses.len();

@@ -5,7 +5,6 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use solana_sdk::{signature::Signer, transaction::Transaction};
-use tokio::time::sleep;
 use tracing::{error, warn};
 
 use crate::error::ForesterUtilsError;
@@ -30,10 +29,7 @@ pub async fn airdrop_lamports<R: Rpc>(
 
 pub async fn wait_for_indexer<R: Rpc>(rpc: &R) -> Result<(), ForesterUtilsError> {
     let rpc_slot = rpc.get_slot().await?;
-
-    let indexer_slot = rpc.indexer()?.get_indexer_slot(None).await;
-
-    let mut indexer_slot = match indexer_slot {
+    let indexer_slot = match rpc.indexer()?.get_indexer_slot(None).await {
         Ok(slot) => slot,
         Err(e) => {
             error!("failed to get indexer slot from indexer: {:?}", e);
@@ -43,32 +39,19 @@ pub async fn wait_for_indexer<R: Rpc>(rpc: &R) -> Result<(), ForesterUtilsError>
         }
     };
 
-    let max_attempts = 100;
-    let mut attempts = 0;
-
-    while rpc_slot > indexer_slot {
-        if attempts >= max_attempts {
-            return Err(ForesterUtilsError::Indexer(
-                "Maximum attempts reached waiting for indexer to catch up".into(),
-            ));
-        }
-
-        if rpc_slot - indexer_slot > 50 {
-            warn!(
-                "indexer is behind {} slots (rpc_slot: {}, indexer_slot: {})",
-                rpc_slot - indexer_slot,
-                rpc_slot,
-                indexer_slot
-            );
-        }
-
-        sleep(std::time::Duration::from_millis(1000)).await;
-        indexer_slot = rpc.indexer()?.get_indexer_slot(None).await.map_err(|e| {
-            error!("failed to get indexer slot from indexer: {:?}", e);
-            ForesterUtilsError::Indexer("Failed to get indexer slot".into())
-        })?;
-
-        attempts += 1;
+    let max_lag_slots = std::env::var("INDEXER_MAX_LAG_SLOTS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(100);
+    let lag = rpc_slot.saturating_sub(indexer_slot);
+    if lag > max_lag_slots {
+        warn!(
+            lag,
+            max_lag_slots, rpc_slot, indexer_slot, "indexer freshness gate rejected proof work"
+        );
+        return Err(ForesterUtilsError::Indexer(format!(
+            "Indexer is behind {lag} slots (maximum allowed: {max_lag_slots})"
+        )));
     }
     Ok(())
 }

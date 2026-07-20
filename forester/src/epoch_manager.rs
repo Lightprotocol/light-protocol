@@ -3176,6 +3176,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     .external_services
                     .prover_max_wait_time
                     .unwrap_or(Duration::from_secs(600)),
+                network: std::env::var("FORESTER_NETWORK")
+                    .unwrap_or_else(|_| "default".to_string()),
             }),
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),

@@ -139,19 +139,22 @@ impl ProofClients {
                 config.polling_interval,
                 config.max_wait_time,
                 config.api_key.clone(),
-            ),
+            )
+            .with_network(config.network.clone()),
             nullify_client: ProofClient::with_config(
                 config.update_url.clone(),
                 config.polling_interval,
                 config.max_wait_time,
                 config.api_key.clone(),
-            ),
+            )
+            .with_network(config.network.clone()),
             address_append_client: ProofClient::with_config(
                 config.address_append_url.clone(),
                 config.polling_interval,
                 config.max_wait_time,
                 config.api_key.clone(),
-            ),
+            )
+            .with_network(config.network.clone()),
         }
     }
 

@@ -443,6 +443,14 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	forceSync := r.Header.Get("X-Sync") == "true" || r.URL.Query().Get("sync") == "true"
 
 	shouldUseQueue := handler.shouldUseQueueForCircuit(proofRequestMeta.CircuitType, forceAsync, forceSync)
+	network := ""
+	if shouldUseQueue {
+		network, err = normalizeNetwork(r.Header.Get("X-Light-Network"))
+		if err != nil {
+			malformedBodyError(err).send(w)
+			return
+		}
+	}
 
 	logging.Logger().Info().
 		Str("circuit_type", string(proofRequestMeta.CircuitType)).
@@ -453,7 +461,7 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Msg("Processing prove request")
 
 	if shouldUseQueue && handler.enableQueue && handler.redisQueue != nil {
-		handler.handleAsyncProof(w, r, buf, proofRequestMeta)
+		handler.handleAsyncProof(w, r, buf, proofRequestMeta, network)
 	} else {
 		handler.handleSyncProof(w, r, buf, proofRequestMeta)
 	}
@@ -659,11 +667,16 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				malformedBodyError(err).send(w)
 				return
 			}
+			network, err := normalizeNetwork(r.Header.Get("X-Light-Network"))
+			if err != nil {
+				malformedBodyError(err).send(w)
+				return
+			}
 
-			queueName := GetQueueNameForCircuit(proofRequestMeta.CircuitType)
+			queueName := NetworkQueueName(GetQueueNameForCircuit(proofRequestMeta.CircuitType), network)
 
 			// Compute input hash for deduplication
-			inputHash := ComputeInputHash(json.RawMessage(buf))
+			inputHash := ComputeNetworkInputHash(network, json.RawMessage(buf))
 
 			// Check for existing in-flight job with same input
 			dedupResult, err := redisQueue.DeduplicateJob(inputHash)
@@ -715,6 +728,7 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				CreatedAt:  time.Now(),
 				TreeID:     proofRequestMeta.TreeID,
 				BatchIndex: proofRequestMeta.BatchIndex,
+				Network:    network,
 			}
 
 			// Store job metadata BEFORE enqueueing to prevent race condition where worker
@@ -738,6 +752,11 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				}
 				if delErr := redisQueue.DeleteJobMeta(jobID); delErr != nil {
 					logging.Logger().Error().Err(delErr).Str("job_id", jobID).Msg("Failed to cleanup job metadata after enqueue failure")
+				}
+				if errors.Is(err, ErrQueueFull) {
+					w.Header().Set("Retry-After", "5")
+					(&Error{StatusCode: http.StatusTooManyRequests, Code: "queue_full", Message: err.Error()}).send(w)
+					return
 				}
 				unexpectedError(err).send(w)
 				return
@@ -865,14 +884,14 @@ func spawnServerJob(server *http.Server, label string) RunningJob {
 type healthHandler struct {
 }
 
-func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta common.ProofRequestMeta) {
+func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta common.ProofRequestMeta, network string) {
 	ProofRequestsTotal.WithLabelValues(string(meta.CircuitType)).Inc()
 	RecordCircuitInputSize(string(meta.CircuitType), len(buf))
 
-	queueName := GetQueueNameForCircuit(meta.CircuitType)
+	queueName := NetworkQueueName(GetQueueNameForCircuit(meta.CircuitType), network)
 
 	// Compute input hash for deduplication
-	inputHash := ComputeInputHash(json.RawMessage(buf))
+	inputHash := ComputeNetworkInputHash(network, json.RawMessage(buf))
 
 	// Check for existing in-flight job with same input
 	dedupResult, err := handler.redisQueue.DeduplicateJob(inputHash)
@@ -924,6 +943,7 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		CreatedAt:  time.Now(),
 		TreeID:     meta.TreeID,
 		BatchIndex: meta.BatchIndex,
+		Network:    network,
 	}
 
 	// Store job metadata BEFORE enqueueing to prevent race condition where worker
@@ -951,6 +971,15 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 			logging.Logger().Error().Err(delErr).Str("job_id", jobID).Msg("Failed to cleanup job metadata after enqueue failure")
 		}
 
+		if errors.Is(err, ErrQueueFull) {
+			w.Header().Set("Retry-After", "5")
+			(&Error{
+				StatusCode: http.StatusTooManyRequests,
+				Code:       "queue_full",
+				Message:    err.Error(),
+			}).send(w)
+			return
+		}
 		if handler.isBatchOperation(meta.CircuitType) {
 			serviceUnavailableError := &Error{
 				StatusCode: http.StatusServiceUnavailable,

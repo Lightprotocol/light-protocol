@@ -79,6 +79,7 @@ pub struct ProverConfig {
     pub api_key: Option<String>,
     pub polling_interval: Duration,
     pub max_wait_time: Duration,
+    pub network: String,
 }
 
 #[derive(Debug)]
