@@ -79,6 +79,14 @@ pub struct StartArgs {
     )]
     pub prover_max_wait_time_secs: Option<u64>,
 
+    #[arg(
+        long,
+        env = "PROVER_MAX_CONCURRENT_JOBS",
+        default_value = "4",
+        help = "Maximum queued or running prover jobs per forester (default: 4)"
+    )]
+    pub prover_max_concurrent_jobs: usize,
+
     #[arg(long, env = "PAYER")]
     pub payer: Option<String>,
 

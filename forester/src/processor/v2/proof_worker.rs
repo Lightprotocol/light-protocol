@@ -1,6 +1,12 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, OnceLock},
+    time::Duration,
+};
 
-const MAX_CONCURRENT_PROOFS: usize = 64;
+#[cfg(not(test))]
+const QUEUE_FULL_RETRY_DELAY: Duration = Duration::from_secs(5);
+#[cfg(test)]
+const QUEUE_FULL_RETRY_DELAY: Duration = Duration::from_millis(10);
 
 use async_channel::Receiver;
 use light_batched_merkle_tree::merkle_tree::{
@@ -170,16 +176,23 @@ impl ProofClients {
 pub fn spawn_proof_workers(config: &ProverConfig) -> async_channel::Sender<ProofJob> {
     let (job_tx, job_rx) = async_channel::bounded::<ProofJob>(256);
     let clients = Arc::new(ProofClients::new(config));
-    tokio::spawn(async move { run_proof_pipeline(job_rx, clients).await });
+    let semaphore = process_proof_semaphore(config.max_concurrent_jobs);
+    tokio::spawn(async move { run_proof_pipeline(job_rx, clients, semaphore).await });
     job_tx
+}
+
+fn process_proof_semaphore(max_concurrent_jobs: usize) -> Arc<tokio::sync::Semaphore> {
+    static SEMAPHORE: OnceLock<Arc<tokio::sync::Semaphore>> = OnceLock::new();
+    SEMAPHORE
+        .get_or_init(|| Arc::new(tokio::sync::Semaphore::new(max_concurrent_jobs.max(1))))
+        .clone()
 }
 
 async fn run_proof_pipeline(
     job_rx: Receiver<ProofJob>,
     clients: Arc<ProofClients>,
+    semaphore: Arc<tokio::sync::Semaphore>,
 ) -> crate::Result<()> {
-    let semaphore = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_PROOFS));
-
     while let Ok(job) = job_rx.recv().await {
         let clients = clients.clone();
         let permit = semaphore.clone().acquire_owned().await;
@@ -202,7 +215,13 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
 
     let round_trip_start = std::time::Instant::now();
 
-    match client.submit_proof_async(inputs_json, circuit_type).await {
+    let Some(submit_result) =
+        submit_with_backpressure(client, &inputs_json, circuit_type, job.seq, &job.result_tx).await
+    else {
+        return;
+    };
+
+    match submit_result {
         Ok(SubmitProofResult::Queued(job_id)) => {
             debug!(
                 "Submitted proof job seq={} type={} job_id={}",
@@ -251,6 +270,58 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
     }
 }
 
+async fn submit_with_backpressure(
+    client: &ProofClient,
+    inputs_json: &str,
+    circuit_type: &str,
+    seq: u64,
+    result_tx: &mpsc::Sender<ProofJobResult>,
+) -> Option<Result<SubmitProofResult, ProverClientError>> {
+    let mut attempts = 0u64;
+    loop {
+        if result_tx.is_closed() {
+            debug!(
+                "Stopping proof submission retry for seq={}: result channel closed",
+                seq
+            );
+            return None;
+        }
+
+        match client
+            .submit_proof_async(inputs_json.to_string(), circuit_type)
+            .await
+        {
+            Err(error) if is_queue_full(&error) => {
+                attempts += 1;
+                let jitter = Duration::from_millis(seq.wrapping_add(attempts) % 1000);
+                let delay = QUEUE_FULL_RETRY_DELAY + jitter;
+                warn!(
+                    "Prover queue full for seq={} type={}; retrying in {:?} (attempt {})",
+                    seq, circuit_type, delay, attempts
+                );
+                tokio::select! {
+                    _ = tokio::time::sleep(delay) => {}
+                    _ = result_tx.closed() => {
+                        debug!(
+                            "Stopping proof submission retry for seq={}: result channel closed",
+                            seq
+                        );
+                        return None;
+                    }
+                }
+            }
+            result => return Some(result),
+        }
+    }
+}
+
+fn is_queue_full(err: &ProverClientError) -> bool {
+    matches!(
+        err,
+        ProverClientError::ProverServerError(message) if message.contains("queue_full")
+    )
+}
+
 async fn poll_and_send_result(
     clients: Arc<ProofClients>,
     job_id: String,
@@ -281,7 +352,13 @@ async fn poll_and_send_result(
 
             let inputs_json = inputs.to_json(&tree_id, seq);
             let circuit_type = inputs.circuit_type();
-            match client.submit_proof_async(inputs_json, circuit_type).await {
+            let Some(submit_result) =
+                submit_with_backpressure(client, &inputs_json, circuit_type, seq, &result_tx).await
+            else {
+                return;
+            };
+
+            match submit_result {
                 Ok(SubmitProofResult::Queued(new_job_id)) => {
                     debug!(
                         "Resubmitted proof job seq={} type={} new_job_id={}",
@@ -422,5 +499,89 @@ fn build_proof_result(
         proof_duration_ms: proof_with_timing.proof_duration_ms,
         round_trip_ms,
         submitted_at,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::TcpListener,
+    };
+
+    use super::*;
+
+    #[test]
+    fn queue_full_detection_is_specific() {
+        let queue_full = ProverClientError::ProverServerError(
+            "Prover server error: queue_full - network proof queue is full".to_string(),
+        );
+        let other = ProverClientError::ProverServerError("invalid_input".to_string());
+
+        assert!(is_queue_full(&queue_full));
+        assert!(!is_queue_full(&other));
+    }
+
+    #[tokio::test]
+    async fn retries_queue_full_until_job_is_accepted() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let server_request_count = request_count.clone();
+
+        let server = tokio::spawn(async move {
+            for request_index in 0..2 {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut request = vec![0u8; 16 * 1024];
+                let _ = stream.read(&mut request).await.unwrap();
+                server_request_count.fetch_add(1, Ordering::SeqCst);
+
+                let (status, body) = if request_index == 0 {
+                    (
+                        "429 Too Many Requests",
+                        r#"{"code":"queue_full","message":"network proof queue is full"}"#,
+                    )
+                } else {
+                    (
+                        "202 Accepted",
+                        r#"{"job_id":"job-1","estimated_time":null}"#,
+                    )
+                };
+                let response = format!(
+                    "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(response.as_bytes()).await.unwrap();
+            }
+        });
+
+        let client = ProofClient::with_config(
+            format!("http://{address}"),
+            Duration::from_millis(10),
+            Duration::from_secs(1),
+            None,
+        );
+        let (result_tx, _result_rx) = mpsc::channel(1);
+
+        let submit_result = tokio::time::timeout(
+            Duration::from_secs(2),
+            submit_with_backpressure(&client, "{}", "append", 7, &result_tx),
+        )
+        .await
+        .expect("submission retry timed out")
+        .expect("result channel unexpectedly closed")
+        .expect("submission failed after queue became available");
+
+        match submit_result {
+            SubmitProofResult::Queued(job_id) => assert_eq!(job_id, "job-1"),
+            SubmitProofResult::Immediate(_) => panic!("expected queued proof job"),
+        }
+        server.await.unwrap();
+        assert_eq!(request_count.load(Ordering::SeqCst), 2);
     }
 }

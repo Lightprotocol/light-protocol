@@ -3190,6 +3190,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     .external_services
                     .prover_max_wait_time
                     .unwrap_or(Duration::from_secs(600)),
+                max_concurrent_jobs: self.config.external_services.prover_max_concurrent_jobs,
                 network: std::env::var("FORESTER_NETWORK")
                     .unwrap_or_else(|_| "default".to_string()),
             }),
@@ -4734,6 +4735,7 @@ mod tests {
                 send_tx_rate_limit: None,
                 prover_polling_interval: None,
                 prover_max_wait_time: None,
+                prover_max_concurrent_jobs: 4,
                 fallback_rpc_url: None,
                 fallback_indexer_url: None,
             },

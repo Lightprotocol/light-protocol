@@ -102,6 +102,7 @@ async fn test_priority_fee_request() {
         prover_api_key: None,
         prover_polling_interval_ms: None,
         prover_max_wait_time_secs: None,
+        prover_max_concurrent_jobs: 4,
         photon_grpc_url: None,
         max_concurrent_sends: 50,
         max_batches_per_tree: 4,
