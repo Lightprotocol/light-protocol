@@ -3,7 +3,6 @@
 /// Validates that metadata add/remove action sequences produce correct
 /// AdditionalMetadataConfig output, covering the add-remove-add bug
 /// from audit issue #16.
-use borsh::BorshSerialize;
 use light_compressed_account::Pubkey;
 use light_compressed_token::extensions::process_extensions_config_with_actions;
 use light_token_interface::{
@@ -194,7 +193,7 @@ fn serialize_actions(actions: &[Action]) -> Vec<u8> {
             extensions: None,
         }),
     };
-    instruction_data.try_to_vec().expect("Failed to serialize")
+    borsh::to_vec(&instruction_data).expect("Failed to serialize")
 }
 
 #[test]

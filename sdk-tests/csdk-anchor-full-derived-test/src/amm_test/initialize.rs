@@ -167,7 +167,7 @@ pub struct InitializePool<'info> {
 /// Initialize instruction handler.
 /// Token vaults (token_0_vault, token_1_vault) are manually created via CreateTokenAccountCpi.
 pub fn process_initialize_pool<'info>(
-    ctx: Context<'_, '_, '_, 'info, InitializePool<'info>>,
+    ctx: Context<'info, InitializePool<'info>>,
     params: InitializeParams,
 ) -> Result<()> {
     // Create token_0_vault using CreateTokenAccountCpi (mark-only field)

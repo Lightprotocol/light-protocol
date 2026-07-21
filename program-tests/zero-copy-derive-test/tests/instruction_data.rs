@@ -1144,7 +1144,7 @@ fn readme() {
         c: 3,
     };
     // Use the struct with zero-copy deserialization
-    let bytes = my_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&my_struct).unwrap();
     // byte_len not available for non-mut derivations
     // assert_eq!(bytes.len(), my_struct.byte_len());
     let (zero_copy, _remaining) = MyStruct::zero_copy_at(&bytes).unwrap();

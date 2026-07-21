@@ -26,10 +26,9 @@ use light_test_utils::{
     system_program::create_invoke_instruction,
 };
 use serial_test::serial;
+use solana_commitment_config::CommitmentConfig;
 use solana_program::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::{
-    commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair, signer::Signer,
-};
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::{
     sync::{mpsc, oneshot},
     time::timeout,
@@ -162,7 +161,7 @@ async fn test_batch_sequence() {
             .rpc
             .create_and_send_transaction(
                 &[
-                    solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+                    solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
                         1_000_000,
                     ),
                     instruction,
@@ -253,7 +252,7 @@ async fn test_batch_sequence() {
             e2e_env.rpc
                 .create_and_send_transaction(
                     &[
-                        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+                        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
                         instruction,
                     ],
                     &test_user.pubkey(),
@@ -297,7 +296,7 @@ async fn test_batch_sequence() {
             .rpc
             .create_and_send_transaction(
                 &[
-                    solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+                    solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
                         1_000_000,
                     ),
                     instruction,

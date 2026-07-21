@@ -19,13 +19,13 @@ use light_token::{
     compat::{AccountState, TokenData},
     instruction::derive_token_ata,
 };
+use solana_compute_budget_interface::ComputeBudgetInstruction;
 use solana_sdk::{
-    compute_budget::ComputeBudgetInstruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
-    system_instruction::create_account,
     transaction::Transaction,
 };
+use solana_system_interface::instruction::create_account;
 
 // Constants
 const LAMPORTS_PER_SOL: u64 = 1_000_000_000;

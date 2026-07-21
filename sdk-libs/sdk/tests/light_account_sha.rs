@@ -390,7 +390,7 @@ fn test_to_account_info_mut() {
         .expect("Should convert to account info");
 
     // Expected serialized data
-    let expected_data = account_data.try_to_vec().expect("Should serialize");
+    let expected_data = borsh::to_vec(&account_data).expect("Should serialize");
 
     // Expected CompressedAccountInfo
     let expected = CompressedAccountInfo {

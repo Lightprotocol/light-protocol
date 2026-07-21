@@ -9,7 +9,7 @@ pub trait LightCpiInstruction: Sized {
     fn with_light_account<A>(
         self,
         account: crate::LightAccount<A>,
-    ) -> Result<Self, pinocchio::program_error::ProgramError>
+    ) -> Result<Self, pinocchio::error::ProgramError>
     where
         A: borsh::BorshSerialize
             + borsh::BorshDeserialize

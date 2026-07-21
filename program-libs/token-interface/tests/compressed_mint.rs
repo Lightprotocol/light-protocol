@@ -96,7 +96,7 @@ pub struct VecTestStruct {
 #[test]
 fn test_compressed_mint_borsh_zerocopy_compatibility() {
     let test = VecTestStruct { opt_vec: None };
-    let test_bytes = test.try_to_vec().unwrap();
+    let test_bytes = borsh::to_vec(&test).unwrap();
     println!("test bytes {:?}", test_bytes);
     let deserialize = VecTestStruct::deserialize(&mut test_bytes.as_slice()).unwrap();
     assert_eq!(test, deserialize);
@@ -105,7 +105,7 @@ fn test_compressed_mint_borsh_zerocopy_compatibility() {
 
     for i in 0..100 {
         let original_mint = generate_random_compressed_mint(&mut rng, false);
-        let borsh_bytes = original_mint.try_to_vec().unwrap();
+        let borsh_bytes = borsh::to_vec(&original_mint).unwrap();
         println!("Iteration {}: Borsh size = {} bytes", i, borsh_bytes.len());
         let borsh_deserialized = Mint::deserialize_reader(&mut borsh_bytes.as_slice())
             .unwrap_or_else(|_| panic!("Failed to deserialize Mint at iteration {}", i));
@@ -264,7 +264,7 @@ fn test_compressed_mint_edge_cases() {
     };
 
     // Borsh roundtrip
-    let bytes = mint_no_auth.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&mint_no_auth).unwrap();
     println!("Borsh serialized size: {} bytes", bytes.len());
     println!("All bytes: {:?}", &bytes);
     let deserialized = Mint::deserialize(&mut bytes.as_slice()).unwrap();
@@ -344,7 +344,7 @@ fn test_compressed_mint_edge_cases() {
         extensions: None,
     };
 
-    let bytes = mint_max.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&mint_max).unwrap();
     let deserialized = Mint::deserialize(&mut bytes.as_slice()).unwrap();
     assert_eq!(mint_max, deserialized);
 }
@@ -374,7 +374,7 @@ fn test_base_mint_in_compressed_mint_spl_format() {
     };
 
     // Serialize the whole Mint
-    let full_bytes = mint.try_to_vec().unwrap();
+    let full_bytes = borsh::to_vec(&mint).unwrap();
 
     // The BaseMint portion should be at the beginning
     // and should be 82 bytes (SPL Mint size)

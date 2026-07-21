@@ -1,10 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{CreateAccountsProof, LightAccount, LightDiscriminator};
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
+    cpi::{Seed, Signer},
+    error::ProgramError,
     sysvars::Sysvar,
+    AccountView as AccountInfo,
 };
 
 use crate::state::OneByteRecord;
@@ -44,14 +44,17 @@ impl<'a> CreateOneByteRecord<'a> {
         let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
         let space = disc_len + OneByteRecord::INIT_SPACE;
         let seeds: &[&[u8]] = &[b"one_byte_record", &params.owner];
-        let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-        if record.key() != &expected_pda {
+        let (expected_pda, bump) =
+            pinocchio::Address::find_program_address(seeds, &pinocchio::Address::from(crate::ID));
+        if record.address() != &expected_pda {
             return Err(ProgramError::InvalidSeeds);
         }
 
         let rent =
             pinocchio::sysvars::rent::Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
-        let lamports = rent.minimum_balance(space);
+        let lamports = rent
+            .try_minimum_balance(space)
+            .map_err(|_| ProgramError::ArithmeticOverflow)?;
 
         let bump_bytes = [bump];
         let seed_array = [
@@ -65,14 +68,14 @@ impl<'a> CreateOneByteRecord<'a> {
             to: record,
             lamports,
             space: space as u64,
-            owner: &crate::ID,
+            owner: &pinocchio::Address::from(crate::ID),
         }
         .invoke_signed(&[signer])?;
 
         // Write discriminator to data[0..disc_len]
         {
             let mut data = record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| ProgramError::AccountBorrowFailed)?;
             data[0..disc_len].copy_from_slice(OneByteRecord::LIGHT_DISCRIMINATOR_SLICE);
         }

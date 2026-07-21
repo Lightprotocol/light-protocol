@@ -1,4 +1,4 @@
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use anchor_lang::AnchorDeserialize;
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::indexer::{
@@ -165,7 +165,7 @@ async fn test_read_only_accounts() {
                 env.protocol.forester.pubkey(),
                 env.v2_address_trees[0],
                 0,
-                instruction_data.try_to_vec().unwrap(),
+                borsh::to_vec(&instruction_data).unwrap(),
             );
             e2e_env
                 .rpc

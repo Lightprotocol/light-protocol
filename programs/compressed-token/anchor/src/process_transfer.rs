@@ -37,7 +37,7 @@ use crate::{
 /// 6.  Invoke light_system_program::execute_compressed_transaction.
 #[inline(always)]
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    ctx: Context<'info, TransferInstruction<'info>>,
     inputs: CompressedTokenInstructionDataTransfer,
 ) -> Result<()> {
     bench_sbf_start!("t_context_and_check_sig");
@@ -429,7 +429,7 @@ pub fn cpi_execute_compressed_transaction_transfer<
             cpi_context_account,
         };
         let mut cpi_ctx = CpiContext::new_with_signer(
-            _system_program_account_info,
+            *_system_program_account_info.key,
             cpi_accounts,
             signer_seeds_ref,
         );
@@ -858,7 +858,7 @@ pub mod transfer_sdk {
             token_pool_pda,
             compress_or_decompress_token_account,
             token_program,
-            system_program: solana_sdk::system_program::ID,
+            system_program: anchor_lang::solana_program::system_program::ID,
         };
 
         Ok(Instruction {

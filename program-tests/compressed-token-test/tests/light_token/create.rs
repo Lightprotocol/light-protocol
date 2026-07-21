@@ -241,11 +241,19 @@ async fn test_create_compressible_token_account_failing() {
     // This will fail during the transfer_lamports_via_cpi call.
     // Error: 1 (InsufficientFunds from system program)
     {
-        // Create a payer with insufficient funds (only enough for tx fees + account creation)
+        // Solana 4 rejects dust transfers to new system accounts, so fund the
+        // poor payer above the zero-data rent floor while keeping it below the
+        // amount required for token-account rent and top-ups.
         let poor_payer = Keypair::new();
+        let poor_payer_lamports = context
+            .rpc
+            .get_minimum_balance_for_rent_exemption(0)
+            .await
+            .unwrap()
+            + 10_000;
         context
             .rpc
-            .airdrop_lamports(&poor_payer.pubkey(), 10000) // Not enough for additional rent
+            .airdrop_lamports(&poor_payer.pubkey(), poor_payer_lamports)
             .await
             .unwrap();
 
@@ -281,8 +289,17 @@ async fn test_create_compressible_token_account_failing() {
             )
             .await;
 
-        // Should fail with InsufficientFunds (1) from system program
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 1).unwrap();
+        // Solana 4 reports this before instruction execution when the payer
+        // would be left below the zero-data rent floor.
+        assert!(
+            matches!(
+                result,
+                Err(RpcError::TransactionError(
+                    solana_sdk::transaction::TransactionError::InsufficientFundsForRent { .. }
+                ))
+            ),
+            "expected insufficient funds for rent, got {result:?}"
+        );
     }
 
     // Note: Test 4 (Non-compressible account already initialized) removed because:

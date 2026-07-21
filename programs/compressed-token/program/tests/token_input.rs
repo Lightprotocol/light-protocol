@@ -1,6 +1,6 @@
 use anchor_compressed_token::TokenData as AnchorTokenData;
 use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_array_map::ArrayMap;
 use light_compressed_account::{
@@ -25,7 +25,7 @@ use light_token_interface::{
     state::CompressedTokenAccountState,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 use rand::Rng;
 
 #[test]
@@ -72,7 +72,7 @@ fn test_rnd_create_input_compressed_account() {
         };
 
         // Serialize and get zero-copy reference
-        let input_data = input_token_data.try_to_vec().unwrap();
+        let input_data = borsh::to_vec(&input_token_data).unwrap();
         let (z_input_data, _) = MultiInputTokenDataWithContext::zero_copy_at(&input_data).unwrap();
 
         // Create mock remaining accounts

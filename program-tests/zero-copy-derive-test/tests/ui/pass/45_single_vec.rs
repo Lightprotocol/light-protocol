@@ -16,7 +16,7 @@ fn main() {
     };
 
     // Test Borsh serialization
-    let bytes = instance.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&instance).unwrap();
     let deserialized = SingleVec::try_from_slice(&bytes).unwrap();
 
     // Test zero_copy_at

@@ -49,7 +49,7 @@ pub async fn assert_transfer2_with_delegate(
                 // Handle delegate amount decrement when delegate is compressing
                 let expected = expected_spl_accounts.get_mut(&pubkey).unwrap();
                 if expected.delegate
-                    == spl_token_2022::solana_program::program_option::COption::Some(
+                    == anchor_lang::solana_program::program_option::COption::Some(
                         compress_input.authority,
                     )
                 {
@@ -59,7 +59,7 @@ pub async fn assert_transfer2_with_delegate(
                         .expect("Delegate compress amount exceeds delegated_amount");
                     if expected.delegated_amount == 0 {
                         expected.delegate =
-                            spl_token_2022::solana_program::program_option::COption::None;
+                            anchor_lang::solana_program::program_option::COption::None;
                     }
                 }
             }
@@ -474,7 +474,7 @@ pub async fn assert_transfer2_with_delegate(
                 };
 
                 // Delegate is preserved from the original account
-                use spl_token_2022::solana_program::program_option::COption;
+                use anchor_lang::solana_program::program_option::COption;
                 let expected_delegate: Option<Pubkey> = match pre_token_account.delegate {
                     COption::Some(d) => Some(d),
                     COption::None => None,
@@ -547,7 +547,7 @@ pub async fn assert_transfer2_with_delegate(
                         "CompressAndClose source account data should be cleared"
                     );
                     assert_eq!(
-                        acc.owner, solana_sdk::system_program::ID,
+                        acc.owner, anchor_lang::solana_program::system_program::ID,
                         "CompressAndClose source account owner should be System Program after closing"
                     );
                 }

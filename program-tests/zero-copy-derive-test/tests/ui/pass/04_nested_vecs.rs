@@ -20,7 +20,7 @@ fn main() {
         nums: vec![10, 20],
         more: vec![100, 200, 300, 400],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (_struct_copy, remaining) = NestedVecs::zero_copy_at(&bytes).unwrap();
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation with Vec<primitive>

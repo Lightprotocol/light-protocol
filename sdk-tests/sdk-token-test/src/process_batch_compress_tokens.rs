@@ -7,7 +7,7 @@ use light_token_types::account_infos::BatchCompressAccountInfos;
 use crate::Generic;
 
 pub fn process_batch_compress_tokens<'info>(
-    ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+    ctx: Context<'info, Generic<'info>>,
     recipients: Vec<Recipient>,
     token_pool_index: u8,
     token_pool_bump: u8,

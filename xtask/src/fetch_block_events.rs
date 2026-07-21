@@ -3,8 +3,8 @@ use clap::Parser;
 use light_compressed_account::Pubkey as LightPubkey;
 use light_event::parse::event_from_light_transaction;
 use solana_client::{rpc_client::RpcClient, rpc_config::RpcBlockConfig};
-use solana_sdk::commitment_config::CommitmentConfig;
-use solana_transaction_status::{
+use solana_commitment_config::CommitmentConfig;
+use solana_transaction_status_client_types::{
     option_serializer::OptionSerializer, EncodedTransactionWithStatusMeta, TransactionDetails,
     UiInstruction, UiTransactionEncoding,
 };

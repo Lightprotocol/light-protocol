@@ -274,7 +274,18 @@ async fn test_revoke_fails() {
             .await
             .unwrap();
 
-        // Get the valid Light Token account data
+        // Revoke only mutates accounts that have an active delegate. Without a
+        // delegate, wrong-owner data can pass because no external data changes.
+        let delegate = Keypair::new();
+        approve_and_assert(
+            &mut context,
+            delegate.pubkey(),
+            100,
+            "approve_before_wrong_owner_revoke",
+        )
+        .await;
+
+        // Get the valid delegated Light Token account data.
         let valid_account = context
             .rpc
             .get_account(context.token_account_keypair.pubkey())

@@ -15,7 +15,7 @@ pub enum ComplexEnum {
 fn main() {
     // Test Borsh compatibility
     let ref_enum = ComplexEnum::U64Field(12345);
-    let bytes = ref_enum.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_enum).unwrap();
 
     let (_enum_copy, remaining) = ComplexEnum::zero_copy_at(&bytes).unwrap();
     assert!(remaining.is_empty());

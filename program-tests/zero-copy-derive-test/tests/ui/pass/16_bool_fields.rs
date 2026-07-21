@@ -21,7 +21,7 @@ fn main() {
         flag3: true,
         flag4: false,
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct_copy, _remaining) = BoolFields::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct_copy, ref_struct);

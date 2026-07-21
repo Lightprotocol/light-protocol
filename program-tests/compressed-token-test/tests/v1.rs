@@ -3859,7 +3859,7 @@ async fn test_failing_decompression() {
                 &get_token_pool_pda(&mint),
                 Some(get_token_pool_pda(&mint)),
                 &mint,
-                ErrorCode::IsTokenPoolPda.into(),
+                anchor_lang::error::ErrorCode::ConstraintDuplicateMutableAccount.into(),
                 is_token_22,
                 None,
             )

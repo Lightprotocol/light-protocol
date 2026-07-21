@@ -17,7 +17,9 @@
 //! 2. Combine (with malicious input in cpi context account)
 
 use borsh::BorshSerialize;
-use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
+use light_account_checks::{
+    account_info::test_account_info::pinocchio::get_account_info, AccountInfoTrait,
+};
 #[cfg(test)]
 use light_compressed_account::instruction_data::traits::InstructionData;
 use light_compressed_account::{
@@ -50,8 +52,9 @@ use light_system_program_pinocchio::{
     ID,
 };
 use light_zero_copy::traits::ZeroCopyAt;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::AccountView as AccountInfo;
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use solana_pubkey::Pubkey;
 use zerocopy::little_endian::{U16, U32, U64};
 
 /// Compares:
@@ -334,8 +337,8 @@ fn clean_input_data(instruction_data: &mut InstructionDataInvokeCpi) {
 
 fn create_test_cpi_context_account(associated_merkle_tree: Option<Pubkey>) -> AccountInfo {
     let associated_merkle_tree =
-        associated_merkle_tree.unwrap_or(solana_pubkey::Pubkey::new_unique().to_bytes());
-    let params = CpiContextAccountInitParams::new(associated_merkle_tree);
+        associated_merkle_tree.unwrap_or_else(solana_pubkey::Pubkey::new_unique);
+    let params = CpiContextAccountInitParams::new(associated_merkle_tree.to_bytes());
     let account_info = get_account_info(
         solana_pubkey::Pubkey::new_unique().to_bytes(),
         crate::ID,
@@ -425,7 +428,7 @@ fn test_set_cpi_context_first_invocation() {
     let cpi_context_account = create_test_cpi_context_account(None);
 
     let instruction_data = create_test_instruction_data(true, true, 1);
-    let input_bytes = instruction_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&instruction_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
     let result = set_cpi_context(
@@ -437,7 +440,7 @@ fn test_set_cpi_context_first_invocation() {
     // assert
     {
         assert!(result.is_ok());
-        let input_bytes = instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&instruction_data).unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
         assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
@@ -470,7 +473,7 @@ fn test_set_cpi_context_new_address_owner() {
         },
     ];
 
-    let input_bytes = instruction_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&instruction_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
     set_cpi_context(
@@ -531,7 +534,7 @@ fn test_set_cpi_context_new_address_owner_subsequent() {
         address_merkle_tree_root_index: 10,
     }];
 
-    let input_bytes = first_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&first_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
     set_cpi_context(
@@ -551,7 +554,7 @@ fn test_set_cpi_context_new_address_owner_subsequent() {
         address_merkle_tree_root_index: 20,
     }];
 
-    let input_bytes = second_data.try_to_vec().unwrap();
+    let input_bytes = borsh::to_vec(&second_data).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
     set_cpi_context(
@@ -594,7 +597,7 @@ fn test_set_cpi_context_subsequent_invocation() {
     let mut first_instruction_data = create_test_instruction_data(true, true, 1);
     // First invocation
     {
-        let input_bytes = first_instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&first_instruction_data).unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
         set_cpi_context(
@@ -619,7 +622,7 @@ fn test_set_cpi_context_subsequent_invocation() {
     // assert
     {
         assert!(result.is_ok());
-        let input_bytes = inputs_subsequent.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&inputs_subsequent).unwrap();
         let (_z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
         assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
@@ -633,7 +636,7 @@ fn test_set_cpi_context_subsequent_invocation() {
             .input_compressed_accounts_with_merkle_context
             .extend(inputs_subsequent.input_compressed_accounts_with_merkle_context);
 
-        let input_bytes = first_instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&first_instruction_data).unwrap();
         let (z_expected_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         // Assert that the CPI context contains the combined instruction data
         assert!(
@@ -651,7 +654,7 @@ fn test_set_cpi_context_fee_payer_mismatch() {
     let first_instruction_data = create_test_instruction_data(true, true, 1);
     // First invocation
     {
-        let input_bytes = first_instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&first_instruction_data).unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
         set_cpi_context(
@@ -791,8 +794,9 @@ fn test_process_cpi_no_inputs() {
     instruction_data.new_address_params = vec![];
 
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(*merkle_tree_account_info.key()));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
@@ -848,8 +852,9 @@ fn test_process_cpi_context_no_set_context() {
     let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(false, false, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(*merkle_tree_account_info.key()));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let remaining_accounts = &[merkle_tree_account_info];
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
@@ -869,12 +874,13 @@ fn test_process_cpi_context_no_set_context() {
 /// Check: process cpi 6
 #[test]
 fn test_process_cpi_context_empty_context_error() {
-    let fee_payer = Pubkey::default();
+    let fee_payer = Pubkey::default().to_bytes();
     let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(false, true, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(*merkle_tree_account_info.key()));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let remaining_accounts = &[merkle_tree_account_info];
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
@@ -901,8 +907,9 @@ fn test_process_cpi_context_fee_payer_mismatch_error() {
     let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(true, true, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(*merkle_tree_account_info.key()));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let remaining_accounts = &[merkle_tree_account_info];
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
@@ -942,8 +949,9 @@ fn test_process_cpi_context_set_context() {
     let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let mut instruction_data = create_test_instruction_data(true, true, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let cpi_context_account =
-        create_test_cpi_context_account(Some(*merkle_tree_account_info.key()));
+    let cpi_context_account = create_test_cpi_context_account(Some(Pubkey::new_from_array(
+        merkle_tree_account_info.key(),
+    )));
     let remaining_accounts = &[merkle_tree_account_info];
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
@@ -964,7 +972,7 @@ fn test_process_cpi_context_set_context() {
 
         // Create expected instruction data.
         clean_input_data(&mut instruction_data);
-        let input_bytes = instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&instruction_data).unwrap();
         let (z_expected_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         // Assert that the CPI context contains the instruction data
         assert!(
@@ -982,19 +990,19 @@ fn test_process_cpi_context_scenario() {
     let mut instruction_data = create_test_instruction_data(true, true, 1);
     let malicious_inputs = create_test_instruction_data(true, true, 100);
     let merkle_tree_account_info = get_merkle_tree_account_info();
-    let merkle_tree_pubkey = *merkle_tree_account_info.key();
+    let merkle_tree_pubkey = Pubkey::new_from_array(merkle_tree_account_info.key());
     let cpi_context_account = create_test_cpi_context_account(Some(merkle_tree_pubkey));
     // Inject malicious data into cpi context account by setting context with malicious inputs.
     {
         // Set the malicious data as if it was the first invocation
-        let input_bytes = malicious_inputs.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&malicious_inputs).unwrap();
         let (z_malicious_inputs, _) =
             ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_malicious_instruction_data = WrappedInstructionData::new(z_malicious_inputs).unwrap();
         // Use set_cpi_context with Pubkey::default() as fee payer to inject the malicious data
         let mut cpi_context =
             deserialize_cpi_context_account_cleared(&cpi_context_account).unwrap();
-        *cpi_context.fee_payer = Pubkey::default().into();
+        *cpi_context.fee_payer = [0u8; 32].into();
         cpi_context
             .store_data(&w_malicious_instruction_data, invoking_program)
             .unwrap();
@@ -1017,12 +1025,12 @@ fn test_process_cpi_context_scenario() {
         let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
         // Create expected instruction data.
         clean_input_data(&mut instruction_data);
-        let input_bytes = instruction_data.try_to_vec().unwrap();
+        let input_bytes = borsh::to_vec(&instruction_data).unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         assert!(instruction_data_eq(&cpi_context, &z_inputs));
         assert_eq!(
             cpi_context.associated_merkle_tree.to_bytes(),
-            merkle_tree_pubkey
+            merkle_tree_pubkey.to_bytes()
         );
         assert!(result.unwrap().is_none());
     }
@@ -1043,7 +1051,7 @@ fn test_process_cpi_context_scenario() {
         // assert
         {
             assert!(result.is_ok());
-            let input_bytes = inputs_subsequent.try_to_vec().unwrap();
+            let input_bytes = borsh::to_vec(&inputs_subsequent).unwrap();
             let (z_inputs_subsequent, _) =
                 ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
             let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
@@ -1059,7 +1067,7 @@ fn test_process_cpi_context_scenario() {
                 .input_compressed_accounts_with_merkle_context
                 .extend(inputs_subsequent.input_compressed_accounts_with_merkle_context);
 
-            let input_bytes = instruction_data.try_to_vec().unwrap();
+            let input_bytes = borsh::to_vec(&instruction_data).unwrap();
             let (z_combined_inputs, _) =
                 ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
             assert!(instruction_data_eq(&cpi_context, &z_combined_inputs));
@@ -1106,7 +1114,10 @@ fn test_process_cpi_context_scenario() {
     assert_eq!(cpi_context_cleared.output_data.len(), 0);
     assert_eq!(cpi_context_cleared.output_data_len(), 0);
     // Fee payer should be reset to default
-    assert_eq!(cpi_context_cleared.fee_payer.to_bytes(), Pubkey::default());
+    assert_eq!(
+        cpi_context_cleared.fee_payer.to_bytes(),
+        Pubkey::default().to_bytes()
+    );
 
     // Assert raw bytes are zeroed (except discriminator, associated_merkle_tree, and vector capacities)
     assert_cpi_context_cleared_bytes(&cpi_context_account, merkle_tree_pubkey);
@@ -1115,9 +1126,12 @@ fn test_process_cpi_context_scenario() {
 
     assert_eq!(
         cpi_context.associated_merkle_tree.to_bytes(),
-        merkle_tree_pubkey
+        merkle_tree_pubkey.to_bytes()
     );
-    assert_eq!(cpi_context.fee_payer.to_bytes(), Pubkey::default());
+    assert_eq!(
+        cpi_context.fee_payer.to_bytes(),
+        Pubkey::default().to_bytes()
+    );
     assert!(cpi_context.is_empty());
 }
 
@@ -1229,7 +1243,7 @@ fn test_cpi_context_zero_copy_randomized() {
     // Create random associated merkle tree
     let mut merkle_tree_bytes = [0u8; 32];
     rng.fill(&mut merkle_tree_bytes);
-    let associated_merkle_tree = Pubkey::from(merkle_tree_bytes);
+    let associated_merkle_tree = Pubkey::new_from_array(merkle_tree_bytes);
 
     // Fixed capacity values for the entire test
     let new_addresses_len = rng.gen_range(5..20);
@@ -1239,8 +1253,8 @@ fn test_cpi_context_zero_copy_randomized() {
     let out_accounts_len = rng.gen_range(10..40);
 
     let params = CpiContextAccountInitParams {
-        associated_merkle_tree,
-        associated_queue: Pubkey::default(),
+        associated_merkle_tree: associated_merkle_tree.to_bytes(),
+        associated_queue: Pubkey::default().to_bytes(),
         new_addresses_len,
         readonly_addresses_len,
         readonly_accounts_len,
@@ -1252,14 +1266,7 @@ fn test_cpi_context_zero_copy_randomized() {
     let owner = ID;
     let mut key_bytes = [0u8; 32];
     rng.fill(&mut key_bytes);
-    let account_info = get_account_info(
-        Pubkey::from(key_bytes),
-        owner,
-        false,
-        true,
-        false,
-        account_data,
-    );
+    let account_info = get_account_info(key_bytes, owner, false, true, false, account_data);
 
     // Initialize the account ONCE
     let _initial_context =

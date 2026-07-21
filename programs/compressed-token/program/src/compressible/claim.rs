@@ -7,8 +7,8 @@ use light_token_interface::{
     state::{Mint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
     TokenError,
 };
-use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
-use spl_pod::solana_msg::msg;
+use pinocchio::{sysvars::Sysvar, AccountView as AccountInfo};
+use solana_msg::msg;
 
 use crate::shared::{convert_program_error, parse_config_account, transfer_lamports};
 
@@ -38,11 +38,13 @@ impl<'a> ClaimAccounts<'a> {
             .validate_not_inactive()
             .map_err(ProgramError::from)?;
 
-        if *config_account.compression_authority.as_array() != *compression_authority.key() {
+        if *config_account.compression_authority.as_array()
+            != *compression_authority.address().as_array()
+        {
             msg!("invalid compression authority");
             return Err(ErrorCode::InvalidCompressAuthority.into());
         }
-        if *config_account.rent_sponsor.as_array() != *rent_sponsor.key() {
+        if *config_account.rent_sponsor.as_array() != *rent_sponsor.address().as_array() {
             msg!("Invalid rent sponsor PDA");
             return Err(ErrorCode::InvalidRentSponsor.into());
         }
@@ -124,8 +126,8 @@ fn validate_and_claim(
     let account_type = determine_account_type(&account_data)?;
 
     let claim_and_update = ClaimAndUpdate {
-        compression_authority: accounts.compression_authority.key(),
-        rent_sponsor: accounts.rent_sponsor.key(),
+        compression_authority: accounts.compression_authority.address().as_array(),
+        rent_sponsor: accounts.rent_sponsor.address().as_array(),
         config_account,
         bytes,
         current_slot,

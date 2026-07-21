@@ -453,11 +453,19 @@ async fn test_create_ata_failing() {
     // Payer doesn't have enough lamports for rent payment.
     // Error: 1 (InsufficientFunds from system program)
     {
-        // Create a payer with insufficient funds (only enough for tx fees)
+        // Solana 4 rejects dust transfers to new system accounts, so fund the
+        // poor payer above the zero-data rent floor while keeping it below the
+        // amount required for ATA rent and top-ups.
         let poor_payer = solana_sdk::signature::Keypair::new();
+        let poor_payer_lamports = context
+            .rpc
+            .get_minimum_balance_for_rent_exemption(0)
+            .await
+            .unwrap()
+            + 10_000;
         context
             .rpc
-            .airdrop_lamports(&poor_payer.pubkey(), 10000) // Not enough for rent
+            .airdrop_lamports(&poor_payer.pubkey(), poor_payer_lamports)
             .await
             .unwrap();
 
@@ -491,8 +499,17 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[create_ata_ix], &poor_payer_pubkey, &[&poor_payer])
             .await;
 
-        // Should fail with InsufficientFunds (1) from system program
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 1).unwrap();
+        // Solana 4 reports this before instruction execution when the payer
+        // would be left below the zero-data rent floor.
+        assert!(
+            matches!(
+                result,
+                Err(RpcError::TransactionError(
+                    solana_sdk::transaction::TransactionError::InsufficientFundsForRent { .. }
+                ))
+            ),
+            "expected insufficient funds for rent, got {result:?}"
+        );
     }
 
     // Test 4: compress_to_account_pubkey provided (forbidden for ATAs)
@@ -634,7 +651,7 @@ async fn test_create_ata_failing() {
         context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         // Use system program pubkey as fake config (wrong owner)
-        let fake_config = solana_sdk::system_program::ID;
+        let fake_config = anchor_lang::solana_program::system_program::ID;
 
         let compressible_params = CompressibleParams {
             compressible_config: fake_config, // Wrong owner!

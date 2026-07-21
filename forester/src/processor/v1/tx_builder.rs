@@ -7,8 +7,8 @@ use light_client::rpc::Rpc;
 use light_registry::account_compression_cpi::sdk::nullify_state_v1_multi_lookup_table_accounts;
 use solana_program::hash::Hash;
 use solana_sdk::{
-    address_lookup_table::AddressLookupTableAccount,
     instruction::Instruction,
+    message::AddressLookupTableAccount,
     signature::{Keypair, Signer},
 };
 use tokio::sync::Mutex;

@@ -1,7 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_owner;
 use light_program_profiler::profile;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use crate::{shared::AccountIterator, LIGHT_CPI_SIGNER};
 

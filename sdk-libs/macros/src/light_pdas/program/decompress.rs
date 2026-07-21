@@ -75,8 +75,8 @@ impl DecompressBuilder {
                     remaining_accounts: &[solana_account_info::AccountInfo<'info>],
                     params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
                 ) -> Result<()> {
-                    use solana_program::{clock::Clock, sysvar::Sysvar};
-                    let current_slot = Clock::get()?.slot;
+                    let current_slot =
+                        <solana_program::clock::Clock as solana_program::sysvar::Sysvar>::get()?.slot;
                     light_account::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
                         remaining_accounts,
                         params,
@@ -94,8 +94,8 @@ impl DecompressBuilder {
                     remaining_accounts: &[solana_account_info::AccountInfo<'info>],
                     params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
                 ) -> Result<()> {
-                    use solana_program::{clock::Clock, sysvar::Sysvar};
-                    let current_slot = Clock::get()?.slot;
+                    let current_slot =
+                        <solana_program::clock::Clock as solana_program::sysvar::Sysvar>::get()?.slot;
                     light_account::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
                         remaining_accounts,
                         params,
@@ -117,7 +117,7 @@ impl DecompressBuilder {
         Ok(syn::parse_quote! {
             #[inline(never)]
             pub fn decompress_accounts_idempotent<'info>(
-                ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
+                ctx: Context<'info, DecompressAccountsIdempotent<'info>>,
                 params: light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
             ) -> Result<()> {
                 __processor_functions::process_decompress_accounts_idempotent(
@@ -144,6 +144,16 @@ impl DecompressBuilder {
     /// Generate manual Anchor trait implementations for the empty accounts struct.
     pub fn generate_accounts_trait_impls(&self) -> Result<TokenStream> {
         Ok(quote! {
+            impl<'info> DecompressAccountsIdempotent<'info> {
+                #[doc(hidden)]
+                pub const __ANCHOR_IX_PARAM_COUNT: usize = 0;
+
+                #[doc(hidden)] #[inline(always)] #[allow(unused)] pub fn __anchor_validate_ix_arg_type_0<__T>(_arg: &__T) {}
+                #[doc(hidden)] #[inline(always)] #[allow(unused)] pub fn __anchor_validate_ix_arg_type_1<__T>(_arg: &__T) {}
+                #[doc(hidden)] #[inline(always)] #[allow(unused)] pub fn __anchor_validate_ix_arg_type_2<__T>(_arg: &__T) {}
+                #[doc(hidden)] #[inline(always)] #[allow(unused)] pub fn __anchor_validate_ix_arg_type_3<__T>(_arg: &__T) {}
+            }
+
             impl<'info> anchor_lang::Accounts<'info, DecompressAccountsIdempotentBumps>
                 for DecompressAccountsIdempotent<'info>
             {
@@ -191,18 +201,15 @@ impl DecompressBuilder {
                 }
             }
 
-            #[cfg(feature = "idl-build")]
             impl<'info> DecompressAccountsIdempotent<'info> {
-                pub fn __anchor_private_gen_idl_accounts(
-                    _accounts: &mut std::collections::BTreeMap<
-                        String,
-                        anchor_lang::idl::types::IdlAccount,
-                    >,
-                    _types: &mut std::collections::BTreeMap<
-                        String,
-                        anchor_lang::idl::types::IdlTypeDef,
-                    >,
-                ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+                pub fn __anchor_private_gen_idl_accounts<
+                    __IdlAccount,
+                    __IdlTypeDef,
+                    __IdlInstructionAccountItem,
+                >(
+                    _accounts: &mut std::collections::BTreeMap<String, __IdlAccount>,
+                    _types: &mut std::collections::BTreeMap<String, __IdlTypeDef>,
+                ) -> Vec<__IdlInstructionAccountItem> {
                     Vec::new()
                 }
             }
@@ -213,10 +220,10 @@ impl DecompressBuilder {
                     std::marker::PhantomData<&'info ()>,
                 );
                 impl<'info> borsh::ser::BorshSerialize for DecompressAccountsIdempotent<'info> {
-                    fn serialize<W: borsh::maybestd::io::Write>(
+                    fn serialize<W: std::io::Write>(
                         &self,
                         _writer: &mut W,
-                    ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+                    ) -> ::core::result::Result<(), std::io::Error> {
                         Ok(())
                     }
                 }
@@ -400,7 +407,7 @@ impl DecompressBuilder {
             Ok(quote! {
                 impl #enum_name {
                     pub fn process_decompress(
-                        accounts: &[pinocchio::account_info::AccountInfo],
+                        accounts: &[pinocchio::AccountView],
                         instruction_data: &[u8],
                     ) -> std::result::Result<(), #program_error> {
                         use borsh::BorshDeserialize;
@@ -612,7 +619,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
 
     let pda_derivation = if is_pinocchio {
         quote! {
-            let (pda, bump) = pinocchio::pubkey::find_program_address(seeds, program_id);
+            let (pda, bump) = pinocchio::Address::find_program_address(seeds, &pinocchio::Address::from(*program_id));
         }
     } else {
         quote! {
@@ -621,11 +628,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
         }
     };
 
-    let pda_to_bytes = if is_pinocchio {
-        quote! { pda }
-    } else {
-        quote! { pda.to_bytes() }
-    };
+    let pda_to_bytes = quote! { pda.to_bytes() };
 
     Ok(quote! {
         #(#bindings)*

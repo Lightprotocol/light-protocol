@@ -7,7 +7,7 @@ use crate::error::AccountError;
 
 /// Lightweight owned account metadata for CPI instruction building.
 ///
-/// Replaces solana_instruction::AccountMeta / pinocchio::instruction::AccountMeta
+/// Replaces solana_instruction::InstructionAccount / pinocchio::instruction::InstructionAccount
 /// as a framework-agnostic type that can be stored in collections without lifetime issues.
 #[derive(Clone, Debug)]
 pub struct CpiMeta {

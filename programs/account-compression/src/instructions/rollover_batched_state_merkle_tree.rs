@@ -53,7 +53,7 @@ impl<'info> GroupAccounts<'info> for RolloverBatchedStateMerkleTree<'info> {
 /// 4. Transfer rent exemption for new accounts
 ///    from old output queue to fee payer.
 pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedStateMerkleTree<'info>>,
+    ctx: Context<'info, RolloverBatchedStateMerkleTree<'info>>,
     additional_bytes: u64,
     network_fee: Option<u64>,
 ) -> Result<()> {

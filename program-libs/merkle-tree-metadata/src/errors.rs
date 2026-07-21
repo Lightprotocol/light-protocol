@@ -44,10 +44,3 @@ impl From<MerkleTreeMetadataError> for solana_program_error::ProgramError {
         solana_program_error::ProgramError::Custom(e.into())
     }
 }
-
-#[cfg(feature = "pinocchio")]
-impl From<MerkleTreeMetadataError> for pinocchio::program_error::ProgramError {
-    fn from(e: MerkleTreeMetadataError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}

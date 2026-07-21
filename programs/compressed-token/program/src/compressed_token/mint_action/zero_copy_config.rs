@@ -6,7 +6,7 @@ use light_token_interface::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     state::{Mint, MintConfig},
 };
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 use tinyvec::ArrayVec;
 
 use crate::{

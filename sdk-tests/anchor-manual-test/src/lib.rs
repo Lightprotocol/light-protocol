@@ -7,6 +7,7 @@
 //! (AccountLoader<T>) for demonstrating different compressible PDA patterns.
 
 #![allow(deprecated)]
+#![allow(clippy::diverging_sub_expression)]
 
 use anchor_lang::prelude::*;
 use light_account::{derive_light_cpi_signer, CpiSigner, LightFinalize, LightPreInit};
@@ -62,7 +63,7 @@ pub mod manual_test {
     /// The account is created by Anchor and made compressible by the
     /// manual LightPreInit/LightFinalize trait implementations.
     pub fn create_pda<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreatePda<'info>>,
+        ctx: Context<'info, CreatePda<'info>>,
         params: CreatePdaParams,
     ) -> Result<()> {
         // 1. Pre-init: creates compressed address via Light System Program CPI
@@ -86,7 +87,7 @@ pub mod manual_test {
     /// Initialize the compression config for this program.
     /// Named to match SDK's InitializeRentFreeConfig discriminator.
     pub fn initialize_compression_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeConfig<'info>>,
+        ctx: Context<'info, InitializeConfig<'info>>,
         params: InitConfigParams,
     ) -> Result<()> {
         derived_light_config::process_initialize_config(ctx, params)
@@ -95,7 +96,7 @@ pub mod manual_test {
     /// Update the compression config for this program.
     /// Named to match SDK's expected discriminator.
     pub fn update_compression_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateConfig<'info>>,
+        ctx: Context<'info, UpdateConfig<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
         derived_light_config::process_update_config(ctx, instruction_data)
@@ -107,7 +108,7 @@ pub mod manual_test {
     /// NOTE: Empty Accounts struct - everything in remaining_accounts.
     /// Anchor deserializes typed params directly.
     pub fn compress_accounts_idempotent<'info>(
-        ctx: Context<'_, '_, '_, 'info, CompressAndClose<'info>>,
+        ctx: Context<'info, CompressAndClose<'info>>,
         params: CompressAndCloseParams,
     ) -> Result<()> {
         derived_compress::process_compress_and_close(ctx.remaining_accounts, &params)
@@ -119,7 +120,7 @@ pub mod manual_test {
     /// NOTE: PhantomData struct - all accounts in remaining_accounts.
     /// Anchor deserializes typed params directly.
     pub fn decompress_accounts_idempotent<'info>(
-        ctx: Context<'_, '_, '_, 'info, DecompressIdempotent<'info>>,
+        ctx: Context<'info, DecompressIdempotent<'info>>,
         params: DecompressIdempotentParams<PackedLightAccountVariant>,
     ) -> Result<()> {
         derived_decompress::process_decompress_idempotent(ctx.remaining_accounts, &params)
@@ -128,7 +129,7 @@ pub mod manual_test {
     /// Create a single zero-copy compressible PDA using AccountLoader.
     /// Demonstrates zero-copy access pattern with `load_init()`.
     pub fn create_zero_copy<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateZeroCopy<'info>>,
+        ctx: Context<'info, CreateZeroCopy<'info>>,
         params: CreateZeroCopyParams,
     ) -> Result<()> {
         // 1. Pre-init: creates compressed address via Light System Program CPI
@@ -156,8 +157,8 @@ pub mod manual_test {
     /// Create two compressed mints using derived PDAs as mint signers.
     /// Manual implementation of what #[light_account(init, mint::...)] generates.
     /// Demonstrates minimal params pattern where program derives everything from accounts.
-    pub fn create_derived_mints<'a, 'info>(
-        ctx: Context<'a, '_, 'info, 'info, CreateDerivedMintsAccounts<'info>>,
+    pub fn create_derived_mints<'info>(
+        ctx: Context<'info, CreateDerivedMintsAccounts<'info>>,
         params: CreateDerivedMintsParams,
     ) -> Result<()> {
         // 1. Pre-init: creates mints via Light Token Program CPI
@@ -179,8 +180,8 @@ pub mod manual_test {
     /// Create a PDA token vault using CreateTokenAccountCpi.
     /// Manual implementation of what #[light_account(init, token::...)] generates.
     /// Demonstrates rent-free token account creation for program-owned vaults.
-    pub fn create_token_vault<'a, 'info>(
-        ctx: Context<'a, '_, 'info, 'info, CreateTokenVaultAccounts<'info>>,
+    pub fn create_token_vault<'info>(
+        ctx: Context<'info, CreateTokenVaultAccounts<'info>>,
         params: CreateTokenVaultParams,
     ) -> Result<()> {
         // 1. Pre-init: creates token vault via Light Token Program CPI
@@ -202,8 +203,8 @@ pub mod manual_test {
     /// Create an Associated Token Account using CreateTokenAtaCpi.
     /// Manual implementation of what #[light_account(init, associated_token::...)] generates.
     /// Demonstrates rent-free ATA creation for user wallets.
-    pub fn create_ata<'a, 'info>(
-        ctx: Context<'a, '_, 'info, 'info, CreateAtaAccounts<'info>>,
+    pub fn create_ata<'info>(
+        ctx: Context<'info, CreateAtaAccounts<'info>>,
         params: CreateAtaParams,
     ) -> Result<()> {
         // 1. Pre-init: creates ATA via Light Token Program CPI
@@ -231,8 +232,8 @@ pub mod manual_test {
     /// - Compressed Mint
     /// - Token Vault
     /// - Associated Token Account (ATA)
-    pub fn create_all<'a, 'info>(
-        ctx: Context<'a, '_, 'info, 'info, CreateAllAccounts<'info>>,
+    pub fn create_all<'info>(
+        ctx: Context<'info, CreateAllAccounts<'info>>,
         params: CreateAllParams,
     ) -> Result<()> {
         // 1. Pre-init: creates all accounts via CPIs

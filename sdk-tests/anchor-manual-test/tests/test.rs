@@ -49,7 +49,7 @@ async fn test_create_compress_decompress() {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
         record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = anchor_manual_test::instruction::CreatePda {

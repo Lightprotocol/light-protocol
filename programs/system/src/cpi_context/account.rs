@@ -4,7 +4,7 @@ use light_compressed_account::{
         traits::{InputAccount, OutputAccount},
         zero_copy::ZPackedMerkleContext,
     },
-    pubkey::Pubkey,
+    pubkey::Pubkey as LightPubkey,
     CompressedAccountError,
 };
 use zerocopy::{
@@ -17,7 +17,7 @@ use zerocopy::{
     Debug, Default, PartialEq, Clone, Copy, FromBytes, IntoBytes, KnownLayout, Immutable, Unaligned,
 )]
 pub struct CpiContextOutAccount {
-    pub owner: Pubkey,
+    pub owner: LightPubkey,
     pub has_data: u8,
     pub discriminator: [u8; 8],
     /// Data hash
@@ -35,7 +35,7 @@ pub struct CpiContextOutAccount {
     Debug, Default, PartialEq, Clone, Copy, FromBytes, IntoBytes, KnownLayout, Immutable, Unaligned,
 )]
 pub struct CpiContextInAccount {
-    pub owner: Pubkey,
+    pub owner: LightPubkey,
     pub has_data: u8,
     pub discriminator: [u8; 8],
     /// Data hash
@@ -52,7 +52,7 @@ pub struct CpiContextInAccount {
 }
 
 impl InputAccount<'_> for CpiContextInAccount {
-    fn owner(&self) -> &Pubkey {
+    fn owner(&self) -> &LightPubkey {
         &self.owner
     }
 
@@ -148,7 +148,7 @@ impl OutputAccount<'_> for CpiContextOutAccount {
         }
     }
 
-    fn owner(&self) -> Pubkey {
+    fn owner(&self) -> LightPubkey {
         self.owner
     }
 

@@ -6,8 +6,8 @@ use light_token_interface::state::{
 };
 use light_token_interface::TokenError;
 use pinocchio::{
-    account_info::AccountInfo,
     sysvars::{clock::Clock, Sysvar},
+    AccountView as AccountInfo,
 };
 
 use super::{

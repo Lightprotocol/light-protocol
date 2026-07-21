@@ -35,7 +35,7 @@ pub fn process_mint_to_compressed_action<'a>(
 ) -> Result<(), ProgramError> {
     check_authority(
         compressed_mint.base.mint_authority,
-        validated_accounts.authority.key(),
+        validated_accounts.authority.address(),
         "mint_to_compressed: mint authority",
     )?;
 

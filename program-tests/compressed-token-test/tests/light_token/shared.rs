@@ -1063,7 +1063,7 @@ pub async fn setup_account_test_with_spl_mint(
         .get_minimum_balance_for_rent_exemption(Mint::LEN)
         .await?;
 
-    let create_mint_account_ix = solana_sdk::system_instruction::create_account(
+    let create_mint_account_ix = solana_system_interface::instruction::create_account(
         &payer.pubkey(),
         &mint_pubkey,
         mint_rent,

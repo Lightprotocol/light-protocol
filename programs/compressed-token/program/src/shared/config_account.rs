@@ -5,8 +5,9 @@ use light_account_checks::{
 };
 use light_compressible::config::CompressibleConfig;
 use light_program_profiler::profile;
-use pinocchio::account_info::AccountInfo;
-use spl_pod::{bytemuck, solana_msg::msg};
+use pinocchio::AccountView as AccountInfo;
+use solana_msg::msg;
+use spl_pod::bytemuck;
 
 #[profile]
 #[inline(always)]
@@ -19,7 +20,7 @@ pub fn parse_config_account(
         config_account,
     )?;
     // Parse config data
-    let data = unsafe { config_account.borrow_data_unchecked() };
+    let data = unsafe { config_account.borrow_unchecked() };
     check_discriminator::<CompressibleConfig>(data)?;
     let config = bytemuck::pod_from_bytes::<CompressibleConfig>(&data[8..]).map_err(|e| {
         msg!("Failed to deserialize CompressibleConfig: {:?}", e);

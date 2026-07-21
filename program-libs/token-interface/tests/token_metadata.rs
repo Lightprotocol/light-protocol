@@ -3,7 +3,6 @@
 // and maintain logical equivalence of metadata fields.
 // Note: Binary compatibility is not tested as the formats differ (Vec<u8> vs String).
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_token_interface::state::extensions::{
     AdditionalMetadata, TokenMetadata as LightTokenMetadata,
@@ -168,7 +167,7 @@ fn compare_metadata(light: &LightTokenMetadata, spl: &SplTokenMetadata, iteratio
     }
 
     // Test Light serialization round-trip
-    let light_bytes = light.try_to_vec().unwrap();
+    let light_bytes = borsh::to_vec(&light).unwrap();
     let light_restored = LightTokenMetadata::try_from_slice(&light_bytes).unwrap();
 
     // Single assertion for complete Light struct

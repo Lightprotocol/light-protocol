@@ -220,7 +220,7 @@ async fn register_forester(
         SolanaRpcPoolBuilder::<LightClient>::new()
             .url("http://localhost:8899".to_string())
             .photon_url(Some("http://127.0.0.1:8784".to_string()))
-            .commitment(solana_sdk::commitment_config::CommitmentConfig::confirmed())
+            .commitment(solana_commitment_config::CommitmentConfig::confirmed())
             .build()
             .await
             .expect("Failed to create RPC pool"),
@@ -341,7 +341,7 @@ async fn test_compressible_pda_bootstrap() {
         compression_config: config_pda,
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D8PdaOnly {
@@ -533,7 +533,7 @@ async fn test_compressible_pda_compression() {
         compression_config: config_pda,
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D8PdaOnly {
@@ -798,7 +798,7 @@ async fn test_compressible_pda_subscription() {
         compression_config: config_pda,
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda_1,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D8PdaOnly {
@@ -861,7 +861,7 @@ async fn test_compressible_pda_subscription() {
         compression_config: config_pda,
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda_2,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data_2 = csdk_anchor_full_derived_test::instruction::D8PdaOnly {

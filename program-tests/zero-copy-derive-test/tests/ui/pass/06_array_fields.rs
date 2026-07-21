@@ -19,7 +19,7 @@ fn main() {
         medium: [10; 16],
         large: [100; 256],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (_struct_copy, remaining) = ArrayFields::zero_copy_at(&bytes).unwrap();
     assert!(remaining.is_empty());

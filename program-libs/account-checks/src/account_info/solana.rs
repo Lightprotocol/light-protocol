@@ -102,9 +102,9 @@ impl AccountInfoTrait for solana_account_info::AccountInfo<'_> {
         Ok(())
     }
 
-    fn realloc(&self, new_len: usize, zero_init: bool) -> Result<(), AccountError> {
+    fn realloc(&self, new_len: usize, _zero_init: bool) -> Result<(), AccountError> {
         #[allow(deprecated)]
-        self.realloc(new_len, zero_init)
+        solana_account_info::AccountInfo::resize(self, new_len)
             .map_err(|_| AccountError::InvalidAccountSize)
     }
 

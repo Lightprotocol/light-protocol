@@ -6,10 +6,10 @@ use light_compressed_account::{
 };
 use light_program_profiler::profile;
 use pinocchio::{
-    account_info::AccountInfo,
-    cpi::slice_invoke_signed,
-    instruction::{AccountMeta, Instruction, Seed, Signer},
-    pubkey::Pubkey,
+    address::Address,
+    cpi::{invoke_signed_with_bounds, Seed, Signer},
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 use crate::{
@@ -17,7 +17,7 @@ use crate::{
     constants::{CPI_AUTHORITY_PDA_BUMP, CPI_AUTHORITY_PDA_SEED},
     context::SystemContext,
     errors::SystemProgramError,
-    Result,
+    Pubkey, Result,
 };
 #[profile]
 #[allow(clippy::too_many_arguments)]
@@ -36,8 +36,8 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
         ctx.get_registered_program_pda()?,
     ];
     let accounts = vec![
-        AccountMeta::new(account_infos[0].key(), false, true),
-        AccountMeta::readonly(account_infos[1].key()),
+        InstructionAccount::readonly_signer(account_infos[0].address()),
+        InstructionAccount::readonly(account_infos[1].address()),
     ];
     let account_indices =
         Vec::<u8>::with_capacity((num_nullifiers + num_leaves + num_new_addresses) as usize);
@@ -89,13 +89,14 @@ pub fn cpi_account_compression_program(
         ..
     } = cpi_context;
     let bump = &[CPI_AUTHORITY_PDA_BUMP];
-    let instruction = Instruction {
-        program_id: &ACCOUNT_COMPRESSION_PROGRAM_ID,
+    let acp_id = Address::from(ACCOUNT_COMPRESSION_PROGRAM_ID);
+    let instruction = InstructionView {
+        program_id: &acp_id,
         accounts: accounts.as_slice(),
         data: bytes.as_slice(),
     };
     let seed_array = [Seed::from(CPI_AUTHORITY_PDA_SEED), Seed::from(bump)];
     let signer = Signer::from(&seed_array);
 
-    slice_invoke_signed(&instruction, account_infos.as_slice(), &[signer])
+    invoke_signed_with_bounds::<64>(&instruction, account_infos.as_slice(), &[signer])
 }

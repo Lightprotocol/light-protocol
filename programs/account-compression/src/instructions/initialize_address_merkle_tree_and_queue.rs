@@ -80,7 +80,7 @@ impl GroupAccess for RegisteredProgram {
 }
 
 pub fn process_initialize_address_merkle_tree_and_queue<'info>(
-    ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
+    ctx: Context<'info, InitializeAddressMerkleTreeAndQueue<'info>>,
     index: u64,
     program_owner: Option<Pubkey>,
     forester: Option<Pubkey>,

@@ -1,6 +1,5 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use borsh::BorshSerialize;
 use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
 use light_compressible::{rent::get_rent_exemption_lamports, DECOMPRESSED_PDA_DISCRIMINATOR};
 use light_hasher::{sha256::Sha256BE, Hasher};
@@ -10,7 +9,7 @@ use light_token_interface::{
     state::Mint,
 };
 use pinocchio::sysvars::{clock::Clock, Sysvar};
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{
     compressed_token::mint_action::{
@@ -100,15 +99,13 @@ fn serialize_compressed_mint<'a>(
         // Store the PDA pubkey in the data field and hash it
         compressed_account_data
             .data
-            .copy_from_slice(cmint_account.key());
+            .copy_from_slice(cmint_account.address().as_array());
         (
             DECOMPRESSED_PDA_DISCRIMINATOR,
             Sha256BE::hash(compressed_account_data.data)?,
         )
     } else {
-        let data = compressed_mint
-            .try_to_vec()
-            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+        let data = borsh::to_vec(&compressed_mint).map_err(|_| ProgramError::BorshIoError)?;
         if data.len() != compressed_account_data.data.len() {
             msg!(
                 "Data allocation for output mint account is wrong: {} (expected) != {}",
@@ -149,8 +146,7 @@ fn serialize_decompressed_mint(
         .ok_or(ErrorCode::CMintNotFound)?;
 
     // STEP 1: Serialize FIRST to know final size
-    let serialized = compressed_mint
-        .try_to_vec()
+    let serialized = borsh::to_vec(&*compressed_mint)
         .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
     let required_size = serialized.len();
 
@@ -202,7 +198,7 @@ fn serialize_decompressed_mint(
 
     // STEP 6: Write serialized data
     let mut cmint_data = cmint_account
-        .try_borrow_mut_data()
+        .try_borrow_mut()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
     cmint_data[..serialized.len()].copy_from_slice(&serialized);
 

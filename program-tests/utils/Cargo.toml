@@ -18,6 +18,8 @@ anchor-spl = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
 num-traits = { workspace = true }
 solana-sdk = { workspace = true }
+solana-commitment-config = { workspace = true }
+solana-program-pack = { version = "3.0" }
 solana-system-interface = { workspace = true }
 thiserror = { workspace = true }
 account-compression = { workspace = true, features = ["cpi"] }

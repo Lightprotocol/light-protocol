@@ -16,7 +16,7 @@ fn main() {
     let original = EnumWithOption::MaybeData(Some(42));
 
     // Test Borsh serialization
-    let serialized = original.try_to_vec().unwrap();
+    let serialized = borsh::to_vec(&original).unwrap();
 
     // Test zero_copy_at (read-only)
     let (_zero_copy_read, _remaining) = EnumWithOption::zero_copy_at(&serialized).unwrap();

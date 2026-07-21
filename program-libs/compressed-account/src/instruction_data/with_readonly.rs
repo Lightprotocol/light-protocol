@@ -688,7 +688,7 @@ mod test {
                 root_index: 8,
             }],
         };
-        let bytes = borsh_struct.try_to_vec().unwrap();
+        let bytes = borsh::to_vec(&borsh_struct).unwrap();
 
         let (zero_copy, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(&bytes).unwrap();
 

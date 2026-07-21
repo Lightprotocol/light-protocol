@@ -11,10 +11,8 @@ use light_compressed_account::{
 };
 use light_program_profiler::profile;
 use light_zero_copy::slice_mut::ZeroCopySliceMut;
-use pinocchio::{
-    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
-    sysvars::clock::Clock,
-};
+use pinocchio::{error::ProgramError, sysvars::clock::Clock, AccountView as AccountInfo};
+use solana_msg::msg;
 
 use crate::{
     accounts::{
@@ -36,7 +34,7 @@ use crate::{
         sum_check::sum_check,
         verify_proof::{read_address_roots, read_input_state_roots, verify_proof},
     },
-    Result,
+    Pubkey, Result,
 };
 
 /// Inputs:

@@ -19,6 +19,28 @@ use crate::{account_loader::ZeroCopyRecord, pda::MinimalRecord};
 /// All accounts are passed via remaining_accounts.
 pub struct CompressAndClose<'info>(PhantomData<&'info ()>);
 
+impl<'info> CompressAndClose<'info> {
+    #[doc(hidden)]
+    pub const __ANCHOR_IX_PARAM_COUNT: usize = 0;
+
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_0<__T>(_arg: &__T) {}
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_1<__T>(_arg: &__T) {}
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_2<__T>(_arg: &__T) {}
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_3<__T>(_arg: &__T) {}
+}
+
 impl<'info> anchor_lang::Accounts<'info, CompressAndCloseBumps> for CompressAndClose<'info> {
     fn try_accounts(
         _program_id: &anchor_lang::solana_program::pubkey::Pubkey,
@@ -64,12 +86,15 @@ impl<'info> anchor_lang::AccountsExit<'info> for CompressAndClose<'info> {
     }
 }
 
-#[cfg(feature = "idl-build")]
 impl<'info> CompressAndClose<'info> {
-    pub fn __anchor_private_gen_idl_accounts(
-        _accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
-        _types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
-    ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+    pub fn __anchor_private_gen_idl_accounts<
+        __IdlAccount,
+        __IdlTypeDef,
+        __IdlInstructionAccountItem,
+    >(
+        _accounts: &mut std::collections::BTreeMap<String, __IdlAccount>,
+        _types: &mut std::collections::BTreeMap<String, __IdlTypeDef>,
+    ) -> Vec<__IdlInstructionAccountItem> {
         Vec::new()
     }
 }
@@ -78,10 +103,10 @@ pub(crate) mod __client_accounts_compress_and_close {
     use super::*;
     pub struct CompressAndClose<'info>(PhantomData<&'info ()>);
     impl<'info> borsh::ser::BorshSerialize for CompressAndClose<'info> {
-        fn serialize<W: borsh::maybestd::io::Write>(
+        fn serialize<W: std::io::Write>(
             &self,
             _writer: &mut W,
-        ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+        ) -> ::core::result::Result<(), std::io::Error> {
             Ok(())
         }
     }

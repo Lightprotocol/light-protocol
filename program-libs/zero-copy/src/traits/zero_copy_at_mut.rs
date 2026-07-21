@@ -343,7 +343,7 @@ pub mod test {
     #[test]
     fn test_struct_1() {
         let ref_struct = Struct1 { a: 1, b: 2 };
-        let mut bytes = ref_struct.try_to_vec().unwrap();
+        let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
         let (mut struct1, remaining) = Struct1::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(struct1.a, 1u8);
@@ -417,7 +417,7 @@ pub mod test {
             b: 2,
             vec: vec![1u8; 32],
         };
-        let mut bytes = ref_struct.try_to_vec().unwrap();
+        let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
         let (struct2, remaining) = Struct2::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(struct2.a, 1u8);
@@ -478,7 +478,7 @@ pub mod test {
             vec: vec![1u8; 32],
             c: 3,
         };
-        let mut bytes = ref_struct.try_to_vec().unwrap();
+        let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
         let (zero_copy, remaining) = Struct3::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(zero_copy.a, 1u8);
@@ -600,7 +600,7 @@ pub mod test {
             c: 3,
             vec_2: vec![Struct4Nested { a: 1, b: 2 }; 32],
         };
-        let mut bytes = ref_struct.try_to_vec().unwrap();
+        let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
         let (zero_copy, remaining) = Struct4::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(zero_copy.a, 1u8);
@@ -644,7 +644,7 @@ pub mod test {
         let ref_struct = Struct5 {
             a: vec![vec![1u8; 32]; 32],
         };
-        let mut bytes = ref_struct.try_to_vec().unwrap();
+        let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
         let (zero_copy, remaining) = Struct5::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(
@@ -690,7 +690,7 @@ pub mod test {
                 32
             ],
         };
-        let mut bytes = ref_struct.try_to_vec().unwrap();
+        let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
         let (zero_copy, remaining) = Struct6::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(
@@ -766,7 +766,7 @@ pub mod test {
             b: 2,
             option: Some(3),
         };
-        let mut bytes = ref_struct.try_to_vec().unwrap();
+        let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
         let (zero_copy, remaining) = Struct7::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(zero_copy.a, 1u8);
@@ -779,7 +779,7 @@ pub mod test {
             b: 2,
             option: None,
         };
-        let mut bytes = ref_struct.try_to_vec().unwrap();
+        let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
         let (zero_copy, remaining) = Struct7::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(zero_copy.a, 1u8);
@@ -859,7 +859,7 @@ pub mod test {
                 32
             ],
         };
-        let mut bytes = ref_struct.try_to_vec().unwrap();
+        let mut bytes = borsh::to_vec(&ref_struct).unwrap();
 
         let (zero_copy, remaining) = Struct8::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(

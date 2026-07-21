@@ -1,11 +1,10 @@
 //! Close CPI for Light Token operations.
 
 use pinocchio::{
-    account_info::AccountInfo,
-    cpi::{slice_invoke, slice_invoke_signed},
-    instruction::{AccountMeta, Instruction, Signer},
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    cpi::{invoke_signed_with_slice, invoke_with_slice, Signer},
+    error::ProgramError,
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 /// Close light-token account via CPI.
@@ -46,16 +45,16 @@ impl<'info> CloseAccountCpi<'info> {
         // Build instruction data: discriminator(1) only
         let data = [9u8]; // Close discriminator
 
-        let program_id = Pubkey::from(*self.token_program.key());
+        let program_id = *self.token_program.address();
 
         let account_metas = [
-            AccountMeta::writable(self.account.key()),
-            AccountMeta::writable(self.destination.key()),
-            AccountMeta::readonly_signer(self.owner.key()),
-            AccountMeta::writable(self.rent_sponsor.key()),
+            InstructionAccount::writable(self.account.address()),
+            InstructionAccount::writable(self.destination.address()),
+            InstructionAccount::readonly_signer(self.owner.address()),
+            InstructionAccount::writable(self.rent_sponsor.address()),
         ];
 
-        let instruction = Instruction {
+        let instruction = InstructionView {
             program_id: &program_id,
             accounts: &account_metas,
             data: &data,
@@ -69,9 +68,9 @@ impl<'info> CloseAccountCpi<'info> {
         ];
 
         if signers.is_empty() {
-            slice_invoke(&instruction, &account_infos)
+            invoke_with_slice(&instruction, &account_infos)
         } else {
-            slice_invoke_signed(&instruction, &account_infos, signers)
+            invoke_signed_with_slice(&instruction, &account_infos, signers)
         }
     }
 }

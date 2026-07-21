@@ -1640,7 +1640,7 @@ async fn test_compress_and_close_mint_idempotent() {
     // Use a very low compute budget (10k) to verify the CPI is being skipped.
     // If CPI was executed, this would fail due to insufficient compute units.
     use light_client::rpc::Rpc;
-    use solana_sdk::compute_budget::ComputeBudgetInstruction;
+    use solana_compute_budget_interface::ComputeBudgetInstruction;
 
     let mint_action_ix =
         light_test_utils::actions::legacy::instructions::mint_action::create_mint_action_instruction(

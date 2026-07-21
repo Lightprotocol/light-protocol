@@ -232,7 +232,7 @@ impl CompressBuilder {
         Ok(syn::parse_quote! {
             #[inline(never)]
             pub fn compress_accounts_idempotent<'info>(
-                ctx: Context<'_, '_, '_, 'info, CompressAccountsIdempotent<'info>>,
+                ctx: Context<'info, CompressAccountsIdempotent<'info>>,
                 params: light_account::CompressAndCloseParams,
             ) -> Result<()> {
                 __processor_functions::process_compress_accounts_idempotent(
@@ -259,6 +259,17 @@ impl CompressBuilder {
     /// Generate manual Anchor trait implementations for the empty accounts struct.
     pub fn generate_accounts_trait_impls(&self) -> Result<TokenStream> {
         Ok(quote! {
+            impl<'info> CompressAccountsIdempotent<'info> {
+                #[doc(hidden)]
+                pub const __ANCHOR_IX_PARAM_COUNT: usize = 0;
+
+                // Stub validation methods for anchor 1.0 compatibility
+                #[doc(hidden)] #[inline(always)] #[allow(unused)] pub fn __anchor_validate_ix_arg_type_0<__T>(_arg: &__T) {}
+                #[doc(hidden)] #[inline(always)] #[allow(unused)] pub fn __anchor_validate_ix_arg_type_1<__T>(_arg: &__T) {}
+                #[doc(hidden)] #[inline(always)] #[allow(unused)] pub fn __anchor_validate_ix_arg_type_2<__T>(_arg: &__T) {}
+                #[doc(hidden)] #[inline(always)] #[allow(unused)] pub fn __anchor_validate_ix_arg_type_3<__T>(_arg: &__T) {}
+            }
+
             impl<'info> anchor_lang::Accounts<'info, CompressAccountsIdempotentBumps>
                 for CompressAccountsIdempotent<'info>
             {
@@ -306,18 +317,15 @@ impl CompressBuilder {
                 }
             }
 
-            #[cfg(feature = "idl-build")]
             impl<'info> CompressAccountsIdempotent<'info> {
-                pub fn __anchor_private_gen_idl_accounts(
-                    _accounts: &mut std::collections::BTreeMap<
-                        String,
-                        anchor_lang::idl::types::IdlAccount,
-                    >,
-                    _types: &mut std::collections::BTreeMap<
-                        String,
-                        anchor_lang::idl::types::IdlTypeDef,
-                    >,
-                ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+                pub fn __anchor_private_gen_idl_accounts<
+                    __IdlAccount,
+                    __IdlTypeDef,
+                    __IdlInstructionAccountItem,
+                >(
+                    _accounts: &mut std::collections::BTreeMap<String, __IdlAccount>,
+                    _types: &mut std::collections::BTreeMap<String, __IdlTypeDef>,
+                ) -> Vec<__IdlInstructionAccountItem> {
                     Vec::new()
                 }
             }
@@ -328,10 +336,10 @@ impl CompressBuilder {
                     std::marker::PhantomData<&'info ()>,
                 );
                 impl<'info> borsh::ser::BorshSerialize for CompressAccountsIdempotent<'info> {
-                    fn serialize<W: borsh::maybestd::io::Write>(
+                    fn serialize<W: std::io::Write>(
                         &self,
                         _writer: &mut W,
-                    ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+                    ) -> ::core::result::Result<(), std::io::Error> {
                         Ok(())
                     }
                 }
@@ -397,6 +405,7 @@ impl CompressBuilder {
                         ctx: &mut #account_crate::CompressCtx<'_>,
                     ) -> std::result::Result<(), #sdk_error> {
                         use borsh::BorshDeserialize;
+                        use #account_crate::AccountInfoTrait;
                         let data = account_info.try_borrow_data()#borrow_error;
                         #(#compress_arms)*
                         Ok(())
@@ -443,7 +452,7 @@ impl CompressBuilder {
             Ok(quote! {
                 impl #enum_name {
                     pub fn process_compress(
-                        accounts: &[pinocchio::account_info::AccountInfo],
+                        accounts: &[pinocchio::AccountView],
                         instruction_data: &[u8],
                     ) -> std::result::Result<(), #program_error> {
                         use borsh::BorshDeserialize;

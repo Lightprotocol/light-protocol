@@ -2,7 +2,8 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
 use light_token_interface::{is_restricted_extension, MintExtensionFlags, ALLOWED_EXTENSION_TYPES};
-use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
+use pinocchio::{address::Address, AccountView as AccountInfo};
+use solana_msg::msg;
 use spl_token_2022::{
     extension::{
         default_account_state::DefaultAccountState, pausable::PausableConfig,
@@ -14,7 +15,9 @@ use spl_token_2022::{
     state::AccountState,
 };
 
-const SPL_TOKEN_2022_ID: [u8; 32] = spl_token_2022::ID.to_bytes();
+use crate::Pubkey;
+
+const SPL_TOKEN_2022_ID: Address = Address::new_from_array(spl_token_2022::ID.to_bytes());
 
 /// Result of checking mint extensions (runtime validation)
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -69,7 +72,7 @@ pub fn parse_mint_extensions(
     mint_account: &AccountInfo,
 ) -> Result<MintExtensionChecks, ProgramError> {
     // Only Token-2022 mints can have extensions
-    if !mint_account.is_owned_by(&SPL_TOKEN_2022_ID) {
+    if !mint_account.owned_by(&SPL_TOKEN_2022_ID) {
         return Ok(MintExtensionChecks::default());
     }
 
@@ -181,7 +184,7 @@ pub fn check_mint_extensions(
 #[inline(always)]
 pub fn has_mint_extensions(mint_account: &AccountInfo) -> Result<MintExtensionFlags, ProgramError> {
     // Only Token-2022 mints can have extensions
-    if !mint_account.is_owned_by(&SPL_TOKEN_2022_ID) {
+    if !mint_account.owned_by(&SPL_TOKEN_2022_ID) {
         return Ok(MintExtensionFlags::default());
     }
 

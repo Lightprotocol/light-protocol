@@ -1,5 +1,5 @@
 use light_zero_copy::ZeroCopy;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 use crate::{
     state::extensions::{

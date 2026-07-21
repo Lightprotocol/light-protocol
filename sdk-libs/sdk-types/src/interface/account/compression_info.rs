@@ -159,9 +159,9 @@ pub struct CompressionInfo {
 #[repr(u8)]
 pub enum CompressionState {
     #[default]
-    Uninitialized = 0,
-    Decompressed = 1,
-    Compressed = 2,
+    Uninitialized,
+    Decompressed,
+    Compressed,
 }
 
 // Safety: CompressionState is #[repr(u8)] with explicit discriminants

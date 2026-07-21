@@ -10,9 +10,8 @@ use light_hasher::Poseidon;
 use light_merkle_tree_metadata::{
     access::AccessMetadata, merkle_tree::MerkleTreeMetadata, rollover::RolloverMetadata,
 };
-use pinocchio::pubkey::Pubkey;
 
-use crate::Result;
+use crate::{Pubkey, Result};
 
 /// Concurrent state Merkle tree used for public compressed transactions.
 #[repr(C)]

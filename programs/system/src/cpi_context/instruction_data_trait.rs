@@ -5,7 +5,7 @@ use light_compressed_account::{
         traits::{AccountOptions, InputAccount, InstructionData, NewAddress, OutputAccount},
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
-    pubkey::Pubkey,
+    pubkey::Pubkey as LightPubkey,
     CompressedAccountError,
 };
 use zerocopy::Ref;
@@ -13,7 +13,7 @@ use zerocopy::Ref;
 use super::state::ZCpiContextAccount2;
 
 impl<'a> InstructionData<'a> for ZCpiContextAccount2<'a> {
-    fn owner(&self) -> Pubkey {
+    fn owner(&self) -> LightPubkey {
         // CPI context accounts don't have a single owner, they aggregate multiple programs
         // Return the fee payer as the primary owner
         *self.fee_payer

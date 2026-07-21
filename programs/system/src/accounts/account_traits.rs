@@ -1,4 +1,4 @@
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use crate::Result;
 

@@ -1,75 +1,66 @@
 use light_sdk_types::cpi_accounts::v2::{
     CompressionCpiAccountIndex, CpiAccounts as GenericCpiAccounts, PROGRAM_ACCOUNTS_LEN,
 };
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
+use pinocchio::{instruction::InstructionAccount, AccountView as AccountInfo};
 
 use crate::error::{LightSdkError, Result};
 
 pub type CpiAccounts<'c> = GenericCpiAccounts<'c, AccountInfo>;
 
-pub fn to_account_metas<'a>(cpi_accounts: &CpiAccounts<'a>) -> Result<Vec<AccountMeta<'a>>> {
+pub fn to_account_metas<'a>(cpi_accounts: &CpiAccounts<'a>) -> Result<Vec<InstructionAccount<'a>>> {
     let mut account_metas =
         Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
 
-    // 1. Fee payer (signer, writable)
-    account_metas.push(AccountMeta::writable_signer(cpi_accounts.fee_payer().key()));
-
-    // 2. Authority/CPI Signer (signer, readonly)
-    account_metas.push(AccountMeta::readonly_signer(
-        cpi_accounts.authority()?.key(),
+    account_metas.push(InstructionAccount::writable_signer(
+        cpi_accounts.fee_payer().address(),
     ));
-
-    // 3. Registered Program PDA (readonly)
-    account_metas.push(AccountMeta::readonly(
-        cpi_accounts.registered_program_pda()?.key(),
+    account_metas.push(InstructionAccount::readonly_signer(
+        cpi_accounts.authority()?.address(),
     ));
-
-    // 4. Account Compression Authority (readonly)
-    account_metas.push(AccountMeta::readonly(
-        cpi_accounts.account_compression_authority()?.key(),
+    account_metas.push(InstructionAccount::readonly(
+        cpi_accounts.registered_program_pda()?.address(),
     ));
-
-    // 5. Account Compression Program (readonly)
-    account_metas.push(AccountMeta::readonly(
-        cpi_accounts.account_compression_program()?.key(),
+    account_metas.push(InstructionAccount::readonly(
+        cpi_accounts.account_compression_authority()?.address(),
     ));
-
-    // 6. System Program (readonly)
-    account_metas.push(AccountMeta::readonly(cpi_accounts.system_program()?.key()));
+    account_metas.push(InstructionAccount::readonly(
+        cpi_accounts.account_compression_program()?.address(),
+    ));
+    account_metas.push(InstructionAccount::readonly(
+        cpi_accounts.system_program()?.address(),
+    ));
 
     let accounts = cpi_accounts.account_infos();
     let mut index = CompressionCpiAccountIndex::SolPoolPda as usize;
 
-    // Optional accounts based on config
     if cpi_accounts.config().sol_pool_pda {
         let account = cpi_accounts.get_account_info(index)?;
-        account_metas.push(AccountMeta::writable(account.key()));
+        account_metas.push(InstructionAccount::writable(account.address()));
         index += 1;
     }
 
     if cpi_accounts.config().sol_compression_recipient {
         let account = cpi_accounts.get_account_info(index)?;
-        account_metas.push(AccountMeta::writable(account.key()));
+        account_metas.push(InstructionAccount::writable(account.address()));
         index += 1;
     }
 
     if cpi_accounts.config().cpi_context {
         let account = cpi_accounts.get_account_info(index)?;
-        account_metas.push(AccountMeta::writable(account.key()));
+        account_metas.push(InstructionAccount::writable(account.address()));
         index += 1;
     }
 
     assert_eq!(cpi_accounts.system_accounts_end_offset(), index);
 
-    // Add tree accounts
     let tree_accounts = accounts
         .get(index..)
         .ok_or(LightSdkError::CpiAccountsIndexOutOfBounds(index))?;
     tree_accounts.iter().for_each(|acc| {
         let account_meta = if acc.is_writable() {
-            AccountMeta::writable(acc.key())
+            InstructionAccount::writable(acc.address())
         } else {
-            AccountMeta::readonly(acc.key())
+            InstructionAccount::readonly(acc.address())
         };
         account_metas.push(account_meta);
     });
@@ -82,7 +73,6 @@ pub fn to_account_infos_for_invoke<'a>(
 ) -> Result<Vec<&'a AccountInfo>> {
     let mut account_infos = Vec::with_capacity(1 + cpi_accounts.account_infos().len());
     account_infos.push(cpi_accounts.fee_payer());
-    // Skip the first account (light_system_program) and add the rest
     cpi_accounts.account_infos()[1..]
         .iter()
         .for_each(|acc| account_infos.push(acc));
@@ -90,7 +80,7 @@ pub fn to_account_infos_for_invoke<'a>(
 }
 
 impl<'a> crate::cpi::CpiAccountsTrait for CpiAccounts<'a> {
-    fn to_account_metas(&self) -> Result<Vec<AccountMeta<'_>>> {
+    fn to_account_metas(&self) -> Result<Vec<InstructionAccount<'_>>> {
         to_account_metas(self)
     }
 
@@ -103,6 +93,6 @@ impl<'a> crate::cpi::CpiAccountsTrait for CpiAccounts<'a> {
     }
 
     fn get_mode(&self) -> u8 {
-        1 // v2 mode
+        1
     }
 }

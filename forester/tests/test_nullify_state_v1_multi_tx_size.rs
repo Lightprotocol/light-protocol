@@ -2,8 +2,8 @@ use light_registry::account_compression_cpi::sdk::{
     create_nullify_state_v1_multi_instruction, nullify_state_v1_multi_lookup_table_accounts,
     CreateNullifyStateV1MultiInstructionInputs, NULLIFY_STATE_V1_MULTI_MAX_NODES,
 };
+use solana_compute_budget_interface::ComputeBudgetInstruction;
 use solana_sdk::{
-    compute_budget::ComputeBudgetInstruction,
     hash::Hash,
     message::{v0, AddressLookupTableAccount, VersionedMessage},
     pubkey::Pubkey,
@@ -97,7 +97,7 @@ fn test_nullify_state_v1_multi_v0_transaction_size() {
             "authority (signer)"
         } else if *key == light_registry::ID {
             "registry program"
-        } else if *key == solana_sdk::compute_budget::ID {
+        } else if *key == solana_compute_budget_interface::ID {
             "compute budget program"
         } else {
             "unknown"

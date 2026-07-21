@@ -9,7 +9,9 @@ use clap::Parser;
 use serde_json::{json, Value};
 use solana_client::{rpc_client::RpcClient, rpc_request::RpcRequest};
 use solana_sdk::signature::Signature;
-use solana_transaction_status::{EncodedConfirmedTransactionWithStatusMeta, UiTransactionEncoding};
+use solana_transaction_status_client_types::{
+    EncodedConfirmedTransactionWithStatusMeta, UiTransactionEncoding,
+};
 
 #[derive(Debug, Parser)]
 pub struct Options {

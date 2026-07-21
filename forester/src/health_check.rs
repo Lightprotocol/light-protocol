@@ -43,7 +43,7 @@ pub async fn run_health_check(args: &HealthArgs) -> Result<bool, ForesterError> 
             Some(
                 SolanaRpcPoolBuilder::<LightClient>::default()
                     .url(rpc_url.clone())
-                    .commitment(solana_sdk::commitment_config::CommitmentConfig::confirmed())
+                    .commitment(solana_commitment_config::CommitmentConfig::confirmed())
                     .max_size(1)
                     .connection_timeout_secs(10)
                     .idle_timeout_secs(60)

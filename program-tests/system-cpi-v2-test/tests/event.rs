@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use anchor_lang::{prelude::borsh::BorshSerialize, Discriminator};
+use anchor_lang::{prelude::borsh, Discriminator};
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_client::{
     indexer::{AddressWithTree, Indexer},
@@ -732,7 +732,7 @@ pub async fn perform_test_transaction<R: Rpc>(
         payer.pubkey(),
         [
             light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-            ix_data.try_to_vec().unwrap(),
+            borsh::to_vec(&ix_data).unwrap(),
         ]
         .concat(),
         remaining_accounts,

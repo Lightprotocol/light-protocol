@@ -55,7 +55,7 @@ impl<'info> GroupAccounts<'info> for RolloverStateMerkleTreeAndNullifierQueue<'i
 /// 1. mark Merkle tree as rolled over in this slot
 /// 2. initialize new Merkle tree and nullifier queue with the same parameters
 pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
+    ctx: Context<'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
 ) -> Result<()> {
     // TODO: rollover additional rent as well. (need to add a field to the metadata for this)
     let new_merkle_tree_account_info = ctx.accounts.new_state_merkle_tree.to_account_info();

@@ -20,16 +20,18 @@ default:
     @just --list
 
 # === Setup ===
-install:
-    pnpm install --frozen-lockfile
+setup-spl-noop:
     mkdir -p target/deploy
     [ -f target/deploy/spl_noop.so ] || cp third-party/solana-program-library/spl_noop.so target/deploy/
+
+install: setup-spl-noop
+    pnpm install --frozen-lockfile
 
 # === Build ===
 build: programs::build js::build cli::build
 
 # === Test ===
-test: program-tests::test sdk-tests::test js::test
+test: setup-spl-noop program-tests::test sdk-tests::test js::test
 
 # === Lint & Format ===
 lint: lint-rust lint-readmes js::lint
@@ -44,7 +46,7 @@ lint-readmes:
     set -e
     echo "Checking READMEs are up-to-date..."
     if ! command -v cargo-rdme &> /dev/null; then
-        cargo install cargo-rdme
+        cargo install cargo-rdme --locked
     fi
     for toml in $(find program-libs sdk-libs -name '.cargo-rdme.toml' -type f); do
         crate_dir=$(dirname "$toml")

@@ -9,20 +9,17 @@ use light_compressed_account::{
     },
 };
 use light_program_profiler::profile;
-use pinocchio::{
-    account_info::AccountInfo, instruction::AccountMeta, program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use pinocchio::{error::ProgramError, instruction::InstructionAccount, AccountView as AccountInfo};
 use solana_msg::msg;
 
 use crate::{
     cpi_context::state::ZCpiContextAccount2, errors::SystemProgramError,
-    utils::transfer_lamports_invoke, Result, MAX_OUTPUT_ACCOUNTS,
+    utils::transfer_lamports_invoke, Pubkey, Result, MAX_OUTPUT_ACCOUNTS,
 };
 
 pub struct SystemContext<'info> {
     pub account_indices: Vec<u8>,
-    pub accounts: Vec<AccountMeta<'info>>,
+    pub accounts: Vec<InstructionAccount<'info>>,
     // Would be better to store references.
     pub account_infos: Vec<&'info AccountInfo>,
     pub hashed_pubkeys: Vec<(Pubkey, [u8; 32])>,
@@ -112,6 +109,7 @@ impl<'info> SystemContext<'info> {
         ix_data_index: u8,
         remaining_accounts: &'info [AccountInfo],
         name: &str,
+        is_writable: bool,
     ) -> std::result::Result<u8, SystemProgramError> {
         let queue_index = self
             .account_indices
@@ -136,11 +134,11 @@ impl<'info> SystemContext<'info> {
                             );
                             SystemProgramError::PackedAccountIndexOutOfBounds
                         })?;
-                self.accounts.push(AccountMeta {
-                    pubkey: account_info.key(),
-                    is_signer: false,
-                    is_writable: true,
-                });
+                self.accounts.push(InstructionAccount::new(
+                    account_info.address(),
+                    is_writable,
+                    false, // is_signer
+                ));
                 self.account_infos.push(account_info);
                 Ok(self.account_indices.len() as u8 - 1)
             }

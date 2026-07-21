@@ -1,5 +1,5 @@
 use anchor_compressed_token::ErrorCode;
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 
 fn main() {
     // All ProgramError variants - these use a special encoding where the value is shifted left 32 bits

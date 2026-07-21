@@ -579,7 +579,7 @@ mod tests {
             address: Some(address),
             data: Some(data.clone()),
         };
-        let bytes: Vec<u8> = compressed_account.try_to_vec().unwrap();
+        let bytes: Vec<u8> = borsh::to_vec(&compressed_account).unwrap();
         let merkle_tree_pubkey = Pubkey::new_from_array([
             0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0,
@@ -773,7 +773,7 @@ mod tests {
             let hash = account
                 .hash(&merkle_tree_pubkey, &leaf_index, false)
                 .unwrap();
-            let bytes: Vec<u8> = account.try_to_vec().unwrap();
+            let bytes: Vec<u8> = borsh::to_vec(&account).unwrap();
             let (z_account, _) = ZCompressedAccount::zero_copy_at(bytes.as_slice()).unwrap();
             let z_hash = z_account
                 .hash(&merkle_tree_pubkey.to_bytes(), &leaf_index, false)
