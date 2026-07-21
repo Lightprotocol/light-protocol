@@ -19,8 +19,10 @@ cargo clippy --workspace --all-features --all-targets -- -D warnings
 
 # Check that READMEs are up-to-date with cargo-rdme
 echo "Checking READMEs are up-to-date..."
-if ! command -v cargo-rdme &> /dev/null; then
-    cargo install --locked cargo-rdme
+CARGO_RDME_VERSION="1.5.0"
+if ! command -v cargo-rdme &> /dev/null ||
+    [[ "$(cargo rdme --version)" != "cargo-rdme ${CARGO_RDME_VERSION}" ]]; then
+    cargo install --locked --version "$CARGO_RDME_VERSION" cargo-rdme
 fi
 for toml in $(find program-libs sdk-libs -name '.cargo-rdme.toml' -type f); do
     crate_dir=$(dirname "$toml")

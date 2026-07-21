@@ -5,14 +5,70 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover/common"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
+
+var ErrQueueFull = errors.New("network proof queue is full")
+
+var enqueueWithLimitScript = redis.NewScript(`
+local total = redis.call("LLEN", KEYS[1])
+local trees = redis.call("SMEMBERS", KEYS[3])
+for _, tree in ipairs(trees) do
+    total = total + redis.call("LLEN", KEYS[1] .. ":" .. tree)
+end
+if total >= tonumber(ARGV[3]) then
+    return 0
+end
+if ARGV[1] ~= "" then
+    redis.call("SADD", KEYS[3], ARGV[1])
+end
+redis.call("RPUSH", KEYS[2], ARGV[2])
+return 1
+`)
+
+const (
+	MainnetNetwork = "mainnet"
+	DevnetNetwork  = "devnet"
+)
+
+func NetworkQueueName(baseQueue, network string) string {
+	return strings.TrimSuffix(baseQueue, "_queue") + "_" + network + "_queue"
+}
+
+func ProcessingQueueName(queueName string) string {
+	return strings.TrimSuffix(queueName, "_queue") + "_processing_queue"
+}
+
+func normalizeNetwork(network string) (string, error) {
+	network = strings.ToLower(strings.TrimSpace(network))
+	if network != MainnetNetwork && network != DevnetNetwork {
+		return "", fmt.Errorf("unsupported prover network %q", network)
+	}
+	return network, nil
+}
+
+func queueLimit(queueName string) int64 {
+	envName, fallback := "PROVER_MAX_PENDING_DEFAULT", int64(16)
+	if strings.Contains(queueName, "_mainnet_queue") {
+		envName, fallback = "PROVER_MAX_PENDING_MAINNET", 64
+	} else if strings.Contains(queueName, "_devnet_queue") {
+		envName, fallback = "PROVER_MAX_PENDING_DEVNET", 8
+	}
+	if value, err := strconv.ParseInt(os.Getenv(envName), 10, 64); err == nil && value > 0 {
+		return value
+	}
+	return fallback
+}
 
 const (
 	// ResultsIndexKey is the Redis hash that maps inputHash → jobID
@@ -70,13 +126,35 @@ func (rq *RedisQueue) EnqueueProof(queueName string, job *ProofJob) error {
 		return fmt.Errorf("failed to marshal job: %w", err)
 	}
 
-	// Use tree-specific sub-queue for fair queuing if TreeID is set
+	// Use tree-specific sub-queue for fair queuing if TreeID is set.
 	actualQueueName := queueName
 	if job.TreeID != "" && isFairQueueEnabled(queueName) {
 		actualQueueName = fmt.Sprintf("%s:%s", queueName, job.TreeID)
-		// Track this tree in the trees set for round-robin
-		treesSetKey := fmt.Sprintf("%s:trees", queueName)
-		rq.Client.SAdd(rq.Ctx, treesSetKey, job.TreeID)
+	}
+
+	if isFairQueueEnabled(queueName) &&
+		(strings.Contains(queueName, "_mainnet_queue") || strings.Contains(queueName, "_devnet_queue")) {
+		limit := queueLimit(queueName)
+		accepted, err := enqueueWithLimitScript.Run(
+			rq.Ctx,
+			rq.Client,
+			[]string{queueName, actualQueueName, queueName + ":trees"},
+			job.TreeID,
+			data,
+			limit,
+		).Int()
+		if err != nil {
+			return fmt.Errorf("failed to atomically enqueue job: %w", err)
+		}
+		if accepted == 0 {
+			pending, _ := rq.pendingQueueLen(queueName)
+			return fmt.Errorf("%w: queue=%s pending=%d limit=%d", ErrQueueFull, queueName, pending, limit)
+		}
+		return nil
+	}
+
+	if job.TreeID != "" && isFairQueueEnabled(queueName) {
+		rq.Client.SAdd(rq.Ctx, queueName+":trees", job.TreeID)
 	}
 
 	err = rq.Client.RPush(rq.Ctx, actualQueueName, data).Err()
@@ -95,9 +173,85 @@ func (rq *RedisQueue) EnqueueProof(queueName string, job *ProofJob) error {
 
 // isFairQueueEnabled returns true for queues that support fair queuing per tree
 func isFairQueueEnabled(queueName string) bool {
-	return queueName == "zk_update_queue" ||
-		queueName == "zk_append_queue" ||
-		queueName == "zk_address_append_queue"
+	return !strings.Contains(queueName, "_processing_") &&
+		strings.HasSuffix(queueName, "_queue") &&
+		(strings.HasPrefix(queueName, "zk_update") ||
+			strings.HasPrefix(queueName, "zk_append") ||
+			strings.HasPrefix(queueName, "zk_address_append"))
+}
+
+func (rq *RedisQueue) pendingQueueLen(queueName string) (int64, error) {
+	total, err := rq.Client.LLen(rq.Ctx, queueName).Result()
+	if err != nil {
+		return 0, err
+	}
+	trees, err := rq.Client.SMembers(rq.Ctx, queueName+":trees").Result()
+	if err != nil {
+		return 0, err
+	}
+	for _, tree := range trees {
+		length, err := rq.Client.LLen(rq.Ctx, queueName+":"+tree).Result()
+		if err != nil {
+			return 0, err
+		}
+		total += length
+	}
+	return total, nil
+}
+
+func (rq *RedisQueue) DequeuePrioritizedProof(baseQueue string) (*ProofJob, error) {
+	cycle, err := rq.Client.Incr(rq.Ctx, baseQueue+":network_cycle").Result()
+	if err != nil {
+		return nil, err
+	}
+	networks := []string{MainnetNetwork, DevnetNetwork}
+	if cycle%5 == 0 {
+		networks = []string{DevnetNetwork, MainnetNetwork}
+	}
+	for _, network := range networks {
+		queueName := NetworkQueueName(baseQueue, network)
+		pending, err := rq.pendingQueueLen(queueName)
+		if err != nil {
+			return nil, err
+		}
+		if pending == 0 {
+			continue
+		}
+		job, err := rq.DequeueProof(queueName, time.Second)
+		if err != nil {
+			return nil, err
+		}
+		if job != nil {
+			return job, nil
+		}
+	}
+	// Drain pre-upgrade jobs after checking both network queues so a rolling
+	// deployment does not strand work in the legacy queue.
+	pending, err := rq.pendingQueueLen(baseQueue)
+	if err != nil {
+		return nil, err
+	}
+	if pending > 0 {
+		return rq.DequeueProof(baseQueue, time.Second)
+	}
+	return nil, nil
+}
+
+func requestQueueNames() []string {
+	bases := []string{"zk_update_queue", "zk_append_queue", "zk_address_append_queue"}
+	queues := append([]string{}, bases...)
+	for _, base := range bases {
+		queues = append(queues, NetworkQueueName(base, MainnetNetwork), NetworkQueueName(base, DevnetNetwork))
+	}
+	return queues
+}
+
+func processingQueueNames() []string {
+	queues := []string{"zk_update_processing_queue", "zk_append_processing_queue", "zk_address_append_processing_queue"}
+	for _, requestQueue := range requestQueueNames()[3:] {
+		queues = append(queues, ProcessingQueueName(requestQueue))
+	}
+	return queues
 }
 
 // StoreJobMeta stores job metadata when a job is submitted to enable reliable status lookups.
@@ -389,7 +543,8 @@ func (rq *RedisQueue) dequeueLowestBatchIndex(queueName string) (*ProofJob, erro
 func (rq *RedisQueue) GetQueueStats() (map[string]int64, error) {
 	stats := make(map[string]int64)
 
-	queues := []string{"zk_update_queue", "zk_append_queue", "zk_address_append_queue", "zk_update_processing_queue", "zk_append_processing_queue", "zk_address_append_processing_queue", "zk_failed_queue", "zk_results_queue"}
+	queues := append(requestQueueNames(), processingQueueNames()...)
+	queues = append(queues, "zk_failed_queue", "zk_results_queue")
 
 	for _, queue := range queues {
 		length, err := rq.Client.LLen(rq.Ctx, queue).Result()
@@ -429,8 +584,16 @@ func (rq *RedisQueue) GetQueueHealth() (map[string]interface{}, error) {
 	health["queue_lengths"] = stats
 	health["timestamp"] = time.Now().Unix()
 
-	health["total_pending"] = stats["zk_update_queue"] + stats["zk_append_queue"] + stats["zk_address_append_queue"]
-	health["total_processing"] = stats["zk_update_processing_queue"] + stats["zk_append_processing_queue"] + stats["zk_address_append_processing_queue"]
+	var totalPending int64
+	for _, queue := range requestQueueNames() {
+		totalPending += stats[queue] + stats[queue+"_tree_subqueues"]
+	}
+	var totalProcessing int64
+	for _, queue := range processingQueueNames() {
+		totalProcessing += stats[queue]
+	}
+	health["total_pending"] = totalPending
+	health["total_processing"] = totalProcessing
 	health["total_failed"] = stats["zk_failed_queue"]
 	health["total_results"] = stats["zk_results_queue"]
 
@@ -451,11 +614,7 @@ func (rq *RedisQueue) GetQueueHealth() (map[string]interface{}, error) {
 
 func (rq *RedisQueue) countStuckJobs() int64 {
 	stuckTimeout := time.Now().Add(-2 * time.Minute)
-	processingQueues := []string{
-		"zk_update_processing_queue",
-		"zk_append_processing_queue",
-		"zk_address_append_processing_queue",
-	}
+	processingQueues := processingQueueNames()
 
 	var totalStuck int64
 
@@ -616,11 +775,7 @@ func (rq *RedisQueue) CleanupOldRequests() error {
 	cutoffTime := time.Now().Add(-30 * time.Minute)
 
 	// Queues to clean up old requests from
-	queuesToClean := []string{
-		"zk_update_queue",
-		"zk_append_queue",
-		"zk_address_append_queue",
-	}
+	queuesToClean := requestQueueNames()
 
 	totalRemoved := int64(0)
 
@@ -720,11 +875,7 @@ func (rq *RedisQueue) CleanupStuckProcessingJobs() error {
 	// (proof generation can take 3-4 minutes under load)
 	processingTimeout := time.Now().Add(-10 * time.Minute)
 
-	processingQueues := []string{
-		"zk_update_processing_queue",
-		"zk_append_processing_queue",
-		"zk_address_append_processing_queue",
-	}
+	processingQueues := processingQueueNames()
 
 	totalRecovered := int64(0)
 	totalFailed := int64(0)
@@ -854,10 +1005,13 @@ func (rq *RedisQueue) recoverStuckJobsFromQueue(queueName string, timeoutCutoff 
 						originalQueue := getOriginalQueueFromProcessing(queueName)
 						if originalQueue != "" {
 							originalJob := &ProofJob{
-								ID:        originalJobID,
-								Type:      "zk_proof",
-								Payload:   job.Payload,
-								CreatedAt: job.CreatedAt,
+								ID:         originalJobID,
+								Type:       "zk_proof",
+								Payload:    job.Payload,
+								CreatedAt:  job.CreatedAt,
+								TreeID:     job.TreeID,
+								BatchIndex: job.BatchIndex,
+								Network:    job.Network,
 							}
 
 							err = rq.EnqueueProof(originalQueue, originalJob)
@@ -887,16 +1041,10 @@ func (rq *RedisQueue) recoverStuckJobsFromQueue(queueName string, timeoutCutoff 
 }
 
 func getOriginalQueueFromProcessing(processingQueueName string) string {
-	switch processingQueueName {
-	case "zk_update_processing_queue":
-		return "zk_update_queue"
-	case "zk_append_processing_queue":
-		return "zk_append_queue"
-	case "zk_address_append_processing_queue":
-		return "zk_address_append_queue"
-	default:
-		return ""
+	if strings.HasSuffix(processingQueueName, "_processing_queue") {
+		return strings.TrimSuffix(processingQueueName, "_processing_queue") + "_queue"
 	}
+	return ""
 }
 
 func (rq *RedisQueue) cleanupOldRequestsFromQueue(queueName string, cutoffTime time.Time) (int64, error) {
@@ -969,6 +1117,21 @@ func (rq *RedisQueue) cleanupIndexEntry(queueName string, jobID string) {
 func ComputeInputHash(payload json.RawMessage) string {
 	hash := sha256.Sum256(payload)
 	return hex.EncodeToString(hash[:])
+}
+
+func ComputeNetworkInputHash(network string, payload json.RawMessage) string {
+	if network == "" {
+		return ComputeInputHash(payload)
+	}
+	prefixed := make([]byte, 0, len(network)+1+len(payload))
+	prefixed = append(prefixed, network...)
+	prefixed = append(prefixed, 0)
+	prefixed = append(prefixed, payload...)
+	return ComputeInputHash(prefixed)
+}
+
+func ComputeJobInputHash(job *ProofJob) string {
+	return ComputeNetworkInputHash(job.Network, job.Payload)
 }
 
 // FindCachedResult searches for a cached result by input hash.

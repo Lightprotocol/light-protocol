@@ -18,6 +18,7 @@ use solana_sdk::{
 use solana_transaction_status::TransactionConfirmationStatus;
 use thiserror::Error;
 use tokio::time::{sleep, Instant};
+use tracing::{debug, warn};
 
 use crate::{
     errors::{is_blockhash_not_found, rpc_is_already_processed},
@@ -44,6 +45,10 @@ impl Default for ConfirmationConfig {
         }
     }
 }
+
+// Let RPC-side retries fan out before doing another app-level send request.
+const MIN_TRANSACTION_RESEND_INTERVAL: Duration = Duration::from_secs(5);
+const RPC_SEND_TRANSACTION_MAX_RETRIES: usize = 3;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TransactionPolicy {
@@ -439,7 +444,14 @@ async fn send_prepared_transaction<R: Rpc>(
         .ok_or_else(|| RpcError::CustomError("Prepared transaction missing signature".into()))?;
     let last_valid_block_height = transaction.last_valid_block_height();
     let rpc = &*rpc;
+    let started_at = Instant::now();
+    let mut send_attempts = 0;
     let mut last_send_error = None;
+    let resend_interval = confirmation
+        .poll_interval
+        .saturating_mul(4)
+        .max(MIN_TRANSACTION_RESEND_INTERVAL);
+    let mut next_send_at = Instant::now();
 
     for attempt in 0..confirmation.max_attempts {
         if let Some(signature) = confirmed_signature_or_error(rpc, signature).await? {
@@ -450,23 +462,53 @@ async fn send_prepared_transaction<R: Rpc>(
             return Err(SmartTransactionError::ConfirmationDeadlineExceeded { signature });
         }
 
-        if rpc.get_block_height().await? > last_valid_block_height {
+        let current_block_height = rpc.get_block_height().await?;
+        if current_block_height > last_valid_block_height {
+            log_blockhash_expired(
+                transaction,
+                signature,
+                last_valid_block_height,
+                current_block_height,
+                send_attempts,
+                started_at.elapsed(),
+                last_send_error.as_ref(),
+            );
             return Err(SmartTransactionError::BlockhashExpired {
                 signature,
                 last_valid_block_height,
             });
         }
 
-        match transaction.send_with_confirmation_config(rpc).await {
-            Ok(_) => last_send_error = None,
-            Err(error) if rpc_is_already_processed(&error) => last_send_error = None,
-            // BlockhashNotFound is transient: the sending RPC may not have
-            // propagated the blockhash from the fetcher yet. Retry until the
-            // blockhash either propagates or the outer `get_block_height >
-            // last_valid_block_height` check exits with BlockhashExpired.
-            Err(error) if is_blockhash_not_found(&error) => last_send_error = Some(error),
-            Err(error) if rpc.should_retry(&error) => last_send_error = Some(error),
-            Err(error) => return Err(error.into()),
+        if Instant::now() >= next_send_at {
+            send_attempts += 1;
+            match transaction.send_with_confirmation_config(rpc).await {
+                Ok(_) => last_send_error = None,
+                Err(error) if rpc_is_already_processed(&error) => last_send_error = None,
+                // BlockhashNotFound is transient: the sending RPC may not have
+                // propagated the blockhash from the fetcher yet. Retry until the
+                // blockhash either propagates or the outer `get_block_height >
+                // last_valid_block_height` check exits with BlockhashExpired.
+                Err(error) if is_blockhash_not_found(&error) => {
+                    debug_retryable_send_error(transaction, signature, send_attempts, &error);
+                    last_send_error = Some(error);
+                }
+                Err(error) if is_permanent_send_error(&error) => {
+                    warn!(
+                        signature = %signature,
+                        label = %transaction.label(),
+                        send_attempts,
+                        error = ?error,
+                        "Permanent transaction send error"
+                    );
+                    return Err(error.into());
+                }
+                Err(error) if rpc.should_retry(&error) => {
+                    debug_retryable_send_error(transaction, signature, send_attempts, &error);
+                    last_send_error = Some(error);
+                }
+                Err(error) => return Err(error.into()),
+            }
+            next_send_at = Instant::now() + resend_interval;
         }
 
         if let Some(signature) = confirmed_signature_or_error(rpc, signature).await? {
@@ -491,7 +533,17 @@ async fn send_prepared_transaction<R: Rpc>(
         return Ok(signature);
     }
 
-    if rpc.get_block_height().await? > last_valid_block_height {
+    let current_block_height = rpc.get_block_height().await?;
+    if current_block_height > last_valid_block_height {
+        log_blockhash_expired(
+            transaction,
+            signature,
+            last_valid_block_height,
+            current_block_height,
+            send_attempts,
+            started_at.elapsed(),
+            last_send_error.as_ref(),
+        );
         return Err(SmartTransactionError::BlockhashExpired {
             signature,
             last_valid_block_height,
@@ -499,6 +551,14 @@ async fn send_prepared_transaction<R: Rpc>(
     }
 
     if let Some(error) = last_send_error {
+        warn!(
+            signature = %signature,
+            label = %transaction.label(),
+            send_attempts,
+            elapsed_ms = started_at.elapsed().as_millis(),
+            error = ?error,
+            "Transaction confirmation ended with retryable send error"
+        );
         return Err(error.into());
     }
 
@@ -506,16 +566,70 @@ async fn send_prepared_transaction<R: Rpc>(
         return Err(SmartTransactionError::ConfirmationDeadlineExceeded { signature });
     }
 
+    warn!(
+        signature = %signature,
+        label = %transaction.label(),
+        send_attempts,
+        elapsed_ms = started_at.elapsed().as_millis(),
+        max_attempts = confirmation.max_attempts,
+        last_send_error = ?last_send_error.as_ref(),
+        "Transaction confirmation timed out"
+    );
     Err(SmartTransactionError::ConfirmationTimedOut {
         signature,
         max_attempts: confirmation.max_attempts,
     })
 }
 
+fn is_permanent_send_error(error: &RpcError) -> bool {
+    let message = error.to_string().to_ascii_lowercase();
+    message.contains("base64 encoded too large")
+        || message.contains("encoded too large")
+        || message.contains("transaction too large")
+        || message.contains("invalidparams")
+        || message.contains("invalid params")
+}
+
+fn debug_retryable_send_error(
+    transaction: &PreparedTransaction,
+    signature: Signature,
+    send_attempts: u32,
+    error: &RpcError,
+) {
+    debug!(
+        signature = %signature,
+        label = %transaction.label(),
+        send_attempts,
+        error = ?error,
+        "Retryable transaction send error"
+    );
+}
+
+fn log_blockhash_expired(
+    transaction: &PreparedTransaction,
+    signature: Signature,
+    last_valid_block_height: u64,
+    current_block_height: u64,
+    send_attempts: u32,
+    elapsed: Duration,
+    last_send_error: Option<&RpcError>,
+) {
+    warn!(
+        signature = %signature,
+        label = %transaction.label(),
+        last_valid_block_height,
+        current_block_height,
+        send_attempts,
+        elapsed_ms = elapsed.as_millis(),
+        last_send_error = ?last_send_error,
+        "Transaction blockhash expired before confirmation"
+    );
+}
+
 fn confirmation_send_transaction_config() -> RpcSendTransactionConfig {
     RpcSendTransactionConfig {
         skip_preflight: true,
-        max_retries: Some(0),
+        max_retries: Some(RPC_SEND_TRANSACTION_MAX_RETRIES),
         ..Default::default()
     }
 }

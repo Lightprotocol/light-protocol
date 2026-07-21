@@ -1636,7 +1636,7 @@ async fn test_with_compression() {
         &mut rpc,
         &mut test_indexer,
         &payer,
-        &vec![compressed_account_with_context],
+        &[compressed_account_with_context],
         &recipient_pubkey,
         compress_amount,
         &env.v1_state_trees[0].merkle_tree,

@@ -13,6 +13,7 @@ use dashmap::DashMap;
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
     rpc_pool::SolanaRpcPool,
+    utils::wait_for_indexer,
 };
 use futures::future::join_all;
 use light_client::{
@@ -39,7 +40,7 @@ use solana_sdk::{
     transaction::TransactionError,
 };
 use tokio::{
-    sync::{mpsc, oneshot, Mutex},
+    sync::{mpsc, oneshot, Mutex, Semaphore},
     task::JoinHandle,
     time::{sleep, Instant, MissedTickBehavior},
 };
@@ -280,6 +281,8 @@ pub struct EpochManager<R: Rpc + Indexer> {
     run_id: Arc<str>,
     /// Per-epoch registration trackers to coordinate re-finalization when new foresters register mid-epoch
     registration_trackers: Arc<DashMap<u64, Arc<RegistrationTracker>>>,
+    /// Process-wide limiter for V1 transaction sends across all trees.
+    v1_send_permits: Arc<Semaphore>,
 }
 
 impl<R: Rpc + Indexer> Clone for EpochManager<R> {
@@ -310,6 +313,7 @@ impl<R: Rpc + Indexer> Clone for EpochManager<R> {
             heartbeat: self.heartbeat.clone(),
             run_id: self.run_id.clone(),
             registration_trackers: self.registration_trackers.clone(),
+            v1_send_permits: self.v1_send_permits.clone(),
         }
     }
 }
@@ -333,6 +337,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         run_id: String,
     ) -> Result<Self> {
         let authority = Arc::new(config.payer_keypair.insecure_clone());
+        let v1_send_permit_count = config.transaction_config.max_concurrent_sends.max(1);
         Ok(Self {
             config,
             protocol_config,
@@ -359,6 +364,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             heartbeat,
             run_id: Arc::<str>::from(run_id),
             registration_trackers: Arc::new(DashMap::new()),
+            v1_send_permits: Arc::new(Semaphore::new(v1_send_permit_count)),
         })
     }
 
@@ -2242,6 +2248,19 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         )
         .await?;
 
+        if let Err(error) = wait_for_indexer(&*rpc).await {
+            if should_emit_rate_limited_warning("v2_wait_for_indexer", Duration::from_secs(30)) {
+                warn!(
+                    event = "v2_wait_for_indexer_error",
+                    run_id = %self.run_id,
+                    tree = %tree_pubkey,
+                    error = %error,
+                    "Skipping V2 proof work because the indexer is not fresh"
+                );
+            }
+            return Ok(());
+        }
+
         // Try to send any cached proofs first
         let cached_send_start = Instant::now();
         if let Some(items_sent) = self
@@ -2265,8 +2284,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
-        // Polling interval for checking queue
-        const POLL_INTERVAL: Duration = Duration::from_millis(200);
+        // Adaptive queue polling: start responsive, then back off (capped) while the
+        // queue has nothing ready to process, and reset to the minimum as soon as work
+        // is found. A fixed 200ms poll made idle V2 trees re-fetch the queue ~5x/sec for
+        // the whole eligible window, which is the dominant source of wasted RPC/indexer
+        // load (and can exhaust a shared RPC credit budget).
+        const POLL_INTERVAL_MIN: Duration = Duration::from_millis(200);
+        const POLL_INTERVAL_MAX: Duration = Duration::from_secs(10);
+        let mut poll_interval = POLL_INTERVAL_MIN;
 
         'inner_processing_loop: loop {
             if estimated_slot >= forester_slot_details.end_solana_slot {
@@ -2334,9 +2359,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             processing_start_time.elapsed(),
                         )
                         .await;
+                        // Work found: stay responsive while the queue drains.
+                        poll_interval = POLL_INTERVAL_MIN;
                     } else {
-                        // No items to process, wait before polling again
-                        tokio::time::sleep(POLL_INTERVAL).await;
+                        // Nothing ready: wait, then back off (capped) to avoid hammering RPC.
+                        tokio::time::sleep(poll_interval).await;
+                        poll_interval = (poll_interval * 2).min(POLL_INTERVAL_MAX);
                     }
                 }
                 Err(e) => {
@@ -2350,7 +2378,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         error = ?e,
                         "V2 processing failed for tree"
                     );
-                    tokio::time::sleep(POLL_INTERVAL).await;
+                    tokio::time::sleep(poll_interval).await;
+                    poll_interval = (poll_interval * 2).min(POLL_INTERVAL_MAX);
                 }
             }
 
@@ -3062,8 +3091,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             } else {
                 None
             },
-            enable_presort: self.config.enable_v1_multi_nullify
-                && !self.address_lookup_tables.is_empty(),
+            enable_presort: self.config.enable_v1_presort,
             work_item_batch_size: self.config.work_item_batch_size,
         };
 
@@ -3083,6 +3111,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             &batched_tx_config,
             *tree_accounts,
             transaction_builder,
+            self.v1_send_permits.clone(),
         )
         .await?;
 
@@ -3161,6 +3190,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     .external_services
                     .prover_max_wait_time
                     .unwrap_or(Duration::from_secs(600)),
+                max_concurrent_jobs: self.config.external_services.prover_max_concurrent_jobs,
+                network: std::env::var("FORESTER_NETWORK")
+                    .unwrap_or_else(|_| "default".to_string()),
             }),
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),
@@ -4703,6 +4735,7 @@ mod tests {
                 send_tx_rate_limit: None,
                 prover_polling_interval: None,
                 prover_max_wait_time: None,
+                prover_max_concurrent_jobs: 4,
                 fallback_rpc_url: None,
                 fallback_indexer_url: None,
             },
@@ -4730,6 +4763,7 @@ mod tests {
             lookup_table_address: None,
             min_queue_items: None,
             enable_v1_multi_nullify: false,
+            enable_v1_presort: false,
             work_item_batch_size: 50,
         }
     }

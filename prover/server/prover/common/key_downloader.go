@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DefaultBaseURL       = "https://storage.googleapis.com/light-protocol-proving-keys/light-protocol-keys"
+	DefaultBaseURL       = "https://d1wbn9ra8wjh7t.cloudfront.net"
 	DefaultMaxRetries    = 10
 	DefaultRetryDelay    = 5 * time.Second
 	DefaultMaxRetryDelay = 5 * time.Minute
@@ -68,7 +68,7 @@ func downloadChecksum(config *DownloadConfig) error {
 		return nil
 	}
 
-	checksumURL := config.BaseURL + "/CHECKSUM"
+	checksumURL := strings.TrimRight(config.BaseURL, "/") + "/CHECKSUM"
 	logging.Logger().Info().
 		Str("url", checksumURL).
 		Msg("Downloading CHECKSUM file")
@@ -284,6 +284,23 @@ func downloadFileWithResume(url, outputPath string, config *DownloadConfig) erro
 
 func DownloadKey(keyPath string, config *DownloadConfig) error {
 	filename := filepath.Base(keyPath)
+	if !config.AutoDownload {
+		fileInfo, err := os.Stat(keyPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("required key file not found: %s (auto-download disabled)", filename)
+			}
+			return fmt.Errorf("failed to check key file %s: %w", filename, err)
+		}
+		if !fileInfo.Mode().IsRegular() || fileInfo.Size() == 0 {
+			return fmt.Errorf("required key file is not a non-empty regular file: %s", filename)
+		}
+		logging.Logger().Info().
+			Str("file", filename).
+			Int64("size", fileInfo.Size()).
+			Msg("Using existing key file with auto-download disabled")
+		return nil
+	}
 
 	if err := downloadChecksum(config); err != nil {
 		return fmt.Errorf("failed to load checksums: %w", err)
@@ -303,6 +320,10 @@ func DownloadKey(keyPath string, config *DownloadConfig) error {
 	}
 
 	if fileInfo, err := os.Stat(keyPath); err == nil {
+		if !fileInfo.Mode().IsRegular() || fileInfo.Size() == 0 {
+			return fmt.Errorf("existing key file is not a non-empty regular file: %s", filename)
+		}
+
 		logging.Logger().Info().
 			Str("file", filename).
 			Int64("size", fileInfo.Size()).
@@ -343,7 +364,7 @@ func DownloadKey(keyPath string, config *DownloadConfig) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/%s", config.BaseURL, filename)
+	url := fmt.Sprintf("%s/%s", strings.TrimRight(config.BaseURL, "/"), filename)
 	logging.Logger().Info().
 		Str("file", filename).
 		Str("url", url).
@@ -364,7 +385,7 @@ func DownloadKey(keyPath string, config *DownloadConfig) error {
 
 	logging.Logger().Info().
 		Str("file", filename).
-		Msg("Key file downloaded and verified successfully")
+		Msg("Key file download completed successfully")
 
 	return nil
 }

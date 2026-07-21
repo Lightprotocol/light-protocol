@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::anyhow;
-use forester_utils::{forester_epoch::EpochPhases, utils::wait_for_indexer};
+use forester_utils::forester_epoch::EpochPhases;
 use light_client::rpc::Rpc;
 use light_compressed_account::QueueType;
 use solana_sdk::pubkey::Pubkey;
@@ -14,7 +14,6 @@ use tracing::{debug, info, warn};
 use crate::{
     epoch_manager::{CircuitMetrics, ProcessingMetrics},
     errors::ForesterError,
-    logging::should_emit_rate_limited_warning,
     processor::v2::{
         batch_job_builder::BatchJobBuilder,
         common::WorkerPool,
@@ -136,6 +135,20 @@ where
             self.worker_pool = Some(WorkerPool { job_tx });
         }
 
+        if self.cached_state.is_some() {
+            let onchain_root = self.strategy.fetch_onchain_root(&self.context).await?;
+            if onchain_root != self.current_root {
+                warn!(
+                    tree = %self.context.merkle_tree,
+                    expected_root_prefix = ?&self.current_root[..4],
+                    onchain_root_prefix = ?&onchain_root[..4],
+                    "Discarding cached proof state because the on-chain root advanced"
+                );
+                self.current_root = onchain_root;
+                self.clear_cache().await;
+            }
+        }
+
         if let Some(cached) = self.cached_state.take() {
             let actual_available = self
                 .strategy
@@ -188,26 +201,6 @@ where
             );
         }
 
-        {
-            let rpc = self.context.rpc_pool.get_connection().await?;
-            if let Err(e) = wait_for_indexer(&*rpc).await {
-                if should_emit_rate_limited_warning("v2_wait_for_indexer", Duration::from_secs(30))
-                {
-                    warn!(
-                        event = "wait_for_indexer_error",
-                        error = %e,
-                        "wait_for_indexer error (proceeding anyway)"
-                    );
-                } else {
-                    debug!(
-                        event = "wait_for_indexer_error_suppressed",
-                        error = %e,
-                        "Suppressing repeated wait_for_indexer warning"
-                    );
-                }
-            }
-        }
-
         let queue_data = match self
             .strategy
             .fetch_queue_data(&self.context, fetch_batches, self.zkp_batch_size)
@@ -216,14 +209,6 @@ where
             Some(data) => data,
             None => return Ok(ProcessingResult::default()),
         };
-
-        if self.current_root == [0u8; 32] || queue_data.initial_root == self.current_root {
-            let total_batches = queue_data.num_batches;
-            let process_now = total_batches.min(self.context.max_batches_per_tree);
-            return self
-                .process_batches(queue_data, 0, process_now, total_batches)
-                .await;
-        }
 
         let onchain_root = self.strategy.fetch_onchain_root(&self.context).await?;
         match reconcile_roots(self.current_root, queue_data.initial_root, onchain_root) {

@@ -176,8 +176,8 @@ pub fn compress_proofs(proofs: &[&[[u8; 32]; 16]]) -> Option<CompressedProofs> {
     let mut proof_bitvecs = [0u32; 4];
     for (proof_idx, _) in proofs.iter().enumerate() {
         let bv = proof_bitvecs[proof_idx].view_bits_mut::<Lsb0>();
-        for level in 0..16 {
-            bv.set(pool_indices[proof_idx][level], true);
+        for &pool_index in &pool_indices[proof_idx] {
+            bv.set(pool_index, true);
         }
     }
 

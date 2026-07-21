@@ -29,28 +29,14 @@ pub fn reconcile_roots(
     indexer_root: [u8; 32],
     onchain_root: [u8; 32],
 ) -> RootReconcileDecision {
-    if expected_root == [0u8; 32] {
-        // Uninitialized expected root — proceed but adopt the indexer root.
-        // Validate that indexer and on-chain agree when possible.
-        if indexer_root != onchain_root {
-            tracing::warn!(
-                "Proceeding with uninitialized expected root, but indexer root ({:?}) != onchain root ({:?}). Indexer may be stale.",
-                &indexer_root[..4],
-                &onchain_root[..4],
-            );
-        }
+    if indexer_root == onchain_root && expected_root == onchain_root {
         return RootReconcileDecision::Proceed;
     }
-    if indexer_root == expected_root {
-        return RootReconcileDecision::Proceed;
-    }
-
-    if onchain_root == expected_root {
-        return RootReconcileDecision::WaitForIndexer;
-    }
-
     if indexer_root == onchain_root {
         return RootReconcileDecision::ResetToOnchainAndProceed(onchain_root);
+    }
+    if expected_root == onchain_root {
+        return RootReconcileDecision::WaitForIndexer;
     }
 
     RootReconcileDecision::ResetToOnchainAndStop(onchain_root)
@@ -93,18 +79,26 @@ mod tests {
     }
 
     #[test]
-    fn proceeds_when_expected_is_zero() {
+    fn cold_start_stops_when_indexer_and_chain_disagree() {
         assert_eq!(
             reconcile_roots(root(0), root(1), root(2)),
-            RootReconcileDecision::Proceed
+            RootReconcileDecision::ResetToOnchainAndStop(root(2))
         );
     }
 
     #[test]
-    fn proceeds_when_expected_matches_indexer() {
+    fn cold_start_proceeds_only_when_indexer_matches_chain() {
+        assert_eq!(
+            reconcile_roots(root(0), root(2), root(2)),
+            RootReconcileDecision::ResetToOnchainAndProceed(root(2))
+        );
+    }
+
+    #[test]
+    fn stops_when_expected_matches_stale_indexer() {
         assert_eq!(
             reconcile_roots(root(9), root(9), root(8)),
-            RootReconcileDecision::Proceed
+            RootReconcileDecision::ResetToOnchainAndStop(root(8))
         );
     }
 

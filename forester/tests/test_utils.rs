@@ -91,6 +91,7 @@ pub fn forester_config() -> ForesterConfig {
             prover_api_key: None,
             prover_polling_interval: None,
             prover_max_wait_time: None,
+            prover_max_concurrent_jobs: 4,
             photon_grpc_url: None,
             pushgateway_url: None,
             pagerduty_routing_key: None,
@@ -138,6 +139,7 @@ pub fn forester_config() -> ForesterConfig {
         lookup_table_address: None,
         min_queue_items: None,
         enable_v1_multi_nullify: false,
+        enable_v1_presort: false,
         work_item_batch_size: 50,
     }
 }

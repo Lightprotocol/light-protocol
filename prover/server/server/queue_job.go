@@ -107,7 +107,8 @@ type ProofJob struct {
 	// BatchIndex is the batch sequence number within a tree - used to process batches in order
 	// Lower batch indices should be processed first to enable sequential transaction submission
 	// -1 means no batch index (legacy requests, FIFO)
-	BatchIndex int64 `json:"batch_index"`
+	BatchIndex int64  `json:"batch_index"`
+	Network    string `json:"network,omitempty"`
 }
 
 type QueueWorker interface {
@@ -204,7 +205,7 @@ func (w *BaseQueueWorker) Stop() {
 }
 
 func (w *BaseQueueWorker) processJobs() {
-	job, err := w.queue.DequeueProof(w.queueName, 5*time.Second)
+	job, err := w.queue.DequeuePrioritizedProof(w.queueName)
 	if err != nil {
 		logging.Logger().Error().Err(err).Str("queue", w.queueName).Msg("Error dequeuing from queue")
 		time.Sleep(2 * time.Second)
@@ -234,7 +235,7 @@ func (w *BaseQueueWorker) processJobs() {
 
 			// Add to failed queue with expiration reason
 			expirationErr := fmt.Errorf("job expired after %v (max: %v)", jobAge, JobExpirationTimeout)
-			expiredInputHash := ComputeInputHash(job.Payload)
+			expiredInputHash := ComputeJobInputHash(job)
 			w.addToFailedQueue(job, expiredInputHash, expirationErr)
 			return
 		}
@@ -259,7 +260,7 @@ func (w *BaseQueueWorker) processJobs() {
 		Msg("Dequeued proof job")
 
 	// Check for duplicate inputs before processing
-	inputHash := ComputeInputHash(job.Payload)
+	inputHash := ComputeJobInputHash(job)
 
 	// Check if we already have a successful result for this input
 	cachedProof, cachedJobID, err := w.queue.FindCachedResult(inputHash)
@@ -366,24 +367,31 @@ func (w *BaseQueueWorker) processJobs() {
 			Str("queue", w.queueName).
 			Msg("Starting proof generation")
 
-		processingJob := &ProofJob{
-			ID:        job.ID + "_processing",
-			Type:      "processing",
-			Payload:   job.Payload,
-			CreatedAt: time.Now(),
+		processingQueueName := w.processingQueueName
+		if job.Network != "" {
+			processingQueueName = ProcessingQueueName(NetworkQueueName(w.queueName, job.Network))
 		}
-		err := w.queue.EnqueueProof(w.processingQueueName, processingJob)
+		processingJob := &ProofJob{
+			ID:         job.ID + "_processing",
+			Type:       "processing",
+			Payload:    job.Payload,
+			CreatedAt:  time.Now(),
+			TreeID:     job.TreeID,
+			BatchIndex: job.BatchIndex,
+			Network:    job.Network,
+		}
+		err := w.queue.EnqueueProof(processingQueueName, processingJob)
 		if err != nil {
 			logging.Logger().Error().
 				Err(err).
 				Str("job_id", job.ID).
-				Str("processing_queue", w.processingQueueName).
+				Str("processing_queue", processingQueueName).
 				Msg("Failed to add job to processing queue")
 			return
 		}
 
 		proof, err := w.generateProof(job)
-		w.removeFromProcessingQueue(job.ID)
+		w.removeFromProcessingQueue(job.ID, processingQueueName)
 
 		proofDuration := time.Since(proofStartTime)
 
@@ -685,18 +693,18 @@ func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage
 	return v2.ProveBatchAddressAppend(ps, &params)
 }
 
-func (w *BaseQueueWorker) removeFromProcessingQueue(jobID string) {
-	processingQueueLength, _ := w.queue.Client.LLen(w.queue.Ctx, w.processingQueueName).Result()
+func (w *BaseQueueWorker) removeFromProcessingQueue(jobID, processingQueueName string) {
+	processingQueueLength, _ := w.queue.Client.LLen(w.queue.Ctx, processingQueueName).Result()
 
 	for i := range processingQueueLength {
-		item, err := w.queue.Client.LIndex(w.queue.Ctx, w.processingQueueName, i).Result()
+		item, err := w.queue.Client.LIndex(w.queue.Ctx, processingQueueName, i).Result()
 		if err != nil {
 			continue
 		}
 
 		var job ProofJob
 		if json.Unmarshal([]byte(item), &job) == nil && job.ID == jobID+"_processing" {
-			w.queue.Client.LRem(w.queue.Ctx, w.processingQueueName, 1, item)
+			w.queue.Client.LRem(w.queue.Ctx, processingQueueName, 1, item)
 			break
 		}
 	}

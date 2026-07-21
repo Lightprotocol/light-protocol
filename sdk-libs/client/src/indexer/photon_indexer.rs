@@ -65,9 +65,18 @@ impl PhotonIndexer {
                 }
                 Err(e) => {
                     let is_retryable = match &e {
-                        IndexerError::ApiError(_) => {
-                            warn!("API Error: {}", e);
-                            true
+                        IndexerError::ApiError(msg) => {
+                            // A 404 / "method not found" means the indexer does not implement
+                            // this endpoint; retrying cannot succeed and only burns the backoff
+                            // budget (up to ~44s with the default config). Treat it as non-retryable.
+                            let lower = msg.to_lowercase();
+                            if lower.contains("method not found") || lower.contains("status 404") {
+                                warn!("Non-retryable API error (endpoint not available): {}", e);
+                                false
+                            } else {
+                                warn!("API Error: {}", e);
+                                true
+                            }
                         }
                         IndexerError::PhotonError {
                             context: _,

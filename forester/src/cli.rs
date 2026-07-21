@@ -79,6 +79,14 @@ pub struct StartArgs {
     )]
     pub prover_max_wait_time_secs: Option<u64>,
 
+    #[arg(
+        long,
+        env = "PROVER_MAX_CONCURRENT_JOBS",
+        default_value = "4",
+        help = "Maximum queued or running prover jobs per forester (default: 4)"
+    )]
+    pub prover_max_concurrent_jobs: usize,
+
     #[arg(long, env = "PAYER")]
     pub payer: Option<String>,
 
@@ -168,7 +176,7 @@ pub struct StartArgs {
     )]
     pub priority_fee_microlamports: Option<u64>,
 
-    #[arg(long, env = "RPC_POOL_SIZE", default_value = "100")]
+    #[arg(long, env = "RPC_POOL_SIZE", default_value = "32")]
     pub rpc_pool_size: u32,
 
     #[arg(long, env = "RPC_POOL_CONNECTION_TIMEOUT_SECS", default_value = "15")]
@@ -302,6 +310,14 @@ pub struct StartArgs {
         default_value = "true"
     )]
     pub enable_v1_multi_nullify: bool,
+
+    #[arg(
+        long,
+        env = "ENABLE_V1_PRESORT",
+        help = "Fetch queue leaf indices from the indexer (get_queue_leaf_indices) to pre-sort V1 work items for better dedup grouping. Requires an indexer that implements the endpoint. Best-effort; disabled by default.",
+        default_value = "false"
+    )]
+    pub enable_v1_presort: bool,
 
     #[arg(
         long,

@@ -49,6 +49,7 @@ async fn test_priority_fee_request() {
         prover_api_key: None,
         prover_polling_interval_ms: None,
         prover_max_wait_time_secs: None,
+        prover_max_concurrent_jobs: 4,
         payer: Some(std::env::var("PAYER").expect("PAYER must be set in environment")),
         derivation: Some(
             std::env::var("DERIVATION_PUBKEY")
@@ -94,6 +95,7 @@ async fn test_priority_fee_request() {
         lookup_table_address: None,
         min_queue_items: None,
         enable_v1_multi_nullify: false,
+        enable_v1_presort: false,
         api_server_port: 8080,
         group_authority: None,
         light_pda_programs: vec![],

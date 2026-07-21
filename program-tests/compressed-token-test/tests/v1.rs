@@ -4816,7 +4816,7 @@ async fn test_transfer_with_transaction_hash() {
             let payer = recipient_keypair.insecure_clone();
             let input_compressed_account_token_data =
                 test_indexer.token_compressed_accounts[0].token_data.clone();
-            let input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0].clone()];
+            let input_compressed_accounts = [test_indexer.token_compressed_accounts[0].clone()];
 
             let change_out_compressed_account_0 = TokenTransferOutputData {
                 amount: input_compressed_account_token_data.amount,

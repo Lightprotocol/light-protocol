@@ -63,6 +63,7 @@ pub struct ProofClient {
     polling_interval: Duration,
     max_wait_time: Duration,
     api_key: Option<String>,
+    network: Option<String>,
     initial_poll_delay: Duration,
 }
 
@@ -74,6 +75,7 @@ impl ProofClient {
             polling_interval: Duration::from_millis(DEFAULT_POLLING_INTERVAL_MS),
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
             api_key: None,
+            network: None,
             initial_poll_delay: Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS),
         }
     }
@@ -97,6 +99,7 @@ impl ProofClient {
             polling_interval,
             max_wait_time,
             api_key,
+            network: None,
             initial_poll_delay,
         }
     }
@@ -115,8 +118,14 @@ impl ProofClient {
             polling_interval,
             max_wait_time,
             api_key,
+            network: None,
             initial_poll_delay,
         }
+    }
+
+    pub fn with_network(mut self, network: String) -> Self {
+        self.network = Some(network);
+        self
     }
 
     pub async fn submit_proof_async(
@@ -241,6 +250,9 @@ impl ProofClient {
 
         if let Some(api_key) = &self.api_key {
             request = request.header("X-API-Key", api_key);
+        }
+        if let Some(network) = &self.network {
+            request = request.header("X-Light-Network", network);
         }
 
         request
