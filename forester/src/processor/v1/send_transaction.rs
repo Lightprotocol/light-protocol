@@ -449,9 +449,7 @@ fn compute_effective_max_concurrent_sends(
 }
 
 fn cycle_item_limit(configured_work_item_batch_size: usize, work_item_count: usize) -> usize {
-    let limit = configured_work_item_batch_size
-        .max(1)
-        .min(MAX_ITEMS_PER_CYCLE);
+    let limit = configured_work_item_batch_size.clamp(1, MAX_ITEMS_PER_CYCLE);
     work_item_count.min(limit)
 }
 

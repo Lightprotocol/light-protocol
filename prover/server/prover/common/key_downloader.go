@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DefaultBaseURL       = "https://light-protocol-proving-keys.s3.eu-north-1.amazonaws.com"
+	DefaultBaseURL       = "https://d1wbn9ra8wjh7t.cloudfront.net"
 	DefaultMaxRetries    = 10
 	DefaultRetryDelay    = 5 * time.Second
 	DefaultMaxRetryDelay = 5 * time.Minute
@@ -27,19 +27,15 @@ type DownloadConfig struct {
 	RetryDelay    time.Duration
 	MaxRetryDelay time.Duration
 	AutoDownload  bool
-	// RequireChecksum rejects downloads when BaseURL does not publish a CHECKSUM
-	// manifest. The default S3 bucket currently publishes keys without a manifest.
-	RequireChecksum bool
 }
 
 func DefaultDownloadConfig() *DownloadConfig {
 	return &DownloadConfig{
-		BaseURL:         DefaultBaseURL,
-		MaxRetries:      DefaultMaxRetries,
-		RetryDelay:      DefaultRetryDelay,
-		MaxRetryDelay:   DefaultMaxRetryDelay,
-		AutoDownload:    true,
-		RequireChecksum: false,
+		BaseURL:       DefaultBaseURL,
+		MaxRetries:    DefaultMaxRetries,
+		RetryDelay:    DefaultRetryDelay,
+		MaxRetryDelay: DefaultMaxRetryDelay,
+		AutoDownload:  true,
 	}
 }
 
@@ -72,7 +68,7 @@ func downloadChecksum(config *DownloadConfig) error {
 		return nil
 	}
 
-	checksumURL := config.BaseURL + "/CHECKSUM"
+	checksumURL := strings.TrimRight(config.BaseURL, "/") + "/CHECKSUM"
 	logging.Logger().Info().
 		Str("url", checksumURL).
 		Msg("Downloading CHECKSUM file")
@@ -84,18 +80,6 @@ func downloadChecksum(config *DownloadConfig) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		if !config.RequireChecksum &&
-			(resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound) {
-			globalChecksumCaches.caches[config.BaseURL] = &checksumCacheEntry{
-				checksums: make(map[string]string),
-				loaded:    true,
-			}
-			logging.Logger().Warn().
-				Int("status_code", resp.StatusCode).
-				Str("base_url", config.BaseURL).
-				Msg("CHECKSUM manifest unavailable; downloaded keys will not be checksum-verified")
-			return nil
-		}
 		return fmt.Errorf("failed to download CHECKSUM file: HTTP %d", resp.StatusCode)
 	}
 
@@ -331,21 +315,13 @@ func DownloadKey(keyPath string, config *DownloadConfig) error {
 	expectedChecksum, checksumExists := entry.checksums[filename]
 	globalChecksumCaches.mu.RUnlock()
 
-	if !checksumExists && config.RequireChecksum {
+	if !checksumExists {
 		return fmt.Errorf("no checksum found for %s", filename)
 	}
 
 	if fileInfo, err := os.Stat(keyPath); err == nil {
 		if !fileInfo.Mode().IsRegular() || fileInfo.Size() == 0 {
 			return fmt.Errorf("existing key file is not a non-empty regular file: %s", filename)
-		}
-
-		if !checksumExists {
-			logging.Logger().Warn().
-				Str("file", filename).
-				Int64("size", fileInfo.Size()).
-				Msg("Using existing key file without checksum verification")
-			return nil
 		}
 
 		logging.Logger().Info().
@@ -388,7 +364,7 @@ func DownloadKey(keyPath string, config *DownloadConfig) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/%s", config.BaseURL, filename)
+	url := fmt.Sprintf("%s/%s", strings.TrimRight(config.BaseURL, "/"), filename)
 	logging.Logger().Info().
 		Str("file", filename).
 		Str("url", url).
@@ -398,28 +374,13 @@ func DownloadKey(keyPath string, config *DownloadConfig) error {
 		return err
 	}
 
-	if checksumExists {
-		valid, err := verifyChecksum(keyPath, expectedChecksum)
-		if err != nil {
-			return fmt.Errorf("failed to verify downloaded file: %w", err)
-		}
-		if !valid {
-			os.Remove(keyPath)
-			return fmt.Errorf("downloaded file checksum mismatch")
-		}
-	} else {
-		fileInfo, err := os.Stat(keyPath)
-		if err != nil {
-			return fmt.Errorf("failed to stat downloaded file: %w", err)
-		}
-		if !fileInfo.Mode().IsRegular() || fileInfo.Size() == 0 {
-			os.Remove(keyPath)
-			return fmt.Errorf("downloaded key is not a non-empty regular file")
-		}
-		logging.Logger().Warn().
-			Str("file", filename).
-			Int64("size", fileInfo.Size()).
-			Msg("Key file downloaded without checksum verification")
+	valid, err := verifyChecksum(keyPath, expectedChecksum)
+	if err != nil {
+		return fmt.Errorf("failed to verify downloaded file: %w", err)
+	}
+	if !valid {
+		os.Remove(keyPath)
+		return fmt.Errorf("downloaded file checksum mismatch")
 	}
 
 	logging.Logger().Info().

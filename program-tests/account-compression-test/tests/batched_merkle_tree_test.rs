@@ -1017,8 +1017,8 @@ async fn test_init_batch_state_merkle_trees() {
     let params = InitStateTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitStateTreeAccountsInstructionData::e2e_test_default();
     let default_params = InitStateTreeAccountsInstructionData::default();
-    let param_vec = vec![params, e2e_test_params, default_params];
-    for params in param_vec.iter() {
+    let param_vec = [params, e2e_test_params, default_params];
+    for params in &param_vec {
         println!("Init new mt with params {:?}", params);
         let merkle_tree_keypair = Keypair::new();
         let nullifier_queue_keypair = Keypair::new();
@@ -1595,8 +1595,8 @@ async fn test_init_batch_address_merkle_trees() {
     let params = InitAddressTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
     let default_params = InitAddressTreeAccountsInstructionData::default();
-    let param_vec = vec![params, e2e_test_params, default_params];
-    for params in param_vec.iter() {
+    let param_vec = [params, e2e_test_params, default_params];
+    for params in &param_vec {
         println!("Init new mt with params {:?}", params);
         let merkle_tree_keypair = Keypair::new();
         let merkle_tree_pubkey = merkle_tree_keypair.pubkey();

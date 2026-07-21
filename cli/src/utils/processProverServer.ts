@@ -17,6 +17,7 @@ import {
 const LIGHT_CONFIG_DIR = path.join(os.homedir(), ".config", "light");
 const PROVER_BIN_DIR = path.join(LIGHT_CONFIG_DIR, "bin");
 const KEYS_DIR = path.join(LIGHT_CONFIG_DIR, "proving-keys");
+const PROVING_KEYS_BASE_URL = "https://d1wbn9ra8wjh7t.cloudfront.net";
 
 export async function killProver() {
   await killProcess(getProverNameByArch());
@@ -95,6 +96,7 @@ export async function startProver(proverPort: number, redisUrl?: string) {
   args.push("--keys-dir", KEYS_DIR + "/");
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
   args.push("--auto-download", "true");
+  args.push("--download-url", PROVING_KEYS_BASE_URL);
 
   if (redisUrl) {
     args.push("--redis-url", redisUrl);

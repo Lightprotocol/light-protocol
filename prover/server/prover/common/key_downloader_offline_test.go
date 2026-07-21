@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -43,14 +42,15 @@ func TestDownloadKeyOfflineRejectsMissingOrEmptyFile(t *testing.T) {
 	}
 }
 
-func TestDownloadKeyAllowsMissingChecksumManifest(t *testing.T) {
+func TestDownloadKeyUsesBaseURLRootWithTrailingSlash(t *testing.T) {
 	const filename = "test.key"
 	const contents = "downloaded-key"
+	const checksum = "1195e8d870f621c94ac378c38846612f075d0bd8da7fb727a873220ba6434a63"
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/CHECKSUM":
-			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(checksum + "  " + filename + "\n"))
 		case "/" + filename:
 			_, _ = w.Write([]byte(contents))
 		default:
@@ -60,14 +60,14 @@ func TestDownloadKeyAllowsMissingChecksumManifest(t *testing.T) {
 	defer server.Close()
 
 	config := DefaultDownloadConfig()
-	config.BaseURL = server.URL
+	config.BaseURL = server.URL + "/"
 	config.MaxRetries = 1
 	config.RetryDelay = time.Millisecond
 	config.MaxRetryDelay = time.Millisecond
 
 	keyPath := filepath.Join(t.TempDir(), filename)
 	if err := DownloadKey(keyPath, config); err != nil {
-		t.Fatalf("manifest-less download failed: %v", err)
+		t.Fatalf("download failed: %v", err)
 	}
 
 	got, err := os.ReadFile(keyPath)
@@ -79,7 +79,7 @@ func TestDownloadKeyAllowsMissingChecksumManifest(t *testing.T) {
 	}
 }
 
-func TestDownloadKeyCanRequireChecksumManifest(t *testing.T) {
+func TestDownloadKeyRejectsMissingChecksumManifest(t *testing.T) {
 	const filename = "test.key"
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -94,14 +94,13 @@ func TestDownloadKeyCanRequireChecksumManifest(t *testing.T) {
 	config := DefaultDownloadConfig()
 	config.BaseURL = server.URL
 	config.MaxRetries = 1
-	config.RequireChecksum = true
 
 	keyPath := filepath.Join(t.TempDir(), filename)
 	err := DownloadKey(keyPath, config)
 	if err == nil {
-		t.Fatal("download without required checksum manifest unexpectedly succeeded")
+		t.Fatal("download without checksum manifest unexpectedly succeeded")
 	}
-	if !strings.Contains(err.Error(), "CHECKSUM file: HTTP 403") {
+	if got, want := err.Error(), "failed to load checksums: failed to download CHECKSUM file: HTTP 403"; got != want {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
