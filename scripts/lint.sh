@@ -22,6 +22,7 @@ echo "Checking READMEs are up-to-date..."
 if ! command -v cargo-rdme &> /dev/null; then
     cargo install --locked cargo-rdme
 fi
+cargo rdme install-rust-toolchain-for-intralinks
 for toml in $(find program-libs sdk-libs -name '.cargo-rdme.toml' -type f); do
     crate_dir=$(dirname "$toml")
     echo "Checking README in $crate_dir..."
