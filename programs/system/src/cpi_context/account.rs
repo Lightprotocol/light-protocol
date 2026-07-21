@@ -102,7 +102,11 @@ impl InputAccount<'_> for CpiContextInAccount {
         hash_with_hashed_values(
             &self.lamports.get(),
             self.address().as_ref().map(|x| x.as_slice()),
-            Some((self.discriminator.as_slice(), self.data_hash.as_slice())),
+            if self.has_data() {
+                Some((self.discriminator.as_slice(), self.data_hash.as_slice()))
+            } else {
+                None
+            },
             owner_hashed,
             merkle_tree_hashed,
             leaf_index,
@@ -166,7 +170,11 @@ impl OutputAccount<'_> for CpiContextOutAccount {
         hash_with_hashed_values(
             &self.lamports.get(),
             self.address().as_ref().map(|x| x.as_slice()),
-            Some((self.discriminator.as_slice(), self.data_hash.as_slice())),
+            if self.has_data() {
+                Some((self.discriminator.as_slice(), self.data_hash.as_slice()))
+            } else {
+                None
+            },
             owner_hashed,
             merkle_tree_hashed,
             leaf_index,
