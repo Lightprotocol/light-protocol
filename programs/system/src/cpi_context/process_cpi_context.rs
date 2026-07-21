@@ -1,5 +1,5 @@
 use light_account_checks::discriminator::Discriminator;
-use light_batched_merkle_tree::queue::BatchedQueueAccount;
+use light_batched_merkle_tree::{queue::BatchedQueueAccount, queue_ref::BatchedQueueRef};
 use light_compressed_account::{
     compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
     instruction_data::{
@@ -225,7 +225,7 @@ fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionDat
             == BatchedQueueAccount::LIGHT_DISCRIMINATOR_SLICE
         {
             let queue_account =
-                BatchedQueueAccount::output_from_account_info(&remaining_accounts[index as usize])?;
+                BatchedQueueRef::output_from_account_info(&remaining_accounts[index as usize])?;
             queue_account.metadata.associated_merkle_tree.to_bytes()
         } else {
             *remaining_accounts[index as usize].key()

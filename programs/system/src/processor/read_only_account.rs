@@ -16,7 +16,7 @@ use crate::{
 #[inline(always)]
 #[profile]
 pub fn verify_read_only_account_inclusion_by_index(
-    accounts: &mut [AcpAccount<'_>],
+    accounts: &[AcpAccount<'_>],
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
 ) -> Result<usize> {
     let mut num_prove_read_only_accounts_prove_by_index = 0;

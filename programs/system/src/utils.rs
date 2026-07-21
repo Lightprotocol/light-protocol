@@ -26,24 +26,11 @@ pub fn get_sol_pool_pda() -> Pubkey {
 
 #[profile]
 pub fn get_queue_and_tree_accounts<'b, 'info>(
-    accounts: &'b mut [AcpAccount<'info>],
+    accounts: &'b [AcpAccount<'info>],
     queue_index: usize,
     tree_index: usize,
-) -> std::result::Result<(&'b mut AcpAccount<'info>, &'b mut AcpAccount<'info>), SystemProgramError>
-{
-    let (smaller, bigger) = if queue_index < tree_index {
-        (queue_index, tree_index)
-    } else {
-        (tree_index, queue_index)
-    };
-    let (left, right) = accounts.split_at_mut(bigger);
-    let smaller_ref = &mut left[smaller];
-    let bigger_ref = &mut right[0];
-    Ok(if queue_index < tree_index {
-        (smaller_ref, bigger_ref)
-    } else {
-        (bigger_ref, smaller_ref)
-    })
+) -> std::result::Result<(&'b AcpAccount<'info>, &'b AcpAccount<'info>), SystemProgramError> {
+    Ok((&accounts[queue_index], &accounts[tree_index]))
 }
 
 pub fn transfer_lamports_invoke(

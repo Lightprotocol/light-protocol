@@ -1,5 +1,6 @@
-use light_batched_merkle_tree::constants::{
-    DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
+use light_batched_merkle_tree::{
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
+    errors::BatchedMerkleTreeError,
 };
 use light_compressed_account::{
     hash_chain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
@@ -130,12 +131,20 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
             (*roots).push(merkle_tree.roots[root_index as usize]);
         }
         AcpAccount::BatchedStateTree(merkle_tree) => {
-            (*roots).push(merkle_tree.root_history[root_index as usize]);
+            (*roots).push(
+                *merkle_tree
+                    .get_root_by_index(root_index as usize)
+                    .ok_or(BatchedMerkleTreeError::InvalidIndex)?,
+            );
             height = merkle_tree.height as u8;
         }
         AcpAccount::BatchedAddressTree(merkle_tree) => {
             height = merkle_tree.height as u8;
-            (*roots).push(merkle_tree.root_history[root_index as usize]);
+            (*roots).push(
+                *merkle_tree
+                    .get_root_by_index(root_index as usize)
+                    .ok_or(BatchedMerkleTreeError::InvalidIndex)?,
+            );
         }
         AcpAccount::StateTree((_, merkle_tree)) => {
             if IS_READ_ONLY {

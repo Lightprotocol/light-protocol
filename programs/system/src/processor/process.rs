@@ -116,7 +116,7 @@ pub fn process<
     )?;
 
     // 2. Deserialize and check all Merkle tree and queue accounts.
-    let mut accounts = try_from_account_infos(remaining_accounts, &mut context)?;
+    let accounts = try_from_account_infos(remaining_accounts, &mut context)?;
     // 3. Deserialize cpi instruction data as zero copy to fill it.
     let (mut cpi_ix_data, bytes) = InsertIntoQueuesInstructionDataMut::new_at(
         &mut cpi_ix_bytes[12..], // 8 bytes instruction discriminator + 4 bytes vector length
@@ -173,7 +173,7 @@ pub fn process<
 
     // 7. Verify read only address non-inclusion in bloom filters
     verify_read_only_address_queue_non_inclusion(
-        accounts.as_mut_slice(),
+        accounts.as_slice(),
         inputs.read_only_addresses().unwrap_or_default(),
     )?;
 
@@ -228,7 +228,7 @@ pub fn process<
 
     // 14. Verify read-only account inclusion by index ---------------------------------------------------
     let num_read_only_accounts_by_index =
-        verify_read_only_account_inclusion_by_index(accounts.as_mut_slice(), read_only_accounts)?;
+        verify_read_only_account_inclusion_by_index(accounts.as_slice(), read_only_accounts)?;
 
     // Get num of elements proven by zkp, for inclusion and non-inclusion.
     let num_inclusion_proof_inputs = {
