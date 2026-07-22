@@ -8,6 +8,7 @@ use light_token::{
     instruction::{SplInterface, TransferInterface as TransferInterfaceInstruction},
     spl_interface::find_spl_interface_pda_with_index,
 };
+use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
@@ -51,7 +52,72 @@ pub struct TransferInterface {
     pub restricted: bool,
 }
 
+pub async fn create_transfer_interface_instructions<R: Rpc>(
+    rpc: &R,
+    transfer: &TransferInterface,
+    payer: Pubkey,
+    authority: Pubkey,
+) -> Result<Vec<Instruction>, RpcError> {
+    // Fetch account info to determine owners
+    let source_account = rpc.get_account(transfer.source).await?.ok_or_else(|| {
+        RpcError::CustomError(format!("Source account {} not found", transfer.source))
+    })?;
+
+    let destination_account = rpc
+        .get_account(transfer.destination)
+        .await?
+        .ok_or_else(|| {
+            RpcError::CustomError(format!(
+                "Destination account {} not found",
+                transfer.destination
+            ))
+        })?;
+
+    let source_owner = source_account.owner;
+    let destination_owner = destination_account.owner;
+
+    // Build SplInterface if needed for cross-interface transfers
+    let spl_interface = if let Some(spl_program) = transfer.spl_token_program {
+        let (spl_interface_pda, spl_interface_pda_bump) =
+            find_spl_interface_pda_with_index(&transfer.mint, 0, transfer.restricted);
+        Some(SplInterface {
+            mint: transfer.mint,
+            spl_token_program: spl_program,
+            spl_interface_pda,
+            spl_interface_pda_bump,
+        })
+    } else {
+        None
+    };
+
+    let ix = TransferInterfaceInstruction {
+        source: transfer.source,
+        destination: transfer.destination,
+        amount: transfer.amount,
+        decimals: transfer.decimals,
+        authority,
+        payer,
+        mint: transfer.mint,
+        spl_interface,
+        source_owner,
+        destination_owner,
+    }
+    .instruction()
+    .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+
+    Ok(vec![ix])
+}
+
 impl TransferInterface {
+    pub async fn instructions<R: Rpc>(
+        &self,
+        rpc: &R,
+        payer: Pubkey,
+        authority: Pubkey,
+    ) -> Result<Vec<Instruction>, RpcError> {
+        create_transfer_interface_instructions(rpc, self, payer, authority).await
+    }
+
     /// Execute the transfer_interface action via RPC.
     ///
     /// # Arguments
@@ -67,56 +133,16 @@ impl TransferInterface {
         payer: &Keypair,
         authority: &Keypair,
     ) -> Result<Signature, RpcError> {
-        // Fetch account info to determine owners
-        let source_account = rpc.get_account(self.source).await?.ok_or_else(|| {
-            RpcError::CustomError(format!("Source account {} not found", self.source))
-        })?;
-
-        let destination_account = rpc.get_account(self.destination).await?.ok_or_else(|| {
-            RpcError::CustomError(format!(
-                "Destination account {} not found",
-                self.destination
-            ))
-        })?;
-
-        let source_owner = source_account.owner;
-        let destination_owner = destination_account.owner;
-
-        // Build SplInterface if needed for cross-interface transfers
-        let spl_interface = if let Some(spl_program) = self.spl_token_program {
-            let (spl_interface_pda, spl_interface_pda_bump) =
-                find_spl_interface_pda_with_index(&self.mint, 0, self.restricted);
-            Some(SplInterface {
-                mint: self.mint,
-                spl_token_program: spl_program,
-                spl_interface_pda,
-                spl_interface_pda_bump,
-            })
-        } else {
-            None
-        };
-
-        let ix = TransferInterfaceInstruction {
-            source: self.source,
-            destination: self.destination,
-            amount: self.amount,
-            decimals: self.decimals,
-            authority: authority.pubkey(),
-            payer: payer.pubkey(),
-            mint: self.mint,
-            spl_interface,
-            source_owner,
-            destination_owner,
-        }
-        .instruction()
-        .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+        let instructions =
+            create_transfer_interface_instructions(rpc, &self, payer.pubkey(), authority.pubkey())
+                .await?;
 
         let mut signers = vec![payer];
         if authority.pubkey() != payer.pubkey() {
             signers.push(authority);
         }
 
-        rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &signers)
+        rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &signers)
             .await
     }
 }
