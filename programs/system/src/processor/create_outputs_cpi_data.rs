@@ -221,7 +221,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                     .map_err(ProgramError::from)?;
             }
         }
-        context.set_rollover_fee(current_index as u8, rollover_fee);
+        context.set_rollover_fee(current_index as u8, rollover_fee)?;
     }
 
     cpi_ix_data.num_output_queues = index_merkle_tree_account as u8;
