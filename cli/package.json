@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/zk-compression-cli",
-  "version": "0.28.3",
+  "version": "0.28.4",
   "description": "ZK Compression: Secure Scaling on Solana",
   "maintainers": [
     {
@@ -95,13 +95,14 @@
     "sync-prover-version": "./scripts/syncProverVersion.sh",
     "sync-photon-version": "./scripts/syncPhotonVersion.sh",
     "build": "shx rm -rf dist && pnpm sync-prover-version && pnpm sync-photon-version && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json",
-    "build-release": "shx rm -rf dist && pnpm sync-prover-version && pnpm sync-photon-version && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json",
+    "build-release": "shx rm -rf dist && pnpm sync-prover-version && pnpm sync-photon-version && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json && pnpm verify-bundled-accounts",
     "format": "pnpm prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
     "format:check": "pnpm prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "postpack": "shx rm -f oclif.manifest.json",
     "prepack": "pnpm build-release && oclif manifest && oclif readme",
+    "verify-bundled-accounts": "node ./scripts/verifyBundledAccounts.js",
     "test-utils": "mocha ./test/utils/index.test.ts -t 10000000 --exit",
     "test-config": "mocha ./test/commands/config/index.test.ts -t 10000000 --exit",
     "test-create-mint": "mocha ./test/commands/create-mint/index.test.ts -t 10000000 --exit",
