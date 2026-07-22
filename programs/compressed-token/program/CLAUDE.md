@@ -69,6 +69,7 @@ Every instruction description must include the sections:
 5. **Transfer2** - [`docs/compressed_token/TRANSFER2.md`](docs/compressed_token/TRANSFER2.md)
    - Batch transfer instruction for compressed/decompressed operations (discriminator: 101, enum: `InstructionType::Transfer2`)
    - Supports Compress, Decompress, CompressAndClose operations
+   - ATA decompress (is_ata=true) is permissionless and idempotent (bloom filter check)
    - Multi-mint support with sum checks
 
 6. **MintAction** - [`docs/compressed_token/MINT_ACTION.md`](docs/compressed_token/MINT_ACTION.md)

@@ -1,7 +1,10 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_array_map::ArrayMap;
-use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
+use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
+use light_compressed_account::instruction_data::with_readonly::{
+    InstructionDataInvokeCpiWithReadOnly, ZInstructionDataInvokeCpiWithReadOnlyMut,
+};
 use light_program_profiler::profile;
 use light_token_interface::{
     hash_cache::HashCache,
@@ -12,10 +15,11 @@ use light_token_interface::{
             ZCompressionMode,
         },
     },
+    state::Token,
     TokenError,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 use spl_pod::solana_msg::msg;
 
 use super::check_extensions::{build_mint_extension_cache, MintExtensionCache};
@@ -256,6 +260,14 @@ fn process_with_system_program_cpi<'a>(
         accounts,
         mint_cache,
     )?;
+    let is_idempotent_ata_decompress = is_idempotent_ata_decompress(inputs);
+    #[allow(clippy::collapsible_if)]
+    if is_idempotent_ata_decompress {
+        if check_ata_decompress_idempotent(inputs, &cpi_instruction_struct, validated_accounts)? {
+            validate_idempotent_ata_decompress_replay(inputs, validated_accounts)?;
+            return Ok(());
+        }
+    }
 
     // Process output compressed accounts.
     set_output_compressed_accounts(
@@ -331,5 +343,162 @@ fn process_with_system_program_cpi<'a>(
     } else {
         unreachable!()
     }
+    Ok(())
+}
+
+/// Detect idempotent associated token account decompress:
+/// - exactly 1 input compressed token account with CompressedOnly extension is_ata=true
+/// - 1 Decompress compression.
+///
+/// Multi-input batches (including mixed ATA + non-ATA) are not idempotent.
+#[inline(always)]
+pub fn is_idempotent_ata_decompress(inputs: &ZCompressedTokenInstructionDataTransfer2) -> bool {
+    inputs.in_token_data.len() == 1
+        && inputs
+            .compressions
+            .as_ref()
+            .is_some_and(|c| c.len() == 1 && c.iter().any(|c| c.mode.is_decompress()))
+        && inputs.in_tlv.as_ref().is_some_and(|tlvs| {
+            tlvs.len() == 1
+                && tlvs[0].len() == 1
+                && matches!(&tlvs[0][0], ZExtensionInstructionData::CompressedOnly(data) if data.is_ata())
+        })
+}
+
+/// Computes the compressed account hash and checks whether the hash exists in the input queue bloom filters.
+/// The account compression program inserts spent compressed accounts into the respective input queue.
+///
+/// if exists in bloom filter -> exit the ata was already decompressed
+/// else decompress
+#[cold]
+fn check_ata_decompress_idempotent(
+    inputs: &ZCompressedTokenInstructionDataTransfer2,
+    cpi_instruction_struct: &ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
+    validated_accounts: &Transfer2Accounts,
+) -> Result<bool, ProgramError> {
+    let input_data = inputs
+        .in_token_data
+        .first()
+        .ok_or(ProgramError::InvalidAccountData)?;
+    let merkle_context = &input_data.merkle_context;
+    let input_account = cpi_instruction_struct
+        .input_compressed_accounts
+        .first()
+        .ok_or(ProgramError::InvalidAccountData)?;
+
+    let owner_hashed = light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(
+        &crate::LIGHT_CPI_SIGNER.program_id,
+    );
+    let tree_account = validated_accounts
+        .packed_accounts
+        .get_u8(merkle_context.merkle_tree_pubkey_index, "idempotent: tree")?;
+    let merkle_tree_hashed =
+        light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(tree_account.key());
+
+    let lamports: u64 = input_account.lamports.get();
+    let account_hash = light_compressed_account::compressed_account::hash_with_hashed_values(
+        &lamports,
+        input_account.address.as_ref().map(|x| x.as_slice()),
+        Some((
+            input_account.discriminator.as_slice(),
+            input_account.data_hash.as_slice(),
+        )),
+        &owner_hashed,
+        &merkle_tree_hashed,
+        &merkle_context.leaf_index.get(),
+        true,
+    )
+    .map_err(ProgramError::from)?;
+
+    let mut tree =
+        light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount::state_from_account_info(
+            tree_account,
+        )
+        .map_err(ProgramError::from)?;
+
+    match tree.check_input_queue_non_inclusion(&account_hash) {
+        Ok(()) => Ok(false),
+        Err(BatchedMerkleTreeError::NonInclusionCheckFailed) => Ok(true),
+        Err(e) => Err(ProgramError::from(e)),
+    }
+}
+
+#[cold]
+fn validate_idempotent_ata_decompress_replay(
+    inputs: &ZCompressedTokenInstructionDataTransfer2,
+    validated_accounts: &Transfer2Accounts,
+) -> Result<(), ProgramError> {
+    let input_token_data = inputs
+        .in_token_data
+        .first()
+        .ok_or(ProgramError::InvalidAccountData)?;
+    let compression = inputs
+        .compressions
+        .as_ref()
+        .and_then(|c| c.first())
+        .ok_or(ProgramError::InvalidAccountData)?;
+    let ext_data = inputs
+        .in_tlv
+        .as_ref()
+        .and_then(|tlvs| tlvs.first())
+        .and_then(|tlv| {
+            tlv.iter().find_map(|ext| match ext {
+                ZExtensionInstructionData::CompressedOnly(data) if data.is_ata() => Some(data),
+                _ => None,
+            })
+        })
+        .ok_or(ProgramError::InvalidAccountData)?;
+
+    let compression_amount: u64 = compression.amount.get();
+    let input_amount: u64 = input_token_data.amount.get();
+    if compression_amount != input_amount {
+        msg!(
+            "Idempotent ATA decompress: amount mismatch (compression {}, input {})",
+            compression_amount,
+            input_amount,
+        );
+        return Err(TokenError::DecompressAmountMismatch.into());
+    }
+
+    let wallet = validated_accounts
+        .packed_accounts
+        .get_u8(ext_data.owner_index, "idempotent: wallet")?;
+    let compression_mint = validated_accounts
+        .packed_accounts
+        .get_u8(compression.mint, "idempotent: compression mint")?;
+    let input_mint = validated_accounts
+        .packed_accounts
+        .get_u8(input_token_data.mint, "idempotent: input mint")?;
+    let destination = validated_accounts
+        .packed_accounts
+        .get_u8(compression.source_or_recipient, "idempotent: destination")?;
+
+    if !pubkey_eq(compression_mint.key(), input_mint.key()) {
+        msg!("Idempotent ATA decompress: compression mint does not match input mint");
+        return Err(TokenError::MintMismatch.into());
+    }
+
+    let bump_seed = [ext_data.bump];
+    let ata_seeds: [&[u8]; 4] = [
+        wallet.key().as_ref(),
+        crate::LIGHT_CPI_SIGNER.program_id.as_ref(),
+        compression_mint.key().as_ref(),
+        bump_seed.as_ref(),
+    ];
+    let derived_ata =
+        pinocchio::pubkey::create_program_address(&ata_seeds, &crate::LIGHT_CPI_SIGNER.program_id)
+            .map_err(|_| TokenError::InvalidAtaDerivation)?;
+    if !pubkey_eq(destination.key(), &derived_ata) {
+        msg!("Idempotent ATA decompress: destination is not the canonical ATA of the recorded wallet");
+        return Err(TokenError::DecompressDestinationMismatch.into());
+    }
+
+    let destination_ctoken =
+        Token::from_account_info_checked(destination).map_err(ProgramError::from)?;
+    if !pubkey_eq(destination_ctoken.mint.array_ref(), compression_mint.key()) {
+        msg!("Idempotent ATA decompress: destination mint does not match compression mint");
+        return Err(TokenError::MintMismatch.into());
+    }
+
     Ok(())
 }
