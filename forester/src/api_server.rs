@@ -16,7 +16,7 @@ use crate::{
         traits::{CompressibleState, CompressibleTracker},
         CTokenAccountState, CTokenAccountTracker, MintAccountTracker, PdaAccountTracker,
     },
-    forester_status::get_forester_status,
+    forester_status::{get_forester_status, ForesterStatus},
     metrics::REGISTRY,
 };
 
@@ -590,6 +590,10 @@ pub struct ApiServerConfig {
 /// Default timeout for status endpoint in seconds
 const STATUS_TIMEOUT_SECS: u64 = 30;
 
+/// Refresh the expensive on-chain status snapshot at a fixed cadence instead of
+/// rebuilding it for every dashboard request.
+const STATUS_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
+
 /// Timeout for external HTTP requests (Prometheus queries)
 const EXTERNAL_HTTP_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -1023,6 +1027,71 @@ async fn run_compressible_provider(
     );
 }
 
+/// Periodically refreshes the full forester status and retains the last good
+/// snapshot when an RPC refresh fails. A single provider prevents dashboard
+/// clients from multiplying the expensive mainnet account scans.
+async fn run_status_provider(
+    tx: watch::Sender<Option<Arc<ForesterStatus>>>,
+    rpc_url: String,
+    mut shutdown: broadcast::Receiver<()>,
+    run_id: Arc<str>,
+) {
+    let mut interval = tokio::time::interval(STATUS_REFRESH_INTERVAL);
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+    loop {
+        tokio::select! {
+            _ = shutdown.recv() => break,
+            _ = interval.tick() => {
+                let started_at = tokio::time::Instant::now();
+                match tokio::time::timeout(
+                    Duration::from_secs(STATUS_TIMEOUT_SECS),
+                    get_forester_status(&rpc_url),
+                )
+                .await
+                {
+                    Ok(Ok(status)) => {
+                        let elapsed_ms = started_at.elapsed().as_millis() as u64;
+                        let total_trees = status.total_trees;
+                        if tx.send(Some(Arc::new(status))).is_err() {
+                            break;
+                        }
+                        info!(
+                            event = "api_server_status_snapshot_refreshed",
+                            run_id = %run_id,
+                            elapsed_ms,
+                            total_trees,
+                            "Refreshed forester status snapshot"
+                        );
+                    }
+                    Ok(Err(error)) => {
+                        error!(
+                            event = "api_server_status_fetch_failed",
+                            run_id = %run_id,
+                            error = ?error,
+                            "Failed to refresh forester status; retaining last good snapshot"
+                        );
+                    }
+                    Err(_elapsed) => {
+                        error!(
+                            event = "api_server_status_timeout",
+                            run_id = %run_id,
+                            timeout_seconds = STATUS_TIMEOUT_SECS,
+                            "Forester status refresh timed out; retaining last good snapshot"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    info!(
+        event = "api_server_status_provider_stopped",
+        run_id = %run_id,
+        "Status provider stopped"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Server entry point
 // ---------------------------------------------------------------------------
@@ -1105,6 +1174,7 @@ pub fn spawn_api_server(config: ApiServerConfig) -> anyhow::Result<ApiServerHand
             // Create watch channels with empty initial values
             let (metrics_tx, metrics_rx) = watch::channel(MetricsSnapshot::empty());
             let (compressible_tx, compressible_rx) = watch::channel(CompressibleSnapshot::empty());
+            let (status_tx, status_rx) = watch::channel::<Option<Arc<ForesterStatus>>>(None);
 
             // Create shutdown broadcast for providers
             let (provider_shutdown_tx, _) = broadcast::channel::<()>(1);
@@ -1114,6 +1184,13 @@ pub fn spawn_api_server(config: ApiServerConfig) -> anyhow::Result<ApiServerHand
                 metrics_tx,
                 http_client.clone(),
                 config.prometheus_url.clone(),
+                provider_shutdown_tx.subscribe(),
+                run_id.clone(),
+            ));
+
+            tokio::spawn(run_status_provider(
+                status_tx,
+                config.rpc_url.clone(),
                 provider_shutdown_tx.subscribe(),
                 run_id.clone(),
             ));
@@ -1147,55 +1224,21 @@ pub fn spawn_api_server(config: ApiServerConfig) -> anyhow::Result<ApiServerHand
                 })
             });
 
-            // --- Status route (unchanged — per-request RPC call) ---
-            let rpc_url_for_status = config.rpc_url.clone();
-            let run_id_for_status = run_id.clone();
-            let status_route = warp::path("status").and(warp::get()).and_then(move || {
-                let rpc_url = rpc_url_for_status.clone();
-                let run_id = run_id_for_status.clone();
-                async move {
-                    let timeout_duration = Duration::from_secs(STATUS_TIMEOUT_SECS);
-                    match tokio::time::timeout(timeout_duration, get_forester_status(&rpc_url))
-                        .await
-                    {
-                        Ok(Ok(status)) => Ok::<_, warp::Rejection>(warp::reply::with_status(
-                            warp::reply::json(&status),
-                            warp::http::StatusCode::OK,
-                        )),
-                        Ok(Err(e)) => {
-                            error!(
-                                event = "api_server_status_fetch_failed",
-                                run_id = %run_id,
-                                error = ?e,
-                                "Failed to get forester status"
-                            );
-                            let error_response = ErrorResponse {
-                                error: format!("Failed to get forester status: {}", e),
-                            };
-                            Ok(warp::reply::with_status(
-                                warp::reply::json(&error_response),
-                                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                            ))
-                        }
-                        Err(_elapsed) => {
-                            error!(
-                                event = "api_server_status_timeout",
-                                run_id = %run_id,
-                                timeout_seconds = STATUS_TIMEOUT_SECS,
-                                "Forester status request timed out"
-                            );
-                            let error_response = ErrorResponse {
-                                error: format!(
-                                    "Request timed out after {} seconds",
-                                    STATUS_TIMEOUT_SECS
-                                ),
-                            };
-                            Ok(warp::reply::with_status(
-                                warp::reply::json(&error_response),
-                                warp::http::StatusCode::GATEWAY_TIMEOUT,
-                            ))
-                        }
-                    }
+            // --- Status route (reads the latest successful background snapshot) ---
+            let status_rx_clone = status_rx.clone();
+            let status_route = warp::path("status").and(warp::get()).map(move || {
+                let snapshot = status_rx_clone.borrow().clone();
+                match snapshot {
+                    Some(status) => warp::reply::with_status(
+                        warp::reply::json(status.as_ref()),
+                        warp::http::StatusCode::OK,
+                    ),
+                    None => warp::reply::with_status(
+                        warp::reply::json(&ErrorResponse {
+                            error: "Forester status snapshot is initializing".to_string(),
+                        }),
+                        warp::http::StatusCode::SERVICE_UNAVAILABLE,
+                    ),
                 }
             });
 
