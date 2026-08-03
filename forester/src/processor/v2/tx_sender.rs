@@ -367,7 +367,7 @@ impl<R: Rpc> TxSender<R> {
 
             let current_slot = self.context.slot_tracker.estimated_current_slot();
             if !self.is_still_eligible_at(current_slot) {
-                let proofs_saved = self.save_proofs_to_cache(&mut proof_rx, None).await;
+                let proofs_saved = self.handoff_proofs_to_cache(proof_rx, None).await;
                 info!(
                     "Active phase ended for epoch {}, stopping tx sender before recv (saved {} proofs to cache)",
                     self.context.epoch, proofs_saved
@@ -392,7 +392,7 @@ impl<R: Rpc> TxSender<R> {
             let current_slot = self.context.slot_tracker.estimated_current_slot();
 
             if !self.is_still_eligible_at(current_slot) {
-                let proofs_saved = self.save_proofs_to_cache(&mut proof_rx, Some(result)).await;
+                let proofs_saved = self.handoff_proofs_to_cache(proof_rx, Some(result)).await;
                 info!(
                     "Active phase ended for epoch {}, stopping tx sender (saved {} proofs to cache)",
                     self.context.epoch, proofs_saved
@@ -493,9 +493,15 @@ impl<R: Rpc> TxSender<R> {
         })
     }
 
-    async fn save_proofs_to_cache(
+    /// Moves proof result ownership to the per-tree cache when eligibility ends.
+    ///
+    /// Results that are already available are cached synchronously. The receiver is
+    /// then kept alive by a background task so proofs that finish after this sender
+    /// returns are not lost. The cache remains in the warming state until every
+    /// submitted proof job has dropped its sender.
+    async fn handoff_proofs_to_cache(
         &mut self,
-        proof_rx: &mut mpsc::Receiver<ProofJobResult>,
+        mut proof_rx: mpsc::Receiver<ProofJobResult>,
         current_result: Option<ProofJobResult>,
     ) -> usize {
         let cache = match &self.proof_cache {
@@ -545,16 +551,130 @@ impl<R: Rpc> TxSender<R> {
             }
         }
 
-        cache.finish_warming().await;
-
         if saved > 0 {
             info!(
-                "Saved {} proofs to cache for potential reuse (root: {:?})",
+                "Saved {} available proofs to cache and waiting for late results (root: {:?})",
                 saved,
+                &self.last_seen_root[..4]
+            );
+        } else {
+            info!(
+                "Waiting for late proof results to warm cache (root: {:?})",
                 &self.last_seen_root[..4]
             );
         }
 
+        let _ = spawn_late_proof_collector(cache.clone(), proof_rx, self.context.merkle_tree);
+
         saved
+    }
+}
+
+fn spawn_late_proof_collector(
+    cache: Arc<SharedProofCache>,
+    mut proof_rx: mpsc::Receiver<ProofJobResult>,
+    tree: solana_sdk::pubkey::Pubkey,
+) -> JoinHandle<usize> {
+    tokio::spawn(async move {
+        let mut saved = 0usize;
+        while let Some(result) = proof_rx.recv().await {
+            match result.result {
+                Ok(instruction) => {
+                    cache
+                        .add_proof(result.seq, result.old_root, result.new_root, instruction)
+                        .await;
+                    saved += 1;
+                }
+                Err(error) => {
+                    warn!(
+                        tree = %tree,
+                        seq = result.seq,
+                        error = %error,
+                        "Late proof failed while warming cache"
+                    );
+                }
+            }
+        }
+
+        cache.finish_warming().await;
+        let total_cached_proofs = cache.len().await;
+        info!(
+            tree = %tree,
+            late_proofs_cached = saved,
+            total_cached_proofs,
+            "Late proof collection completed"
+        );
+        saved
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn proof_result(seq: u64, old_root: [u8; 32], new_root: [u8; 32]) -> ProofJobResult {
+        ProofJobResult {
+            seq,
+            result: Ok(BatchInstruction::Append(Vec::new())),
+            old_root,
+            new_root,
+            proof_duration_ms: 1,
+            round_trip_ms: 1,
+            submitted_at: std::time::Instant::now(),
+        }
+    }
+
+    #[tokio::test]
+    async fn late_proof_result_finishes_warming_cache() {
+        let tree = solana_sdk::pubkey::Pubkey::new_unique();
+        let base_root = [1u8; 32];
+        let next_root = [2u8; 32];
+        let cache = Arc::new(SharedProofCache::new(tree));
+        cache.start_warming(base_root).await;
+
+        let (proof_tx, proof_rx) = mpsc::channel(1);
+        let collector = spawn_late_proof_collector(cache.clone(), proof_rx, tree);
+
+        assert!(cache.is_warming().await);
+        proof_tx
+            .send(proof_result(0, base_root, next_root))
+            .await
+            .unwrap();
+        drop(proof_tx);
+
+        assert_eq!(collector.await.unwrap(), 1);
+        assert!(!cache.is_warming().await);
+        let cached = cache.take_if_valid(&base_root).await.unwrap();
+        assert_eq!(cached.len(), 1);
+        assert_eq!(cached[0].old_root, base_root);
+        assert_eq!(cached[0].new_root, next_root);
+    }
+
+    #[tokio::test]
+    async fn failed_late_proof_does_not_block_cache_completion() {
+        let tree = solana_sdk::pubkey::Pubkey::new_unique();
+        let base_root = [3u8; 32];
+        let cache = Arc::new(SharedProofCache::new(tree));
+        cache.start_warming(base_root).await;
+
+        let (proof_tx, proof_rx) = mpsc::channel(1);
+        let collector = spawn_late_proof_collector(cache.clone(), proof_rx, tree);
+        proof_tx
+            .send(ProofJobResult {
+                seq: 0,
+                result: Err("proof failed".to_string()),
+                old_root: base_root,
+                new_root: [4u8; 32],
+                proof_duration_ms: 1,
+                round_trip_ms: 1,
+                submitted_at: std::time::Instant::now(),
+            })
+            .await
+            .unwrap();
+        drop(proof_tx);
+
+        assert_eq!(collector.await.unwrap(), 0);
+        assert!(!cache.is_warming().await);
+        assert!(cache.is_empty().await);
     }
 }
