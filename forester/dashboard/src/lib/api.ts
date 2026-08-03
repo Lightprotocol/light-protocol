@@ -2,7 +2,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_FORESTER_API_URL ?? "/api";
 
 const REQUEST_TIMEOUT_MS = Number(
-  process.env.NEXT_PUBLIC_FORESTER_API_TIMEOUT_MS ?? 8000
+  process.env.NEXT_PUBLIC_FORESTER_API_TIMEOUT_MS ?? 35000
 );
 
 export class ApiError extends Error {
@@ -30,7 +30,7 @@ export async function fetchApi<T>(path: string): Promise<T> {
   const timeoutMs =
     Number.isFinite(REQUEST_TIMEOUT_MS) && REQUEST_TIMEOUT_MS > 0
       ? REQUEST_TIMEOUT_MS
-      : 8000;
+      : 35000;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

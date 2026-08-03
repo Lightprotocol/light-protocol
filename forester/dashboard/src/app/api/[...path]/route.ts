@@ -6,7 +6,7 @@ const BACKEND_URL =
   process.env.FORESTER_API_URL || "http://127.0.0.1:8080";
 
 const BACKEND_TIMEOUT_MS = Number(
-  process.env.FORESTER_API_TIMEOUT_MS ?? 8000
+  process.env.FORESTER_API_TIMEOUT_MS ?? 30000
 );
 
 function isAbortError(error: unknown): boolean {
@@ -34,7 +34,7 @@ export async function GET(
   const timeoutMs =
     Number.isFinite(BACKEND_TIMEOUT_MS) && BACKEND_TIMEOUT_MS > 0
       ? BACKEND_TIMEOUT_MS
-      : 8000;
+      : 30000;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

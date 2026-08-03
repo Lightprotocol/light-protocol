@@ -75,6 +75,7 @@ api-docs/
 /**/dump.rdb
 
 /**/package-lock.json
+!/forester/dashboard/package-lock.json
 qodana.yaml
 
 node_modules

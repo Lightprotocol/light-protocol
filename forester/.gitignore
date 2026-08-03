@@ -6,6 +6,8 @@ logs
 .env.mainnet
 *.json
 !package.json
+!dashboard/package-lock.json
+!dashboard/tsconfig.json
 !metrics-contract.json
 spawn.sh
 spawn_devnet.sh
