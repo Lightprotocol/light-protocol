@@ -2261,6 +2261,22 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             return Ok(());
         }
 
+        if let Some(cache) = self
+            .proof_caches
+            .get(&tree_pubkey)
+            .map(|cache| cache.clone())
+        {
+            if cache.is_warming().await {
+                debug!(
+                    event = "v2_proof_work_deferred_cache_warming",
+                    run_id = %self.run_id,
+                    tree = %tree_pubkey,
+                    "Deferring V2 proof work while late proofs are collected"
+                );
+                return Ok(());
+            }
+        }
+
         // Try to send any cached proofs first
         let cached_send_start = Instant::now();
         if let Some(items_sent) = self
@@ -3627,6 +3643,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         .entry(tree_pubkey)
                         .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
                         .clone();
+
+                    if cache.is_warming().await {
+                        info!(
+                            event = "prewarm_skipped_cache_warming",
+                            run_id = %self_clone.run_id,
+                            tree = %tree_pubkey,
+                            "Tree cache is already collecting proofs; skipping pre-warm"
+                        );
+                        return;
+                    }
 
                     let cache_len = cache.len().await;
                     if cache_len > 0 && !cache.is_warming().await {
