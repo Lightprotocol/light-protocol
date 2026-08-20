@@ -97,6 +97,18 @@ type AddressBatchProcessorMap<R> =
 type ProcessorInitLockMap = Arc<DashMap<Pubkey, Arc<Mutex<()>>>>;
 type TreeProcessingTask = JoinHandle<Result<()>>;
 
+const EPOCH_PROCESSING_RETRY_INITIAL_DELAY_SECS: u64 = 2;
+const EPOCH_PROCESSING_RETRY_MAX_DELAY_SECS: u64 = 60;
+
+fn epoch_processing_retry_delay(consecutive_failures: u32) -> Duration {
+    let exponent = consecutive_failures.saturating_sub(1).min(5);
+    Duration::from_secs(
+        EPOCH_PROCESSING_RETRY_INITIAL_DELAY_SECS
+            .saturating_mul(2u64.pow(exponent))
+            .min(EPOCH_PROCESSING_RETRY_MAX_DELAY_SECS),
+    )
+}
+
 /// Coordinates re-finalization across parallel `process_queue` tasks when new
 /// foresters register mid-epoch. Only one task performs the on-chain
 /// `finalize_registration` tx; others wait for it to complete.
@@ -437,7 +449,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             );
                             let self_clone = Arc::clone(&self);
                             tokio::spawn(async move {
-                                if let Err(e) = self_clone.process_epoch(epoch).await {
+                                if let Err(e) = self_clone.process_epoch_with_retry(epoch).await {
                                     error!(
                                         event = "epoch_processing_failed",
                                         run_id = %self_clone.run_id,
@@ -1220,6 +1232,67 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             epoch, "Exiting process_epoch"
         );
         Ok(())
+    }
+
+    /// Keep an epoch alive across transient RPC/provider failures. The epoch
+    /// monitor emits each epoch only once, so returning an error without a
+    /// retry here would permanently leave that epoch without a schedule until
+    /// the forester process is restarted.
+    async fn process_epoch_with_retry(&self, epoch: u64) -> Result<()> {
+        let phases = get_epoch_phases(&self.protocol_config, epoch);
+        let mut consecutive_failures = 0u32;
+
+        loop {
+            match self.process_epoch(epoch).await {
+                Ok(()) => {
+                    if consecutive_failures > 0 {
+                        info!(
+                            event = "epoch_processing_recovered",
+                            run_id = %self.run_id,
+                            epoch,
+                            consecutive_failures,
+                            "Epoch processing recovered after transient failures"
+                        );
+                    }
+                    return Ok(());
+                }
+                Err(error) => {
+                    consecutive_failures = consecutive_failures.saturating_add(1);
+                    let current_slot = self.slot_tracker.estimated_current_slot();
+
+                    // Once the report-work phase is over there is no useful
+                    // epoch work left to recover, and retaining a retry task
+                    // forever would leak one task per failed epoch.
+                    if current_slot >= phases.report_work.end {
+                        error!(
+                            event = "epoch_processing_retry_deadline_reached",
+                            run_id = %self.run_id,
+                            epoch,
+                            consecutive_failures,
+                            current_slot,
+                            retry_deadline_slot = phases.report_work.end,
+                            error = ?error,
+                            "Epoch processing retry deadline reached"
+                        );
+                        return Err(error);
+                    }
+
+                    let retry_delay = epoch_processing_retry_delay(consecutive_failures);
+                    warn!(
+                        event = "epoch_processing_retrying",
+                        run_id = %self.run_id,
+                        epoch,
+                        consecutive_failures,
+                        current_slot,
+                        retry_deadline_slot = phases.report_work.end,
+                        retry_delay_ms = retry_delay.as_millis() as u64,
+                        error = ?error,
+                        "Epoch processing failed; retrying"
+                    );
+                    sleep(retry_delay).await;
+                }
+            }
+        }
     }
 
     async fn get_current_slot_and_epoch(&self) -> Result<(u64, u64)> {
@@ -4776,6 +4849,16 @@ mod tests {
         assert!(!should_skip_tree(&config, &TreeType::StateV2));
         assert!(!should_skip_tree(&config, &TreeType::AddressV1));
         assert!(!should_skip_tree(&config, &TreeType::AddressV2));
+    }
+
+    #[test]
+    fn test_epoch_processing_retry_delay_is_exponential_and_capped() {
+        assert_eq!(epoch_processing_retry_delay(1), Duration::from_secs(2));
+        assert_eq!(epoch_processing_retry_delay(2), Duration::from_secs(4));
+        assert_eq!(epoch_processing_retry_delay(3), Duration::from_secs(8));
+        assert_eq!(epoch_processing_retry_delay(5), Duration::from_secs(32));
+        assert_eq!(epoch_processing_retry_delay(6), Duration::from_secs(60));
+        assert_eq!(epoch_processing_retry_delay(100), Duration::from_secs(60));
     }
 
     #[test]
