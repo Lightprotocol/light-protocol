@@ -17,7 +17,7 @@ use std::{
     alloc::{self, handle_alloc_error, Layout},
     iter::Skip,
     marker::PhantomData,
-    mem,
+    mem, ptr,
 };
 
 use changelog::ChangelogPath;
@@ -228,7 +228,7 @@ where
         // Initialize changelog.
         let path = ChangelogPath::from_fn(|i| Some(H::zero_bytes()[i]));
         let changelog_entry = ChangelogEntry { path, index: 0 };
-        self.changelog.push(changelog_entry);
+        self.push_changelog_entry(changelog_entry);
 
         // Initialize filled subtrees.
         for i in 0..self.height {
@@ -250,6 +250,27 @@ where
     /// Returns the index of the current changelog entry.
     pub fn changelog_index(&self) -> usize {
         self.changelog.last_index()
+    }
+
+    /// Pushes `entry` so that every byte of its slot is defined.
+    ///
+    /// `CyclicBoundedVec::push` copies the struct with `ptr::write`, which
+    /// also copies the undefined value bytes of `None` nodes and the struct
+    /// padding between `path` and `index` from the stack into the account.
+    /// Instead, the slot is zeroed and only defined bytes are written.
+    fn push_changelog_entry(&mut self, entry: ChangelogEntry<HEIGHT>) {
+        self.changelog.push(ChangelogEntry::default_with_index(0));
+        if let Some(slot) = self.changelog.last_mut() {
+            // SAFETY: All-zero bytes are a valid `ChangelogEntry` (all `None`
+            // nodes, index 0). This also zeroes the padding before `index`.
+            unsafe { ptr::write_bytes(slot as *mut ChangelogEntry<HEIGHT>, 0, 1) };
+            slot.index = entry.index;
+            for (dst, src) in slot.path.iter_mut().zip(entry.path.iter()) {
+                if src.is_some() {
+                    *dst = *src;
+                }
+            }
+        }
     }
 
     /// Returns the index of the current root in the tree's root buffer.
@@ -448,7 +469,7 @@ where
                 self.set_rightmost_leaf(new_leaf);
             }
         }
-        self.changelog.push(changelog_entry);
+        self.push_changelog_entry(changelog_entry);
 
         if self.canopy_depth > 0 {
             self.update_canopy(self.changelog.last_index(), 1);
@@ -569,8 +590,7 @@ where
         for (leaf_i, leaf) in leaves.iter().enumerate() {
             let mut current_index = self.next_index();
 
-            self.changelog
-                .push(ChangelogEntry::<HEIGHT>::default_with_index(current_index));
+            self.push_changelog_entry(ChangelogEntry::<HEIGHT>::default_with_index(current_index));
             let changelog_index = self.changelog_index();
 
             let mut current_node = **leaf;
