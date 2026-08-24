@@ -3560,9 +3560,11 @@ fn test_changelog_layout() {
     let (tag, some_value) = some_bytes.split_first().unwrap();
     assert_eq!(*tag, 1);
     assert_eq!(some_value, value);
-    // Only the tag byte of `None` is defined.
-    let none_bytes: [u8; 33] = unsafe { std::mem::transmute(None::<[u8; 32]>) };
-    assert_eq!(none_bytes[0], 0);
+    // Only the tag byte of `None` is defined, so read just that byte.
+    let none = None::<[u8; 32]>;
+    // SAFETY: The tag byte is always initialized and lies within `none`.
+    let none_tag = unsafe { *(&none as *const Option<[u8; 32]> as *const u8) };
+    assert_eq!(none_tag, 0);
 
     assert_eq!(size_of::<ChangelogEntry<22>>(), 736);
     assert_eq!(size_of::<ChangelogEntry<26>>(), 872);
