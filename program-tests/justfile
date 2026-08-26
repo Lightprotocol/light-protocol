@@ -15,6 +15,9 @@ test: build test-account-compression test-registry test-system test-system-cpi t
 test-account-compression:
     RUSTFLAGS="-D warnings" cargo test-sbf -p account-compression-test
 
+test-mollusk-vas-repro:
+    RUST_LOG=off cargo run --locked --offline --manifest-path mollusk-vas-repro/Cargo.toml
+
 test-registry:
     RUST_MIN_STACK=16777216 RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test
 
