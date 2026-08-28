@@ -4,6 +4,8 @@ use light_bounded_vec::BoundedVec;
 
 use crate::errors::ConcurrentMerkleTreeError;
 
+const _: () = assert!(std::mem::size_of::<Option<[u8; 32]>>() == 33);
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct ChangelogPath<const HEIGHT: usize>(pub [Option<[u8; 32]>; HEIGHT]);

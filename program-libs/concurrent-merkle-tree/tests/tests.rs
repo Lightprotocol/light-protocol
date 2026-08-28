@@ -1,4 +1,4 @@
-use std::cmp;
+use std::{cmp, mem::size_of};
 
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
@@ -11,6 +11,7 @@ use light_concurrent_merkle_tree::{
 };
 use light_hash_set::HashSet;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
+use memoffset::offset_of;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use rand::{
@@ -3545,4 +3546,99 @@ fn test_update_with_canopy_poseidon() {
 #[test]
 fn test_update_with_canopy_sha256() {
     update_with_canopy::<Sha256>()
+}
+
+/// The on-chain changelog layout the tree relies on: a node is a tag byte
+/// (0 = `None`, 1 = `Some`) followed by the 32 value bytes, and `index` is
+/// the last `u64` of a `repr(C)` entry.
+#[test]
+fn test_changelog_layout() {
+    assert_eq!(size_of::<Option<[u8; 32]>>(), 33);
+    let value = [0xAB; 32];
+    // SAFETY: Same size; `Some` has every byte initialized.
+    let some_bytes: [u8; 33] = unsafe { std::mem::transmute(Some(value)) };
+    let (tag, some_value) = some_bytes.split_first().unwrap();
+    assert_eq!(*tag, 1);
+    assert_eq!(some_value, value);
+    // Only the tag byte of `None` is defined, so read just that byte.
+    let none = None::<[u8; 32]>;
+    // SAFETY: The tag byte is always initialized and lies within `none`.
+    let none_tag = unsafe { *(&none as *const Option<[u8; 32]> as *const u8) };
+    assert_eq!(none_tag, 0);
+
+    assert_eq!(size_of::<ChangelogEntry<22>>(), 736);
+    assert_eq!(size_of::<ChangelogEntry<26>>(), 872);
+    assert_eq!(size_of::<ChangelogEntry<32>>(), 1064);
+    assert_eq!(size_of::<ChangelogEntry<40>>(), 1328);
+    assert_eq!(offset_of!(ChangelogEntry<22>, index), 736 - 8);
+    assert_eq!(offset_of!(ChangelogEntry<26>, index), 872 - 8);
+    assert_eq!(offset_of!(ChangelogEntry<32>, index), 1064 - 8);
+    assert_eq!(offset_of!(ChangelogEntry<40>, index), 1328 - 8);
+}
+
+/// Every byte of every changelog entry written into the account buffer must
+/// be defined: `None` nodes must be all-zero and the struct padding between
+/// `path` and `index` must be zero. The buffer is pre-filled with a marker so
+/// any byte that is merely left untouched (instead of written) is detected.
+#[test]
+fn test_changelog_bytes_are_defined() {
+    // 33 * 10 = 330 bytes of path, leaving 6 bytes of padding before `index`.
+    const HEIGHT: usize = 10;
+    const CHANGELOG: usize = 8;
+    const ROOTS: usize = 8;
+    const CANOPY: usize = 0;
+    let path_size = size_of::<ChangelogPath<HEIGHT>>();
+    let index_offset = offset_of!(ChangelogEntry<HEIGHT>, index);
+    assert_eq!(index_offset - path_size, 6);
+
+    let mut bytes = vec![
+        0xFFu8;
+        ConcurrentMerkleTree::<Sha256, HEIGHT>::size_in_account(
+            HEIGHT, CHANGELOG, ROOTS, CANOPY
+        )
+    ];
+    let mut merkle_tree =
+        ConcurrentMerkleTreeZeroCopyMut::<Sha256, HEIGHT>::from_bytes_zero_copy_init(
+            bytes.as_mut_slice(),
+            HEIGHT,
+            CANOPY,
+            CHANGELOG,
+            ROOTS,
+        )
+        .unwrap();
+    // `init` writes a full path, `append_batch` writes partial paths with
+    // `None` nodes.
+    merkle_tree.init().unwrap();
+    merkle_tree
+        .append_batch(&[&[1; 32], &[2; 32], &[3; 32]])
+        .unwrap();
+
+    for changelog_index in 0..merkle_tree.changelog.len() {
+        let entry = merkle_tree.changelog.get(changelog_index).unwrap();
+        // SAFETY: The entry lives in `bytes`, which was fully initialized
+        // with the marker before the tree was created.
+        let entry_bytes = unsafe {
+            std::slice::from_raw_parts(
+                entry as *const ChangelogEntry<HEIGHT> as *const u8,
+                size_of::<ChangelogEntry<HEIGHT>>(),
+            )
+        };
+        let (path_bytes, rest) = entry_bytes.split_at(path_size);
+        let (padding, _index) = rest.split_at(index_offset - path_size);
+        for (level, node) in path_bytes.chunks_exact(33).enumerate() {
+            let (tag, value) = node.split_first().unwrap();
+            match *tag {
+                1 => {}
+                0 => assert!(
+                    value.iter().all(|b| *b == 0),
+                    "entry {changelog_index} level {level}: None node has non-zero value bytes"
+                ),
+                tag => panic!("entry {changelog_index} level {level}: invalid tag {tag}"),
+            }
+        }
+        assert!(
+            padding.iter().all(|b| *b == 0),
+            "entry {changelog_index}: padding bytes are not zero"
+        );
+    }
 }

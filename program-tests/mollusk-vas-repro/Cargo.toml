@@ -1,0 +1,32 @@
+[package]
+name = "mollusk-vas-repro"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+resolver = "2"
+
+[dependencies]
+account-compression = { path = "../../programs/account-compression", features = ["no-entrypoint"] }
+anchor-lang = "=0.31.1"
+base64 = "=0.21.7"
+borsh = "=0.10.4"
+bs58 = "0.5"
+light-batched-merkle-tree = { path = "../../program-libs/batched-merkle-tree", features = ["test-only"] }
+light-compressed-account = { path = "../../program-libs/compressed-account", features = ["std"] }
+light-hasher = { path = "../../program-libs/hasher", features = ["poseidon"] }
+light-indexed-merkle-tree = { path = "../../program-libs/indexed-merkle-tree" }
+light-merkle-tree-reference = { path = "../merkle-tree" }
+light-prover-client = { path = "../../prover/client" }
+mollusk-svm = "=0.14.0"
+mollusk-svm-result = "=0.14.0"
+num-bigint = "=0.4.6"
+solana-account = "=4.3.1"
+solana-address = "=2.6.1"
+solana-instruction = "=3.4.0"
+solana-sdk-ids = "=3.1.0"
+tokio = { version = "=1.53.1", features = ["macros", "rt-multi-thread"] }
+
+[patch.crates-io]
+groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana", rev = "4e6cacff2f4ff53744fda0509f5e62545fd99aa6" }

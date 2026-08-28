@@ -16,7 +16,7 @@ use std::{
     cmp::Ordering,
     marker::Send,
     mem,
-    ptr::NonNull,
+    ptr::{self, NonNull},
 };
 
 use light_hasher::{bigint::bigint_to_be_bytes_array, HasherError};
@@ -71,6 +71,84 @@ impl From<HashSetError> for solana_program_error::ProgramError {
 pub struct HashSetCell {
     pub value: [u8; 32],
     pub sequence_number: Option<usize>,
+}
+
+// `Option<HashSetCell>` uses the unused discriminants of the nested
+// `Option<usize>` for its outer `None`. These are the deployed v1 account
+// bytes, so fail compilation if the Rust layout changes.
+const _: () = {
+    assert!(mem::size_of::<usize>() == 8);
+    assert!(mem::size_of::<Option<usize>>() == 16);
+    assert!(mem::size_of::<HashSetCell>() == 48);
+    assert!(mem::align_of::<HashSetCell>() == 8);
+    assert!(mem::offset_of!(HashSetCell, sequence_number) == 0);
+    assert!(mem::offset_of!(HashSetCell, value) == 16);
+    assert!(mem::size_of::<Option<HashSetCell>>() == 48);
+    assert!(mem::align_of::<Option<HashSetCell>>() == 8);
+};
+
+const UNMARKED_BUCKET_TAG: usize = 0;
+const MARKED_BUCKET_TAG: usize = 1;
+const EMPTY_BUCKET_TAG: usize = 2;
+
+const fn bucket_tag(bucket: &Option<HashSetCell>) -> usize {
+    // SAFETY: The layout assertions above pin the enum tag to the first
+    // `usize`, which rustc always initializes.
+    unsafe { *(bucket as *const Option<HashSetCell> as *const usize) }
+}
+
+const _: () = {
+    let cell = HashSetCell {
+        value: [0; 32],
+        sequence_number: None,
+    };
+    assert!(bucket_tag(&Some(cell)) == UNMARKED_BUCKET_TAG);
+    let cell = HashSetCell {
+        value: [0; 32],
+        sequence_number: Some(0),
+    };
+    assert!(bucket_tag(&Some(cell)) == MARKED_BUCKET_TAG);
+    assert!(bucket_tag(&None) == EMPTY_BUCKET_TAG);
+};
+
+#[repr(C)]
+struct RawHashSetCell {
+    tag: usize,
+    sequence_number: usize,
+    value: [u8; 32],
+}
+
+const _: () = {
+    assert!(mem::size_of::<RawHashSetCell>() == mem::size_of::<Option<HashSetCell>>());
+    assert!(mem::align_of::<RawHashSetCell>() == mem::align_of::<Option<HashSetCell>>());
+    assert!(mem::offset_of!(RawHashSetCell, tag) == 0);
+    assert!(mem::offset_of!(RawHashSetCell, sequence_number) == 8);
+    assert!(mem::offset_of!(RawHashSetCell, value) == 16);
+};
+
+/// Writes every byte of a bucket without copying undefined enum payload bytes.
+unsafe fn write_bucket(
+    bucket: *mut Option<HashSetCell>,
+    tag: usize,
+    sequence_number: usize,
+    value: [u8; 32],
+) {
+    ptr::write(
+        bucket.cast::<RawHashSetCell>(),
+        RawHashSetCell {
+            tag,
+            sequence_number,
+            value,
+        },
+    );
+}
+
+unsafe fn write_empty_bucket(bucket: *mut Option<HashSetCell>) {
+    write_bucket(bucket, EMPTY_BUCKET_TAG, 0, [0; 32]);
+}
+
+unsafe fn write_unmarked_bucket(bucket: *mut Option<HashSetCell>, value: [u8; 32]) {
+    write_bucket(bucket, UNMARKED_BUCKET_TAG, 0, value);
 }
 
 unsafe impl Send for HashSet {}
@@ -145,14 +223,11 @@ impl HashSet {
 
     /// Size which needs to be allocated on Solana account to fit the hash set.
     pub fn size_in_account(capacity_values: usize) -> usize {
-        let dyn_fields_size = Self::non_dyn_fields_size();
+        Self::buckets_offset() + mem::size_of::<Option<HashSetCell>>() * capacity_values
+    }
 
-        let buckets_size_unaligned = mem::size_of::<Option<HashSetCell>>() * capacity_values;
-        // Make sure that alignment of `values` matches the alignment of `usize`.
-        let buckets_size = buckets_size_unaligned + mem::align_of::<usize>()
-            - (buckets_size_unaligned % mem::align_of::<usize>());
-
-        dyn_fields_size + buckets_size
+    pub(crate) fn buckets_offset() -> usize {
+        Self::non_dyn_fields_size() + mem::size_of::<usize>()
     }
 
     // Create a new hash set with the given capacity
@@ -166,7 +241,7 @@ impl HashSet {
         let values = NonNull::new(values_ptr).unwrap();
         for i in 0..capacity_values {
             unsafe {
-                std::ptr::write(values_ptr.add(i), None);
+                write_empty_bucket(values_ptr.add(i));
             }
         }
 
@@ -213,11 +288,7 @@ impl HashSet {
             handle_alloc_error(buckets_layout);
         }
         let buckets = NonNull::new(buckets_dst_ptr).unwrap();
-        for i in 0..capacity {
-            std::ptr::write(buckets_dst_ptr.add(i), None);
-        }
-
-        let offset = Self::non_dyn_fields_size() + mem::size_of::<usize>();
+        let offset = Self::buckets_offset();
         let buckets_src_ptr = bytes.as_ptr().add(offset) as *const Option<HashSetCell>;
         std::ptr::copy(buckets_src_ptr, buckets_dst_ptr, capacity);
 
@@ -286,25 +357,23 @@ impl HashSet {
         // PANICS: We trust the bounds of `value_index` here.
         let bucket = self.get_bucket_mut(value_index).unwrap();
 
-        match bucket {
+        match *bucket {
             // The cell in the value array is already taken.
-            Some(bucket) => {
+            Some(cell) => {
                 // We can overwrite that cell only if the element
                 // is expired - when the difference between its
                 // sequence number and provided sequence number is
                 // greater than the threshold.
-                if let Some(element_sequence_number) = bucket.sequence_number {
+                if let Some(element_sequence_number) = cell.sequence_number {
                     if current_sequence_number >= element_sequence_number {
-                        *bucket = HashSetCell {
-                            value: bigint_to_be_bytes_array(value)?,
-                            sequence_number: None,
-                        };
+                        let value = bigint_to_be_bytes_array(value)?;
+                        unsafe { write_unmarked_bucket(bucket, value) };
                         return Ok(true);
                     }
                 }
                 // Otherwise, we need to prevent having multiple valid
                 // elements with the same value.
-                if &BigUint::from_be_bytes(bucket.value.as_slice()) == value {
+                if &BigUint::from_be_bytes(cell.value.as_slice()) == value {
                     return Err(HashSetError::ElementAlreadyExists);
                 }
             }
@@ -347,10 +416,8 @@ impl HashSet {
                 // PANICS: We trust the bounds of `index`.
                 let bucket = self.get_bucket_mut(index).unwrap();
 
-                *bucket = Some(HashSetCell {
-                    value: bigint_to_be_bytes_array(value)?,
-                    sequence_number: None,
-                });
+                let value = bigint_to_be_bytes_array(value)?;
+                unsafe { write_unmarked_bucket(bucket, value) };
                 return Ok(index);
             }
         }
