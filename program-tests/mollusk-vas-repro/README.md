@@ -6,15 +6,32 @@ Reproduces the `virtual_address_space_adjustments` state-byte divergence for:
 - feature gate: `7VgiehxNxu53KdxgLspGQY8myE6f7UokaWa4jsGcaSz`
 - example transaction: `2iT1exGBk773wicyqhoEiZZVjSBQhgxmoo2YHr5H177PCgU4TThbRrWqQg7y2g64Svxxa4v7GjDwFAQdTUFwfKCv`
 
-The harness runs the extracted inner account-compression instructions twice:
+The harness runs each case twice:
 
 1. with `virtual_address_space_adjustments = false`
 2. with `virtual_address_space_adjustments = true`
 
-It then compares the resulting state-tree account bytes.
+It then compares the resulting account bytes against the case's expectation.
+
+| Case | Program | What it runs | Expected divergence |
+|------|---------|--------------|---------------------|
+| `mainnet-smt` | mainnet ELF | the extracted inner instructions of the mainnet transaction against the mainnet state tree | state tree diverges |
+| `local-amt1-update` | local ELF | init v1 address tree + queue, insert an address, update the tree | none |
+| `local-amt2-insert` | local ELF | init batched address tree, insert an address | none |
+| `local-bmt1-batch-append` | local ELF | init batched state tree + output queue, insert leaves, batch append with a proof | none |
 
 The crate is intentionally a nested workspace so its Mollusk/Solana dependency
 stack does not alter the root workspace dependency graph.
+
+## Requirements
+
+- `target/deploy/account_compression.so` built from this checkout
+  (`cargo build-sbf -p account-compression` or `./scripts/build.sh`).
+- `third-party/solana-program-library/spl_noop.so`.
+- A local prover: `local-bmt1-batch-append` calls `spawn_prover()`, which
+  uses an already running local prover or starts one via the `light` CLI on
+  `PATH`.
+- The mainnet fixtures below.
 
 ## Fixtures
 
@@ -26,7 +43,7 @@ fixtures/35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh.bin
 fixtures/smt8TYxNy8SuhAdKJ8CeLtDkr2w6dgDmdz5ruiDw9Y9.bin
 ```
 
-These are intentionally gitignored.
+The `.bin` files are raw account data. They are intentionally gitignored.
 
 If you already have the files in `/private/tmp`, copy them once:
 
@@ -40,14 +57,16 @@ cp /private/tmp/smt8TYxNy8SuhAdKJ8CeLtDkr2w6dgDmdz5ruiDw9Y9.bin \
   program-tests/mollusk-vas-repro/fixtures/smt8TYxNy8SuhAdKJ8CeLtDkr2w6dgDmdz5ruiDw9Y9.bin
 ```
 
-Or override paths with:
+Every path can be overridden:
 
-```bash
-MOLLUSK_VAS_ELF=/path/to/account-compression.so \
-MOLLUSK_VAS_REGISTERED_PROGRAM_ACCOUNT=/path/to/registered-program.json \
-MOLLUSK_VAS_STATE_TREE_ACCOUNT=/path/to/state-tree.json \
-cargo run --locked --manifest-path program-tests/mollusk-vas-repro/Cargo.toml --offline
-```
+| Variable | Default |
+|----------|---------|
+| `MOLLUSK_VAS_ELF` | `fixtures/account-compression-mainnet.so` |
+| `MOLLUSK_VAS_LOCAL_ELF` | `../../target/deploy/account_compression.so` |
+| `MOLLUSK_VAS_NOOP_ELF` | `../../third-party/solana-program-library/spl_noop.so` |
+| `MOLLUSK_VAS_REGISTERED_PROGRAM_ACCOUNT` | `fixtures/35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh.bin` |
+| `MOLLUSK_VAS_STATE_TREE_ACCOUNT` | `fixtures/smt8TYxNy8SuhAdKJ8CeLtDkr2w6dgDmdz5ruiDw9Y9.bin` |
+| `MOLLUSK_VAS_OUTPUT_DIR` | `output` |
 
 ## Run
 
@@ -55,10 +74,11 @@ cargo run --locked --manifest-path program-tests/mollusk-vas-repro/Cargo.toml --
 RUST_LOG=off cargo run --locked --manifest-path program-tests/mollusk-vas-repro/Cargo.toml --offline
 ```
 
-The harness writes:
+The run fails if any case's set of divergent accounts differs from its
+expectation, or if a required account was not mutated. For every divergent
+account the harness prints the differing byte ranges and writes both versions:
 
 ```text
-program-tests/mollusk-vas-repro/output/disabled-state-tree.raw
-program-tests/mollusk-vas-repro/output/enabled-state-tree.raw
+program-tests/mollusk-vas-repro/output/<case>/<address>-disabled.raw
+program-tests/mollusk-vas-repro/output/<case>/<address>-enabled.raw
 ```
-

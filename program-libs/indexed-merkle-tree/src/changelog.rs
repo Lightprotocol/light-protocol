@@ -14,3 +14,23 @@ where
     /// the same operation.
     pub changelog_index: usize,
 }
+
+// Pin the deployed v1 address-tree account layout. These types use Rust's
+// native layout, which currently reorders their fields.
+const _: () = {
+    type Element = RawIndexedElement<usize>;
+    type Entry = IndexedChangelogEntry<usize, 16>;
+
+    assert!(std::mem::size_of::<Element>() == 80);
+    assert!(std::mem::align_of::<Element>() == 8);
+    assert!(std::mem::offset_of!(Element, value) == 0);
+    assert!(std::mem::offset_of!(Element, next_value) == 32);
+    assert!(std::mem::offset_of!(Element, next_index) == 64);
+    assert!(std::mem::offset_of!(Element, index) == 72);
+
+    assert!(std::mem::size_of::<Entry>() == 600);
+    assert!(std::mem::align_of::<Entry>() == 8);
+    assert!(std::mem::offset_of!(Entry, proof) == 0);
+    assert!(std::mem::offset_of!(Entry, element) == 512);
+    assert!(std::mem::offset_of!(Entry, changelog_index) == 592);
+};
