@@ -564,7 +564,12 @@ impl<R: Rpc> TxSender<R> {
             );
         }
 
-        let _ = spawn_late_proof_collector(cache.clone(), proof_rx, self.context.merkle_tree);
+        // Dropping the JoinHandle detaches the collector so it can finish warming the cache.
+        drop(spawn_late_proof_collector(
+            cache.clone(),
+            proof_rx,
+            self.context.merkle_tree,
+        ));
 
         saved
     }
