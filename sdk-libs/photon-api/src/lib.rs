@@ -22,7 +22,8 @@ fn ensure_ring_provider() {
 pub mod apis {
     use super::*;
 
-    /// Configuration for the Photon API client.
+    /// Configuration for the Photon JSON-RPC API client.
+    /// Requests are posted to `base_path`; the method is carried in the JSON body.
     #[derive(Clone)]
     pub struct Configuration {
         pub base_path: String,
@@ -52,8 +53,10 @@ pub mod apis {
     impl Configuration {
         /// Create a new configuration from a URL string.
         ///
+        /// Use the RPC root URL, e.g. `https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`.
+        /// Method names are sent in the JSON-RPC body, never appended to the URL.
         /// If the URL contains an `api-key` query parameter, it is extracted
-        /// and appended to every request as `?api-key=KEY`.
+        /// and included with every request. Other query parameters are preserved.
         ///
         /// ```ignore
         /// // Without API key
@@ -72,26 +75,29 @@ pub mod apis {
             }
         }
 
-        fn build_url(&self, endpoint: &str) -> String {
-            match &self.api_key {
-                Some(key) => format!("{}/{}?api-key={}", self.base_path, endpoint, key),
-                None => format!("{}/{}", self.base_path, endpoint),
-            }
-        }
-
         pub(crate) fn parse_url(url: &str) -> (String, Option<String>) {
-            if let Some(query_start) = url.find('?') {
-                let base = &url[..query_start];
-                let query = &url[query_start + 1..];
-                for param in query.split('&') {
-                    if let Some(value) = param.strip_prefix("api-key=") {
-                        return (base.to_string(), Some(value.to_string()));
-                    }
-                }
-                (url.to_string(), None)
-            } else {
-                (url.to_string(), None)
+            let Ok(mut parsed) = reqwest::Url::parse(url) else {
+                // Preserve invalid input so reqwest reports the error when sending.
+                return (url.to_string(), None);
+            };
+            let api_key = parsed
+                .query_pairs()
+                .find(|(name, _)| name == "api-key")
+                .map(|(_, value)| value.into_owned());
+            if api_key.is_none() {
+                return (url.to_string(), None);
             }
+
+            let query: Vec<_> = parsed
+                .query_pairs()
+                .filter(|(name, _)| name != "api-key")
+                .map(|(name, value)| (name.into_owned(), value.into_owned()))
+                .collect();
+            parsed.set_query(None);
+            if !query.is_empty() {
+                parsed.query_pairs_mut().extend_pairs(query);
+            }
+            (parsed.to_string(), api_key)
         }
     }
 
@@ -408,20 +414,20 @@ pub mod apis {
         // ----------------------------------------------------------------
 
         macro_rules! api_call {
-            ($fn_name:ident, $endpoint:expr, $body_type:ty, $response_type:ty) => {
+            ($fn_name:ident, $body_type:ty, $response_type:ty) => {
                 pub async fn $fn_name(
                     configuration: &Configuration,
                     body: $body_type,
                 ) -> Result<$response_type, Error<$response_type>> {
-                    let url = configuration.build_url($endpoint);
-                    let response = configuration
+                    let mut request = configuration
                         .client
-                        .post(&url)
+                        .post(&configuration.base_path)
                         .header(reqwest::header::ACCEPT, "application/json")
-                        .json(&body)
-                        .send()
-                        .await
-                        .map_err(Error::Reqwest)?;
+                        .json(&body);
+                    if let Some(key) = &configuration.api_key {
+                        request = request.query(&[("api-key", key)]);
+                    }
+                    let response = request.send().await.map_err(Error::Reqwest)?;
 
                     let status = response.status().as_u16();
                     if status == 200 {
@@ -439,175 +445,146 @@ pub mod apis {
 
         api_call!(
             get_compressed_account_post,
-            "getCompressedAccount",
             types::PostGetCompressedAccountBody,
             types::PostGetCompressedAccountResponse
         );
         api_call!(
             get_compressed_account_balance_post,
-            "getCompressedAccountBalance",
             types::PostGetCompressedAccountBalanceBody,
             types::PostGetCompressedAccountBalanceResponse
         );
         api_call!(
             get_compressed_accounts_by_owner_post,
-            "getCompressedAccountsByOwner",
             types::PostGetCompressedAccountsByOwnerBody,
             types::PostGetCompressedAccountsByOwnerResponse
         );
         api_call!(
             get_compressed_accounts_by_owner_v2_post,
-            "getCompressedAccountsByOwnerV2",
             types::PostGetCompressedAccountsByOwnerV2Body,
             types::PostGetCompressedAccountsByOwnerV2Response
         );
         api_call!(
             get_compressed_balance_by_owner_post,
-            "getCompressedBalanceByOwner",
             types::PostGetCompressedBalanceByOwnerBody,
             types::PostGetCompressedBalanceByOwnerResponse
         );
         api_call!(
             get_compressed_mint_token_holders_post,
-            "getCompressedMintTokenHolders",
             types::PostGetCompressedMintTokenHoldersBody,
             types::PostGetCompressedMintTokenHoldersResponse
         );
         api_call!(
             get_compressed_token_account_balance_post,
-            "getCompressedTokenAccountBalance",
             types::PostGetCompressedTokenAccountBalanceBody,
             types::PostGetCompressedTokenAccountBalanceResponse
         );
         api_call!(
             get_compressed_token_accounts_by_delegate_post,
-            "getCompressedTokenAccountsByDelegate",
             types::PostGetCompressedTokenAccountsByDelegateBody,
             types::PostGetCompressedTokenAccountsByDelegateResponse
         );
         api_call!(
             get_compressed_token_accounts_by_delegate_v2_post,
-            "getCompressedTokenAccountsByDelegateV2",
             types::PostGetCompressedTokenAccountsByDelegateV2Body,
             types::PostGetCompressedTokenAccountsByDelegateV2Response
         );
         api_call!(
             get_compressed_token_accounts_by_owner_post,
-            "getCompressedTokenAccountsByOwner",
             types::PostGetCompressedTokenAccountsByOwnerBody,
             types::PostGetCompressedTokenAccountsByOwnerResponse
         );
         api_call!(
             get_compressed_token_accounts_by_owner_v2_post,
-            "getCompressedTokenAccountsByOwnerV2",
             types::PostGetCompressedTokenAccountsByOwnerV2Body,
             types::PostGetCompressedTokenAccountsByOwnerV2Response
         );
         api_call!(
             get_compressed_token_balances_by_owner_post,
-            "getCompressedTokenBalancesByOwner",
             types::PostGetCompressedTokenBalancesByOwnerBody,
             types::PostGetCompressedTokenBalancesByOwnerResponse
         );
         api_call!(
             get_compressed_token_balances_by_owner_v2_post,
-            "getCompressedTokenBalancesByOwnerV2",
             types::PostGetCompressedTokenBalancesByOwnerV2Body,
             types::PostGetCompressedTokenBalancesByOwnerV2Response
         );
         api_call!(
             get_compression_signatures_for_account_post,
-            "getCompressionSignaturesForAccount",
             types::PostGetCompressionSignaturesForAccountBody,
             types::PostGetCompressionSignaturesForAccountResponse
         );
         api_call!(
             get_compression_signatures_for_address_post,
-            "getCompressionSignaturesForAddress",
             types::PostGetCompressionSignaturesForAddressBody,
             types::PostGetCompressionSignaturesForAddressResponse
         );
         api_call!(
             get_compression_signatures_for_owner_post,
-            "getCompressionSignaturesForOwner",
             types::PostGetCompressionSignaturesForOwnerBody,
             types::PostGetCompressionSignaturesForOwnerResponse
         );
         api_call!(
             get_compression_signatures_for_token_owner_post,
-            "getCompressionSignaturesForTokenOwner",
             types::PostGetCompressionSignaturesForTokenOwnerBody,
             types::PostGetCompressionSignaturesForTokenOwnerResponse
         );
         api_call!(
             get_indexer_health_post,
-            "getIndexerHealth",
             types::PostGetIndexerHealthBody,
             types::PostGetIndexerHealthResponse
         );
         api_call!(
             get_indexer_slot_post,
-            "getIndexerSlot",
             types::PostGetIndexerSlotBody,
             types::PostGetIndexerSlotResponse
         );
         api_call!(
             get_multiple_compressed_account_proofs_post,
-            "getMultipleCompressedAccountProofs",
             types::PostGetMultipleCompressedAccountProofsBody,
             types::PostGetMultipleCompressedAccountProofsResponse
         );
         api_call!(
             get_multiple_compressed_accounts_post,
-            "getMultipleCompressedAccounts",
             types::PostGetMultipleCompressedAccountsBody,
             types::PostGetMultipleCompressedAccountsResponse
         );
         api_call!(
             get_multiple_new_address_proofs_v2_post,
-            "getMultipleNewAddressProofsV2",
             types::PostGetMultipleNewAddressProofsV2Body,
             types::PostGetMultipleNewAddressProofsV2Response
         );
         api_call!(
             get_validity_proof_post,
-            "getValidityProof",
             types::PostGetValidityProofBody,
             types::PostGetValidityProofResponse
         );
         api_call!(
             get_validity_proof_v2_post,
-            "getValidityProofV2",
             types::PostGetValidityProofV2Body,
             types::PostGetValidityProofV2Response
         );
         api_call!(
             get_queue_elements_post,
-            "getQueueElements",
             types::PostGetQueueElementsBody,
             types::PostGetQueueElementsResponse
         );
         api_call!(
             get_queue_leaf_indices_post,
-            "getQueueLeafIndices",
             types::PostGetQueueLeafIndicesBody,
             types::PostGetQueueLeafIndicesResponse
         );
         api_call!(
             get_queue_info_post,
-            "getQueueInfo",
             types::PostGetQueueInfoBody,
             types::PostGetQueueInfoResponse
         );
         api_call!(
             get_account_interface_post,
-            "getAccountInterface",
             types::PostGetAccountInterfaceBody,
             types::PostGetAccountInterfaceResponse
         );
         api_call!(
             get_multiple_account_interfaces_post,
-            "getMultipleAccountInterfaces",
             types::PostGetMultipleAccountInterfacesBody,
             types::PostGetMultipleAccountInterfacesResponse
         );
@@ -621,7 +598,7 @@ mod tests {
     #[test]
     fn test_parse_url_with_api_key() {
         let (base, key) = Configuration::parse_url("https://rpc.example.com?api-key=MY_KEY");
-        assert_eq!(base, "https://rpc.example.com");
+        assert_eq!(base, "https://rpc.example.com/");
         assert_eq!(key, Some("MY_KEY".to_string()));
     }
 
@@ -636,14 +613,14 @@ mod tests {
     fn test_parse_url_with_other_query_params() {
         let (base, key) =
             Configuration::parse_url("https://rpc.example.com?other=value&api-key=KEY123");
-        assert_eq!(base, "https://rpc.example.com");
+        assert_eq!(base, "https://rpc.example.com/?other=value");
         assert_eq!(key, Some("KEY123".to_string()));
     }
 
     #[test]
     fn test_new_with_api_key_in_url() {
         let config = Configuration::new("https://rpc.example.com?api-key=SECRET".to_string());
-        assert_eq!(config.base_path, "https://rpc.example.com");
+        assert_eq!(config.base_path, "https://rpc.example.com/");
         assert_eq!(config.api_key, Some("SECRET".to_string()));
     }
 
@@ -698,7 +675,7 @@ mod tests {
     #[tokio::test]
     async fn test_api_call_sends_correct_request() {
         use wiremock::{
-            matchers::{header, method, path, query_param},
+            matchers::{body_partial_json, header, method, path, query_param},
             Mock, MockServer, ResponseTemplate,
         };
 
@@ -711,10 +688,15 @@ mod tests {
         });
 
         Mock::given(method("POST"))
-            .and(path("/getIndexerHealth"))
+            .and(path("/"))
             .and(query_param("api-key", "TEST_KEY"))
             .and(header("accept", "application/json"))
+            .and(header("content-type", "application/json"))
+            .and(body_partial_json(serde_json::json!({
+                "jsonrpc": "2.0", "id": "test-account", "method": "getIndexerHealth"
+            })))
             .respond_with(ResponseTemplate::new(200).set_body_json(&response_json))
+            .expect(1)
             .mount(&mock_server)
             .await;
 
@@ -742,7 +724,7 @@ mod tests {
         });
 
         Mock::given(method("POST"))
-            .and(path("/getIndexerHealth"))
+            .and(path("/"))
             .and(header("accept", "application/json"))
             .respond_with(ResponseTemplate::new(200).set_body_json(&response_json))
             .mount(&mock_server)
@@ -757,6 +739,121 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_rpc_preserves_endpoint_and_query_parameters() {
+        use wiremock::{
+            matchers::{body_json, method, path, query_param},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let server = MockServer::start().await;
+        let address = "11111111111111111111111111111111";
+        let params = super::types::PostGetCompressedAccountBodyParams {
+            address: Some(super::types::SerializablePubkey(address.to_string())),
+            hash: None,
+        };
+        let body = default_api::make_get_compressed_account_body(params);
+        for suffix in ["", "/", "/photon", "/photon/"] {
+            server.reset().await;
+            Mock::given(method("POST"))
+                .and(path(if suffix.is_empty() { "/" } else { suffix }))
+                .and(query_param("api-key", "key+/=&value"))
+                .and(query_param("region", "eu"))
+                .and(query_param("tag", "one"))
+                .and(query_param("tag", "two"))
+                .and(body_json(&body))
+                .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "jsonrpc": "2.0", "id": "test-account",
+                    "result": {"context": {"slot": 123}, "value": null}
+                })))
+                .expect(1)
+                .mount(&server)
+                .await;
+
+            let config = Configuration::new(format!(
+                "{}{suffix}?region=eu&api-key=key%2B%2F%3D%26value&tag=one&tag=two",
+                server.uri()
+            ));
+            let response = default_api::get_compressed_account_post(&config, body.clone())
+                .await
+                .expect("RPC request should preserve endpoint, params and authentication");
+            assert_eq!(response.result.unwrap().context.slot, 123);
+            server.verify().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rpc_preserves_query_without_api_key_and_configured_api_key() {
+        use wiremock::{
+            matchers::{method, path, query_param},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(query_param("region", "eu"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "jsonrpc": "2.0", "id": "test-account", "result": "ok"
+            })))
+            .expect(2)
+            .mount(&server)
+            .await;
+
+        let mut config = Configuration::new(format!("{}/?region=eu", server.uri()));
+        for key in [None, Some("key+/=&value".to_string())] {
+            config.api_key = key.clone();
+            default_api::get_indexer_health_post(
+                &config,
+                default_api::make_get_indexer_health_body(),
+            )
+            .await
+            .unwrap();
+            let requests = server.received_requests().await.unwrap();
+            let request = requests.last().unwrap();
+            let sent_key = request
+                .url
+                .query_pairs()
+                .find(|(name, _)| name == "api-key")
+                .map(|(_, value)| value.into_owned());
+            assert_eq!(sent_key, key);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rpc_error_is_returned_without_rest_fallback() {
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "jsonrpc": "2.0", "id": "test-account",
+                "error": {"code": -32601, "message": "Method not found"}
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let config = Configuration::new(server.uri());
+        let body = default_api::make_get_compressed_account_body(
+            super::types::PostGetCompressedAccountBodyParams {
+                address: Some(super::types::SerializablePubkey(
+                    "11111111111111111111111111111111".to_string(),
+                )),
+                hash: None,
+            },
+        );
+        let response = default_api::get_compressed_account_post(&config, body)
+            .await
+            .unwrap();
+        assert!(response.result.is_none());
+        assert!(response.error.is_some());
+        assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
     async fn test_api_call_error_response() {
         use wiremock::{
             matchers::{method, path},
@@ -766,7 +863,7 @@ mod tests {
         let mock_server = MockServer::start().await;
 
         Mock::given(method("POST"))
-            .and(path("/getIndexerHealth"))
+            .and(path("/"))
             .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
             .mount(&mock_server)
             .await;
