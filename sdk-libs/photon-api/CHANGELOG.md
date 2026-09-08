@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Send Photon calls as JSON-RPC POSTs to the configured RPC URL instead of appending `/methodName`. This supports `https://mainnet.helius-rpc.com/?api-key=YOUR_KEY` through Helius Gatekeeper without a legacy hostname. API keys and other query parameters are preserved, including percent-encoded values.
+
 ### Breaking Changes
 
 - **Simplified `Configuration` struct.** The API key is now embedded in the URL as a query parameter:

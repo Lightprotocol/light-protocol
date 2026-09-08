@@ -29,6 +29,22 @@ Install this package in your project by running the following terminal command:
 npm install --save @lightprotocol/stateless.js
 ```
 
+### Helius mainnet
+
+Use the mainnet RPC root URL for both Solana and Photon calls:
+
+```typescript
+import { createRpc } from '@lightprotocol/stateless.js';
+
+const rpc = createRpc('https://mainnet.helius-rpc.com/?api-key=YOUR_KEY');
+const slot = await rpc.getIndexerSlot();
+```
+
+The client posts JSON-RPC requests to this URL, with the method name in the
+request body. Do not append a method path such as `/getIndexerSlot`.
+The legacy Helius hostname is not required. A separate Photon endpoint can
+still be supplied as the second argument to `createRpc`.
+
 ## Documentation and Examples
 
 For a more detailed documentation on usage, please check [the respective section at the ZK Compression documentation.](https://www.zkcompression.com/developers/typescript-client)
