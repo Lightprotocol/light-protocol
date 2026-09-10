@@ -243,7 +243,9 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
  *
  * @param endpointOrWeb3JsConnection    endpoint to the solana cluster or
  *                                      Connection object
- * @param compressionApiEndpoint        Endpoint to the compression server
+ * @param compressionApiEndpoint        JSON-RPC URL of the compression server.
+ *                                      For Helius, use https://mainnet.helius-rpc.com/?api-key=KEY.
+ *                                      Method names are sent in the body, not the URL.
  * @param proverEndpoint                Endpoint to the prover server. defaults
  *                                      to endpoint
  * @param connectionConfig              Optional connection config
@@ -301,7 +303,11 @@ export function wrapBigNumbersAsStrings(text: string): string {
     });
 }
 
-/** @internal */
+/**
+ * POST JSON-RPC to the configured URL unchanged, including authentication and
+ * any proxy path. Helius Gatekeeper routes by the method in the request body.
+ * @internal
+ */
 export const rpcRequest = async (
     rpcEndpoint: string,
     method: string,
