@@ -1,0 +1,5 @@
+target/
+output/
+expected/
+fixtures/*
+!fixtures/.gitkeep

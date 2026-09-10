@@ -29,6 +29,15 @@ cargo test-sbf -p account-compression-test
 ```
 Tests for the core account compression program (Merkle tree management).
 
+### Mollusk VAS Reproducer
+```bash
+just program-tests::test-mollusk-vas-repro
+```
+Standalone reproducer for the account byte divergence caused by toggling
+Mollusk's `virtual_address_space_adjustments` feature. This crate is a nested
+workspace so its Mollusk/Solana `3.x`/`4.x` dependencies do not alter the root
+workspace dependency graph.
+
 ### Registry Tests
 ```bash
 cargo test-sbf -p registry-test
