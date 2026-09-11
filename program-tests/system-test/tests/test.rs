@@ -47,6 +47,7 @@ use light_test_utils::{
 };
 use quote::format_ident;
 use serial_test::serial;
+#[allow(deprecated)]
 use solana_cli_output::CliAccount;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction, InstructionError},
@@ -853,7 +854,7 @@ pub async fn create_instruction_and_failing_transaction<R: Rpc>(
         account_compression_authority: get_cpi_authority_pda(&light_system_program::ID),
         sol_pool_pda,
         decompression_recipient: None,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
     let instruction = Instruction {
         program_id: light_system_program::ID,
@@ -1650,6 +1651,7 @@ async fn test_with_compression() {
 #[ignore = "this is a helper function to regenerate accounts"]
 // #[serial]
 #[tokio::test]
+#[allow(deprecated)]
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
 

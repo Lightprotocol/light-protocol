@@ -24,7 +24,7 @@ fn main() {
         data1: vec![1, 2, 3],
         data2: vec![100, 200],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (_struct_copy, remaining) = NumericSuffixFields::zero_copy_at(&bytes).unwrap();
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation with Vec<primitive>

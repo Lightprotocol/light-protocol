@@ -26,7 +26,7 @@ fn main() {
     };
 
     // Test Borsh compatibility
-    let bytes = instance.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&instance).unwrap();
 
     let (_struct_copy, remaining) = AlternatingTypes::zero_copy_at(&bytes).unwrap();
     // Note: Can't compare entire structs due to Vec fields, but can check primitive

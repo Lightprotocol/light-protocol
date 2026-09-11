@@ -105,7 +105,7 @@ pub(crate) fn generate_data_hasher_impl_sha(
                 let _ = <H as RequireSha256>::ASSERT;
 
                 // For SHA256, we serialize the whole struct and hash it in one go
-                let serialized = self.try_to_vec().map_err(|_| ::light_hasher::HasherError::BorshError)?;
+                let serialized = borsh::to_vec(&self).map_err(|_| ::light_hasher::HasherError::BorshError)?;
                 let mut result = H::hash(&serialized)?;
                 // Truncate sha256 to 31 be bytes less than 254 bits bn254 field size.
                 result[0] = 0;

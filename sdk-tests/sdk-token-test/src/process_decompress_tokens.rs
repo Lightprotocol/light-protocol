@@ -11,7 +11,7 @@ use light_token::ValidityProof;
 use crate::Generic;
 
 pub fn process_decompress_tokens<'info>(
-    ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+    ctx: Context<'info, Generic<'info>>,
     validity_proof: ValidityProof,
     token_data: Vec<TokenAccountMeta>,
     output_tree_index: u8,

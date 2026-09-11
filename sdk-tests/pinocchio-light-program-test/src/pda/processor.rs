@@ -1,7 +1,7 @@
 use light_account_pinocchio::{
     create_accounts, LightAccount, LightSdkTypesError, PdaInitParam, SharedAccounts,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{CreatePda, CreatePdaParams};
 
@@ -19,7 +19,7 @@ pub fn process(
         |light_config, current_slot| {
             use borsh::BorshDeserialize;
             let mut account_data = record
-                .try_borrow_mut_data()
+                .try_borrow_mut()
                 .map_err(|_| LightSdkTypesError::Borsh)?;
             let mut record = crate::state::MinimalRecord::try_from_slice(&account_data[8..])
                 .map_err(|_| LightSdkTypesError::Borsh)?;

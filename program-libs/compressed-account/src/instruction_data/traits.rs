@@ -25,8 +25,7 @@ pub trait LightInstructionData: InstructionDiscriminator + AnchorSerialize {
     #[profile]
     #[inline(never)]
     fn data(&self) -> Result<crate::Vec<u8>, CompressedAccountError> {
-        let inputs = AnchorSerialize::try_to_vec(self)
-            .map_err(|_| CompressedAccountError::InvalidArgument)?;
+        let inputs = borsh::to_vec(self).map_err(|_| CompressedAccountError::InvalidArgument)?;
         let mut data = crate::Vec::with_capacity(8 + inputs.len());
         data.extend_from_slice(self.discriminator());
 

@@ -17,7 +17,7 @@ fn main() {
         data: [2; 16],
         small_array: [3, 4, 5, 6],
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (struct_copy, remaining) = WithArrays::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct_copy, ref_struct);

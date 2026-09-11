@@ -44,7 +44,7 @@ pub async fn create_compressible_config(
                 solana_sdk::instruction::AccountMeta::new_readonly(protocol_config_pda, false),
                 solana_sdk::instruction::AccountMeta::new(config_counter_pda, false),
                 solana_sdk::instruction::AccountMeta::new_readonly(
-                    solana_sdk::system_program::id(),
+                    anchor_lang::solana_program::system_program::id(),
                     false,
                 ),
             ],

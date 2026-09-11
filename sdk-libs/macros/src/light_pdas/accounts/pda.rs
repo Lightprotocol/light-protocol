@@ -89,7 +89,7 @@ impl<'a> PdaBlockBuilder<'a> {
             let account_guard = format_ident!("{}_guard", ident);
             quote! {
                 {
-                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()
+                    let current_slot = anchor_lang::prelude::Clock::get()
                         .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?.slot;
                     let mut #account_guard = self.#ident.load_init()
                         .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
@@ -107,7 +107,7 @@ impl<'a> PdaBlockBuilder<'a> {
                 {
                     use light_account::LightAccount;
                     use anchor_lang::AnchorSerialize;
-                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()
+                    let current_slot = anchor_lang::prelude::Clock::get()
                         .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?.slot;
                     // Get account info BEFORE mutable borrow
                     let account_info = self.#ident.to_account_info();
@@ -130,7 +130,7 @@ impl<'a> PdaBlockBuilder<'a> {
                 {
                     use light_account::LightAccount;
                     use anchor_lang::AnchorSerialize;
-                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()
+                    let current_slot = anchor_lang::prelude::Clock::get()
                         .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?.slot;
                     // Get account info BEFORE mutable borrow
                     let account_info = self.#ident.to_account_info();

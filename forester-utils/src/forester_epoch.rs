@@ -1,6 +1,4 @@
-use anchor_lang::{
-    prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
-};
+use anchor_lang::{solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize};
 use light_client::rpc::{Rpc, RpcError};
 use light_compressed_account::TreeType;
 use light_registry::{

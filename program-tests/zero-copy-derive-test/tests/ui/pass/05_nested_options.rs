@@ -18,7 +18,7 @@ fn main() {
         opt_u32: Some(200),
         opt_u64: None,
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (_struct_copy, remaining) = NestedOptions::zero_copy_at(&bytes).unwrap();
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation with Option fields

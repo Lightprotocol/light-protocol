@@ -34,7 +34,7 @@ async fn test_create_ata_derive() {
         light_token_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = anchor_semi_manual_test::instruction::CreateAta {

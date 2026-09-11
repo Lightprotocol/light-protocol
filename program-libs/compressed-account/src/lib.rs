@@ -137,13 +137,6 @@ impl From<CompressedAccountError> for solana_program_error::ProgramError {
     }
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<CompressedAccountError> for pinocchio::program_error::ProgramError {
-    fn from(e: CompressedAccountError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e.into())
-    }
-}
-
 pub const NULLIFIER_QUEUE_TYPE_V1: u64 = 1;
 pub const ADDRESS_QUEUE_TYPE_V1: u64 = 2;
 pub const INPUT_STATE_QUEUE_TYPE_V2: u64 = 3;
@@ -151,15 +144,15 @@ pub const ADDRESS_QUEUE_TYPE_V2: u64 = 4;
 pub const OUTPUT_STATE_QUEUE_TYPE_V2: u64 = 5;
 
 #[cfg_attr(
-    all(feature = "std", feature = "anchor"),
-    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
-)]
-#[cfg_attr(
-    not(feature = "anchor"),
+    any(feature = "std", not(feature = "anchor")),
     derive(borsh::BorshDeserialize, borsh::BorshSerialize)
 )]
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u64)]
+#[cfg_attr(
+    any(feature = "std", not(feature = "anchor")),
+    borsh(use_discriminant = false)
+)]
 pub enum QueueType {
     NullifierV1 = NULLIFIER_QUEUE_TYPE_V1,
     AddressV1 = ADDRESS_QUEUE_TYPE_V1,
@@ -187,15 +180,15 @@ pub const STATE_MERKLE_TREE_TYPE_V2: u64 = 3;
 pub const ADDRESS_MERKLE_TREE_TYPE_V2: u64 = 4;
 
 #[cfg_attr(
-    all(feature = "std", feature = "anchor"),
-    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
-)]
-#[cfg_attr(
-    not(feature = "anchor"),
+    any(feature = "std", not(feature = "anchor")),
     derive(borsh::BorshDeserialize, borsh::BorshSerialize)
 )]
 #[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Clone, Copy)]
 #[repr(u64)]
+#[cfg_attr(
+    any(feature = "std", not(feature = "anchor")),
+    borsh(use_discriminant = false)
+)]
 pub enum TreeType {
     StateV1 = STATE_MERKLE_TREE_TYPE_V1,
     AddressV1 = ADDRESS_MERKLE_TREE_TYPE_V1,
@@ -203,6 +196,9 @@ pub enum TreeType {
     AddressV2 = ADDRESS_MERKLE_TREE_TYPE_V2,
     Unknown = 255,
 }
+
+#[cfg(feature = "idl-build")]
+impl anchor_lang::IdlBuild for TreeType {}
 
 impl Display for TreeType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

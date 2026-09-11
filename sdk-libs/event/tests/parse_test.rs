@@ -1,4 +1,3 @@
-use borsh::BorshSerialize;
 use light_compressed_account::{
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_REGISTRY_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
@@ -80,7 +79,7 @@ fn create_transfer2_with_ata(owner_index: u8, is_ata: bool) -> Vec<u8> {
         )]]),
     };
     let mut data = vec![TRANSFER2]; // discriminator
-    data.extend(transfer_data.try_to_vec().unwrap());
+    data.extend(borsh::to_vec(&transfer_data).unwrap());
     data
 }
 
@@ -135,7 +134,7 @@ fn create_transfer2_with_multiple_outputs(
         out_tlv: Some(out_tlv),
     };
     let mut data = vec![TRANSFER2];
-    data.extend(transfer_data.try_to_vec().unwrap());
+    data.extend(borsh::to_vec(&transfer_data).unwrap());
     data
 }
 
@@ -1381,7 +1380,7 @@ fn test_mixed_batch_legacy_nullifier_queue_indices_no_oob() {
     let mut system_ix_data = Vec::new();
     system_ix_data.extend_from_slice(&DISCRIMINATOR_INVOKE);
     system_ix_data.extend_from_slice(&[0u8; 4]);
-    system_ix_data.extend(system_invoke_data.try_to_vec().unwrap());
+    system_ix_data.extend(borsh::to_vec(&system_invoke_data).unwrap());
 
     // First 9 are system accounts; accounts[9..] are the tree accounts referenced
     // by merkle_tree_pubkey_index in each input compressed account.

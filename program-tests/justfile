@@ -16,7 +16,7 @@ test-account-compression:
     RUSTFLAGS="-D warnings" cargo test-sbf -p account-compression-test
 
 test-registry:
-    RUST_MIN_STACK=16777216 RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test
+    RUST_MIN_STACK=16777216 RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test -- --test-threads=1
 
 # System program tests
 test-system: test-system-address test-system-compression test-system-re-init
@@ -58,7 +58,7 @@ test-compressed-token-unit:
     RUSTFLAGS="-D warnings" cargo test -p light-compressed-token
 
 test-compressed-token-v1:
-    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test v1
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test v1 -- --test-threads=1
 
 test-compressed-token-mint:
     RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test mint

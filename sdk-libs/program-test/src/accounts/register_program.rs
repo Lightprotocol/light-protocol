@@ -7,8 +7,8 @@ use light_registry::{
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
-    system_instruction,
 };
+use solana_system_interface::instruction as system_instruction;
 
 pub async fn register_program_with_registry_program<R: Rpc>(
     rpc: &mut R,

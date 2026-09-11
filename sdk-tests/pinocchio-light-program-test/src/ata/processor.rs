@@ -1,5 +1,5 @@
 use light_account_pinocchio::{CreateTokenAtaCpi, LightSdkTypesError};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{CreateAtaAccounts, CreateAtaParams};
 

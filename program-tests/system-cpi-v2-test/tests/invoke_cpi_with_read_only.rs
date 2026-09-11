@@ -148,11 +148,9 @@ async fn functional_read_only() {
                             num_read_only_addresses = 0;
                             num_read_only_accounts = 0;
                         }
-                        println!("num_outputs: {}, num_inputs: {}, num_read_only_accounts: {}, num_read_only_addresses: {}", num_outputs, num_inputs, num_read_only_accounts, num_read_only_addresses);
                         let input_accounts = (input_merkle_tree_index
                             ..num_inputs + input_merkle_tree_index)
                             .map(|i| {
-                                println!("input leaf index: {}", i);
                                 get_input_account_info(PackedMerkleContext {
                                     leaf_index: i,
                                     merkle_tree_pubkey_index: 1,
@@ -188,7 +186,6 @@ async fn functional_read_only() {
                         }
                         let read_only_accounts = (1..=num_read_only_accounts)
                             .map(|i| {
-                                println!("read only leaf index: {}", i);
                                 let accounts = test_indexer
                                     .get_compressed_accounts_with_merkle_context_by_owner(
                                         &create_address_test_program::ID,
@@ -196,7 +193,6 @@ async fn functional_read_only() {
                                 let account = accounts
                                     .get(accounts.len().saturating_sub(i as usize))
                                     .unwrap();
-                                println!("leaf index {}", account.merkle_context.leaf_index);
                                 let mut merkle_context = account.merkle_context;
                                 if batched {
                                     merkle_context.prove_by_index = true;
@@ -447,11 +443,9 @@ async fn functional_account_infos() {
                             num_read_only_addresses = 0;
                             num_read_only_accounts = 0;
                         }
-                        println!("num_outputs: {}, num_inputs: {}, num_read_only_accounts: {}, num_read_only_addresses: {}", num_outputs, num_inputs, num_read_only_accounts, num_read_only_addresses);
                         let input_accounts = (input_merkle_tree_index
                             ..num_inputs + input_merkle_tree_index)
                             .map(|i| {
-                                println!("input leaf index: {}", i);
                                 get_input_account_info(PackedMerkleContext {
                                     leaf_index: i,
                                     merkle_tree_pubkey_index: 1,
@@ -487,7 +481,6 @@ async fn functional_account_infos() {
                         }
                         let read_only_accounts = (1..=num_read_only_accounts)
                             .map(|i| {
-                                println!("read only leaf index: {}", i);
                                 let accounts = test_indexer
                                     .get_compressed_accounts_with_merkle_context_by_owner(
                                         &create_address_test_program::ID,
@@ -495,7 +488,6 @@ async fn functional_account_infos() {
                                 let account = accounts
                                     .get(accounts.len().saturating_sub(i as usize))
                                     .unwrap();
-                                println!("leaf index {}", account.merkle_context.leaf_index);
                                 let mut merkle_context = account.merkle_context;
                                 if batched {
                                     merkle_context.prove_by_index = true;
@@ -2944,7 +2936,7 @@ async fn test_duplicate_account_in_inputs_and_read_only() {
 pub mod local_sdk {
     use std::{collections::HashMap, println};
 
-    use anchor_lang::{prelude::AccountMeta, AnchorSerialize};
+    use anchor_lang::prelude::AccountMeta;
     use solana_sdk::pubkey::Pubkey;
 
     const LIGHT_CPI_SIGNER: CpiSigner =
@@ -3059,7 +3051,7 @@ pub mod local_sdk {
             pack_read_only_address_params(read_only_addresses.as_slice(), &mut remaining_accounts);
 
         let ix_data = if account_infos.is_none() {
-            InstructionDataInvokeCpiWithReadOnly {
+            borsh::to_vec(&InstructionDataInvokeCpiWithReadOnly {
                 mode: if v2_ix { 1 } else { 0 },
                 bump: 255,
                 invoking_program_id: create_address_test_program::ID.into(),
@@ -3085,11 +3077,10 @@ pub mod local_sdk {
                 read_only_addresses,
                 with_cpi_context: cpi_context.is_some(),
                 cpi_context: cpi_context.unwrap_or_default(),
-            }
-            .try_to_vec()
+            })
             .unwrap()
         } else if let Some(account_infos) = account_infos.as_ref() {
-            InstructionDataInvokeCpiWithAccountInfo {
+            borsh::to_vec(&InstructionDataInvokeCpiWithAccountInfo {
                 mode: if v2_ix { 1 } else { 0 },
                 bump: 255,
                 invoking_program_id: create_address_test_program::ID.into(),
@@ -3104,16 +3095,11 @@ pub mod local_sdk {
                 with_transaction_hash,
                 with_cpi_context: cpi_context.is_some(),
                 cpi_context: cpi_context.unwrap_or_default(),
-            }
-            .try_to_vec()
+            })
             .unwrap()
         } else {
             unimplemented!("Invalid mode.")
         };
-        println!(
-            "sol pool pda {:?}",
-            Pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &light_system_program::ID).0
-        );
         let remaining_accounts = to_account_metas(remaining_accounts);
         let config = SystemAccountMetaConfig {
             self_program: create_address_test_program::ID,
@@ -3182,8 +3168,6 @@ pub mod local_sdk {
             )
             .await?;
         if let Some(res) = res {
-            println!("signature {:?}", res.1);
-            println!("event {:?}", res.0[0].event);
             let slot = rpc.get_slot().await?;
             test_indexer.add_event_and_compressed_accounts(slot, &res.0[0].event);
             Ok(Some((res.0, output_compressed_accounts, packed_inputs)))

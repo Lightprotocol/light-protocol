@@ -362,7 +362,7 @@ async fn test_d6_account() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d6_account_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D6Account {
@@ -424,7 +424,7 @@ async fn test_d6_boxed() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d6_boxed_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D6Boxed {
@@ -490,7 +490,7 @@ async fn test_d8_pda_only() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d8_pda_only_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D8PdaOnly {
@@ -565,7 +565,7 @@ async fn test_d8_multi_rentfree() {
         pda_rent_sponsor: program_rent_sponsor(),
         d8_multi_record1: pda1,
         d8_multi_record2: pda2,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D8MultiRentfree {
@@ -697,7 +697,7 @@ async fn test_d8_all() {
         pda_rent_sponsor: program_rent_sponsor(),
         d8_all_single: pda_single,
         d8_all_multi: pda_multi,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D8All {
@@ -852,7 +852,7 @@ async fn test_d9_literal() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_literal_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9Literal {
@@ -910,7 +910,7 @@ async fn test_d9_constant() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_constant_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9Constant {
@@ -971,7 +971,7 @@ async fn test_d9_ctx_account() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_ctx_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9CtxAccount {
@@ -1036,7 +1036,7 @@ async fn test_d9_param() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_param_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9Param {
@@ -1099,7 +1099,7 @@ async fn test_d9_param_bytes() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_param_bytes_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ParamBytes {
@@ -1164,7 +1164,7 @@ async fn test_d9_mixed() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_mixed_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9Mixed {
@@ -1235,7 +1235,7 @@ async fn test_d7_payer() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d7_payer_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D7Payer {
@@ -1294,7 +1294,7 @@ async fn test_d7_creator() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d7_creator_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D7Creator {
@@ -1359,7 +1359,7 @@ async fn test_d9_function_call() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_func_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9FunctionCall {
@@ -1450,7 +1450,7 @@ async fn test_d9_all() {
         d9_all_param: pda_param,
         d9_all_bytes: pda_bytes,
         d9_all_func: pda_func,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9All {
@@ -1584,7 +1584,7 @@ async fn test_d8_pda_only_full_lifecycle() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d8_pda_only_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D8PdaOnly {
@@ -1701,7 +1701,7 @@ async fn test_d5_light_token() {
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D5LightToken {
@@ -1793,7 +1793,7 @@ async fn test_d5_all_markers() {
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D5AllMarkers {
@@ -1901,7 +1901,7 @@ async fn test_d7_light_token_config() {
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D7LightTokenConfig {
@@ -1995,7 +1995,7 @@ async fn test_d7_all_names() {
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D7AllNames {
@@ -2099,7 +2099,7 @@ async fn test_d9_qualified_bare() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_bare_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedBare {
@@ -2154,7 +2154,7 @@ async fn test_d9_qualified_self() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_self_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedSelf {
@@ -2209,7 +2209,7 @@ async fn test_d9_qualified_crate() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_crate_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedCrate {
@@ -2261,7 +2261,7 @@ async fn test_d9_qualified_deep() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_deep_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedDeep {
@@ -2320,7 +2320,7 @@ async fn test_d9_qualified_mixed() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_mixed_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedMixed {
@@ -2379,7 +2379,7 @@ async fn test_d9_method_as_ref() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_method_as_ref_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodAsRef {
@@ -2433,7 +2433,7 @@ async fn test_d9_method_as_bytes() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_method_as_bytes_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodAsBytes {
@@ -2488,7 +2488,7 @@ async fn test_d9_method_qualified_as_bytes() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_method_qualified_as_bytes_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodQualifiedAsBytes {
@@ -2542,7 +2542,7 @@ async fn test_d9_method_to_le_bytes() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_method_to_le_bytes_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodToLeBytes {
@@ -2597,7 +2597,7 @@ async fn test_d9_method_to_be_bytes() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_method_to_be_bytes_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodToBeBytes {
@@ -2661,7 +2661,7 @@ async fn test_d9_method_mixed() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_method_mixed_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodMixed {
@@ -2719,7 +2719,7 @@ async fn test_d9_bump_literal() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_lit_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpLiteral {
@@ -2773,7 +2773,7 @@ async fn test_d9_bump_constant() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_const_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpConstant {
@@ -2827,7 +2827,7 @@ async fn test_d9_bump_qualified() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_qual_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpQualified {
@@ -2881,7 +2881,7 @@ async fn test_d9_bump_param() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_param_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpParam {
@@ -2939,7 +2939,7 @@ async fn test_d9_bump_ctx() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_ctx_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpCtx {
@@ -3003,7 +3003,7 @@ async fn test_d9_bump_mixed() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_mixed_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpMixed {
@@ -3067,7 +3067,7 @@ async fn test_d9_complex_three() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_three_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexThree {
@@ -3133,7 +3133,7 @@ async fn test_d9_complex_four() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_four_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexFour {
@@ -3203,7 +3203,7 @@ async fn test_d9_complex_five() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_five_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexFive {
@@ -3264,7 +3264,7 @@ async fn test_d9_complex_qualified_mix() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_qualified_mix_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexQualifiedMix {
@@ -3326,7 +3326,7 @@ async fn test_d9_complex_func() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_func_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexFunc {
@@ -3392,7 +3392,7 @@ async fn test_d9_complex_all_qualified() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_all_qualified_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexAllQualified {
@@ -3449,7 +3449,7 @@ async fn test_d9_complex_program_id() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_program_id_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexProgramId {
@@ -3506,7 +3506,7 @@ async fn test_d9_complex_id_func() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_id_func_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexIdFunc {
@@ -3567,7 +3567,7 @@ async fn test_d9_edge_empty() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_empty_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeEmpty {
@@ -3622,7 +3622,7 @@ async fn test_d9_edge_single_byte() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_single_byte_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeSingleByte {
@@ -3674,7 +3674,7 @@ async fn test_d9_edge_single_letter() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_single_letter_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeSingleLetter {
@@ -3726,7 +3726,7 @@ async fn test_d9_edge_digits() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_digits_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeDigits {
@@ -3780,7 +3780,7 @@ async fn test_d9_edge_underscore() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_underscore_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeUnderscore {
@@ -3832,7 +3832,7 @@ async fn test_d9_edge_many_literals() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_many_literals_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeManyLiterals {
@@ -3891,7 +3891,7 @@ async fn test_d9_edge_mixed() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_mixed_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeMixed {
@@ -3956,7 +3956,7 @@ async fn test_d9_external_sdk_types() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_external_sdk_types_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalSdkTypes {
@@ -4017,7 +4017,7 @@ async fn test_d9_external_ctoken() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_external_ctoken_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalCtoken {
@@ -4078,7 +4078,7 @@ async fn test_d9_external_mixed() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_external_mixed_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalMixed {
@@ -4141,7 +4141,7 @@ async fn test_d9_external_with_local() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_external_with_local_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalWithLocal {
@@ -4198,7 +4198,7 @@ async fn test_d9_external_bump() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_external_bump_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalBump {
@@ -4253,7 +4253,7 @@ async fn test_d9_external_reexport() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_external_reexport_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalReexport {
@@ -4313,7 +4313,7 @@ async fn test_d9_nested_simple() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_simple_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedSimple {
@@ -4371,7 +4371,7 @@ async fn test_d9_nested_double() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_double_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedDouble {
@@ -4433,7 +4433,7 @@ async fn test_d9_nested_array_field() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_array_field_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedArrayField {
@@ -4494,7 +4494,7 @@ async fn test_d9_array_index() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_array_index_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ArrayIndex {
@@ -4552,7 +4552,7 @@ async fn test_d9_nested_bytes() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_bytes_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedBytes {
@@ -4613,7 +4613,7 @@ async fn test_d9_nested_combined() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_combined_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedCombined {
@@ -4673,7 +4673,7 @@ async fn test_d9_assoc_const() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_assoc_const_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9AssocConst {
@@ -4728,7 +4728,7 @@ async fn test_d9_assoc_const_method() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_assoc_const_method_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9AssocConstMethod {
@@ -4787,7 +4787,7 @@ async fn test_d9_multi_assoc_const() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_multi_assoc_const_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9MultiAssocConst {
@@ -4840,7 +4840,7 @@ async fn test_d9_const_fn() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_const_fn_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ConstFn {
@@ -4895,7 +4895,7 @@ async fn test_d9_const_fn_generic() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_const_fn_generic_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ConstFnGeneric {
@@ -4951,7 +4951,7 @@ async fn test_d9_trait_assoc_const() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_trait_assoc_const_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9TraitAssocConst {
@@ -5003,7 +5003,7 @@ async fn test_d9_static() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_static_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9Static {
@@ -5057,7 +5057,7 @@ async fn test_d9_qualified_const_fn() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_const_fn_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedConstFn {
@@ -5111,7 +5111,7 @@ async fn test_d9_fully_qualified_assoc() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_fully_qualified_assoc_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9FullyQualifiedAssoc {
@@ -5167,7 +5167,7 @@ async fn test_d9_fully_qualified_trait() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_fully_qualified_trait_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9FullyQualifiedTrait {
@@ -5222,7 +5222,7 @@ async fn test_d9_fully_qualified_generic() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_fully_qualified_generic_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9FullyQualifiedGeneric {
@@ -5281,7 +5281,7 @@ async fn test_d9_const_combined() {
         compression_config: ctx.config_pda,
         pda_rent_sponsor: program_rent_sponsor(),
         d9_const_combined_record: pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9ConstCombined {

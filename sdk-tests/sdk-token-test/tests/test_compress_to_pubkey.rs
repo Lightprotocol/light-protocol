@@ -48,7 +48,7 @@ async fn test_compress_to_pubkey() {
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new_readonly(mint_pubkey, false)); // Mint
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new_readonly(compressible_config, false)); // Compressible config
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new_readonly(
-        solana_sdk::system_program::id(),
+        anchor_lang::solana_program::system_program::id(),
         false,
     )); // System program
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(rent_sponsor, false)); // Rent recipient

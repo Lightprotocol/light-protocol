@@ -16,7 +16,7 @@ pub struct PdaCreationData {
 use light_sdk::cpi::v2::CpiAccounts;
 use light_sdk_types::cpi_accounts::CpiAccountsConfig;
 pub fn process_ctoken_pda<'info>(
-    ctx: Context<'_, '_, '_, 'info, CTokenPda<'info>>,
+    ctx: Context<'info, CTokenPda<'info>>,
     input: ChainedCtokenInstructionData,
 ) -> Result<()> {
     let config = CpiAccountsConfig {

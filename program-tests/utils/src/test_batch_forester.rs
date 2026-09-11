@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::borsh::BorshSerialize, AnchorDeserialize};
+use anchor_lang::AnchorDeserialize;
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -67,7 +67,7 @@ pub async fn perform_batch_append<R: Rpc>(
         bundle.accounts.merkle_tree,
         bundle.accounts.nullifier_queue,
         epoch,
-        data.try_to_vec().unwrap(),
+        borsh::to_vec(&data).unwrap(),
     );
     let res = rpc
         .create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
@@ -209,7 +209,7 @@ pub async fn perform_batch_nullify<R: Rpc>(
         forester.pubkey(),
         merkle_tree_pubkey,
         epoch,
-        data.try_to_vec().unwrap(),
+        borsh::to_vec(&data).unwrap(),
     );
     rpc.create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
         .await

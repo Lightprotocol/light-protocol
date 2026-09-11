@@ -77,7 +77,7 @@ pub(crate) fn generate_to_byte_array_impl_sha(
                 use ::light_hasher::Hasher;
 
                 // For SHA256, we can serialize the whole struct and hash it in one go
-                let serialized = self.try_to_vec().map_err(|_| ::light_hasher::HasherError::BorshError)?;
+                let serialized = borsh::to_vec(&self).map_err(|_| ::light_hasher::HasherError::BorshError)?;
                 let mut result = ::light_hasher::Sha256::hash(&serialized)?;
 
                 // Truncate field size for SHA256

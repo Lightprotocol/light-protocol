@@ -2,7 +2,6 @@
 ///
 /// Tests AccountsConfig::new() by generating random instruction data and verifying
 /// that the derived configuration matches expected values based on instruction content.
-use borsh::BorshSerialize;
 use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_compressed_token::compressed_token::mint_action::accounts::AccountsConfig;
 use light_token_interface::{
@@ -276,7 +275,7 @@ fn test_accounts_config_randomized() {
             0..6,       // 1-5 actions
         );
         // Serialize to bytes then deserialize as zero-copy
-        let serialized = instruction_data.try_to_vec().expect("Failed to serialize");
+        let serialized = borsh::to_vec(&instruction_data).expect("Failed to serialize");
         let (zero_copy_data, _) = MintActionCompressedInstructionData::zero_copy_at(&serialized)
             .expect("Failed to deserialize as zero-copy");
 

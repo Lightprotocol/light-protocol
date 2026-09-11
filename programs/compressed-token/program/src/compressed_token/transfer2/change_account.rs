@@ -4,7 +4,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
 use light_token_interface::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use crate::compressed_token::transfer2::config::Transfer2Config;
 
@@ -35,7 +35,7 @@ pub fn assign_change_account(
     // Get the owner account using the specified index
     let owner_account =
         packed_accounts.get_u8(inputs.lamports_change_account_owner_index, "owner account")?;
-    let owner_pubkey = *owner_account.key();
+    let owner_pubkey = *owner_account.address();
 
     // Set up the change account as a lamports-only account (no token data)
     let compressed_account = &mut change_account.compressed_account;

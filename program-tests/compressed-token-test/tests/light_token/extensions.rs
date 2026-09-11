@@ -426,7 +426,7 @@ async fn test_transfer_with_permanent_delegate() {
             AccountMeta::new_readonly(mint_pubkey, false), // mint (required for extension check)
             AccountMeta::new(account_b_pubkey, false),     // destination
             AccountMeta::new(permanent_delegate, true), // authority (permanent delegate must sign)
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
+            AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false), // System program for compressible top-up
         ],
         data,
     };
@@ -652,7 +652,7 @@ async fn test_transfer_with_owner_authority() {
             AccountMeta::new_readonly(mint_pubkey, false), // mint (required for extension check)
             AccountMeta::new(account_b_pubkey, false),     // destination
             AccountMeta::new(owner.pubkey(), true),        // authority (owner must sign)
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
+            AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false), // System program for compressible top-up
         ],
         data,
     };

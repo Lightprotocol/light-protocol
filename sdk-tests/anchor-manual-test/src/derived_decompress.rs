@@ -15,6 +15,28 @@ use crate::derived_variants::PackedLightAccountVariant;
 /// All accounts are passed via remaining_accounts.
 pub struct DecompressIdempotent<'info>(PhantomData<&'info ()>);
 
+impl<'info> DecompressIdempotent<'info> {
+    #[doc(hidden)]
+    pub const __ANCHOR_IX_PARAM_COUNT: usize = 0;
+
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_0<__T>(_arg: &__T) {}
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_1<__T>(_arg: &__T) {}
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_2<__T>(_arg: &__T) {}
+    #[doc(hidden)]
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn __anchor_validate_ix_arg_type_3<__T>(_arg: &__T) {}
+}
+
 impl<'info> anchor_lang::Accounts<'info, DecompressIdempotentBumps>
     for DecompressIdempotent<'info>
 {
@@ -62,12 +84,15 @@ impl<'info> anchor_lang::AccountsExit<'info> for DecompressIdempotent<'info> {
     }
 }
 
-#[cfg(feature = "idl-build")]
 impl<'info> DecompressIdempotent<'info> {
-    pub fn __anchor_private_gen_idl_accounts(
-        _accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
-        _types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
-    ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+    pub fn __anchor_private_gen_idl_accounts<
+        __IdlAccount,
+        __IdlTypeDef,
+        __IdlInstructionAccountItem,
+    >(
+        _accounts: &mut std::collections::BTreeMap<String, __IdlAccount>,
+        _types: &mut std::collections::BTreeMap<String, __IdlTypeDef>,
+    ) -> Vec<__IdlInstructionAccountItem> {
         Vec::new()
     }
 }
@@ -76,10 +101,10 @@ pub(crate) mod __client_accounts_decompress_idempotent {
     use super::*;
     pub struct DecompressIdempotent<'info>(PhantomData<&'info ()>);
     impl<'info> borsh::ser::BorshSerialize for DecompressIdempotent<'info> {
-        fn serialize<W: borsh::maybestd::io::Write>(
+        fn serialize<W: std::io::Write>(
             &self,
             _writer: &mut W,
-        ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+        ) -> ::core::result::Result<(), std::io::Error> {
             Ok(())
         }
     }
@@ -119,8 +144,8 @@ pub fn process_decompress_idempotent<'info>(
     remaining_accounts: &[AccountInfo<'info>],
     params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
 ) -> Result<()> {
-    use solana_program::{clock::Clock, sysvar::Sysvar};
-    let current_slot = Clock::get()?.slot;
+    let current_slot =
+        <solana_program::clock::Clock as solana_program::sysvar::Sysvar>::get()?.slot;
     process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
         remaining_accounts,
         params,

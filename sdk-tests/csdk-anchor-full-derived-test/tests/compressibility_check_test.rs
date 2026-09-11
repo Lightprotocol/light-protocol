@@ -49,7 +49,7 @@ async fn create_funded_d9_pda(
         compression_config: *config_pda,
         pda_rent_sponsor: *rent_sponsor,
         d9_instr_single_pubkey_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrSinglePubkey {

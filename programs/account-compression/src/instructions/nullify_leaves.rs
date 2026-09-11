@@ -60,7 +60,7 @@ impl<'info> GroupAccounts<'info> for NullifyLeaves<'info> {
 }
 
 pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
+    ctx: &'a Context<'info, NullifyLeaves<'info>>,
     change_log_indices: &'a [u64],
     leaves_queue_indices: &'a [u16],
     leaf_indices: &'a [u64],
@@ -122,7 +122,7 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
     change_log_indices: &[u64],
     leaves_queue_indices: &[u16],
     leaf_indices: &[u64],
-    ctx: &Context<'a, '_, 'c, 'info, NullifyLeaves<'info>>,
+    ctx: &Context<'info, NullifyLeaves<'info>>,
 ) -> Result<()> {
     {
         let merkle_tree = ctx.accounts.merkle_tree.load()?;
@@ -189,7 +189,7 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
         seq,
     };
     let nullify_event = MerkleTreeEvent::V2(nullify_event);
-    emit_indexer_event(nullify_event.try_to_vec()?, &ctx.accounts.log_wrapper)?;
+    emit_indexer_event(borsh::to_vec(&nullify_event)?, &ctx.accounts.log_wrapper)?;
     Ok(())
 }
 
@@ -197,7 +197,9 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
 pub fn from_vec(vec: &[[u8; 32]], height: usize) -> Result<BoundedVec<[u8; 32]>> {
     let proof: [[u8; 32]; 16] = vec.try_into().unwrap();
     let mut bounded_vec = BoundedVec::with_capacity(height);
-    bounded_vec.extend(proof).map_err(ProgramError::from)?;
+    bounded_vec
+        .extend(proof)
+        .map_err(|_| ProgramError::InvalidArgument)?;
     Ok(bounded_vec)
 }
 

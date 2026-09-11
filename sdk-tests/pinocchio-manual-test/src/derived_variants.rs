@@ -7,7 +7,7 @@ use light_account_pinocchio::{
     prepare_account_for_decompression, DecompressCtx, DecompressVariant, LightSdkTypesError,
     PackedStateTreeInfo,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use crate::{
     account_loader::derived_accounts::{

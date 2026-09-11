@@ -302,7 +302,7 @@ pub fn create_register_forester_instruction(
         AccountMeta::new_readonly(*governance_authority, true),
         AccountMeta::new_readonly(protocol_config_pda, false),
         AccountMeta::new(forester_pda, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::id(), false),
     ];
 
     // Instruction data: discriminator + bump + authority (pubkey) + config + weight (Option<u64>)
@@ -348,7 +348,7 @@ pub fn create_register_forester_epoch_pda_instruction(
         AccountMeta::new_readonly(*authority, true),           // authority
         AccountMeta::new(epoch_pda, false),                    // epoch_pda
         AccountMeta::new_readonly(protocol_config_pda, false), // protocol_config
-        AccountMeta::new_readonly(solana_sdk::system_program::id(), false), // system_program
+        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::id(), false), // system_program
     ];
 
     // Instruction data: discriminator + epoch (u64)

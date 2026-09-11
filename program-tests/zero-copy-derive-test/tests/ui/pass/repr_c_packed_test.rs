@@ -26,13 +26,13 @@ fn main() {
         b: 1000,
         c: 500,
     };
-    let bytes = packed.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&packed).unwrap();
     let (_packed_copy, remaining) = PackedStruct::zero_copy_at(&bytes).unwrap();
     assert!(remaining.is_empty());
 
     // Test aligned struct
     let aligned = AlignedStruct { x: 999999, y: 42 };
-    let mut bytes = aligned.try_to_vec().unwrap();
+    let mut bytes = borsh::to_vec(&aligned).unwrap();
     let (_aligned_copy, remaining) = AlignedStruct::zero_copy_at(&bytes).unwrap();
     assert!(remaining.is_empty());
 

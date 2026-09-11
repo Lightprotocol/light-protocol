@@ -5,7 +5,7 @@ use light_token_interface::instructions::extensions::CompressToPubkey;
 use crate::Generic;
 
 pub fn process_create_ctoken_with_compress_to_pubkey<'info>(
-    ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+    ctx: Context<'info, Generic<'info>>,
     mint: Pubkey,
     token_account_pubkey: Pubkey,
     compressible_config: Pubkey,

@@ -8,11 +8,11 @@ use light_token_interface::{
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use pinocchio::{
-    account_info::AccountInfo,
-    cpi::{slice_invoke, slice_invoke_signed},
-    instruction::{AccountMeta, Instruction, Signer},
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    address::Address,
+    cpi::{invoke_signed_with_slice, invoke_with_slice, Signer},
+    error::ProgramError,
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 /// Discriminator for Transfer2 instruction
@@ -59,24 +59,24 @@ impl<'info> TransferToSplCpi<'info> {
     pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
         let (ix_data, account_metas, account_infos) = self.build_instruction_inner()?;
 
-        let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
-        let instruction = Instruction {
+        let program_id = Address::from(LIGHT_TOKEN_PROGRAM_ID);
+        let instruction = InstructionView {
             program_id: &program_id,
             accounts: &account_metas,
             data: &ix_data,
         };
 
         if signers.is_empty() {
-            slice_invoke(&instruction, &account_infos)
+            invoke_with_slice(&instruction, &account_infos)
         } else {
-            slice_invoke_signed(&instruction, &account_infos, signers)
+            invoke_signed_with_slice(&instruction, &account_infos, signers)
         }
     }
 
     #[allow(clippy::type_complexity)]
     fn build_instruction_inner(
         &self,
-    ) -> Result<(Vec<u8>, Vec<AccountMeta<'_>>, Vec<&AccountInfo>), ProgramError> {
+    ) -> Result<(Vec<u8>, Vec<InstructionAccount<'_>>, Vec<&AccountInfo>), ProgramError> {
         // Build compressions:
         // 1. Transfer from light-token account via SPL interface PDA
         // 2. Decompress from pool to SPL token account
@@ -135,14 +135,14 @@ impl<'info> TransferToSplCpi<'info> {
         //   - [4] SPL interface PDA (writable)
         //   - [5] SPL Token program (readonly)
         let account_metas = vec![
-            AccountMeta::readonly(self.compressed_token_program_authority.key()),
-            AccountMeta::writable_signer(self.payer.key()),
-            AccountMeta::readonly(self.mint.key()),
-            AccountMeta::writable(self.source.key()),
-            AccountMeta::writable(self.destination_spl_token_account.key()),
-            AccountMeta::readonly_signer(self.authority.key()),
-            AccountMeta::writable(self.spl_interface_pda.key()),
-            AccountMeta::readonly(self.spl_token_program.key()),
+            InstructionAccount::readonly(self.compressed_token_program_authority.address()),
+            InstructionAccount::writable_signer(self.payer.address()),
+            InstructionAccount::readonly(self.mint.address()),
+            InstructionAccount::writable(self.source.address()),
+            InstructionAccount::writable(self.destination_spl_token_account.address()),
+            InstructionAccount::readonly_signer(self.authority.address()),
+            InstructionAccount::writable(self.spl_interface_pda.address()),
+            InstructionAccount::readonly(self.spl_token_program.address()),
         ];
 
         let account_infos = vec![

@@ -54,7 +54,7 @@ pub fn process_rollover_batched_state_merkle_tree(
     };
 
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        ctx.accounts.account_compression_program.key(),
         accounts,
         signer_seeds,
     );

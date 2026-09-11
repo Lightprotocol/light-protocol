@@ -15,7 +15,7 @@ pub enum EnumWithArray {
 fn main() {
     // Test Borsh compatibility
     let ref_enum = EnumWithArray::WithArray([42; 32]);
-    let bytes = ref_enum.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_enum).unwrap();
 
     let (_enum_copy, remaining) = EnumWithArray::zero_copy_at(&bytes).unwrap();
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation for enums

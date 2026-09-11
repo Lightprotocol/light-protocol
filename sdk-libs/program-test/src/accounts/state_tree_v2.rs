@@ -1,4 +1,4 @@
-use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use anchor_lang::{InstructionData, ToAccountMetas};
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::get_merkle_tree_account_size, queue::get_output_queue_account_size,
@@ -76,7 +76,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
         )
     } else {
         let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
-            bytes: params.try_to_vec().unwrap(),
+            bytes: borsh::to_vec(&params).unwrap(),
         };
         let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
             authority: payer.pubkey(),

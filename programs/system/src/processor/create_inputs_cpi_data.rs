@@ -7,7 +7,8 @@ use light_compressed_account::{
 };
 use light_hasher::{Hasher, Poseidon};
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
+use solana_msg::msg;
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount,
@@ -103,11 +104,13 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             merkle_context.queue_pubkey_index,
             remaining_accounts,
             "Input queue (nullifier queue for V1 state trees, output queue for V2 state trees)",
+            true, // is_writable: queue accounts store state
         )?;
         let tree_index = context.get_index_or_insert(
             merkle_context.merkle_tree_pubkey_index,
             remaining_accounts,
             "Input tree",
+            true, // is_writable: tree accounts store state
         )?;
 
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {

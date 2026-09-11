@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::CreateAccountsProof;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
 pub struct CreateMintParams {
@@ -46,11 +46,13 @@ impl<'a> CreateMintAccounts<'a> {
 
         // Validate mint_signer PDA
         {
-            let authority_key = authority.key();
-            let seeds: &[&[u8]] = &[crate::MINT_SIGNER_SEED_A, authority_key];
-            let (expected_pda, expected_bump) =
-                pinocchio::pubkey::find_program_address(seeds, &crate::ID);
-            if mint_signer.key() != &expected_pda {
+            let authority_key = authority.address();
+            let seeds: &[&[u8]] = &[crate::MINT_SIGNER_SEED_A, authority_key.as_ref()];
+            let (expected_pda, expected_bump) = pinocchio::Address::find_program_address(
+                seeds,
+                &pinocchio::Address::from(crate::ID),
+            );
+            if mint_signer.address() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
             if expected_bump != params.mint_signer_bump {

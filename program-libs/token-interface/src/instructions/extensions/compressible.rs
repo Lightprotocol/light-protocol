@@ -1,7 +1,7 @@
 use std::mem::MaybeUninit;
 
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
-use pinocchio::pubkey::Pubkey;
+type Pubkey = [u8; 32];
 use solana_pubkey::MAX_SEEDS;
 use tinyvec::ArrayVec;
 

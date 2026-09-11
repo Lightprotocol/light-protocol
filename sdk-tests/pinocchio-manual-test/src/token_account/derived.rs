@@ -7,7 +7,7 @@ use light_account_pinocchio::{
     light_account_checks::{self},
     CreateTokenAccountCpi, LightFinalize, LightPreInit, LightSdkTypesError, Unpack,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{CreateTokenVaultAccounts, CreateTokenVaultParams, TOKEN_VAULT_SEED};
 
@@ -21,14 +21,14 @@ impl LightPreInit<AccountInfo, CreateTokenVaultParams> for CreateTokenVaultAccou
         _remaining_accounts: &[AccountInfo],
         params: &CreateTokenVaultParams,
     ) -> std::result::Result<bool, LightSdkTypesError> {
-        let mint_key = *self.mint.key();
+        let mint_key = self.mint.address().to_bytes();
         let vault_seeds: &[&[u8]] = &[TOKEN_VAULT_SEED, mint_key.as_ref(), &[params.vault_bump]];
 
         CreateTokenAccountCpi {
             payer: self.payer,
             account: self.token_vault,
             mint: self.mint,
-            owner: *self.vault_owner.key(),
+            owner: self.vault_owner.address().to_bytes(),
         }
         .rent_free(
             self.compressible_config,

@@ -236,7 +236,7 @@ fn extract_instruction_info(module: &ItemMod) -> syn::Result<Vec<InstructionInfo
 /// Extract the type name from Context<T> in a function signature.
 ///
 /// Handles various patterns:
-/// - `Context<'_, '_, '_, 'info, T<'info>>` -> "T"
+/// - `Context<'info, T<'info>>` -> "T"
 /// - `Context<T>` -> "T"
 fn extract_context_type(sig: &syn::Signature) -> Option<String> {
     for input in &sig.inputs {

@@ -36,7 +36,7 @@ pub const MINT_TO: bool = true;
 /// 5. Invoke system program to execute the compressed transaction.
 #[allow(unused_variables)]
 pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
-    ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+    ctx: Context<'info, MintToInstruction<'info>>,
     recipient_pubkeys: &[impl AsPubkey],
     amounts: &[impl ZeroCopyNumTrait],
     lamports: Option<u64>,
@@ -149,7 +149,7 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
 #[cfg(target_os = "solana")]
 #[inline(never)]
 pub fn cpi_execute_compressed_transaction_mint_to<'info>(
-    ctx: &Context<'_, '_, '_, 'info, MintToInstruction>,
+    ctx: &Context<'info, MintToInstruction>,
     output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     inputs: &mut Vec<u8>,
     pre_compressed_acounts_pos: usize,
@@ -334,7 +334,7 @@ pub fn mint_spl_to_pool_pda(
         authority: ctx.accounts.authority.to_account_info(),
     };
 
-    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.key(), cpi_accounts);
     anchor_spl::token_interface::mint_to(cpi_ctx, mint_amount)?;
 
     let post_token_balance = TokenAccount::try_deserialize(

@@ -127,7 +127,7 @@ impl FailingTestContext {
             light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
             light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
             light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-            system_program: solana_sdk::system_program::ID,
+            system_program: anchor_lang::solana_program::system_program::ID,
         };
 
         let instruction_data = csdk_anchor_full_derived_test::instruction::D11ZcWithVault {

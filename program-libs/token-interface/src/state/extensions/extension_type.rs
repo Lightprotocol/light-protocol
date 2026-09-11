@@ -1,7 +1,8 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
+use borsh::BorshDeserialize;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BorshDeserialize, borsh::BorshSerialize)]
 #[repr(u8)] // Note: token22 uses u16
+#[borsh(use_discriminant = false)]
 pub enum ExtensionType {
     Placeholder0,
     Placeholder1,

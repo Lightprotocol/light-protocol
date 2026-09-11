@@ -24,28 +24,36 @@ pub struct TestKeypairs {
 impl TestKeypairs {
     pub fn program_test_default() -> TestKeypairs {
         TestKeypairs {
-            state_merkle_tree: Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap(),
-            nullifier_queue: Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap(),
-            governance_authority: Keypair::from_bytes(&PAYER_KEYPAIR).unwrap(),
-            forester: Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap(),
-            address_merkle_tree: Keypair::from_bytes(&ADDRESS_MERKLE_TREE_TEST_KEYPAIR).unwrap(),
-            address_merkle_tree_queue: Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR)
+            state_merkle_tree: Keypair::try_from(MERKLE_TREE_TEST_KEYPAIR.as_slice()).unwrap(),
+            nullifier_queue: Keypair::try_from(NULLIFIER_QUEUE_TEST_KEYPAIR.as_slice()).unwrap(),
+            governance_authority: Keypair::try_from(PAYER_KEYPAIR.as_slice()).unwrap(),
+            forester: Keypair::try_from(FORESTER_TEST_KEYPAIR.as_slice()).unwrap(),
+            address_merkle_tree: Keypair::try_from(ADDRESS_MERKLE_TREE_TEST_KEYPAIR.as_slice())
                 .unwrap(),
-            cpi_context_account: Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap(),
-            system_program: Keypair::from_bytes(&OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap(),
-            registry_program: Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap(),
-            batched_state_merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
+            address_merkle_tree_queue: Keypair::try_from(
+                ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR.as_slice(),
+            )
+            .unwrap(),
+            cpi_context_account: Keypair::try_from(SIGNATURE_CPI_TEST_KEYPAIR.as_slice()).unwrap(),
+            system_program: Keypair::try_from(OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR.as_slice())
                 .unwrap(),
-            batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap(),
-            batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR).unwrap(),
-            batch_address_merkle_tree: Keypair::from_bytes(
-                &BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR,
+            registry_program: Keypair::try_from(OLD_REGISTRY_ID_TEST_KEYPAIR.as_slice()).unwrap(),
+            batched_state_merkle_tree: Keypair::try_from(
+                BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR.as_slice(),
+            )
+            .unwrap(),
+            batched_output_queue: Keypair::try_from(BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR.as_slice())
+                .unwrap(),
+            batched_cpi_context: Keypair::try_from(BATCHED_CPI_CONTEXT_TEST_KEYPAIR.as_slice())
+                .unwrap(),
+            batch_address_merkle_tree: Keypair::try_from(
+                BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR.as_slice(),
             )
             .unwrap(),
             state_merkle_tree_2: Keypair::new(),
             nullifier_queue_2: Keypair::new(),
             cpi_context_2: Keypair::new(),
-            group_pda_seed: Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap(),
+            group_pda_seed: Keypair::try_from(GROUP_PDA_SEED_TEST_KEYPAIR.as_slice()).unwrap(),
         }
     }
 }

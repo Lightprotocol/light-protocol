@@ -1,4 +1,5 @@
-use borsh::maybestd::io::Error as BorshError;
+use std::io::Error as BorshError;
+
 use light_compressed_account::CompressedAccountError;
 use light_zero_copy::errors::ZeroCopyError;
 use thiserror::Error;

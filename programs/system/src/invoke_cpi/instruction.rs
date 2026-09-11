@@ -1,4 +1,4 @@
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
 
 use crate::{
     accounts::{

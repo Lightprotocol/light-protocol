@@ -12,8 +12,11 @@ pub fn get_rent_exemption_lamports(_num_bytes: u64) -> Result<u64, CompressibleE
     {
         use pinocchio::sysvars::Sysvar;
         return pinocchio::sysvars::rent::Rent::get()
-            .map(|rent| rent.minimum_balance(_num_bytes as usize))
-            .map_err(|_| CompressibleError::FailedBorrowRentSysvar);
+            .map_err(|_| CompressibleError::FailedBorrowRentSysvar)
+            .and_then(|rent| {
+                rent.try_minimum_balance(_num_bytes as usize)
+                    .map_err(|_| CompressibleError::FailedBorrowRentSysvar)
+            });
     }
     #[cfg(all(target_os = "solana", not(feature = "pinocchio"), feature = "solana"))]
     {

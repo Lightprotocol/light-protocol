@@ -16,7 +16,7 @@ fn main() {
     let instance = EnumWithVec::Data(vec![1, 2, 3, 4, 5]);
 
     // Test Borsh serialization
-    let bytes = instance.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&instance).unwrap();
 
     // Test zero_copy_at
     let (_zero_copy_instance, _remaining) = EnumWithVec::zero_copy_at(&bytes).unwrap();

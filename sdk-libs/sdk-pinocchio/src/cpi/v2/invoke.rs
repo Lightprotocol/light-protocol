@@ -28,7 +28,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
     fn with_light_account<A>(
         mut self,
         account: crate::LightAccount<A>,
-    ) -> Result<Self, pinocchio::program_error::ProgramError>
+    ) -> Result<Self, pinocchio::error::ProgramError>
     where
         A: crate::BorshSerialize
             + crate::BorshDeserialize
@@ -39,7 +39,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
         // Convert LightAccount to instruction data format
         let account_info = account
             .to_account_info()
-            .map_err(|e| pinocchio::program_error::ProgramError::Custom(u64::from(e) as u32))?;
+            .map_err(|e| pinocchio::error::ProgramError::Custom(u64::from(e) as u32))?;
 
         // Handle input accounts
         if let Some(input) = account_info.input.as_ref() {
@@ -99,7 +99,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
     fn with_light_account<A>(
         mut self,
         account: crate::LightAccount<A>,
-    ) -> Result<Self, pinocchio::program_error::ProgramError>
+    ) -> Result<Self, pinocchio::error::ProgramError>
     where
         A: crate::BorshSerialize
             + borsh::BorshDeserialize
@@ -109,7 +109,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
     {
         // Convert LightAccount to instruction data format
 
-        use pinocchio::program_error::ProgramError;
+        use pinocchio::error::ProgramError;
         let account_info = account
             .to_account_info()
             .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;

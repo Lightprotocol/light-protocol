@@ -33,7 +33,7 @@ pub struct ClaimContext<'info> {
     pub compressed_token_program: AccountInfo<'info>,
 }
 
-pub fn process_claim<'info>(ctx: &Context<'_, '_, '_, 'info, ClaimContext<'info>>) -> Result<()> {
+pub fn process_claim<'info>(ctx: &Context<'info, ClaimContext<'info>>) -> Result<()> {
     // Build instruction data: discriminator (104u8) + pool_pda_bump
     let instruction_data = vec![104u8]; // Claim instruction discriminator
 

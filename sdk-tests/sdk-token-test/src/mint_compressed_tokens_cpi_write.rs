@@ -20,7 +20,7 @@ pub struct MintCompressedTokensCpiWriteParams {
 /// Process minting compressed tokens to an existing mint using CPI write
 /// This sets up the CPI context for subsequent operations
 pub fn process_mint_compressed_tokens_cpi_write<'info>(
-    ctx: &Context<'_, '_, '_, '_, Generic<'info>>,
+    ctx: &Context<'_, Generic<'info>>,
     params: MintCompressedTokensCpiWriteParams,
     cpi_accounts: &Transfer2CpiAccounts<'_, AccountInfo<'info>>,
 ) -> Result<()> {

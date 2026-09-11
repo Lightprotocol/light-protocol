@@ -14,7 +14,7 @@ pub enum MixedEnum {
 fn main() {
     // Test Borsh compatibility
     let ref_enum = MixedEnum::WithData(42);
-    let bytes = ref_enum.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_enum).unwrap();
 
     let (_enum_copy, remaining) = MixedEnum::zero_copy_at(&bytes).unwrap();
     // Note: ZeroCopyEq not supported for enums

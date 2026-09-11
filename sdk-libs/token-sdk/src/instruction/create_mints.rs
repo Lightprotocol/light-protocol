@@ -355,7 +355,7 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
         let account_metas = get_mint_action_instruction_account_metas_cpi_write(cpi_write_config);
         let ix_data = instruction_data
             .data()
-            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+            .map_err(|_| ProgramError::BorshIoError)?;
 
         // Account order matches get_mint_action_instruction_account_metas_cpi_write:
         // [0]: light_system_program
@@ -518,7 +518,7 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
         let account_metas = meta_config.to_account_metas();
         let ix_data = instruction_data
             .data()
-            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+            .map_err(|_| ProgramError::BorshIoError)?;
 
         // Collect all account infos needed for the CPI
         let mut account_infos = vec![self.payer.clone()];

@@ -31,7 +31,7 @@ pub struct CompressedTokenInstructionDataBurn {
 }
 
 pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, BurnInstruction<'info>>,
+    ctx: Context<'info, BurnInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataBurn =
@@ -68,7 +68,7 @@ pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
 
 #[inline(never)]
 pub fn burn_spl_from_pool_pda<'info>(
-    ctx: &Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
+    ctx: &Context<'info, BurnInstruction<'info>>,
     inputs: &CompressedTokenInstructionDataBurn,
 ) -> Result<()> {
     let amount = inputs.burn_amount;
@@ -101,7 +101,7 @@ pub fn spl_burn_cpi<'info>(
     };
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_ref = &[&signer_seeds[..]];
-    let cpi_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds_ref);
+    let cpi_ctx = CpiContext::new_with_signer(*token_program.key, cpi_accounts, signer_seeds_ref);
     anchor_spl::token_interface::burn(cpi_ctx, burn_amount)?;
     let post_token_balance =
         TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])?.amount;
@@ -298,7 +298,7 @@ pub mod sdk {
             ),
             account_compression_program: account_compression::ID,
             self_program: crate::ID,
-            system_program: solana_sdk::system_program::ID,
+            system_program: anchor_lang::solana_program::system_program::ID,
         };
 
         Ok(Instruction {
@@ -349,7 +349,6 @@ mod test {
                 &mut merkle_tree_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &nullifier_queue_pubkey,
@@ -359,7 +358,6 @@ mod test {
                 &mut nullifier_queue_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &merkle_tree_pubkey_1,
@@ -369,7 +367,6 @@ mod test {
                 &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
-                0,
             ),
         ];
         let authority = Pubkey::new_unique();
@@ -454,7 +451,6 @@ mod test {
                 &mut merkle_tree_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &nullifier_queue_pubkey,
@@ -464,7 +460,6 @@ mod test {
                 &mut nullifier_queue_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &merkle_tree_pubkey_1,
@@ -474,7 +469,6 @@ mod test {
                 &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
-                0,
             ),
         ];
 
@@ -557,7 +551,6 @@ mod test {
                 &mut merkle_tree_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &nullifier_queue_pubkey,
@@ -567,7 +560,6 @@ mod test {
                 &mut nullifier_queue_account_data,
                 &account_compression::ID,
                 false,
-                0,
             ),
             AccountInfo::new(
                 &merkle_tree_pubkey_1,
@@ -577,7 +569,6 @@ mod test {
                 &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
-                0,
             ),
         ];
         let authority = Pubkey::new_unique();

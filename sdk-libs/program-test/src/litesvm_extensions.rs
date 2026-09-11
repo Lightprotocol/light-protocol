@@ -38,10 +38,10 @@ mod tests {
     use solana_sdk::{
         native_token::LAMPORTS_PER_SOL,
         signature::{Keypair, Signer},
-        system_instruction::{create_account, transfer},
-        system_program,
         transaction::{Transaction, VersionedTransaction},
     };
+    use solana_sdk_ids::system_program;
+    use solana_system_interface::instruction::{create_account, transfer};
 
     use super::*;
 
@@ -66,12 +66,13 @@ mod tests {
             let new_account_keypair = Keypair::new();
             let new_account = new_account_keypair.pubkey();
             let space = 10 + i;
-            let rent_amount = svm.minimum_balance_for_rent_exemption(space);
+            let account_lamports =
+                svm.minimum_balance_for_rent_exemption(space) + LAMPORTS_PER_SOL / 1000;
 
             let instruction = create_account(
                 &payer,
                 &new_account,
-                rent_amount,
+                account_lamports,
                 space as u64,
                 &system_program::id(),
             );
@@ -85,7 +86,7 @@ mod tests {
 
             svm.send_transaction(VersionedTransaction::from(tx))
                 .unwrap();
-            system_owned_accounts.push((new_account, rent_amount, space));
+            system_owned_accounts.push((new_account, account_lamports, space));
         }
 
         // Create a custom program and some accounts owned by it
@@ -97,12 +98,13 @@ mod tests {
             let new_account_keypair = Keypair::new();
             let new_account = new_account_keypair.pubkey();
             let space = 20 + i * 2;
-            let rent_amount = svm.minimum_balance_for_rent_exemption(space);
+            let account_lamports =
+                svm.minimum_balance_for_rent_exemption(space) + LAMPORTS_PER_SOL / 1000;
 
             let instruction = create_account(
                 &payer,
                 &new_account,
-                rent_amount,
+                account_lamports,
                 space as u64,
                 &custom_program_id,
             );
@@ -116,13 +118,14 @@ mod tests {
 
             svm.send_transaction(VersionedTransaction::from(tx))
                 .unwrap();
-            custom_owned_accounts.push((new_account, rent_amount, space));
+            custom_owned_accounts.push((new_account, account_lamports, space));
         }
 
         // Do some transfers to create new accounts
         for i in 0..3 {
             let to = Pubkey::new_unique();
-            let amount = (i + 1) * 1000;
+            let amount =
+                svm.minimum_balance_for_rent_exemption(0) + LAMPORTS_PER_SOL / 1000 + i * 1000;
             let instruction = transfer(&payer, &to, amount);
             let tx = Transaction::new_signed_with_payer(
                 &[instruction],

@@ -1,6 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-use borsh::BorshSerialize;
 use light_compressed_account::{
     address::derive_address, compressed_account::CompressedAccountWithMerkleContext,
     hashv_to_bn254_field_size_be,
@@ -114,7 +113,7 @@ pub async fn create_pda(
         system_accounts_offset: system_accounts_offset as u8,
         tree_accounts_offset: tree_accounts_offset as u8,
     };
-    let inputs = instruction_data.try_to_vec().unwrap();
+    let inputs = borsh::to_vec(&instruction_data).unwrap();
 
     let instruction = Instruction {
         program_id: sdk_v1_native_test::ID,
@@ -172,7 +171,7 @@ pub async fn update_pda(
         new_data: new_account_data,
         system_accounts_offset: system_accounts_offset as u8,
     };
-    let inputs = instruction_data.try_to_vec().unwrap();
+    let inputs = borsh::to_vec(&instruction_data).unwrap();
 
     let instruction = Instruction {
         program_id: sdk_v1_native_test::ID,

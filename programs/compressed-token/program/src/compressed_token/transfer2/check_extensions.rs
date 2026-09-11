@@ -9,8 +9,8 @@ use light_token_interface::{
     },
     state::TokenDataVersion,
 };
-use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
+use pinocchio::AccountView as AccountInfo;
+use solana_msg::msg;
 
 use crate::extensions::{check_mint_extensions, parse_mint_extensions, MintExtensionChecks};
 

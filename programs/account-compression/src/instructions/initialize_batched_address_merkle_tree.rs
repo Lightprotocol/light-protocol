@@ -35,7 +35,7 @@ impl<'info> GroupAccounts<'info> for InitializeBatchedAddressMerkleTree<'info> {
 /// 1. checks signer
 /// 2. initializes merkle tree
 pub fn process_initialize_batched_address_merkle_tree<'info>(
-    ctx: Context<'_, '_, '_, 'info, InitializeBatchedAddressMerkleTree<'info>>,
+    ctx: Context<'info, InitializeBatchedAddressMerkleTree<'info>>,
     params: InitAddressTreeAccountsInstructionData,
 ) -> Result<()> {
     #[cfg(feature = "test")]

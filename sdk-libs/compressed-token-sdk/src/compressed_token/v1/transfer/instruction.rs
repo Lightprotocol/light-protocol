@@ -10,7 +10,6 @@ use super::account_metas::{get_transfer_instruction_account_metas, TokenAccounts
 use crate::{
     compressed_token::v1::account::CTokenAccount,
     error::{Result, TokenSdkError},
-    AnchorSerialize,
 };
 // CTokenAccount abstraction to bundle inputs and create outputs.
 // Users don't really need to interact with this struct directly.
@@ -108,9 +107,8 @@ pub fn create_transfer_instruction_raw(
     };
 
     // TODO: calculate exact len.
-    let serialized = instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+    let serialized =
+        borsh::to_vec(&instruction_data).map_err(|_| TokenSdkError::SerializationError)?;
 
     // Serialize instruction data
     let mut data = Vec::with_capacity(8 + 4 + serialized.len()); // rough estimate

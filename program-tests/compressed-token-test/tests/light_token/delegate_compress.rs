@@ -104,7 +104,7 @@ async fn test_delegate_compress() -> Result<(), RpcError> {
         );
         assert_eq!(
             spl_account.delegate,
-            spl_token_2022::solana_program::program_option::COption::Some(delegate.pubkey()),
+            anchor_lang::solana_program::program_option::COption::Some(delegate.pubkey()),
             "Delegate should still be set"
         );
     }
@@ -157,7 +157,7 @@ async fn test_delegate_compress() -> Result<(), RpcError> {
         );
         assert_eq!(
             spl_account.delegate,
-            spl_token_2022::solana_program::program_option::COption::None,
+            anchor_lang::solana_program::program_option::COption::None,
             "Delegate should be cleared when delegated_amount reaches 0"
         );
     }

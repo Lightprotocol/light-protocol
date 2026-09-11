@@ -157,7 +157,7 @@ pub fn assert_mint_extensions(account_data: &[u8]) -> Result<()> {
 
     // TransferHook: program_id must be nil
     if let Ok(transfer_hook) = mint.get_extension::<TransferHook>() {
-        if Option::<spl_token_2022::solana_program::pubkey::Pubkey>::from(transfer_hook.program_id)
+        if Option::<anchor_lang::solana_program::pubkey::Pubkey>::from(transfer_hook.program_id)
             .is_some()
         {
             return err!(crate::ErrorCode::TransferHookNotSupported);

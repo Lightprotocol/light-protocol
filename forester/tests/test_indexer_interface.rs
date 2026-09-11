@@ -12,7 +12,6 @@
 use std::collections::HashMap;
 
 use anchor_lang::Discriminator;
-use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Indexer},
@@ -212,7 +211,7 @@ async fn test_indexer_interface_scenarios() {
         payer.pubkey(),
         [
             light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
-            ix_data.try_to_vec().unwrap(),
+            borsh::to_vec(&ix_data).unwrap(),
         ]
         .concat(),
         remaining_accounts_metas,
@@ -220,7 +219,9 @@ async fn test_indexer_interface_scenarios() {
     );
 
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+        solana_compute_budget_interface::ComputeBudgetInstruction::set_compute_unit_limit(
+            1_000_000,
+        ),
         instruction,
     ];
     let address_sig = rpc

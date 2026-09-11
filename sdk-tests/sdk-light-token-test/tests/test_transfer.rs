@@ -2,7 +2,7 @@
 
 mod shared;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
@@ -41,7 +41,7 @@ async fn test_ctoken_transfer_invoke() {
     let transfer_data = TransferData { amount: 500 };
     let instruction_data = [
         vec![InstructionType::CTokenTransferInvoke as u8],
-        transfer_data.try_to_vec().unwrap(),
+        borsh::to_vec(&transfer_data).unwrap(),
     ]
     .concat();
 
@@ -99,7 +99,7 @@ async fn test_ctoken_transfer_invoke_signed() {
     let transfer_data = TransferData { amount: 300 };
     let instruction_data = [
         vec![InstructionType::CTokenTransferInvokeSigned as u8],
-        transfer_data.try_to_vec().unwrap(),
+        borsh::to_vec(&transfer_data).unwrap(),
     ]
     .concat();
 
@@ -161,7 +161,7 @@ async fn test_ctoken_transfer_invoke_with_separate_fee_payer() {
     let transfer_data = TransferData { amount: 400 };
     let instruction_data = [
         vec![InstructionType::CTokenTransferInvokeWithFeePayer as u8],
-        transfer_data.try_to_vec().unwrap(),
+        borsh::to_vec(&transfer_data).unwrap(),
     ]
     .concat();
 

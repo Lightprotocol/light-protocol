@@ -16,7 +16,7 @@ fn main() {
     let ref_struct = OptionBool {
         maybe_flag: Some(true),
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (_struct_copy, remaining) = OptionBool::zero_copy_at(&bytes).unwrap();
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation with Option<bool>
