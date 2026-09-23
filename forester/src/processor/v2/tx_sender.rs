@@ -6,6 +6,9 @@ const MAX_BUFFER_SIZE: usize = 1000;
 const V2_IXS_PER_TX_WITH_LUT: usize = 5;
 const V2_IXS_PER_TX_WITHOUT_LUT: usize = 4;
 const FLUSH_MARGIN_SLOTS: u64 = 2;
+/// Late proofs are an optimization. Do not let a proof job that never releases
+/// its sender keep the tree cache in the warming state indefinitely.
+const LATE_PROOF_COLLECTION_TIMEOUT: Duration = Duration::from_secs(30);
 
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
@@ -569,6 +572,7 @@ impl<R: Rpc> TxSender<R> {
             cache.clone(),
             proof_rx,
             self.context.merkle_tree,
+            LATE_PROOF_COLLECTION_TIMEOUT,
         ));
 
         saved
@@ -579,28 +583,45 @@ fn spawn_late_proof_collector(
     cache: Arc<SharedProofCache>,
     mut proof_rx: mpsc::Receiver<ProofJobResult>,
     tree: solana_sdk::pubkey::Pubkey,
+    collection_timeout: Duration,
 ) -> JoinHandle<usize> {
     tokio::spawn(async move {
         let mut saved = 0usize;
-        while let Some(result) = proof_rx.recv().await {
-            match result.result {
-                Ok(instruction) => {
-                    cache
-                        .add_proof(result.seq, result.old_root, result.new_root, instruction)
-                        .await;
-                    saved += 1;
-                }
-                Err(error) => {
-                    warn!(
-                        tree = %tree,
-                        seq = result.seq,
-                        error = %error,
-                        "Late proof failed while warming cache"
-                    );
+        let collection = async {
+            while let Some(result) = proof_rx.recv().await {
+                match result.result {
+                    Ok(instruction) => {
+                        cache
+                            .add_proof(result.seq, result.old_root, result.new_root, instruction)
+                            .await;
+                        saved += 1;
+                    }
+                    Err(error) => {
+                        warn!(
+                            tree = %tree,
+                            seq = result.seq,
+                            error = %error,
+                            "Late proof failed while warming cache"
+                        );
+                    }
                 }
             }
+        };
+
+        if tokio::time::timeout(collection_timeout, collection)
+            .await
+            .is_err()
+        {
+            warn!(
+                tree = %tree,
+                timeout_ms = collection_timeout.as_millis(),
+                late_proofs_cached = saved,
+                "Late proof collection timed out; releasing cache warming state"
+            );
         }
 
+        // This must run on channel closure and timeout so a retained sender can
+        // never make the tree permanently ineligible for future proof work.
         cache.finish_warming().await;
         let total_cached_proofs = cache.len().await;
         info!(
@@ -638,7 +659,12 @@ mod tests {
         cache.start_warming(base_root).await;
 
         let (proof_tx, proof_rx) = mpsc::channel(1);
-        let collector = spawn_late_proof_collector(cache.clone(), proof_rx, tree);
+        let collector = spawn_late_proof_collector(
+            cache.clone(),
+            proof_rx,
+            tree,
+            LATE_PROOF_COLLECTION_TIMEOUT,
+        );
 
         assert!(cache.is_warming().await);
         proof_tx
@@ -663,7 +689,12 @@ mod tests {
         cache.start_warming(base_root).await;
 
         let (proof_tx, proof_rx) = mpsc::channel(1);
-        let collector = spawn_late_proof_collector(cache.clone(), proof_rx, tree);
+        let collector = spawn_late_proof_collector(
+            cache.clone(),
+            proof_rx,
+            tree,
+            LATE_PROOF_COLLECTION_TIMEOUT,
+        );
         proof_tx
             .send(ProofJobResult {
                 seq: 0,
@@ -681,5 +712,22 @@ mod tests {
         assert_eq!(collector.await.unwrap(), 0);
         assert!(!cache.is_warming().await);
         assert!(cache.is_empty().await);
+    }
+
+    #[tokio::test]
+    async fn retained_proof_sender_cannot_block_cache_completion() {
+        let tree = solana_sdk::pubkey::Pubkey::new_unique();
+        let base_root = [5u8; 32];
+        let cache = Arc::new(SharedProofCache::new(tree));
+        cache.start_warming(base_root).await;
+
+        let (proof_tx, proof_rx) = mpsc::channel(1);
+        let collector =
+            spawn_late_proof_collector(cache.clone(), proof_rx, tree, Duration::from_millis(20));
+
+        assert!(cache.is_warming().await);
+        assert_eq!(collector.await.unwrap(), 0);
+        assert!(!cache.is_warming().await);
+        assert!(proof_tx.is_closed());
     }
 }
