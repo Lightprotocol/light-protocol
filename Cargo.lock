@@ -4011,6 +4011,7 @@ dependencies = [
  "rand 0.8.5",
  "sha2 0.10.9",
  "sha3",
+ "solana-define-syscall 2.3.0",
  "solana-program-error",
  "solana-pubkey",
  "thiserror 2.0.18",

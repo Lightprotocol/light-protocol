@@ -148,6 +148,7 @@ solana-bn254 = "3.2.1"
 solana-sysvar = { version = "2.2" }
 solana-rent = { version = "2.2" }
 solana-program-error = { version = "2.2" }
+solana-define-syscall = { version = "2.3" }
 solana-account-info = { version = "2.2" }
 solana-transaction = { version = "2.2" }
 solana-transaction-error = { version = "2.2" }
