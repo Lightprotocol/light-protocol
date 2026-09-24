@@ -4,7 +4,7 @@
     "playwright": "^1.56.1",
     "prettier": "^3.6.2",
     "syncpack": "^13.0.4",
-    "typedoc": "^0.28.14",
+    "typedoc": "^0.28.15",
     "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@9.2.0"
