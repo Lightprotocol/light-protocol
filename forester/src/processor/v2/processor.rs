@@ -340,6 +340,15 @@ where
         drop(proof_tx);
 
         let tx_result = match tx_sender_handle.await.map_err(ForesterError::from)? {
+            Err(error) if error.is_forester_not_eligible() => {
+                warn!(
+                    event = "v2_tx_sender_stale_eligibility",
+                    tree = %self.context.merkle_tree,
+                    error = %error,
+                    "Tx sender detected stale forester eligibility"
+                );
+                return Err(error);
+            }
             Err(error) if matches!(&error, ForesterError::V2(v2_error) if v2_error.is_constraint()) =>
             {
                 warn!(
