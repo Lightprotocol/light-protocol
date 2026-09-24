@@ -9,9 +9,9 @@ pub const ACCOUNT_TYPE_TOKEN_ACCOUNT: u8 = 2;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
 pub enum AccountState {
-    Uninitialized = 0,
-    Initialized = 1,
-    Frozen = 2,
+    Uninitialized,
+    Initialized,
+    Frozen,
 }
 
 impl TryFrom<u8> for AccountState {

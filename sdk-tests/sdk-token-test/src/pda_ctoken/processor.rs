@@ -25,7 +25,7 @@ pub struct PdaCreationData {
 // TODO: create a second ix which switches the cpis.
 use light_sdk_types::cpi_accounts::{v2::CpiAccounts as CpiAccountsSmall, CpiAccountsConfig};
 pub fn process_pda_ctoken<'info>(
-    ctx: Context<'_, '_, '_, 'info, PdaCToken<'info>>,
+    ctx: Context<'info, PdaCToken<'info>>,
     input: ChainedCtokenInstructionData,
 ) -> Result<()> {
     let config = CpiAccountsConfig {

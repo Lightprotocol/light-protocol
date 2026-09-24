@@ -18,7 +18,7 @@ where
     T: BorshSerialize,
 {
     fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
-        let borsh_vec = self.try_to_vec().map_err(|_| HasherError::BorshError)?;
+        let borsh_vec = borsh::to_vec(&self).map_err(|_| HasherError::BorshError)?;
         #[cfg(all(debug_assertions, feature = "std"))]
         {
             if std::env::var("RUST_BACKTRACE").is_ok() {

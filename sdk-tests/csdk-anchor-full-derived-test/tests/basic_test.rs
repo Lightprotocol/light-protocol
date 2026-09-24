@@ -163,7 +163,7 @@ async fn test_create_pdas_and_mint_auto() {
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     // Simplified instruction data - just pass create_accounts_proof directly
@@ -705,7 +705,7 @@ async fn test_create_two_mints() {
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::CreateTwoMints {
@@ -924,7 +924,7 @@ async fn test_create_multi_mints() {
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::CreateThreeMints {
@@ -1098,7 +1098,7 @@ async fn test_d9_instr_single_pubkey() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_single_pubkey_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrSinglePubkey {
@@ -1152,7 +1152,7 @@ async fn test_d9_instr_u64() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_u64_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrU64 {
@@ -1209,7 +1209,7 @@ async fn test_d9_instr_multi_field() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_multi_field_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrMultiField {
@@ -1272,7 +1272,7 @@ async fn test_d9_instr_mixed_ctx() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_mixed_ctx_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrMixedCtx {
@@ -1334,7 +1334,7 @@ async fn test_d9_instr_triple() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_triple_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrTriple {
@@ -1390,7 +1390,7 @@ async fn test_d9_instr_big_endian() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_big_endian_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrBigEndian {
@@ -1451,7 +1451,7 @@ async fn test_d9_instr_multi_u64() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_multi_u64_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrMultiU64 {
@@ -1506,7 +1506,7 @@ async fn test_d9_instr_chained_as_ref() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_chained_as_ref_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrChainedAsRef {
@@ -1562,7 +1562,7 @@ async fn test_d9_instr_const_mixed() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_const_mixed_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrConstMixed {
@@ -1626,7 +1626,7 @@ async fn test_d9_instr_complex_mixed() {
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
         d9_instr_complex_mixed_record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrComplexMixed {

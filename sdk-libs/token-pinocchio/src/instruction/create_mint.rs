@@ -19,11 +19,11 @@ use light_token_interface::{
     COMPRESSED_MINT_SEED,
 };
 use pinocchio::{
-    account_info::AccountInfo,
-    cpi::{slice_invoke, slice_invoke_signed},
-    instruction::{AccountMeta, Instruction, Signer},
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    address::Address,
+    cpi::{invoke_signed_with_slice, invoke_with_slice, Signer},
+    error::ProgramError,
+    instruction::{InstructionAccount, InstructionView},
+    AccountView as AccountInfo,
 };
 
 use crate::{constants::LIGHT_TOKEN_PROGRAM_ID, instruction::SystemAccountInfos};
@@ -165,26 +165,26 @@ impl<'info> CreateMintCpi<'info> {
     pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
         let (ix_data, account_metas, account_infos) = self.build_instruction_inner()?;
 
-        let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
-        let instruction = Instruction {
+        let program_id = Address::from(LIGHT_TOKEN_PROGRAM_ID);
+        let instruction = InstructionView {
             program_id: &program_id,
             accounts: &account_metas,
             data: &ix_data,
         };
 
         if signers.is_empty() {
-            slice_invoke(&instruction, &account_infos)
+            invoke_with_slice(&instruction, &account_infos)
         } else {
-            slice_invoke_signed(&instruction, &account_infos, signers)
+            invoke_signed_with_slice(&instruction, &account_infos, signers)
         }
     }
 
     #[allow(clippy::type_complexity)]
     fn build_instruction_inner(
         &self,
-    ) -> Result<(Vec<u8>, Vec<AccountMeta<'_>>, Vec<&AccountInfo>), ProgramError> {
+    ) -> Result<(Vec<u8>, Vec<InstructionAccount<'_>>, Vec<&AccountInfo>), ProgramError> {
         // Validate mint_authority matches authority account
-        if self.params.mint_authority != *self.authority.key() {
+        if self.params.mint_authority != self.authority.address().to_bytes() {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -197,7 +197,7 @@ impl<'info> CreateMintCpi<'info> {
                     version: 3,
                     mint: self.params.mint.into(),
                     mint_decompressed: false,
-                    mint_signer: *self.mint_seed.key(),
+                    mint_signer: self.mint_seed.address().to_bytes(),
                     bump: self.params.bump,
                 },
                 mint_authority: Some(self.params.mint_authority.into()),
@@ -245,18 +245,22 @@ impl<'info> CreateMintCpi<'info> {
         // 14. address_tree (writable)
 
         let mut account_metas = vec![
-            AccountMeta::readonly(self.system_accounts.light_system_program.key()),
-            AccountMeta::readonly_signer(self.mint_seed.key()),
-            AccountMeta::readonly_signer(self.authority.key()),
-            AccountMeta::readonly(self.compressible_config.key()),
-            AccountMeta::writable(self.mint.key()),
-            AccountMeta::writable(self.rent_sponsor.key()),
-            AccountMeta::writable_signer(self.payer.key()),
-            AccountMeta::readonly(self.system_accounts.cpi_authority_pda.key()),
-            AccountMeta::readonly(self.system_accounts.registered_program_pda.key()),
-            AccountMeta::readonly(self.system_accounts.account_compression_authority.key()),
-            AccountMeta::readonly(self.system_accounts.account_compression_program.key()),
-            AccountMeta::readonly(self.system_accounts.system_program.key()),
+            InstructionAccount::readonly(self.system_accounts.light_system_program.address()),
+            InstructionAccount::readonly_signer(self.mint_seed.address()),
+            InstructionAccount::readonly_signer(self.authority.address()),
+            InstructionAccount::readonly(self.compressible_config.address()),
+            InstructionAccount::writable(self.mint.address()),
+            InstructionAccount::writable(self.rent_sponsor.address()),
+            InstructionAccount::writable_signer(self.payer.address()),
+            InstructionAccount::readonly(self.system_accounts.cpi_authority_pda.address()),
+            InstructionAccount::readonly(self.system_accounts.registered_program_pda.address()),
+            InstructionAccount::readonly(
+                self.system_accounts.account_compression_authority.address(),
+            ),
+            InstructionAccount::readonly(
+                self.system_accounts.account_compression_program.address(),
+            ),
+            InstructionAccount::readonly(self.system_accounts.system_program.address()),
         ];
 
         let mut account_infos = vec![
@@ -276,13 +280,13 @@ impl<'info> CreateMintCpi<'info> {
 
         // Add optional cpi_context_account
         if let Some(cpi_ctx_acc) = self.cpi_context_account {
-            account_metas.push(AccountMeta::writable(cpi_ctx_acc.key()));
+            account_metas.push(InstructionAccount::writable(cpi_ctx_acc.address()));
             account_infos.push(cpi_ctx_acc);
         }
 
         // Add output_queue and address_tree
-        account_metas.push(AccountMeta::writable(self.output_queue.key()));
-        account_metas.push(AccountMeta::writable(self.address_tree.key()));
+        account_metas.push(InstructionAccount::writable(self.output_queue.address()));
+        account_metas.push(InstructionAccount::writable(self.address_tree.address()));
 
         account_infos.push(self.output_queue);
         account_infos.push(self.address_tree);

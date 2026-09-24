@@ -12,8 +12,8 @@ use crate::{
 #[repr(u8)]
 pub enum CompressedTokenAccountState {
     //Uninitialized, is always initialized.
-    Initialized = 0,
-    Frozen = 1,
+    Initialized,
+    Frozen,
 }
 
 impl TryFrom<u8> for CompressedTokenAccountState {

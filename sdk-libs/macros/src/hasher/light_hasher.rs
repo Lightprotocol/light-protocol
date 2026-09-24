@@ -565,10 +565,10 @@ impl ::light_hasher::DataHasher for OuterStruct {
         let sha_output = sha_result.unwrap();
         let sha_code = sha_output.to_string();
 
-        // SHA256 should use try_to_vec() for whole struct serialization (account for spaces)
+        // SHA256 should use Borsh serialization for the whole struct.
         assert!(
-            sha_code.contains("try_to_vec") && sha_code.contains("BorshSerialize"),
-            "SHA256 should serialize whole struct using try_to_vec. Actual code: {}",
+            sha_code.contains("to_vec") && sha_code.contains("BorshSerialize"),
+            "SHA256 should serialize whole struct using Borsh. Actual code: {}",
             sha_code
         );
         assert!(
@@ -668,7 +668,7 @@ impl ::light_hasher::DataHasher for OuterStruct {
         // Verify the generated code contains expected patterns
         let sha_hasher_code = sha_hasher_result.unwrap().to_string();
         assert!(
-            sha_hasher_code.contains("try_to_vec"),
+            sha_hasher_code.contains("to_vec"),
             "Should use serialization approach"
         );
         assert!(
@@ -752,7 +752,7 @@ impl ::light_hasher::DataHasher for OuterStruct {
         // Verify SHA256 generates efficient serialization-based code
         let hasher_code = sha_hasher_result.unwrap().to_string();
         assert!(
-            hasher_code.contains("try_to_vec"),
+            hasher_code.contains("to_vec"),
             "Should serialize entire struct efficiently"
         );
         assert!(

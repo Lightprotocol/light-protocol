@@ -9,7 +9,7 @@ use light_sdk_types::cpi_accounts::v2::CpiAccounts;
 use crate::process_update_deposit::CompressedEscrowPda;
 
 pub fn process_create_escrow_pda<'info>(
-    ctx: Context<'_, '_, '_, 'info, crate::Generic<'info>>,
+    ctx: Context<'info, crate::Generic<'info>>,
     proof: LightValidityProof,
     output_tree_index: u8,
     amount: u64,

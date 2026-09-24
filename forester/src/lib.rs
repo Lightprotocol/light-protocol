@@ -36,7 +36,7 @@ use light_client::{
     rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::TreeType;
-use solana_sdk::commitment_config::CommitmentConfig;
+use solana_commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
 

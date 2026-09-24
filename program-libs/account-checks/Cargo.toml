@@ -22,7 +22,7 @@ solana = [
     "std"
 ]
 msg = ["dep:solana-msg"]
-pinocchio = ["dep:pinocchio", "dep:pinocchio-system"]
+pinocchio = ["dep:pinocchio", "dep:pinocchio-system", "solana-program-error"]
 test-only = ["dep:rand", "std"]
 
 [dependencies]

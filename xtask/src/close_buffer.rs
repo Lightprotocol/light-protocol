@@ -32,7 +32,7 @@ pub fn close_buffer(options: Options) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("Invalid recipient pubkey: {e}"))?;
 
     let instruction =
-        bpf_loader_instruction::close_any(&buffer, &recipient, Some(&authority), None);
+        bpf_loader_instruction::close_any(&buffer, &recipient, Some(&authority), None, false);
 
     println!("instruction: {:?}", instruction);
     println!(

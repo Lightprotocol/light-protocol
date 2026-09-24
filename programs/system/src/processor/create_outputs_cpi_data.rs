@@ -8,7 +8,8 @@ use light_compressed_account::{
 };
 use light_hasher::{Hasher, Poseidon};
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
+use pinocchio::{error::ProgramError, AccountView as AccountInfo};
+use solana_msg::msg;
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount,
@@ -158,6 +159,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 account.merkle_tree_index(),
                 remaining_accounts,
                 "Output queue for V2 state trees (Merkle tree for V1 state trees)",
+                true, // is_writable: queue/tree accounts store state
             )?;
             num_leaves_in_tree = 0;
             index_merkle_tree_account += 1;

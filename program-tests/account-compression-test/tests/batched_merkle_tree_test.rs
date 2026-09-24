@@ -55,8 +55,8 @@ use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
-    system_instruction,
 };
+use solana_system_interface::instruction as system_instruction;
 
 pub enum TestMode {
     InvalidMerkleTree,
@@ -121,7 +121,7 @@ async fn test_batch_state_merkle_tree_failing() {
         );
 
         let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
-            bytes: params.try_to_vec().unwrap(),
+            bytes: borsh::to_vec(&params).unwrap(),
         };
         let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
             authority: context.get_payer().pubkey(),
@@ -260,7 +260,7 @@ async fn test_batch_state_merkle_tree() {
         );
 
         let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
-            bytes: params.try_to_vec().unwrap(),
+            bytes: borsh::to_vec(&params).unwrap(),
         };
         let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
             authority: context.get_payer().pubkey(),
@@ -502,7 +502,7 @@ async fn test_batch_state_merkle_tree() {
         );
 
         let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
-            bytes: params.try_to_vec().unwrap(),
+            bytes: borsh::to_vec(&params).unwrap(),
         };
         let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
             authority: context.get_payer().pubkey(),
@@ -1122,7 +1122,7 @@ pub async fn perform_init_batch_state_merkle_tree(
     );
 
     let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
-        bytes: params.try_to_vec().unwrap(),
+        bytes: borsh::to_vec(&params).unwrap(),
     };
     let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
         authority: context.get_payer().pubkey(),
@@ -1558,7 +1558,7 @@ pub async fn perform_init_batch_state_merkle_tree_and_queue(
     );
 
     let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
-        bytes: params.try_to_vec().unwrap(),
+        bytes: borsh::to_vec(&params).unwrap(),
     };
     let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
         authority: context.get_payer().pubkey(),
@@ -1656,7 +1656,7 @@ pub async fn perform_init_batch_address_merkle_tree(
     );
 
     let instruction = account_compression::instruction::InitializeBatchedAddressMerkleTree {
-        bytes: params.try_to_vec().unwrap(),
+        bytes: borsh::to_vec(&params).unwrap(),
     };
     let accounts = account_compression::accounts::InitializeBatchedAddressMerkleTree {
         authority: context.get_payer().pubkey(),
@@ -2174,7 +2174,7 @@ pub async fn update_batch_address_tree(
         },
     };
     let instruction_data = account_compression::instruction::BatchUpdateAddressTree {
-        data: instruction_data.try_to_vec().unwrap(),
+        data: borsh::to_vec(&instruction_data).unwrap(),
     };
 
     let merkle_tree = if let Some(invalid_tree) = invalid_tree {

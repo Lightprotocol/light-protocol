@@ -10,7 +10,7 @@ use light_account_pinocchio::{
     LightAccount, LightAccountVariantTrait, LightFinalize, LightPreInit, LightSdkTypesError,
     PackedLightAccountVariantTrait, PdaInitParam, SharedAccounts,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::{
     accounts::{CreateZeroCopy, CreateZeroCopyParams},
@@ -48,7 +48,7 @@ impl LightPreInit<AccountInfo, CreateZeroCopyParams> for CreateZeroCopy<'_> {
             }],
             |light_config, current_slot| {
                 let mut account_data = zero_copy_record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let record_bytes = &mut account_data[8..8 + core::mem::size_of::<ZeroCopyRecord>()];
                 let record: &mut ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);

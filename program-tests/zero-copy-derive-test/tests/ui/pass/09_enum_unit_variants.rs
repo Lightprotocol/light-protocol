@@ -16,7 +16,7 @@ pub enum UnitEnum {
 fn main() {
     // Test Borsh compatibility
     let ref_enum = UnitEnum::Third;
-    let bytes = ref_enum.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_enum).unwrap();
 
     let (_enum_copy, remaining) = UnitEnum::zero_copy_at(&bytes).unwrap();
     // Note: ZeroCopyEq not supported for enums

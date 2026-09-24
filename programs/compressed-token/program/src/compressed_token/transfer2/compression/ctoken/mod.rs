@@ -3,7 +3,7 @@ use light_program_profiler::profile;
 use light_token_interface::instructions::transfer2::{
     ZCompressedTokenInstructionDataTransfer2, ZCompression,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::validate_compression_mode_fields;
 use crate::extensions::MintExtensionChecks;

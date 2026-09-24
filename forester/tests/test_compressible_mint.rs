@@ -377,7 +377,7 @@ async fn test_compressible_mint_compression() {
         SolanaRpcPoolBuilder::<LightClient>::new()
             .url("http://localhost:8899".to_string())
             .photon_url(Some("http://127.0.0.1:8784".to_string()))
-            .commitment(solana_sdk::commitment_config::CommitmentConfig::confirmed())
+            .commitment(solana_commitment_config::CommitmentConfig::confirmed())
             .build()
             .await
             .expect("Failed to create RPC pool"),
@@ -580,7 +580,7 @@ async fn test_compressible_mint_subscription() {
         SolanaRpcPoolBuilder::<LightClient>::new()
             .url("http://localhost:8899".to_string())
             .photon_url(Some("http://127.0.0.1:8784".to_string()))
-            .commitment(solana_sdk::commitment_config::CommitmentConfig::confirmed())
+            .commitment(solana_commitment_config::CommitmentConfig::confirmed())
             .build()
             .await
             .expect("Failed to create RPC pool"),

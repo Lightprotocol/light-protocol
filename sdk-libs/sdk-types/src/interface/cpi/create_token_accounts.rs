@@ -2,7 +2,7 @@
 //!
 //! Provides `CreateTokenAccountCpi` and `CreateTokenAtaCpi`, both generic over
 //! `AccountInfoTrait` so they work with both `solana_account_info::AccountInfo`
-//! and `pinocchio::account_info::AccountInfo`.
+//! and `pinocchio::AccountView as AccountInfo`.
 
 use alloc::{vec, vec::Vec};
 

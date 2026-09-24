@@ -201,7 +201,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
         light_token_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
         light_token_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
         rent_sponsor: rent_sponsor_pda(),
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
 
     let pda_new_address_params = light_sdk::address::NewAddressParamsAssignedPacked {

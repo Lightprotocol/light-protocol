@@ -5,7 +5,7 @@ use light_token_interface::{
     state::{Token, ZExtensionStructMut},
     MintExtensionFlags, TokenError,
 };
-use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
+use pinocchio::AccountView as AccountInfo;
 
 use crate::{
     extensions::{check_mint_extensions, MintExtensionChecks},
@@ -27,7 +27,7 @@ pub fn validate_self_transfer(
     authority: &AccountInfo,
     instruction_data: &[u8],
 ) -> Result<bool, ProgramError> {
-    if !pubkey_eq(source.key(), destination.key()) {
+    if source.address() != destination.address() {
         return Ok(false);
     }
     validate_self_transfer_authority(source, authority, instruction_data)?;
@@ -54,11 +54,11 @@ fn validate_self_transfer_authority(
     if token.base.amount < amount {
         return Err(ErrorCode::InsufficientFunds.into());
     }
-    let is_owner = pubkey_eq(authority.key(), token.base.owner.array_ref());
+    let is_owner = authority.address().as_array() == token.base.owner.array_ref();
     let is_delegate = token
         .base
         .delegate()
-        .is_some_and(|d| pubkey_eq(authority.key(), d.array_ref()));
+        .is_some_and(|d| authority.address().as_array() == d.array_ref());
     if !is_owner && !is_delegate {
         msg!("Self-transfer authority must be owner or delegate");
         return Err(ProgramError::InvalidAccountData);
@@ -262,7 +262,7 @@ fn validate_permanent_delegate(
     let Some(permanent_delegate_pubkey) = checks.permanent_delegate else {
         return Ok(false);
     };
-    if !pubkey_eq(authority.key(), &permanent_delegate_pubkey) {
+    if authority.address().as_array() != &permanent_delegate_pubkey {
         return Ok(false);
     }
     if !authority.is_signer() {
@@ -285,7 +285,7 @@ fn process_account_extensions(
 
     // Validate mint account matches token's mint field
     if let Some(mint_account) = mint {
-        if !pubkey_eq(mint_account.key(), token.mint.array_ref()) {
+        if mint_account.address().as_array() != token.mint.array_ref() {
             return Err(TokenError::InvalidAccountData.into());
         }
     }

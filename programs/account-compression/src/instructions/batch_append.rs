@@ -51,7 +51,7 @@ impl<'info> GroupAccounts<'info> for BatchAppend<'info> {
 ///    3.3 Verifies batch zkp and updates root.
 /// 4. Emit indexer event.
 pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
+    ctx: &'a Context<'info, BatchAppend<'info>>,
     instruction_data: InstructionDataBatchAppendInputs,
 ) -> Result<()> {
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
@@ -82,5 +82,5 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
         )?;
     }
     // 5. Emit indexer event.
-    emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)
+    emit_indexer_event(borsh::to_vec(&event)?, &ctx.accounts.log_wrapper)
 }

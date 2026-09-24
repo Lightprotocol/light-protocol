@@ -1,4 +1,5 @@
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::diverging_sub_expression)]
 #![allow(deprecated)]
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
@@ -42,7 +43,7 @@ pub mod system_cpi_test {
     use super::*;
 
     pub fn create_compressed_pda<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
+        ctx: Context<'info, CreateCompressedPda<'info>>,
         data: [u8; 31],
         proof: Option<CompressedProof>,
         new_address_parameters: NewAddressParamsPacked,
@@ -70,7 +71,7 @@ pub mod system_cpi_test {
     }
 
     pub fn with_input_accounts<'info>(
-        ctx: Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+        ctx: Context<'info, InvalidateNotOwnedCompressedAccount<'info>>,
         compressed_account: PackedCompressedAccountWithMerkleContext,
         proof: Option<CompressedProof>,
         bump: u8,
@@ -90,7 +91,7 @@ pub mod system_cpi_test {
     }
 
     pub fn insert_into_queues<'info>(
-        ctx: Context<'_, '_, '_, 'info, InsertIntoQueues<'info>>,
+        ctx: Context<'info, InsertIntoQueues<'info>>,
         is_batched: bool,
         cpi_bump: u8,
     ) -> Result<()> {
@@ -101,7 +102,7 @@ pub mod system_cpi_test {
         let bump = &[bump];
         let seeds = [&[CPI_AUTHORITY_PDA_SEED, bump][..]];
         let mut cpi_context = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            ctx.accounts.account_compression_program.key(),
             accounts,
             &seeds,
         );
@@ -160,7 +161,7 @@ pub mod system_cpi_test {
             registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
         };
         let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            ctx.accounts.account_compression_program.key(),
             accounts,
             signer_seeds,
         );
@@ -196,7 +197,7 @@ pub mod system_cpi_test {
                 registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
             };
         let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            ctx.accounts.account_compression_program.key(),
             accounts,
             signer_seeds,
         );
@@ -212,15 +213,15 @@ pub mod system_cpi_test {
         )
     }
 
-    pub fn cpi_context_indexing<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, GenericAnchorAccounts<'info>>,
+    pub fn cpi_context_indexing<'info>(
+        ctx: Context<'info, GenericAnchorAccounts<'info>>,
         mode: u8,
     ) -> Result<()> {
         process_cpi_context_indexing(ctx, mode)
     }
 
-    pub fn cpi_context_indexing_inputs<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, GenericAnchorAccounts<'info>>,
+    pub fn cpi_context_indexing_inputs<'info>(
+        ctx: Context<'info, GenericAnchorAccounts<'info>>,
         mode: u8,
         leaf_indices: [u8; 3],
     ) -> Result<()> {

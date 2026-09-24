@@ -7,7 +7,7 @@ use light_compressed_token_sdk::compressed_token::transfer::{
 use crate::Generic;
 
 pub fn process_compress_tokens<'info>(
-    ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+    ctx: Context<'info, Generic<'info>>,
     output_tree_index: u8,
     recipient: Pubkey,
     mint: Pubkey,

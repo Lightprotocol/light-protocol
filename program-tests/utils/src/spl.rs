@@ -32,6 +32,7 @@ use light_hasher::Poseidon;
 use light_program_test::{indexer::TestIndexerExtensions, program_test::TestRpc};
 use light_token::compat::TokenDataWithMerkleContext;
 use light_token_interface::state::{CompressedTokenAccountState, TokenData};
+#[allow(deprecated)]
 use solana_banks_client::BanksClientError;
 use solana_sdk::{
     instruction::Instruction,
@@ -432,6 +433,7 @@ pub async fn create_additional_token_pools<R: Rpc>(
 
 /// Creates a spl token account and initializes it with the given mint and owner.
 /// This function is useful to create token accounts for spl compression and decompression tests.
+#[allow(deprecated)]
 pub async fn create_token_account<R: Rpc>(
     rpc: &mut R,
     mint: &Pubkey,
@@ -440,6 +442,7 @@ pub async fn create_token_account<R: Rpc>(
 ) -> Result<(), BanksClientError> {
     create_token_2022_account(rpc, mint, account_keypair, owner, false).await
 }
+#[allow(deprecated)]
 pub async fn create_token_2022_account<R: Rpc>(
     rpc: &mut R,
     mint: &Pubkey,

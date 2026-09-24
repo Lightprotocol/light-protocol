@@ -1,4 +1,3 @@
-use borsh::BorshSerialize;
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use light_token_types::{
     instruction::delegation::CompressedTokenInstructionDataApprove, ValidityProof,
@@ -61,9 +60,8 @@ pub fn create_approve_instruction(inputs: ApproveInputs) -> Result<Instruction> 
     };
 
     // Serialize instruction data
-    let serialized_data = instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+    let serialized_data =
+        borsh::to_vec(&instruction_data).map_err(|_| TokenSdkError::SerializationError)?;
 
     // Create account meta config
     let meta_config = ApproveMetaConfig::new(

@@ -2,7 +2,7 @@
 
 mod shared;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
@@ -70,7 +70,7 @@ async fn test_create_ata_invoke() {
         lamports_per_write: 1,
     };
     // Discriminator 4 = CreateAtaInvoke
-    let instruction_data = [vec![4u8], create_ata_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![4u8], borsh::to_vec(&create_ata_data).unwrap()].concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
@@ -120,7 +120,7 @@ async fn test_create_ata_invoke_signed() {
     let (pda_owner, _pda_bump) = Pubkey::find_program_address(&[ATA_SEED], &PROGRAM_ID);
 
     // Fund the PDA so it can pay for the ATA creation
-    let fund_ix = solana_sdk::system_instruction::transfer(
+    let fund_ix = solana_system_interface::instruction::transfer(
         &payer.pubkey(),
         &pda_owner,
         1_000_000_000, // 1 SOL
@@ -137,7 +137,7 @@ async fn test_create_ata_invoke_signed() {
         lamports_per_write: 1,
     };
     // Discriminator 5 = CreateAtaInvokeSigned
-    let instruction_data = [vec![5u8], create_ata_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![5u8], borsh::to_vec(&create_ata_data).unwrap()].concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
@@ -193,7 +193,7 @@ async fn test_create_ata_invoke_with() {
         lamports_per_write: 1,
     };
     // Discriminator 43 = CreateAtaInvokeWith
-    let instruction_data = [vec![43u8], create_ata_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![43u8], borsh::to_vec(&create_ata_data).unwrap()].concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
@@ -249,7 +249,7 @@ async fn test_create_ata_idempotent_invoke_with() {
         lamports_per_write: 1,
     };
     // Discriminator 44 = CreateAtaIdempotentInvokeWith
-    let instruction_data = [vec![44u8], create_ata_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![44u8], borsh::to_vec(&create_ata_data).unwrap()].concat();
 
     use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();

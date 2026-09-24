@@ -5,7 +5,7 @@ use light_account_pinocchio::{
     LightAccount, LightAccountVariantTrait, LightFinalize, LightPreInit, LightSdkTypesError,
     PackedLightAccountVariantTrait, PdaInitParam, SharedAccounts,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::{
     accounts::{CreatePda, CreatePdaParams},
@@ -43,7 +43,7 @@ impl LightPreInit<AccountInfo, CreatePdaParams> for CreatePda<'_> {
             }],
             |light_config, current_slot| {
                 let mut account_data = record
-                    .try_borrow_mut_data()
+                    .try_borrow_mut()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
                 let record = MinimalRecord::mut_from_account_data(&mut account_data);
                 record.set_decompressed(light_config, current_slot);

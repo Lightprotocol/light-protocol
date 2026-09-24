@@ -57,7 +57,7 @@ pub struct MigrateLeafParams {
 ///    2.3 Inserts the leaf in the output queue.
 /// 3. Emit nullifier event
 pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
+    ctx: &'a Context<'info, MigrateState<'info>>,
     migrate_leaf_params: MigrateLeafParams,
 ) -> Result<()> {
     // 1. Check that signer is a registered program.
@@ -84,14 +84,16 @@ pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
         output_queue,
     )?;
     // 2. Migrate state
+    let current_slot = Clock::get()?.slot;
     let nullify_event = migrate_state(
         migrate_leaf_params,
         &mut zero_copy_merkle_tree,
         &merkle_tree.key(),
         output_queue,
+        current_slot,
     )?;
     // 3. Emit nullifier event
-    emit_indexer_event(nullify_event.try_to_vec()?, &ctx.accounts.log_wrapper)?;
+    emit_indexer_event(borsh::to_vec(&nullify_event)?, &ctx.accounts.log_wrapper)?;
 
     Ok(())
 }
@@ -104,6 +106,7 @@ fn migrate_state(
     merkle_tree: &mut ConcurrentMerkleTreeZeroCopyMut<'_, Poseidon, 26>,
     merkle_tree_pubkey: &Pubkey,
     output_queue: &mut BatchedQueueAccount,
+    current_slot: u64,
 ) -> Result<MerkleTreeEvent> {
     if migrate_leaf_params.leaf == [0u8; 32] {
         return Err(AccountCompressionErrorCode::EmptyLeaf.into());
@@ -128,10 +131,9 @@ fn migrate_state(
         nullified_leaves_indices: vec![migrate_leaf_params.leaf_index],
         seq: merkle_tree.sequence_number() as u64,
     };
-    let slot = Clock::get()?.slot;
     // 3. Inserts the leaf in the output queue.
     output_queue
-        .insert_into_current_batch(&migrate_leaf_params.leaf, &slot)
+        .insert_into_current_batch(&migrate_leaf_params.leaf, &current_slot)
         .map_err(ProgramError::from)?;
 
     Ok(MerkleTreeEvent::V2(nullify_event))
@@ -154,6 +156,7 @@ mod migrate_state_test {
     const HEIGHT: usize = 26;
     const CHANGELOG: usize = 100;
     const ROOTS: usize = 100;
+    const TEST_SLOT: u64 = 0;
     use super::*;
 
     pub struct MockQueueAccount<'a> {
@@ -287,6 +290,7 @@ mod migrate_state_test {
                 &mut concurrent_mt_with_canopy,
                 &merkle_tree_pubkey,
                 output_queue,
+                TEST_SLOT,
             )
             .unwrap();
             ref_merkle_tree.update(&[0u8; 32], 0).unwrap();
@@ -317,6 +321,7 @@ mod migrate_state_test {
                 &mut concurrent_mt_with_canopy,
                 &merkle_tree_pubkey,
                 output_queue,
+                TEST_SLOT,
             )
             .unwrap();
             ref_merkle_tree.update(&[0u8; 32], 1).unwrap();
@@ -348,6 +353,7 @@ mod migrate_state_test {
                 &mut concurrent_mt_with_canopy,
                 &merkle_tree_pubkey,
                 output_queue,
+                TEST_SLOT,
             );
             result.unwrap_err();
         }
@@ -360,6 +366,7 @@ mod migrate_state_test {
                 &mut concurrent_mt_with_canopy,
                 &merkle_tree_pubkey,
                 output_queue,
+                TEST_SLOT,
             );
             result.unwrap_err();
         }
@@ -372,6 +379,7 @@ mod migrate_state_test {
                 &mut concurrent_mt_with_canopy,
                 &merkle_tree_pubkey,
                 output_queue,
+                TEST_SLOT,
             );
             result.unwrap_err();
         }
@@ -384,6 +392,7 @@ mod migrate_state_test {
                 &mut concurrent_mt_with_canopy,
                 &merkle_tree_pubkey,
                 output_queue,
+                TEST_SLOT,
             );
             result.unwrap_err();
         }
@@ -396,6 +405,7 @@ mod migrate_state_test {
                 &mut concurrent_mt_with_canopy,
                 &merkle_tree_pubkey,
                 output_queue,
+                TEST_SLOT,
             );
             result.unwrap_err();
         }
@@ -406,6 +416,7 @@ mod migrate_state_test {
                 &mut concurrent_mt_with_canopy,
                 &merkle_tree_pubkey,
                 output_queue,
+                TEST_SLOT,
             )
             .unwrap();
             ref_merkle_tree.update(&[0u8; 32], 2).unwrap();
@@ -476,6 +487,7 @@ mod migrate_state_test {
                 &mut concurrent_mt_with_canopy,
                 &merkle_tree_pubkey,
                 output_queue,
+                TEST_SLOT,
             )
             .unwrap();
             ref_merkle_tree.update(&[0u8; 32], leaf_index).unwrap();

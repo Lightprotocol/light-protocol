@@ -63,10 +63,10 @@ impl TestAccounts {
     pub fn get_local_test_validator_accounts() -> TestAccounts {
         TestAccounts {
             protocol: ProtocolAccounts {
-                governance_authority: Keypair::from_bytes(&PAYER_KEYPAIR).unwrap(),
+                governance_authority: Keypair::try_from(PAYER_KEYPAIR.as_slice()).unwrap(),
                 governance_authority_pda: Pubkey::default(),
                 group_pda: Pubkey::default(),
-                forester: Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap(),
+                forester: Keypair::try_from(FORESTER_TEST_KEYPAIR.as_slice()).unwrap(),
                 registered_program_pda: pubkey!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh"),
                 registered_registry_program_pda: pubkey!(
                     "DumMsyvkaGJG4QnQ1BhTgvoRMXsgGxfpKDUCr22Xqu4w"
@@ -135,9 +135,10 @@ impl TestAccounts {
             registered_registry_program_pda,
             registered_forester_pda,
         ) = {
-            let group_seed_keypair = Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap();
+            let group_seed_keypair =
+                Keypair::try_from(GROUP_PDA_SEED_TEST_KEYPAIR.as_slice()).unwrap();
             let group_pda = get_group_pda(group_seed_keypair.pubkey());
-            let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
+            let payer = Keypair::try_from(PAYER_KEYPAIR.as_slice()).unwrap();
             let protocol_config_pda = get_protocol_config_pda_address();
             let (_, registered_program_pda) = create_register_program_instruction(
                 payer.pubkey(),
@@ -147,7 +148,7 @@ impl TestAccounts {
             );
             let registered_registry_program_pda =
                 get_registered_program_pda(&pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"));
-            let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
+            let forester = Keypair::try_from(FORESTER_TEST_KEYPAIR.as_slice()).unwrap();
             let registered_forester_pda = get_forester_pda(&forester.pubkey()).0;
             (
                 group_pda,
@@ -182,8 +183,8 @@ impl TestAccounts {
             )
         };
 
-        let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
-        let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
+        let payer = Keypair::try_from(PAYER_KEYPAIR.as_slice()).unwrap();
+        let forester = Keypair::try_from(FORESTER_TEST_KEYPAIR.as_slice()).unwrap();
 
         TestAccounts {
             protocol: ProtocolAccounts {
@@ -251,13 +252,13 @@ impl Clone for TestAccounts {
     fn clone(&self) -> Self {
         TestAccounts {
             protocol: ProtocolAccounts {
-                governance_authority: Keypair::from_bytes(
-                    &self.protocol.governance_authority.to_bytes(),
+                governance_authority: Keypair::try_from(
+                    self.protocol.governance_authority.to_bytes().as_slice(),
                 )
                 .unwrap(),
                 governance_authority_pda: self.protocol.governance_authority_pda,
                 group_pda: self.protocol.group_pda,
-                forester: Keypair::from_bytes(&self.protocol.forester.to_bytes()).unwrap(),
+                forester: Keypair::try_from(self.protocol.forester.to_bytes().as_slice()).unwrap(),
                 registered_program_pda: self.protocol.registered_program_pda,
                 registered_registry_program_pda: self.protocol.registered_registry_program_pda,
                 registered_forester_pda: self.protocol.registered_forester_pda,

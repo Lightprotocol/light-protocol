@@ -22,7 +22,7 @@ pub use light_token_interface::{
     RESTRICTED_EXTENSION_TYPES,
 };
 use light_zero_copy::ZeroCopyNew;
-use spl_pod::solana_msg::msg;
+use solana_msg::msg;
 
 /// Returns true if extension should be included in compressed account output.
 #[inline(always)]

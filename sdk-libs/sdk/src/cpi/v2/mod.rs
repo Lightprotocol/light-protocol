@@ -81,7 +81,6 @@ pub use accounts_cpi_context::*;
 /// #     &mut data,
 /// #     &owner,
 /// #     false,
-/// #     0,
 /// # );
 /// # let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new(fee_payer, &[], LIGHT_CPI_SIGNER);
 /// LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
@@ -130,7 +129,6 @@ pub use accounts_cpi_context::*;
 /// #     &mut data,
 /// #     &owner,
 /// #     false,
-/// #     0,
 /// # );
 /// # let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new(fee_payer, &[], LIGHT_CPI_SIGNER);
 /// LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)

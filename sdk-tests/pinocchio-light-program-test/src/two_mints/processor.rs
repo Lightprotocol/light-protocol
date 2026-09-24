@@ -1,7 +1,7 @@
 use light_account_pinocchio::{
     create_accounts, CreateMintsInput, LightSdkTypesError, SharedAccounts, SingleMintParams,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::accounts::{CreateTwoMintsAccounts, CreateTwoMintsParams};
 
@@ -10,7 +10,7 @@ pub fn process(
     params: &CreateTwoMintsParams,
     remaining_accounts: &[AccountInfo],
 ) -> Result<(), LightSdkTypesError> {
-    let authority = *ctx.authority.key();
+    let authority = ctx.authority.address().to_bytes();
 
     let mint_signer_a_seeds: &[&[u8]] = &[
         crate::MINT_SIGNER_SEED_A,
@@ -33,7 +33,7 @@ pub fn process(
                     mint_authority: authority,
                     mint_bump: None,
                     freeze_authority: None,
-                    mint_seed_pubkey: *ctx.mint_signer_a.key(),
+                    mint_seed_pubkey: ctx.mint_signer_a.address().to_bytes(),
                     authority_seeds: None,
                     mint_signer_seeds: Some(mint_signer_a_seeds),
                     token_metadata: None,
@@ -43,14 +43,17 @@ pub fn process(
                     mint_authority: authority,
                     mint_bump: None,
                     freeze_authority: None,
-                    mint_seed_pubkey: *ctx.mint_signer_b.key(),
+                    mint_seed_pubkey: ctx.mint_signer_b.address().to_bytes(),
                     authority_seeds: None,
                     mint_signer_seeds: Some(mint_signer_b_seeds),
                     token_metadata: None,
                 },
             ],
-            mint_seed_accounts: [ctx.mint_signers_slice[0], ctx.mint_signers_slice[1]],
-            mint_accounts: [ctx.mints_slice[0], ctx.mints_slice[1]],
+            mint_seed_accounts: [
+                ctx.mint_signers_slice[0].clone(),
+                ctx.mint_signers_slice[1].clone(),
+            ],
+            mint_accounts: [ctx.mints_slice[0].clone(), ctx.mints_slice[1].clone()],
         }),
         [],
         [],

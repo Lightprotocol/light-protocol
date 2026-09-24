@@ -1,6 +1,6 @@
 //! Error types for light-token-pinocchio SDK.
 
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 
 /// Result type for light-token-pinocchio specific errors
 pub type LightTokenResult<T> = core::result::Result<T, LightTokenError>;

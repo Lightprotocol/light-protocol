@@ -21,11 +21,9 @@ use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_registry::{protocol_config::state::ProtocolConfigPda, EpochPda, ForesterEpochPda};
 use serde::{Deserialize, Serialize};
+use solana_commitment_config::CommitmentConfig;
 use solana_program::{clock::Slot, pubkey::Pubkey};
-use solana_sdk::{
-    account::{Account, ReadableAccount},
-    commitment_config::CommitmentConfig,
-};
+use solana_sdk::account::{Account, ReadableAccount};
 use tracing::{debug, warn};
 
 use crate::{

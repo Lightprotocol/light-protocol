@@ -65,7 +65,7 @@ impl CreateTokenAccount {
         data.push(18u8); // InitializeAccount3 opcode
         instruction_data
             .serialize(&mut data)
-            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+            .map_err(|_| ProgramError::BorshIoError)?;
 
         let accounts = vec![
             AccountMeta::new(self.account, true),

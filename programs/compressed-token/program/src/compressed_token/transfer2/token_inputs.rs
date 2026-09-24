@@ -9,7 +9,7 @@ use light_token_interface::{
     },
     TokenError,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use super::check_extensions::{validate_tlv_and_get_frozen, MintExtensionCache};
 use crate::{shared::token_input::set_input_compressed_account, MAX_COMPRESSIONS};

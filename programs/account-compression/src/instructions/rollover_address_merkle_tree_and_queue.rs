@@ -53,7 +53,7 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 /// 1. mark Merkle tree as rolled over in this slot
 /// 2. initialize new Merkle tree and queue with the same parameters
 pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
+    ctx: Context<'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
     let new_merkle_tree_account_info = ctx.accounts.new_address_merkle_tree.to_account_info();
     let merkle_tree_rent = check_account_balance_is_rent_exempt(

@@ -4,7 +4,7 @@
 //! token accounts when their lamports balance is insufficient.
 
 use light_token_interface::{instructions::extensions::CompressToPubkey, state::TokenDataVersion};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::AccountView as AccountInfo;
 
 use crate::constants::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 

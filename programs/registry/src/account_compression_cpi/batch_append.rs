@@ -42,7 +42,7 @@ pub fn process_batch_append(ctx: &Context<BatchAppend>, bump: u8, data: Vec<u8>)
     };
 
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        ctx.accounts.account_compression_program.key(),
         accounts,
         signer_seeds,
     );

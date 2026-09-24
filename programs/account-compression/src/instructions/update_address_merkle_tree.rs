@@ -43,7 +43,7 @@ impl<'info> GroupAccounts<'info> for UpdateAddressMerkleTree<'info> {
 
 #[allow(clippy::too_many_arguments)]
 pub fn process_update_address_merkle_tree<'info>(
-    ctx: Context<'_, '_, '_, 'info, UpdateAddressMerkleTree<'info>>,
+    ctx: Context<'info, UpdateAddressMerkleTree<'info>>,
     // Index of the Merkle tree changelog.
     changelog_index: u16,
     indexed_changelog_index: u16,
@@ -146,7 +146,7 @@ pub fn process_update_address_merkle_tree<'info>(
         seq: merkle_tree.sequence_number() as u64 - 1,
     });
     emit_indexer_event(
-        address_event.try_to_vec()?,
+        borsh::to_vec(&address_event)?,
         &ctx.accounts.log_wrapper.to_account_info(),
     )
 }

@@ -34,10 +34,9 @@ pub fn setup_light_programs(
     additional_programs: Option<Vec<(&'static str, Pubkey)>>,
 ) -> Result<LiteSVM, RpcError> {
     let program_test = LiteSVM::new().with_log_bytes_limit(Some(100_000));
-    let program_test = program_test.with_compute_budget(ComputeBudget {
-        compute_unit_limit: 1_400_000,
-        ..Default::default()
-    });
+    let mut compute_budget = ComputeBudget::new_with_defaults(false, false);
+    compute_budget.compute_unit_limit = 1_400_000;
+    let program_test = program_test.with_compute_budget(compute_budget);
     let mut program_test = program_test.with_transaction_history(0);
     // find path to bin where light cli stores program binaries.
     let light_bin_path = find_light_bin().ok_or(RpcError::CustomError(

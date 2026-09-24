@@ -26,7 +26,7 @@ fn main() {
         e: vec![5, 6, 7],
         f: Some(8),
     };
-    let bytes = ref_struct.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&ref_struct).unwrap();
 
     let (_struct_copy, remaining) = SingleLetterFields::zero_copy_at(&bytes).unwrap();
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation with Vec<primitive>

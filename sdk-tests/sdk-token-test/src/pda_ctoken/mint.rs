@@ -10,7 +10,7 @@ use light_token_interface::instructions::mint_action::{
 use super::{processor::ChainedCtokenInstructionData, PdaCToken};
 
 pub fn process_mint_action<'a, 'info>(
-    ctx: &Context<'_, '_, '_, 'info, PdaCToken<'info>>,
+    ctx: &Context<'info, PdaCToken<'info>>,
     input: &ChainedCtokenInstructionData,
     cpi_accounts: &CpiAccounts<'a, AccountInfo<'info>>,
 ) -> Result<()> {
@@ -52,7 +52,7 @@ pub fn process_mint_action<'a, 'info>(
     let tree_accounts = cpi_accounts.tree_accounts().unwrap();
     let mint_action_accounts = MintActionCpiAccounts {
         compressed_token_program: ctx.accounts.light_token_program.as_ref(),
-        light_system_program: cpi_accounts.system_program().unwrap(),
+        light_system_program: cpi_accounts.light_system_program().unwrap(),
         mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
         authority: ctx.accounts.mint_authority.as_ref(),
         compressible_config: Some(ctx.accounts.compressible_config.as_ref()),

@@ -162,7 +162,7 @@ pub fn create_register_forester_instruction(
         fee_payer: *fee_payer,
         authority: *governance_authority,
         protocol_config_pda,
-        system_program: solana_sdk::system_program::id(),
+        system_program: anchor_lang::solana_program::system_program::id(),
     };
     Instruction {
         program_id: crate::ID,
@@ -228,7 +228,7 @@ pub fn create_register_forester_epoch_pda_instruction(
         authority: *authority,
         epoch_pda,
         protocol_config: protocol_config_pda,
-        system_program: solana_sdk::system_program::id(),
+        system_program: anchor_lang::solana_program::system_program::id(),
     };
     Instruction {
         program_id: crate::ID,

@@ -38,7 +38,7 @@ pub struct FourInvokesParams {
 }
 
 pub fn process_four_invokes<'info>(
-    ctx: Context<'_, '_, '_, 'info, crate::Generic<'info>>,
+    ctx: Context<'info, crate::Generic<'info>>,
     output_tree_index: u8,
     proof: LightValidityProof,
     system_accounts_start_offset: u8,

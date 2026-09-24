@@ -9,7 +9,7 @@ use super::{
 use crate::{context::AcpAccount, errors::AccountCompressionErrorCode, GenericInstruction};
 
 pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
-    ctx: &Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
+    ctx: &Context<'info, GenericInstruction<'info>>,
     bytes: Vec<u8>,
 ) -> Result<()> {
     let (inputs, _) = InsertIntoQueuesInstructionData::zero_copy_at(bytes.as_slice())

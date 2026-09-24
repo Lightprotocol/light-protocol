@@ -76,7 +76,7 @@ impl<'a> ZeroCopyAt<'a> for Struct1 {
 
 #[test]
 fn test_struct_1() {
-    let bytes = Struct1 { a: 1, b: 2 }.try_to_vec().unwrap();
+    let bytes = borsh::to_vec(&Struct1 { a: 1, b: 2 }).unwrap();
     let (struct1, remaining) = Struct1::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct1.a, 1u8);
     assert_eq!(struct1.b, 2u16);
@@ -137,12 +137,11 @@ impl<'a> ZeroCopyAt<'a> for Struct2 {
 
 #[test]
 fn test_struct_2() {
-    let bytes = Struct2 {
+    let bytes = borsh::to_vec(&Struct2 {
         a: 1,
         b: 2,
         vec: vec![1u8; 32],
-    }
-    .try_to_vec()
+    })
     .unwrap();
     let (struct2, remaining) = Struct2::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct2.a, 1u8);
@@ -197,13 +196,12 @@ impl<'a> ZeroCopyAt<'a> for Struct3 {
 
 #[test]
 fn test_struct_3() {
-    let bytes = Struct3 {
+    let bytes = borsh::to_vec(&Struct3 {
         a: 1,
         b: 2,
         vec: vec![1u8; 32],
         c: 3,
-    }
-    .try_to_vec()
+    })
     .unwrap();
     let (zero_copy, remaining) = Struct3::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -291,14 +289,13 @@ impl<'a> ZeroCopyAt<'a> for Struct4 {
 
 #[test]
 fn test_struct_4() {
-    let bytes = Struct4 {
+    let bytes = borsh::to_vec(&Struct4 {
         a: 1,
         b: 2,
         vec: vec![1u8; 32],
         c: 3,
         vec_2: vec![Struct4Nested { a: 1, b: 2 }; 32],
-    }
-    .try_to_vec()
+    })
     .unwrap();
     let (zero_copy, remaining) = Struct4::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -340,10 +337,9 @@ impl<'a> ZeroCopyAt<'a> for Struct5 {
 
 #[test]
 fn test_struct_5() {
-    let bytes = Struct5 {
+    let bytes = borsh::to_vec(&Struct5 {
         a: vec![vec![1u8; 32]; 32],
-    }
-    .try_to_vec()
+    })
     .unwrap();
     let (zero_copy, remaining) = Struct5::zero_copy_at(&bytes).unwrap();
     assert_eq!(
@@ -379,7 +375,7 @@ impl<'a> ZeroCopyAt<'a> for Struct6 {
 
 #[test]
 fn test_struct_6() {
-    let bytes = Struct6 {
+    let bytes = borsh::to_vec(&Struct6 {
         a: vec![
             Struct2 {
                 a: 1,
@@ -388,8 +384,7 @@ fn test_struct_6() {
             };
             32
         ],
-    }
-    .try_to_vec()
+    })
     .unwrap();
     let (zero_copy, remaining) = Struct6::zero_copy_at(&bytes).unwrap();
     assert_eq!(
@@ -460,12 +455,11 @@ impl<'a> ZeroCopyAt<'a> for Struct7 {
 
 #[test]
 fn test_struct_7() {
-    let bytes = Struct7 {
+    let bytes = borsh::to_vec(&Struct7 {
         a: 1,
         b: 2,
         option: Some(3),
-    }
-    .try_to_vec()
+    })
     .unwrap();
     let (zero_copy, remaining) = Struct7::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -473,12 +467,11 @@ fn test_struct_7() {
     assert_eq!(zero_copy.option, Some(3));
     assert_eq!(remaining, &[]);
 
-    let bytes = Struct7 {
+    let bytes = borsh::to_vec(&Struct7 {
         a: 1,
         b: 2,
         option: None,
-    }
-    .try_to_vec()
+    })
     .unwrap();
     let (zero_copy, remaining) = Struct7::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -544,7 +537,7 @@ impl<'a> ZeroCopyAt<'a> for Struct8 {
 
 #[test]
 fn test_struct_8() {
-    let bytes = Struct8 {
+    let bytes = borsh::to_vec(&Struct8 {
         a: vec![
             NestedStruct {
                 a: 1,
@@ -556,8 +549,7 @@ fn test_struct_8() {
             };
             32
         ],
-    }
-    .try_to_vec()
+    })
     .unwrap();
 
     let (zero_copy, remaining) = Struct8::zero_copy_at(&bytes).unwrap();

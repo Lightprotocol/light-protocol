@@ -790,7 +790,6 @@ async fn test_decompress_skips_delegate_if_destination_has_delegate() {
 #[tokio::test]
 #[serial]
 async fn test_ata_decompress_with_mismatched_amount_fails() {
-    use borsh::BorshSerialize;
     use light_compressed_account::compressed_account::PackedMerkleContext;
     use light_compressed_token_sdk::compressed_token::transfer2::account_metas::{
         get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
@@ -954,7 +953,7 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
     };
 
     // Serialize instruction data
-    let serialized = instruction_data.try_to_vec().unwrap();
+    let serialized = borsh::to_vec(&instruction_data).unwrap();
     let mut data = Vec::with_capacity(1 + serialized.len());
     data.push(TRANSFER2);
     data.extend(serialized);

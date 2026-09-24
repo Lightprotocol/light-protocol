@@ -95,7 +95,7 @@ impl From<solana_program_error::ProgramError> for LightSdkTypesError {
             solana_program_error::ProgramError::InvalidAccountData => {
                 LightSdkTypesError::InvalidInstructionData
             }
-            solana_program_error::ProgramError::BorshIoError(_) => LightSdkTypesError::Borsh,
+            solana_program_error::ProgramError::BorshIoError => LightSdkTypesError::Borsh,
             solana_program_error::ProgramError::AccountBorrowFailed => {
                 LightSdkTypesError::ConstraintViolation
             }

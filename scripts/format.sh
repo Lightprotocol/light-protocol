@@ -28,7 +28,7 @@ CARGO_BUILD_JOBS="$CLIPPY_JOBS" cargo clippy \
 # Regenerate READMEs with cargo-rdme
 echo "Regenerating READMEs..."
 if ! command -v cargo-rdme &> /dev/null; then
-    cargo install cargo-rdme
+    cargo install cargo-rdme --locked
 fi
 for toml in $(find program-libs sdk-libs -name '.cargo-rdme.toml' -type f); do
     crate_dir=$(dirname "$toml")

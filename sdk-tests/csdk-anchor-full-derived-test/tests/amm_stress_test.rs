@@ -257,7 +257,7 @@ fn build_deposit_ix(ctx: &AmmTestContext, pdas: &AmmPdas, amount: u64) -> Instru
         lp_mint: pdas.lp_mint,
         token_program: LIGHT_TOKEN_PROGRAM_ID,
         token_program_2022: LIGHT_TOKEN_PROGRAM_ID,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
     Instruction {
         program_id: ctx.program_id,
@@ -284,7 +284,7 @@ fn build_withdraw_ix(ctx: &AmmTestContext, pdas: &AmmPdas, amount: u64) -> Instr
         lp_mint: pdas.lp_mint,
         token_program: LIGHT_TOKEN_PROGRAM_ID,
         token_program_2022: LIGHT_TOKEN_PROGRAM_ID,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
     };
     Instruction {
         program_id: ctx.program_id,
@@ -392,7 +392,7 @@ async fn initialize_pool(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         token_0_program: LIGHT_TOKEN_PROGRAM_ID,
         token_1_program: LIGHT_TOKEN_PROGRAM_ID,
         associated_token_program: LIGHT_TOKEN_PROGRAM_ID,
-        system_program: solana_sdk::system_program::ID,
+        system_program: anchor_lang::solana_program::system_program::ID,
         rent: solana_sdk::sysvar::rent::ID,
         compression_config: ctx.config_pda,
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),

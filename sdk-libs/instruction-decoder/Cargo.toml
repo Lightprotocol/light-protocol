@@ -18,9 +18,9 @@ light-protocol = [
 ]
 
 [dependencies]
-solana-pubkey = { version = "2", features = ["curve25519"] }
-solana-instruction = { version = "2" }
-solana-signature = { version = "2" }
+solana-pubkey = { workspace = true, features = ["curve25519"] }
+solana-instruction = { workspace = true }
+solana-signature = { workspace = true }
 borsh = { workspace = true, features = ["std"] }
 bs58 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
