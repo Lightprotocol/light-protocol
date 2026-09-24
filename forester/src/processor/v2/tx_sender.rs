@@ -182,6 +182,18 @@ impl OrderedProofBuffer {
     fn expected_seq(&self) -> u64 {
         self.base_seq
     }
+
+    fn drain_all(&mut self) -> Vec<(u64, BufferEntry)> {
+        let mut entries = Vec::with_capacity(self.len);
+        for offset in 0..self.buffer.len() {
+            let index = (self.head + offset) % self.buffer.len();
+            if let Some(entry) = self.buffer[index].take() {
+                entries.push((self.base_seq + offset as u64, entry));
+            }
+        }
+        self.len = 0;
+        entries
+    }
 }
 
 pub struct TxSender<R: Rpc> {
@@ -559,8 +571,7 @@ impl<R: Rpc> TxSender<R> {
         }
 
         // Save proofs from the reorder buffer (received but waiting for in-order processing)
-        while let Some(entry) = self.buffer.pop_next() {
-            let seq = self.buffer.expected_seq() - 1;
+        for (seq, entry) in self.buffer.drain_all() {
             warmup
                 .add_proof(seq, entry.old_root, entry.new_root, entry.instruction)
                 .await;
@@ -622,7 +633,9 @@ fn spawn_late_proof_collector(
     collection_timeout: Duration,
     retention_timeout: Duration,
 ) -> JoinHandle<usize> {
+    let collection = cache.start_collecting();
     tokio::spawn(async move {
+        let _collection = collection;
         let mut saved = 0usize;
         let collection = async {
             while let Some(result) = proof_rx.recv().await {
@@ -723,6 +736,42 @@ fn spawn_late_proof_collector(
 mod tests {
     use super::*;
 
+    #[test]
+    fn handoff_drains_out_of_order_proofs_across_sequence_gaps() {
+        let mut buffer = OrderedProofBuffer::new(4, 10);
+        let now = std::time::Instant::now();
+        assert!(buffer.insert(
+            10,
+            BatchInstruction::Append(Vec::new()),
+            [1; 32],
+            [2; 32],
+            now
+        ));
+        assert!(buffer.pop_next().is_some());
+        // Includes a wrapped ring-buffer entry, but seq=11 hasn't arrived.
+        assert!(buffer.insert(
+            12,
+            BatchInstruction::Append(Vec::new()),
+            [3; 32],
+            [4; 32],
+            now
+        ));
+        assert!(buffer.insert(
+            14,
+            BatchInstruction::Append(Vec::new()),
+            [5; 32],
+            [6; 32],
+            now
+        ));
+        assert!(buffer.pop_next().is_none());
+        let entries = buffer.drain_all();
+        assert_eq!(
+            entries.iter().map(|(seq, _)| *seq).collect::<Vec<_>>(),
+            vec![12, 14]
+        );
+        assert_eq!(buffer.len(), 0);
+    }
+
     fn proof_result(seq: u64, old_root: [u8; 32], new_root: [u8; 32]) -> ProofJobResult {
         ProofJobResult {
             seq,
@@ -762,7 +811,7 @@ mod tests {
 
         assert_eq!(collector.await.unwrap(), 1);
         assert!(!cache.is_warming().await);
-        let cached = cache.take_if_valid(&base_root).await.unwrap();
+        let cached = cache.ready_chain(&base_root).await.unwrap();
         assert_eq!(cached.len(), 1);
         assert_eq!(cached[0].old_root, base_root);
         assert_eq!(cached[0].new_root, next_root);
@@ -824,6 +873,7 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(40)).await;
         assert!(!cache.is_warming().await);
         assert!(!proof_tx.is_closed());
+        assert!(cache.has_pending_proofs().await);
 
         let next_root = [6u8; 32];
         proof_tx
@@ -833,8 +883,9 @@ mod tests {
         drop(proof_tx);
 
         assert_eq!(collector.await.unwrap(), 1);
-        let cached = cache.take_if_valid(&base_root).await.unwrap();
+        let cached = cache.ready_chain(&base_root).await.unwrap();
         assert_eq!(cached.len(), 1);
         assert_eq!(cached[0].new_root, next_root);
+        assert!(!cache.has_pending_proofs().await);
     }
 }
