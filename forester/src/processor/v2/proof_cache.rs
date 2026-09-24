@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    sync::Arc,
+};
 
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::Mutex;
@@ -25,6 +28,7 @@ pub struct ProofCache {
     proofs: VecDeque<CachedProof>,
     warming_proofs: BTreeMap<u64, CachedProof>,
     is_warming: bool,
+    warming_generation: u64,
     max_proofs: usize,
 }
 
@@ -36,31 +40,40 @@ impl ProofCache {
             proofs: VecDeque::new(),
             warming_proofs: BTreeMap::new(),
             is_warming: false,
+            warming_generation: 0,
             max_proofs: DEFAULT_MAX_CACHED_PROOFS,
         }
     }
 
-    pub fn start_warming(&mut self, base_root: [u8; 32]) {
+    pub fn start_warming(&mut self, base_root: [u8; 32]) -> u64 {
         debug!(
             "Starting cache warm-up for tree {} with root {:?}",
             self.tree,
             &base_root[..4]
         );
+        self.warming_generation = self.warming_generation.wrapping_add(1);
         self.base_root = base_root;
         self.proofs.clear();
         self.warming_proofs.clear();
         self.is_warming = true;
+        self.warming_generation
     }
 
     pub fn add_proof(
         &mut self,
+        generation: u64,
         seq: u64,
         old_root: [u8; 32],
         new_root: [u8; 32],
         instruction: BatchInstruction,
     ) {
-        if !self.is_warming {
-            warn!("Attempted to add proof to cache that is not warming");
+        if !self.is_warming || self.warming_generation != generation {
+            warn!(
+                tree = %self.tree,
+                generation,
+                active_generation = self.warming_generation,
+                "Attempted to add proof to an inactive cache warm-up"
+            );
             return;
         }
         if self.warming_proofs.contains_key(&seq) {
@@ -101,7 +114,17 @@ impl ProofCache {
         );
     }
 
-    pub fn finish_warming(&mut self) {
+    pub fn finish_warming(&mut self, generation: u64) {
+        if !self.is_warming || self.warming_generation != generation {
+            debug!(
+                tree = %self.tree,
+                generation,
+                active_generation = self.warming_generation,
+                "Ignoring completion from an inactive cache warm-up"
+            );
+            return;
+        }
+
         self.is_warming = false;
 
         if self.warming_proofs.is_empty() {
@@ -232,6 +255,20 @@ impl ProofCache {
         self.warming_proofs.clear();
         self.is_warming = false;
     }
+
+    fn abort_warming(&mut self, generation: u64) {
+        if !self.is_warming || self.warming_generation != generation {
+            return;
+        }
+
+        self.warming_proofs.clear();
+        self.is_warming = false;
+        warn!(
+            tree = %self.tree,
+            generation,
+            "Cache warm-up was cancelled; releasing warming state"
+        );
+    }
 }
 
 pub struct SharedProofCache {
@@ -251,25 +288,13 @@ impl SharedProofCache {
         }
     }
 
-    pub async fn start_warming(&self, base_root: [u8; 32]) {
-        self.inner.lock().await.start_warming(base_root);
-    }
-
-    pub async fn add_proof(
-        &self,
-        seq: u64,
-        old_root: [u8; 32],
-        new_root: [u8; 32],
-        instruction: BatchInstruction,
-    ) {
-        self.inner
-            .lock()
-            .await
-            .add_proof(seq, old_root, new_root, instruction);
-    }
-
-    pub async fn finish_warming(&self) {
-        self.inner.lock().await.finish_warming();
+    pub async fn start_warming(self: &Arc<Self>, base_root: [u8; 32]) -> ProofCacheWarmup {
+        let generation = self.inner.lock().await.start_warming(base_root);
+        ProofCacheWarmup {
+            cache: self.clone(),
+            generation,
+            finished: false,
+        }
     }
 
     pub async fn take_if_valid(&self, current_root: &[u8; 32]) -> Option<Vec<CachedProof>> {
@@ -290,5 +315,102 @@ impl SharedProofCache {
 
     pub async fn clear(&self) {
         self.inner.lock().await.clear();
+    }
+}
+
+/// Owns one cache warm-up session and releases it if its future is cancelled.
+///
+/// The generation prevents a cancelled, older session from clearing or
+/// completing a newer session for the same tree.
+pub struct ProofCacheWarmup {
+    cache: Arc<SharedProofCache>,
+    generation: u64,
+    finished: bool,
+}
+
+impl ProofCacheWarmup {
+    pub async fn add_proof(
+        &self,
+        seq: u64,
+        old_root: [u8; 32],
+        new_root: [u8; 32],
+        instruction: BatchInstruction,
+    ) {
+        self.cache.inner.lock().await.add_proof(
+            self.generation,
+            seq,
+            old_root,
+            new_root,
+            instruction,
+        );
+    }
+
+    pub async fn finish(mut self) {
+        self.cache
+            .inner
+            .lock()
+            .await
+            .finish_warming(self.generation);
+        self.finished = true;
+    }
+}
+
+impl Drop for ProofCacheWarmup {
+    fn drop(&mut self) {
+        if self.finished {
+            return;
+        }
+
+        if let Ok(mut cache) = self.cache.inner.try_lock() {
+            cache.abort_warming(self.generation);
+            return;
+        }
+
+        let cache = self.cache.clone();
+        let generation = self.generation;
+        tokio::spawn(async move {
+            cache.inner.lock().await.abort_warming(generation);
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::future::pending;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn cancelled_warmup_releases_warming_state() {
+        let cache = Arc::new(SharedProofCache::new(Pubkey::new_unique()));
+        let task_cache = cache.clone();
+
+        let task = tokio::spawn(async move {
+            let _warmup = task_cache.start_warming([1u8; 32]).await;
+            pending::<()>().await;
+        });
+
+        while !cache.is_warming().await {
+            tokio::task::yield_now().await;
+        }
+
+        task.abort();
+        let _ = task.await;
+        tokio::task::yield_now().await;
+
+        assert!(!cache.is_warming().await);
+    }
+
+    #[tokio::test]
+    async fn cancelled_old_warmup_does_not_clear_new_session() {
+        let cache = Arc::new(SharedProofCache::new(Pubkey::new_unique()));
+        let old_warmup = cache.start_warming([1u8; 32]).await;
+        let new_warmup = cache.start_warming([2u8; 32]).await;
+
+        drop(old_warmup);
+
+        assert!(cache.is_warming().await);
+        new_warmup.finish().await;
+        assert!(!cache.is_warming().await);
     }
 }
