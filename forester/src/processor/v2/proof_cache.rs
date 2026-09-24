@@ -26,6 +26,10 @@ pub struct ProofCache {
     tree: Pubkey,
     base_root: [u8; 32],
     proofs: VecDeque<CachedProof>,
+    /// Proofs that completed after the cache warm-up deadline. These are kept
+    /// separately because a newer warm-up must not discard potentially useful
+    /// work from an older eligibility window.
+    late_proofs: VecDeque<CachedProof>,
     warming_proofs: BTreeMap<u64, CachedProof>,
     is_warming: bool,
     warming_generation: u64,
@@ -38,6 +42,7 @@ impl ProofCache {
             tree,
             base_root: [0u8; 32],
             proofs: VecDeque::new(),
+            late_proofs: VecDeque::new(),
             warming_proofs: BTreeMap::new(),
             is_warming: false,
             warming_generation: 0,
@@ -160,24 +165,72 @@ impl ProofCache {
         );
     }
 
+    pub fn add_late_proof(
+        &mut self,
+        seq: u64,
+        old_root: [u8; 32],
+        new_root: [u8; 32],
+        instruction: BatchInstruction,
+    ) {
+        let duplicate = self
+            .proofs
+            .iter()
+            .chain(self.warming_proofs.values())
+            .chain(self.late_proofs.iter())
+            .any(|proof| proof.old_root == old_root && proof.new_root == new_root);
+        if duplicate {
+            debug!(
+                tree = %self.tree,
+                seq,
+                "Ignoring duplicate late proof"
+            );
+            return;
+        }
+
+        let items = instruction.items_count();
+        self.late_proofs.push_back(CachedProof {
+            seq,
+            old_root,
+            new_root,
+            instruction,
+            items,
+        });
+
+        while self.late_proofs.len() > self.max_proofs {
+            if let Some(dropped) = self.late_proofs.pop_front() {
+                warn!(
+                    tree = %self.tree,
+                    seq = dropped.seq,
+                    max = self.max_proofs,
+                    "Late proof cache limit reached; dropping oldest candidate"
+                );
+            }
+        }
+
+        debug!(
+            tree = %self.tree,
+            seq,
+            late_proofs_cached = self.late_proofs.len(),
+            "Retained proof that completed after cache warm-up deadline"
+        );
+    }
+
     pub fn take_if_valid(&mut self, current_root: &[u8; 32]) -> Option<Vec<CachedProof>> {
-        if self.proofs.is_empty() || self.is_warming {
+        if self.is_warming || (self.proofs.is_empty() && self.late_proofs.is_empty()) {
             return None;
         }
 
-        let mut skipped = 0;
-        while let Some(proof) = self.proofs.front() {
-            if proof.old_root == *current_root {
-                break;
-            }
-            if proof.new_root == *current_root {
-                self.proofs.pop_front();
-                skipped += 1;
-                continue;
-            }
-            self.proofs.pop_front();
-            skipped += 1;
-        }
+        // Treat both synchronously warmed and later results as candidates. Proof
+        // completion order is not guaranteed, so build the usable chain by roots
+        // instead of sequence number. Unmatched candidates stay cached: a missing
+        // predecessor may still arrive, or the on-chain root may advance to them.
+        let mut candidates = VecDeque::with_capacity(self.proofs.len() + self.late_proofs.len());
+        candidates.append(&mut self.proofs);
+        candidates.append(&mut self.late_proofs);
+
+        let before = candidates.len();
+        candidates.retain(|proof| proof.new_root != *current_root);
+        let skipped = before - candidates.len();
 
         if skipped > 0 {
             debug!(
@@ -186,36 +239,29 @@ impl ProofCache {
             );
         }
 
-        if self.proofs.is_empty() {
-            debug!(
-                "Cache empty after skipping stale proofs for tree {} (current_root {:?})",
-                self.tree,
-                &current_root[..4]
-            );
-            return None;
-        }
-
         let mut expected = *current_root;
         let mut taken: Vec<CachedProof> = Vec::new();
 
-        while let Some(proof) = self.proofs.pop_front() {
-            if proof.old_root != expected {
-                warn!(
-                    "Cache chain broken for tree {} at seq {}: expected root {:?}, got {:?}. Dropping remaining {} proofs.",
-                    self.tree,
-                    proof.seq,
-                    &expected[..4],
-                    &proof.old_root[..4],
-                    self.proofs.len()
-                );
-                self.proofs.clear();
-                break;
-            }
+        while let Some(position) = candidates
+            .iter()
+            .position(|proof| proof.old_root == expected)
+        {
+            let proof = candidates
+                .remove(position)
+                .expect("candidate position was found");
             expected = proof.new_root;
             taken.push(proof);
         }
 
+        self.late_proofs = candidates;
+
         if taken.is_empty() {
+            debug!(
+                tree = %self.tree,
+                current_root = ?&current_root[..4],
+                retained_candidates = self.late_proofs.len(),
+                "No cached proof currently links to the on-chain root"
+            );
             return None;
         }
 
@@ -235,11 +281,11 @@ impl ProofCache {
     }
 
     pub fn len(&self) -> usize {
-        self.proofs.len()
+        self.proofs.len() + self.late_proofs.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.proofs.is_empty()
+        self.proofs.is_empty() && self.late_proofs.is_empty()
     }
 
     pub fn is_warming(&self) -> bool {
@@ -252,6 +298,7 @@ impl ProofCache {
 
     pub fn clear(&mut self) {
         self.proofs.clear();
+        self.late_proofs.clear();
         self.warming_proofs.clear();
         self.is_warming = false;
     }
@@ -299,6 +346,19 @@ impl SharedProofCache {
 
     pub async fn take_if_valid(&self, current_root: &[u8; 32]) -> Option<Vec<CachedProof>> {
         self.inner.lock().await.take_if_valid(current_root)
+    }
+
+    pub async fn add_late_proof(
+        &self,
+        seq: u64,
+        old_root: [u8; 32],
+        new_root: [u8; 32],
+        instruction: BatchInstruction,
+    ) {
+        self.inner
+            .lock()
+            .await
+            .add_late_proof(seq, old_root, new_root, instruction);
     }
 
     pub async fn is_warming(&self) -> bool {
@@ -412,5 +472,28 @@ mod tests {
         assert!(cache.is_warming().await);
         new_warmup.finish().await;
         assert!(!cache.is_warming().await);
+    }
+
+    #[tokio::test]
+    async fn late_proofs_are_linked_by_root_when_they_arrive_out_of_order() {
+        let cache = Arc::new(SharedProofCache::new(Pubkey::new_unique()));
+        let root_1 = [1u8; 32];
+        let root_2 = [2u8; 32];
+        let root_3 = [3u8; 32];
+
+        cache
+            .add_late_proof(1, root_2, root_3, BatchInstruction::Append(Vec::new()))
+            .await;
+        cache
+            .add_late_proof(0, root_1, root_2, BatchInstruction::Append(Vec::new()))
+            .await;
+
+        let proofs = cache.take_if_valid(&root_1).await.unwrap();
+        assert_eq!(proofs.len(), 2);
+        assert_eq!(proofs[0].old_root, root_1);
+        assert_eq!(proofs[0].new_root, root_2);
+        assert_eq!(proofs[1].old_root, root_2);
+        assert_eq!(proofs[1].new_root, root_3);
+        assert!(cache.is_empty().await);
     }
 }
