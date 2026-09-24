@@ -4,6 +4,7 @@
 
 use light_client::rpc::{Rpc, RpcError};
 use light_token::instruction::MintTo as MintToInstruction;
+use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
@@ -30,7 +31,33 @@ pub struct MintTo {
     pub amount: u64,
 }
 
+pub fn create_mint_to_instructions(
+    mint_to: &MintTo,
+    fee_payer: Pubkey,
+    authority: Pubkey,
+) -> Result<Vec<Instruction>, RpcError> {
+    let ix = MintToInstruction {
+        mint: mint_to.mint,
+        destination: mint_to.destination,
+        amount: mint_to.amount,
+        authority,
+        fee_payer,
+    }
+    .instruction()
+    .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+
+    Ok(vec![ix])
+}
+
 impl MintTo {
+    pub fn instructions(
+        &self,
+        fee_payer: Pubkey,
+        authority: Pubkey,
+    ) -> Result<Vec<Instruction>, RpcError> {
+        create_mint_to_instructions(self, fee_payer, authority)
+    }
+
     /// Execute the mint_to action via RPC.
     ///
     /// # Arguments
@@ -46,22 +73,14 @@ impl MintTo {
         payer: &Keypair,
         authority: &Keypair,
     ) -> Result<Signature, RpcError> {
-        let ix = MintToInstruction {
-            mint: self.mint,
-            destination: self.destination,
-            amount: self.amount,
-            authority: authority.pubkey(),
-            fee_payer: payer.pubkey(),
-        }
-        .instruction()
-        .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+        let instructions = create_mint_to_instructions(&self, payer.pubkey(), authority.pubkey())?;
 
         let mut signers: Vec<&Keypair> = vec![payer];
         if authority.pubkey() != payer.pubkey() {
             signers.push(authority);
         }
 
-        rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &signers)
+        rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &signers)
             .await
     }
 }
