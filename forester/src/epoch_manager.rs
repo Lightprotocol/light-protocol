@@ -3508,6 +3508,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let mut proc = processor.lock().await;
                 match proc.process().await {
                     Ok(res) => Ok(res),
+                    Err(error) if error.is_forester_not_eligible() => Err(error),
                     Err(error) if matches!(&error, ForesterError::V2(v2_error) if v2_error.is_constraint()) =>
                     {
                         warn!(
@@ -3575,6 +3576,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let mut proc = processor.lock().await;
                 match proc.process().await {
                     Ok(res) => Ok(res),
+                    Err(error) if error.is_forester_not_eligible() => Err(error),
                     Err(error) if matches!(&error, ForesterError::V2(v2_error) if v2_error.is_constraint()) =>
                     {
                         warn!(
