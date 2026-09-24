@@ -216,11 +216,15 @@ fn test_to_byte_array_u8_arrays() {
 
 #[test]
 fn test_to_byte_array_string() {
-    // Test with empty string
+    // Test with empty string - should produce a non-zero representation
+    // to avoid Poseidon errors (issue #1272)
     let empty_string = "".to_string();
     let result = empty_string.to_byte_array().unwrap();
-    let expected = [0u8; 32];
+    let mut expected = [0u8; 32];
+    expected[0] = 1; // non-zero sentinel for empty strings
     assert_eq!(result, expected);
+    // Ensure it's not all zeros
+    assert_ne!(result, [0u8; 32]);
 
     // Test with short string
     let short_string = "foobar".to_string();

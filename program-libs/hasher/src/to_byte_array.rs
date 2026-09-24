@@ -180,12 +180,21 @@ impl ToByteArray for String {
 
     /// Max allowed String length is 31 bytes.
     /// For longer strings hash to field size or provide a custom implementation.
+    ///
+    /// Empty strings are represented with a leading 1 byte at index 0 to avoid
+    /// an all-zero `[0u8; 32]` representation, which can cause errors in the
+    /// Poseidon hasher on Solana (see issue #1272).
     fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
         let bytes = self.as_bytes();
         let mut result = [0u8; 32];
         let byte_len = bytes.len();
         if byte_len > 31 {
             return Err(HasherError::InvalidInputLength(31, bytes.len()));
+        }
+        if byte_len == 0 {
+            // Use a non-zero sentinel to avoid all-zero representation.
+            // This prevents Poseidon syscall errors on Solana (issue #1272).
+            result[0] = 1;
         }
         result[32 - byte_len..].copy_from_slice(bytes);
         Ok(result)
