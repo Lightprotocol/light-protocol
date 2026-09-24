@@ -257,9 +257,8 @@ where
 
     pub async fn clear_cache(&mut self) {
         self.cached_state = None;
-        if let Some(proof_cache) = &self.proof_cache {
-            proof_cache.clear().await;
-        }
+        // Staging state is optimistic, but completed proofs are independently
+        // root-validated. A staging reset must not erase unconfirmed work.
     }
 
     pub fn update_eligibility(&mut self, end_slot: u64) {

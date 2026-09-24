@@ -1,10 +1,13 @@
 use std::{
-    collections::{BTreeMap, VecDeque},
-    sync::Arc,
+    collections::VecDeque,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 use solana_sdk::pubkey::Pubkey;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 use tracing::{debug, info, warn};
 
 use super::tx_sender::BatchInstruction;
@@ -26,11 +29,6 @@ pub struct ProofCache {
     tree: Pubkey,
     base_root: [u8; 32],
     proofs: VecDeque<CachedProof>,
-    /// Proofs that completed after the cache warm-up deadline. These are kept
-    /// separately because a newer warm-up must not discard potentially useful
-    /// work from an older eligibility window.
-    late_proofs: VecDeque<CachedProof>,
-    warming_proofs: BTreeMap<u64, CachedProof>,
     is_warming: bool,
     warming_generation: u64,
     max_proofs: usize,
@@ -42,8 +40,6 @@ impl ProofCache {
             tree,
             base_root: [0u8; 32],
             proofs: VecDeque::new(),
-            late_proofs: VecDeque::new(),
-            warming_proofs: BTreeMap::new(),
             is_warming: false,
             warming_generation: 0,
             max_proofs: DEFAULT_MAX_CACHED_PROOFS,
@@ -58,8 +54,7 @@ impl ProofCache {
         );
         self.warming_generation = self.warming_generation.wrapping_add(1);
         self.base_root = base_root;
-        self.proofs.clear();
-        self.warming_proofs.clear();
+        // A new collection must not erase completed work from an earlier one.
         self.is_warming = true;
         self.warming_generation
     }
@@ -72,51 +67,15 @@ impl ProofCache {
         new_root: [u8; 32],
         instruction: BatchInstruction,
     ) {
-        if !self.is_warming || self.warming_generation != generation {
-            warn!(
+        if self.warming_generation != generation {
+            debug!(
                 tree = %self.tree,
                 generation,
                 active_generation = self.warming_generation,
-                "Attempted to add proof to an inactive cache warm-up"
-            );
-            return;
-        }
-        if self.warming_proofs.contains_key(&seq) {
-            warn!(
-                "Duplicate cached proof seq={} for tree {}, ignoring",
-                seq, self.tree
-            );
-            return;
-        }
-
-        let items = instruction.items_count();
-        self.warming_proofs.insert(
-            seq,
-            CachedProof {
-                seq,
-                old_root,
-                new_root,
-                instruction,
-                items,
-            },
-        );
-
-        while self.warming_proofs.len() > self.max_proofs {
-            let Some((&last_seq, _)) = self.warming_proofs.last_key_value() else {
-                break;
-            };
-            self.warming_proofs.remove(&last_seq);
-            warn!(
-                "Proof cache warm-up limit reached for tree {} (max={}), dropping newest seq={}",
-                self.tree, self.max_proofs, last_seq
+                "Retaining proof from an older cache collection"
             );
         }
-        debug!(
-            "Cached proof seq={} for tree {} (total cached: {})",
-            seq,
-            self.tree,
-            self.warming_proofs.len()
-        );
+        self.add_late_proof(seq, old_root, new_root, instruction);
     }
 
     pub fn finish_warming(&mut self, generation: u64) {
@@ -131,31 +90,6 @@ impl ProofCache {
         }
 
         self.is_warming = false;
-
-        if self.warming_proofs.is_empty() {
-            self.proofs.clear();
-            info!(
-                "Cache warm-up complete for tree {}: 0 proofs cached with root {:?}",
-                self.tree,
-                &self.base_root[..4]
-            );
-            return;
-        }
-
-        if let Some(first) = self.warming_proofs.values().next() {
-            if self.base_root != [0u8; 32] && self.base_root != first.old_root {
-                warn!(
-                    "First cached proof root mismatch for tree {}: base_root={:?}, proof.old_root={:?} (seq={})",
-                    self.tree,
-                    &self.base_root[..4],
-                    &first.old_root[..4],
-                    first.seq
-                );
-            }
-        }
-
-        self.proofs = self.warming_proofs.values().cloned().collect();
-        self.warming_proofs.clear();
 
         info!(
             "Cache warm-up complete for tree {}: {} proofs cached with root {:?}",
@@ -175,8 +109,6 @@ impl ProofCache {
         let duplicate = self
             .proofs
             .iter()
-            .chain(self.warming_proofs.values())
-            .chain(self.late_proofs.iter())
             .any(|proof| proof.old_root == old_root && proof.new_root == new_root);
         if duplicate {
             debug!(
@@ -188,7 +120,7 @@ impl ProofCache {
         }
 
         let items = instruction.items_count();
-        self.late_proofs.push_back(CachedProof {
+        self.proofs.push_back(CachedProof {
             seq,
             old_root,
             new_root,
@@ -196,8 +128,8 @@ impl ProofCache {
             items,
         });
 
-        while self.late_proofs.len() > self.max_proofs {
-            if let Some(dropped) = self.late_proofs.pop_front() {
+        while self.proofs.len() > self.max_proofs {
+            if let Some(dropped) = self.proofs.pop_front() {
                 warn!(
                     tree = %self.tree,
                     seq = dropped.seq,
@@ -210,13 +142,15 @@ impl ProofCache {
         debug!(
             tree = %self.tree,
             seq,
-            late_proofs_cached = self.late_proofs.len(),
-            "Retained proof that completed after cache warm-up deadline"
+            cached_proofs = self.proofs.len(),
+            "Cached proof is ready for root-linked reuse"
         );
     }
 
-    pub fn take_if_valid(&mut self, current_root: &[u8; 32]) -> Option<Vec<CachedProof>> {
-        if self.is_warming || (self.proofs.is_empty() && self.late_proofs.is_empty()) {
+    /// Snapshot the usable prefix without consuming it. Failed, timed-out or
+    /// cancelled sends leave these proofs available until confirmation.
+    pub fn ready_chain(&mut self, current_root: &[u8; 32]) -> Option<Vec<CachedProof>> {
+        if self.proofs.is_empty() {
             return None;
         }
 
@@ -224,13 +158,10 @@ impl ProofCache {
         // completion order is not guaranteed, so build the usable chain by roots
         // instead of sequence number. Unmatched candidates stay cached: a missing
         // predecessor may still arrive, or the on-chain root may advance to them.
-        let mut candidates = VecDeque::with_capacity(self.proofs.len() + self.late_proofs.len());
-        candidates.append(&mut self.proofs);
-        candidates.append(&mut self.late_proofs);
-
-        let before = candidates.len();
-        candidates.retain(|proof| proof.new_root != *current_root);
-        let skipped = before - candidates.len();
+        let before = self.proofs.len();
+        self.proofs.retain(|proof| proof.new_root != *current_root);
+        let skipped = before - self.proofs.len();
+        let mut candidates = self.proofs.clone();
 
         if skipped > 0 {
             debug!(
@@ -253,13 +184,11 @@ impl ProofCache {
             taken.push(proof);
         }
 
-        self.late_proofs = candidates;
-
         if taken.is_empty() {
             debug!(
                 tree = %self.tree,
                 current_root = ?&current_root[..4],
-                retained_candidates = self.late_proofs.len(),
+                retained_candidates = self.proofs.len(),
                 "No cached proof currently links to the on-chain root"
             );
             return None;
@@ -281,11 +210,19 @@ impl ProofCache {
     }
 
     pub fn len(&self) -> usize {
-        self.proofs.len() + self.late_proofs.len()
+        self.proofs.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.proofs.is_empty() && self.late_proofs.is_empty()
+        self.proofs.is_empty()
+    }
+
+    pub fn confirm(&mut self, confirmed: &[CachedProof]) {
+        self.proofs.retain(|candidate| {
+            !confirmed.iter().any(|proof| {
+                proof.old_root == candidate.old_root && proof.new_root == candidate.new_root
+            })
+        });
     }
 
     pub fn is_warming(&self) -> bool {
@@ -298,8 +235,6 @@ impl ProofCache {
 
     pub fn clear(&mut self) {
         self.proofs.clear();
-        self.late_proofs.clear();
-        self.warming_proofs.clear();
         self.is_warming = false;
     }
 
@@ -308,7 +243,7 @@ impl ProofCache {
             return;
         }
 
-        self.warming_proofs.clear();
+        // Cancellation releases scheduling state, never already completed proofs.
         self.is_warming = false;
         warn!(
             tree = %self.tree,
@@ -320,6 +255,8 @@ impl ProofCache {
 
 pub struct SharedProofCache {
     inner: Mutex<ProofCache>,
+    sending: Mutex<()>,
+    pending_collections: AtomicUsize,
 }
 
 impl std::fmt::Debug for SharedProofCache {
@@ -332,6 +269,8 @@ impl SharedProofCache {
     pub fn new(tree: Pubkey) -> Self {
         Self {
             inner: Mutex::new(ProofCache::new(tree)),
+            sending: Mutex::new(()),
+            pending_collections: AtomicUsize::new(0),
         }
     }
 
@@ -344,8 +283,26 @@ impl SharedProofCache {
         }
     }
 
-    pub async fn take_if_valid(&self, current_root: &[u8; 32]) -> Option<Vec<CachedProof>> {
-        self.inner.lock().await.take_if_valid(current_root)
+    pub async fn ready_chain(&self, current_root: &[u8; 32]) -> Option<Vec<CachedProof>> {
+        self.inner.lock().await.ready_chain(current_root)
+    }
+
+    pub async fn confirm(&self, confirmed: &[CachedProof]) {
+        self.inner.lock().await.confirm(confirmed);
+    }
+
+    /// Serialize cached sends without blocking proof collection.
+    pub fn try_lock_for_sending(&self) -> Option<MutexGuard<'_, ()>> {
+        self.sending.try_lock().ok()
+    }
+
+    pub fn start_collecting(self: &Arc<Self>) -> ProofCollection {
+        self.pending_collections.fetch_add(1, Ordering::AcqRel);
+        ProofCollection(self.clone())
+    }
+
+    pub async fn has_pending_proofs(&self) -> bool {
+        self.pending_collections.load(Ordering::Acquire) > 0 || self.is_warming().await
     }
 
     pub async fn add_late_proof(
@@ -375,6 +332,16 @@ impl SharedProofCache {
 
     pub async fn clear(&self) {
         self.inner.lock().await.clear();
+    }
+}
+
+/// Bounds speculative work for a tree across the late-result retention period.
+/// Dropping or aborting a collector always releases the scheduling gate.
+pub struct ProofCollection(Arc<SharedProofCache>);
+
+impl Drop for ProofCollection {
+    fn drop(&mut self) {
+        self.0.pending_collections.fetch_sub(1, Ordering::AcqRel);
     }
 }
 
@@ -440,6 +407,152 @@ mod tests {
 
     use super::*;
 
+    fn add(cache: &mut ProofCache, seq: u64, old: u8, new: u8) {
+        cache.add_late_proof(
+            seq,
+            [old; 32],
+            [new; 32],
+            BatchInstruction::Append(Vec::new()),
+        );
+    }
+
+    #[test]
+    fn ready_prefix_is_available_during_collection_and_until_confirmed() {
+        let mut cache = ProofCache::new(Pubkey::new_unique());
+        let generation = cache.start_warming([1; 32]);
+        cache.add_proof(
+            generation,
+            0,
+            [1; 32],
+            [2; 32],
+            BatchInstruction::Append(Vec::new()),
+        );
+        let first = cache.ready_chain(&[1; 32]).unwrap();
+        assert!(cache.is_warming());
+        assert_eq!(first.len(), 1);
+        // A failed or timed-out send doesn't consume the prefix.
+        assert_eq!(cache.ready_chain(&[1; 32]).unwrap().len(), 1);
+        cache.confirm(&first);
+        cache.add_proof(
+            generation,
+            1,
+            [2; 32],
+            [3; 32],
+            BatchInstruction::Append(Vec::new()),
+        );
+        cache.finish_warming(generation);
+        assert_eq!(cache.ready_chain(&[2; 32]).unwrap()[0].new_root, [3; 32]);
+        assert!(cache.ready_chain(&[1; 32]).is_none());
+    }
+
+    #[test]
+    fn new_or_cancelled_warmup_preserves_completed_work() {
+        let mut cache = ProofCache::new(Pubkey::new_unique());
+        let old = cache.start_warming([1; 32]);
+        add(&mut cache, 0, 1, 2);
+        let new = cache.start_warming([2; 32]);
+        // An older result remains useful even after a new collection starts.
+        cache.add_proof(
+            old,
+            1,
+            [2; 32],
+            [3; 32],
+            BatchInstruction::Append(Vec::new()),
+        );
+        cache.abort_warming(old);
+        assert!(cache.is_warming());
+        cache.abort_warming(new);
+        assert!(!cache.is_warming());
+        assert_eq!(cache.ready_chain(&[1; 32]).unwrap().len(), 2);
+        let empty = cache.start_warming([1; 32]);
+        cache.finish_warming(empty);
+        assert_eq!(cache.ready_chain(&[1; 32]).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn only_confirmed_prefix_is_removed_after_partial_send() {
+        let mut cache = ProofCache::new(Pubkey::new_unique());
+        for i in 1..=6 {
+            add(&mut cache, i as u64, i, i + 1);
+        }
+        let chain = cache.ready_chain(&[1; 32]).unwrap();
+        cache.confirm(&chain[..4]);
+        // The second transaction failed: its two proofs are still retryable.
+        let retry = cache.ready_chain(&[5; 32]).unwrap();
+        assert_eq!(retry.len(), 2);
+        assert_eq!(retry[0].old_root, [5; 32]);
+        assert_eq!(retry[1].new_root, [7; 32]);
+    }
+
+    #[test]
+    fn confirmed_on_chain_proof_is_not_replayed_after_ambiguous_timeout() {
+        let mut cache = ProofCache::new(Pubkey::new_unique());
+        add(&mut cache, 0, 1, 2);
+        add(&mut cache, 1, 2, 3);
+        let _unconfirmed_send = cache.ready_chain(&[1; 32]).unwrap();
+        let retry = cache.ready_chain(&[2; 32]).unwrap();
+        assert_eq!(retry.len(), 1);
+        assert_eq!(retry[0].old_root, [2; 32]);
+    }
+
+    #[tokio::test]
+    async fn cancelled_cached_send_preserves_proofs_and_releases_send_lock() {
+        let cache = Arc::new(SharedProofCache::new(Pubkey::new_unique()));
+        cache
+            .add_late_proof(0, [1; 32], [2; 32], BatchInstruction::Append(Vec::new()))
+            .await;
+        let send_cache = cache.clone();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(async move {
+            let _guard = send_cache.try_lock_for_sending().unwrap();
+            let _proofs = send_cache.ready_chain(&[1; 32]).await.unwrap();
+            started_tx.send(()).unwrap();
+            pending::<()>().await;
+        });
+        started_rx.await.unwrap();
+        assert!(cache.try_lock_for_sending().is_none());
+        // Receiving more proofs never waits for the sending lock.
+        cache
+            .add_late_proof(1, [2; 32], [3; 32], BatchInstruction::Append(Vec::new()))
+            .await;
+        task.abort();
+        let _ = task.await;
+        assert!(cache.try_lock_for_sending().is_some());
+        assert_eq!(cache.ready_chain(&[1; 32]).await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn pending_collectors_bound_new_work_without_hiding_ready_proofs() {
+        let cache = Arc::new(SharedProofCache::new(Pubkey::new_unique()));
+        let first = cache.start_collecting();
+        let second = cache.start_collecting();
+        let warmup = cache.start_warming([1; 32]).await;
+        warmup
+            .add_proof(0, [1; 32], [2; 32], BatchInstruction::Append(Vec::new()))
+            .await;
+        warmup.finish().await;
+        assert!(cache.has_pending_proofs().await);
+        assert!(cache.ready_chain(&[1; 32]).await.is_some());
+        drop(first);
+        assert!(cache.has_pending_proofs().await);
+        drop(second);
+        assert!(!cache.has_pending_proofs().await);
+    }
+
+    #[test]
+    fn cache_deduplicates_by_roots_and_enforces_one_capacity_limit() {
+        let mut cache = ProofCache::new(Pubkey::new_unique());
+        cache.max_proofs = 2;
+        add(&mut cache, 0, 1, 2);
+        add(&mut cache, 99, 1, 2);
+        assert_eq!(cache.len(), 1);
+        add(&mut cache, 1, 2, 3);
+        add(&mut cache, 2, 3, 4);
+        assert_eq!(cache.len(), 2);
+        assert!(cache.ready_chain(&[1; 32]).is_none());
+        assert_eq!(cache.ready_chain(&[2; 32]).unwrap().len(), 2);
+    }
+
     #[tokio::test]
     async fn cancelled_warmup_releases_warming_state() {
         let cache = Arc::new(SharedProofCache::new(Pubkey::new_unique()));
@@ -488,12 +601,14 @@ mod tests {
             .add_late_proof(0, root_1, root_2, BatchInstruction::Append(Vec::new()))
             .await;
 
-        let proofs = cache.take_if_valid(&root_1).await.unwrap();
+        let proofs = cache.ready_chain(&root_1).await.unwrap();
         assert_eq!(proofs.len(), 2);
         assert_eq!(proofs[0].old_root, root_1);
         assert_eq!(proofs[0].new_root, root_2);
         assert_eq!(proofs[1].old_root, root_2);
         assert_eq!(proofs[1].new_root, root_3);
+        assert_eq!(cache.len().await, 2);
+        cache.confirm(&proofs).await;
         assert!(cache.is_empty().await);
     }
 }
