@@ -5,7 +5,7 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::{HashSet, HashSetCell, HashSetError};
+use crate::{write_empty_bucket, HashSet, HashSetCell, HashSetError};
 
 /// A `HashSet` wrapper which can be instantiated from Solana account bytes
 /// without copying them.
@@ -43,11 +43,9 @@ impl<'a> HashSetZeroCopy<'a> {
         let capacity_values = usize::from_le_bytes(bytes[0..8].try_into().unwrap());
         let sequence_threshold = usize::from_le_bytes(bytes[8..16].try_into().unwrap());
 
-        let offset = HashSet::non_dyn_fields_size() + mem::size_of::<usize>();
+        let offset = HashSet::buckets_offset();
 
-        let values_size = mem::size_of::<Option<HashSetCell>>() * capacity_values;
-
-        let expected_size = HashSet::non_dyn_fields_size() + values_size;
+        let expected_size = HashSet::size_in_account(capacity_values);
         if bytes.len() < expected_size {
             return Err(HashSetError::BufferSize(expected_size, bytes.len()));
         }
@@ -98,11 +96,9 @@ impl<'a> HashSetZeroCopy<'a> {
         capacity_values: usize,
         sequence_threshold: usize,
     ) -> Result<Self, HashSetError> {
-        if bytes.len() < HashSet::non_dyn_fields_size() {
-            return Err(HashSetError::BufferSize(
-                HashSet::non_dyn_fields_size(),
-                bytes.len(),
-            ));
+        let expected_size = HashSet::size_in_account(capacity_values);
+        if bytes.len() < expected_size {
+            return Err(HashSetError::BufferSize(expected_size, bytes.len()));
         }
 
         bytes[0..8].copy_from_slice(&capacity_values.to_le_bytes());
@@ -112,7 +108,7 @@ impl<'a> HashSetZeroCopy<'a> {
         let hash_set = Self::from_bytes_zero_copy_mut(bytes)?;
 
         for i in 0..capacity_values {
-            std::ptr::write(hash_set.hash_set.buckets.as_ptr().add(i), None);
+            write_empty_bucket(hash_set.hash_set.buckets.as_ptr().add(i));
         }
 
         Ok(hash_set)
