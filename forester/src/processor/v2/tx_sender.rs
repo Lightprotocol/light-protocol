@@ -16,6 +16,10 @@ const FLUSH_MARGIN_SLOTS: u64 = 10;
 /// Late proofs are an optimization. Do not let a proof job that never releases
 /// its sender keep the tree cache in the warming state indefinitely.
 const LATE_PROOF_COLLECTION_TIMEOUT: Duration = Duration::from_secs(30);
+/// Keep receiving proof results after releasing the warming lock. This matches
+/// the default maximum prover wait and bounds detached collector lifetime when
+/// a producer retains its sender indefinitely.
+const LATE_PROOF_RETENTION_TIMEOUT: Duration = Duration::from_secs(600);
 
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
@@ -603,6 +607,7 @@ impl<R: Rpc> TxSender<R> {
             proof_rx,
             self.context.merkle_tree,
             LATE_PROOF_COLLECTION_TIMEOUT,
+            LATE_PROOF_RETENTION_TIMEOUT,
         ));
 
         saved
@@ -615,6 +620,7 @@ fn spawn_late_proof_collector(
     mut proof_rx: mpsc::Receiver<ProofJobResult>,
     tree: solana_sdk::pubkey::Pubkey,
     collection_timeout: Duration,
+    retention_timeout: Duration,
 ) -> JoinHandle<usize> {
     tokio::spawn(async move {
         let mut saved = 0usize;
@@ -639,21 +645,69 @@ fn spawn_late_proof_collector(
             }
         };
 
-        if tokio::time::timeout(collection_timeout, collection)
+        let collection_timed_out = tokio::time::timeout(collection_timeout, collection)
             .await
-            .is_err()
-        {
+            .is_err();
+
+        // Release the tree immediately at the scheduling deadline. The
+        // receiver remains alive below so completed work is still retained.
+        warmup.finish().await;
+
+        if collection_timed_out {
             warn!(
                 tree = %tree,
                 timeout_ms = collection_timeout.as_millis(),
                 late_proofs_cached = saved,
-                "Late proof collection timed out; releasing cache warming state"
+                "Late proof collection timed out; released cache warming state and retaining later results"
             );
+
+            let mut retained = 0usize;
+            let retention = async {
+                while let Some(result) = proof_rx.recv().await {
+                    match result.result {
+                        Ok(instruction) => {
+                            cache
+                                .add_late_proof(
+                                    result.seq,
+                                    result.old_root,
+                                    result.new_root,
+                                    instruction,
+                                )
+                                .await;
+                            saved += 1;
+                            retained += 1;
+                        }
+                        Err(error) => {
+                            warn!(
+                                tree = %tree,
+                                seq = result.seq,
+                                error = %error,
+                                "Proof failed after cache warm-up deadline"
+                            );
+                        }
+                    }
+                }
+            };
+
+            if tokio::time::timeout(retention_timeout, retention)
+                .await
+                .is_err()
+            {
+                warn!(
+                    tree = %tree,
+                    timeout_ms = retention_timeout.as_millis(),
+                    retained_late_proofs = retained,
+                    "Late proof retention window expired"
+                );
+            } else if retained > 0 {
+                info!(
+                    tree = %tree,
+                    retained_late_proofs = retained,
+                    "Retained proofs that completed after cache warm-up deadline"
+                );
+            }
         }
 
-        // This must run on channel closure and timeout so a retained sender can
-        // never make the tree permanently ineligible for future proof work.
-        warmup.finish().await;
         let total_cached_proofs = cache.len().await;
         info!(
             tree = %tree,
@@ -696,6 +750,7 @@ mod tests {
             proof_rx,
             tree,
             LATE_PROOF_COLLECTION_TIMEOUT,
+            LATE_PROOF_RETENTION_TIMEOUT,
         );
 
         assert!(cache.is_warming().await);
@@ -727,6 +782,7 @@ mod tests {
             proof_rx,
             tree,
             LATE_PROOF_COLLECTION_TIMEOUT,
+            LATE_PROOF_RETENTION_TIMEOUT,
         );
         proof_tx
             .send(ProofJobResult {
@@ -761,11 +817,24 @@ mod tests {
             proof_rx,
             tree,
             Duration::from_millis(20),
+            Duration::from_secs(1),
         );
 
         assert!(cache.is_warming().await);
-        assert_eq!(collector.await.unwrap(), 0);
+        tokio::time::sleep(Duration::from_millis(40)).await;
         assert!(!cache.is_warming().await);
-        assert!(proof_tx.is_closed());
+        assert!(!proof_tx.is_closed());
+
+        let next_root = [6u8; 32];
+        proof_tx
+            .send(proof_result(0, base_root, next_root))
+            .await
+            .unwrap();
+        drop(proof_tx);
+
+        assert_eq!(collector.await.unwrap(), 1);
+        let cached = cache.take_if_valid(&base_root).await.unwrap();
+        assert_eq!(cached.len(), 1);
+        assert_eq!(cached[0].new_root, next_root);
     }
 }
