@@ -5,7 +5,21 @@ use borsh::BorshSerialize;
 const MAX_BUFFER_SIZE: usize = 1000;
 const V2_IXS_PER_TX_WITH_LUT: usize = 5;
 const V2_IXS_PER_TX_WITHOUT_LUT: usize = 4;
-const FLUSH_MARGIN_SLOTS: u64 = 2;
+/// Flush an incomplete transaction with enough time left for confirmation.
+///
+/// `send_transaction_batch` requires at least four slots.  The old two-slot
+/// margin could therefore never send a partial batch: proof results would sit
+/// in `pending_batch` until eligibility ended and then be handed back to the
+/// cache.  Ten slots leaves roughly four seconds on the default slot schedule
+/// and gives the confirmation loop useful headroom.
+const FLUSH_MARGIN_SLOTS: u64 = 10;
+/// Late proofs are an optimization. Do not let a proof job that never releases
+/// its sender keep the tree cache in the warming state indefinitely.
+const LATE_PROOF_COLLECTION_TIMEOUT: Duration = Duration::from_secs(30);
+/// Keep receiving proof results after releasing the warming lock. This matches
+/// the default maximum prover wait and bounds detached collector lifetime when
+/// a producer retains its sender indefinitely.
+const LATE_PROOF_RETENTION_TIMEOUT: Duration = Duration::from_secs(600);
 
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
@@ -22,8 +36,10 @@ use tracing::{debug, info, warn};
 use crate::{
     errors::ForesterError,
     processor::v2::{
-        common::send_transaction_batch, proof_cache::SharedProofCache,
-        proof_worker::ProofJobResult, BatchContext,
+        common::send_transaction_batch,
+        proof_cache::{ProofCacheWarmup, SharedProofCache},
+        proof_worker::ProofJobResult,
+        BatchContext,
     },
 };
 
@@ -165,6 +181,18 @@ impl OrderedProofBuffer {
 
     fn expected_seq(&self) -> u64 {
         self.base_seq
+    }
+
+    fn drain_all(&mut self) -> Vec<(u64, BufferEntry)> {
+        let mut entries = Vec::with_capacity(self.len);
+        for offset in 0..self.buffer.len() {
+            let index = (self.head + offset) % self.buffer.len();
+            if let Some(entry) = self.buffer[index].take() {
+                entries.push((self.base_seq + offset as u64, entry));
+            }
+        }
+        self.len = 0;
+        entries
     }
 }
 
@@ -386,7 +414,27 @@ impl<R: Rpc> TxSender<R> {
             let result = match tokio::time::timeout(Duration::from_secs(1), proof_rx.recv()).await {
                 Ok(Some(r)) => r,
                 Ok(None) => break,
-                Err(_) => continue,
+                Err(_) => {
+                    // A partial batch may have been waiting since the previous
+                    // proof result. Re-check the slot on every receive timeout;
+                    // otherwise it is only flushed when another proof arrives,
+                    // which may be after the eligibility window has ended.
+                    let current_slot = self.context.slot_tracker.estimated_current_slot();
+                    if !self.pending_batch.is_empty()
+                        && self.should_flush_due_to_time_at(current_slot)
+                    {
+                        let batch = std::mem::replace(
+                            &mut self.pending_batch,
+                            Vec::with_capacity(self.ixs_per_tx),
+                        );
+                        let earliest = self.pending_batch_earliest_submit.take();
+
+                        if batch_tx.send((batch, earliest)).is_err() {
+                            break;
+                        }
+                    }
+                    continue;
+                }
             };
 
             let current_slot = self.context.slot_tracker.estimated_current_slot();
@@ -514,18 +562,17 @@ impl<R: Rpc> TxSender<R> {
 
         let mut saved = 0;
 
-        cache.start_warming(self.last_seen_root).await;
+        let warmup = cache.start_warming(self.last_seen_root).await;
 
         // Save proofs from pending_batch (already processed but not yet sent)
         for (instruction, seq, old_root, new_root) in self.pending_batch.drain(..) {
-            cache.add_proof(seq, old_root, new_root, instruction).await;
+            warmup.add_proof(seq, old_root, new_root, instruction).await;
             saved += 1;
         }
 
         // Save proofs from the reorder buffer (received but waiting for in-order processing)
-        while let Some(entry) = self.buffer.pop_next() {
-            let seq = self.buffer.expected_seq() - 1;
-            cache
+        for (seq, entry) in self.buffer.drain_all() {
+            warmup
                 .add_proof(seq, entry.old_root, entry.new_root, entry.instruction)
                 .await;
             saved += 1;
@@ -534,7 +581,7 @@ impl<R: Rpc> TxSender<R> {
         // Save the current result if provided
         if let Some(result) = current_result {
             if let Ok(instruction) = result.result {
-                cache
+                warmup
                     .add_proof(result.seq, result.old_root, result.new_root, instruction)
                     .await;
                 saved += 1;
@@ -544,7 +591,7 @@ impl<R: Rpc> TxSender<R> {
         // Drain remaining proofs from the channel
         while let Ok(result) = proof_rx.try_recv() {
             if let Ok(instruction) = result.result {
-                cache
+                warmup
                     .add_proof(result.seq, result.old_root, result.new_root, instruction)
                     .await;
                 saved += 1;
@@ -566,9 +613,12 @@ impl<R: Rpc> TxSender<R> {
 
         // Dropping the JoinHandle detaches the collector so it can finish warming the cache.
         drop(spawn_late_proof_collector(
+            warmup,
             cache.clone(),
             proof_rx,
             self.context.merkle_tree,
+            LATE_PROOF_COLLECTION_TIMEOUT,
+            LATE_PROOF_RETENTION_TIMEOUT,
         ));
 
         saved
@@ -576,32 +626,101 @@ impl<R: Rpc> TxSender<R> {
 }
 
 fn spawn_late_proof_collector(
+    warmup: ProofCacheWarmup,
     cache: Arc<SharedProofCache>,
     mut proof_rx: mpsc::Receiver<ProofJobResult>,
     tree: solana_sdk::pubkey::Pubkey,
+    collection_timeout: Duration,
+    retention_timeout: Duration,
 ) -> JoinHandle<usize> {
+    let collection = cache.start_collecting();
     tokio::spawn(async move {
+        let _collection = collection;
         let mut saved = 0usize;
-        while let Some(result) = proof_rx.recv().await {
-            match result.result {
-                Ok(instruction) => {
-                    cache
-                        .add_proof(result.seq, result.old_root, result.new_root, instruction)
-                        .await;
-                    saved += 1;
+        let collection = async {
+            while let Some(result) = proof_rx.recv().await {
+                match result.result {
+                    Ok(instruction) => {
+                        warmup
+                            .add_proof(result.seq, result.old_root, result.new_root, instruction)
+                            .await;
+                        saved += 1;
+                    }
+                    Err(error) => {
+                        warn!(
+                            tree = %tree,
+                            seq = result.seq,
+                            error = %error,
+                            "Late proof failed while warming cache"
+                        );
+                    }
                 }
-                Err(error) => {
-                    warn!(
-                        tree = %tree,
-                        seq = result.seq,
-                        error = %error,
-                        "Late proof failed while warming cache"
-                    );
+            }
+        };
+
+        let collection_timed_out = tokio::time::timeout(collection_timeout, collection)
+            .await
+            .is_err();
+
+        // Release the tree immediately at the scheduling deadline. The
+        // receiver remains alive below so completed work is still retained.
+        warmup.finish().await;
+
+        if collection_timed_out {
+            warn!(
+                tree = %tree,
+                timeout_ms = collection_timeout.as_millis(),
+                late_proofs_cached = saved,
+                "Late proof collection timed out; released cache warming state and retaining later results"
+            );
+
+            let mut retained = 0usize;
+            let retention = async {
+                while let Some(result) = proof_rx.recv().await {
+                    match result.result {
+                        Ok(instruction) => {
+                            cache
+                                .add_late_proof(
+                                    result.seq,
+                                    result.old_root,
+                                    result.new_root,
+                                    instruction,
+                                )
+                                .await;
+                            saved += 1;
+                            retained += 1;
+                        }
+                        Err(error) => {
+                            warn!(
+                                tree = %tree,
+                                seq = result.seq,
+                                error = %error,
+                                "Proof failed after cache warm-up deadline"
+                            );
+                        }
+                    }
                 }
+            };
+
+            if tokio::time::timeout(retention_timeout, retention)
+                .await
+                .is_err()
+            {
+                warn!(
+                    tree = %tree,
+                    timeout_ms = retention_timeout.as_millis(),
+                    retained_late_proofs = retained,
+                    "Late proof retention window expired"
+                );
+            } else if retained > 0 {
+                info!(
+                    tree = %tree,
+                    retained_late_proofs = retained,
+                    "Retained proofs that completed after cache warm-up deadline"
+                );
             }
         }
 
-        cache.finish_warming().await;
         let total_cached_proofs = cache.len().await;
         info!(
             tree = %tree,
@@ -616,6 +735,42 @@ fn spawn_late_proof_collector(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn handoff_drains_out_of_order_proofs_across_sequence_gaps() {
+        let mut buffer = OrderedProofBuffer::new(4, 10);
+        let now = std::time::Instant::now();
+        assert!(buffer.insert(
+            10,
+            BatchInstruction::Append(Vec::new()),
+            [1; 32],
+            [2; 32],
+            now
+        ));
+        assert!(buffer.pop_next().is_some());
+        // Includes a wrapped ring-buffer entry, but seq=11 hasn't arrived.
+        assert!(buffer.insert(
+            12,
+            BatchInstruction::Append(Vec::new()),
+            [3; 32],
+            [4; 32],
+            now
+        ));
+        assert!(buffer.insert(
+            14,
+            BatchInstruction::Append(Vec::new()),
+            [5; 32],
+            [6; 32],
+            now
+        ));
+        assert!(buffer.pop_next().is_none());
+        let entries = buffer.drain_all();
+        assert_eq!(
+            entries.iter().map(|(seq, _)| *seq).collect::<Vec<_>>(),
+            vec![12, 14]
+        );
+        assert_eq!(buffer.len(), 0);
+    }
 
     fn proof_result(seq: u64, old_root: [u8; 32], new_root: [u8; 32]) -> ProofJobResult {
         ProofJobResult {
@@ -635,10 +790,17 @@ mod tests {
         let base_root = [1u8; 32];
         let next_root = [2u8; 32];
         let cache = Arc::new(SharedProofCache::new(tree));
-        cache.start_warming(base_root).await;
+        let warmup = cache.start_warming(base_root).await;
 
         let (proof_tx, proof_rx) = mpsc::channel(1);
-        let collector = spawn_late_proof_collector(cache.clone(), proof_rx, tree);
+        let collector = spawn_late_proof_collector(
+            warmup,
+            cache.clone(),
+            proof_rx,
+            tree,
+            LATE_PROOF_COLLECTION_TIMEOUT,
+            LATE_PROOF_RETENTION_TIMEOUT,
+        );
 
         assert!(cache.is_warming().await);
         proof_tx
@@ -649,7 +811,7 @@ mod tests {
 
         assert_eq!(collector.await.unwrap(), 1);
         assert!(!cache.is_warming().await);
-        let cached = cache.take_if_valid(&base_root).await.unwrap();
+        let cached = cache.ready_chain(&base_root).await.unwrap();
         assert_eq!(cached.len(), 1);
         assert_eq!(cached[0].old_root, base_root);
         assert_eq!(cached[0].new_root, next_root);
@@ -660,10 +822,17 @@ mod tests {
         let tree = solana_sdk::pubkey::Pubkey::new_unique();
         let base_root = [3u8; 32];
         let cache = Arc::new(SharedProofCache::new(tree));
-        cache.start_warming(base_root).await;
+        let warmup = cache.start_warming(base_root).await;
 
         let (proof_tx, proof_rx) = mpsc::channel(1);
-        let collector = spawn_late_proof_collector(cache.clone(), proof_rx, tree);
+        let collector = spawn_late_proof_collector(
+            warmup,
+            cache.clone(),
+            proof_rx,
+            tree,
+            LATE_PROOF_COLLECTION_TIMEOUT,
+            LATE_PROOF_RETENTION_TIMEOUT,
+        );
         proof_tx
             .send(ProofJobResult {
                 seq: 0,
@@ -681,5 +850,42 @@ mod tests {
         assert_eq!(collector.await.unwrap(), 0);
         assert!(!cache.is_warming().await);
         assert!(cache.is_empty().await);
+    }
+
+    #[tokio::test]
+    async fn retained_proof_sender_cannot_block_cache_completion() {
+        let tree = solana_sdk::pubkey::Pubkey::new_unique();
+        let base_root = [5u8; 32];
+        let cache = Arc::new(SharedProofCache::new(tree));
+        let warmup = cache.start_warming(base_root).await;
+
+        let (proof_tx, proof_rx) = mpsc::channel(1);
+        let collector = spawn_late_proof_collector(
+            warmup,
+            cache.clone(),
+            proof_rx,
+            tree,
+            Duration::from_millis(20),
+            Duration::from_secs(1),
+        );
+
+        assert!(cache.is_warming().await);
+        tokio::time::sleep(Duration::from_millis(40)).await;
+        assert!(!cache.is_warming().await);
+        assert!(!proof_tx.is_closed());
+        assert!(cache.has_pending_proofs().await);
+
+        let next_root = [6u8; 32];
+        proof_tx
+            .send(proof_result(0, base_root, next_root))
+            .await
+            .unwrap();
+        drop(proof_tx);
+
+        assert_eq!(collector.await.unwrap(), 1);
+        let cached = cache.ready_chain(&base_root).await.unwrap();
+        assert_eq!(cached.len(), 1);
+        assert_eq!(cached[0].new_root, next_root);
+        assert!(!cache.has_pending_proofs().await);
     }
 }

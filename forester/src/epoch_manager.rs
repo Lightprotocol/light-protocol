@@ -2261,43 +2261,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             return Ok(());
         }
 
-        if let Some(cache) = self
-            .proof_caches
-            .get(&tree_pubkey)
-            .map(|cache| cache.clone())
-        {
-            if cache.is_warming().await {
-                debug!(
-                    event = "v2_proof_work_deferred_cache_warming",
-                    run_id = %self.run_id,
-                    tree = %tree_pubkey,
-                    "Deferring V2 proof work while late proofs are collected"
-                );
-                return Ok(());
-            }
-        }
-
-        // Try to send any cached proofs first
-        let cached_send_start = Instant::now();
-        if let Some(items_sent) = self
-            .try_send_cached_proofs(epoch_info, tree_accounts, consecutive_eligibility_end)
-            .await?
-        {
-            if items_sent > 0 {
-                let cached_send_duration = cached_send_start.elapsed();
-                info!(
-                    event = "cached_proofs_sent",
-                    run_id = %self.run_id,
-                    tree = %tree_pubkey,
-                    items = items_sent,
-                    duration_ms = cached_send_duration.as_millis() as u64,
-                    "Sent items from proof cache"
-                );
-                self.update_metrics_and_counts(epoch_info.epoch, items_sent, cached_send_duration)
-                    .await;
-            }
-        }
-
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
         // Adaptive queue polling: start responsive, then back off (capped) while the
@@ -2307,6 +2270,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         // load (and can exhaust a shared RPC credit budget).
         const POLL_INTERVAL_MIN: Duration = Duration::from_millis(200);
         const POLL_INTERVAL_MAX: Duration = Duration::from_secs(10);
+        const PENDING_PROOF_POLL_INTERVAL: Duration = Duration::from_secs(1);
         let mut poll_interval = POLL_INTERVAL_MIN;
 
         'inner_processing_loop: loop {
@@ -2344,6 +2308,37 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 .await?
             {
                 break 'inner_processing_loop;
+            }
+
+            // Consume ready prefixes even while later proofs are still arriving.
+            // Recheck throughout the slot instead of forfeiting it on a warming cache.
+            if self
+                .try_send_cached_proofs(
+                    epoch_info,
+                    epoch_pda,
+                    tree_accounts,
+                    consecutive_eligibility_end,
+                )
+                .await?
+                .is_some()
+            {
+                tokio::time::sleep(POLL_INTERVAL_MIN).await;
+                estimated_slot = self.slot_tracker.estimated_current_slot();
+                continue;
+            }
+
+            let cache = self
+                .proof_caches
+                .get(&tree_pubkey)
+                .map(|cache| cache.clone());
+            if let Some(cache) = cache {
+                if cache.has_pending_proofs().await {
+                    // Do not generate another speculative chain for the same tree.
+                    // Completed prefixes remain eligible for sending on every tick.
+                    tokio::time::sleep(PENDING_PROOF_POLL_INTERVAL).await;
+                    estimated_slot = self.slot_tracker.estimated_current_slot();
+                    continue;
+                }
             }
 
             // Process directly - the processor fetches queue data from the indexer
@@ -3435,6 +3430,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let mut proc = processor.lock().await;
                 match proc.process().await {
                     Ok(res) => Ok(res),
+                    Err(error) if error.is_forester_not_eligible() => Err(error),
                     Err(error) if matches!(&error, ForesterError::V2(v2_error) if v2_error.is_constraint()) =>
                     {
                         warn!(
@@ -3502,6 +3498,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let mut proc = processor.lock().await;
                 match proc.process().await {
                     Ok(res) => Ok(res),
+                    Err(error) if error.is_forester_not_eligible() => Err(error),
                     Err(error) if matches!(&error, ForesterError::V2(v2_error) if v2_error.is_constraint()) =>
                     {
                         warn!(
@@ -3618,12 +3615,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             return;
         }
 
-        if slots_until_active < 15 {
+        // The remote prover may need 20-35 seconds for an uncached proof. Starting
+        // speculative work with less time than that only leaves orphaned requests
+        // in the prover queue after this timeout expires, delaying active work.
+        const MIN_PREWARM_SLOTS: u64 = 90;
+        if slots_until_active < MIN_PREWARM_SLOTS {
             info!(
                 event = "prewarm_skipped_not_enough_time",
                 run_id = %self.run_id,
                 slots_until_active,
-                min_required_slots = 15,
+                min_required_slots = MIN_PREWARM_SLOTS,
                 "Skipping pre-warming; not enough slots until active phase"
             );
             return;
@@ -3644,7 +3645,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
                         .clone();
 
-                    if cache.is_warming().await {
+                    if cache.has_pending_proofs().await {
                         info!(
                             event = "prewarm_skipped_cache_warming",
                             run_id = %self_clone.run_id,
@@ -3701,7 +3702,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         }
                     };
 
-                    const PREWARM_MAX_BATCHES: usize = 4;
+                    // One speculative batch is sufficient to warm this tree. More
+                    // batches can monopolize a small shared prover deployment.
+                    const PREWARM_MAX_BATCHES: usize = 1;
                     let mut p = processor.lock().await;
                     match p
                         .prewarm_from_indexer(
@@ -3775,9 +3778,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     async fn try_send_cached_proofs(
         &self,
         epoch_info: &Epoch,
+        epoch_pda: &ForesterEpochPda,
         tree_accounts: &TreeAccounts,
         consecutive_eligibility_end: u64,
-    ) -> Result<Option<usize>> {
+    ) -> std::result::Result<Option<usize>, ForesterError> {
         let tree_pubkey = tree_accounts.merkle_tree;
 
         // Check eligibility window before attempting to send cached proofs
@@ -3813,15 +3817,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             None => return Ok(None),
         };
 
-        if cache.is_warming().await {
-            debug!(
-                event = "cached_proofs_skipped_cache_warming",
-                run_id = %self.run_id,
-                tree = %tree_pubkey,
-                "Skipping cached proofs because cache is still warming"
-            );
+        if cache.is_empty().await {
             return Ok(None);
         }
+        let Some(_send_guard) = cache.try_lock_for_sending() else {
+            return Ok(Some(0));
+        };
 
         let mut rpc = self.rpc_pool.get_connection().await?;
         let current_root = match self.fetch_current_root(&mut *rpc, tree_accounts).await {
@@ -3838,7 +3839,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
         };
 
-        let cached_proofs = match cache.take_if_valid(&current_root).await {
+        drop(rpc);
+        let cached_proofs = match cache.ready_chain(&current_root).await {
             Some(proofs) => proofs,
             None => {
                 debug!(
@@ -3868,8 +3870,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let items_sent = self
             .send_cached_proofs_as_transactions(
                 epoch_info,
+                epoch_pda,
                 tree_accounts,
+                &cache,
                 cached_proofs,
+                consecutive_eligibility_end,
                 confirmation_deadline,
             )
             .await?;
@@ -3905,19 +3910,50 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         Ok(root)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn send_cached_proofs_as_transactions(
         &self,
         epoch_info: &Epoch,
+        epoch_pda: &ForesterEpochPda,
         tree_accounts: &TreeAccounts,
+        cache: &SharedProofCache,
         cached_proofs: Vec<crate::processor::v2::CachedProof>,
+        consecutive_eligibility_end: u64,
         confirmation_deadline: Instant,
-    ) -> Result<usize> {
+    ) -> std::result::Result<usize, ForesterError> {
         let mut total_items = 0;
         let authority = self.config.payer_keypair.pubkey();
         let derivation = self.config.derivation_pubkey;
+        let zkp_batch_size = self
+            .zkp_batch_sizes
+            .get(&tree_accounts.merkle_tree)
+            .map(|size| *size as usize)
+            .ok_or_else(|| anyhow!("Missing ZKP batch size for cached proof tree"))?;
 
         const PROOFS_PER_TX: usize = 4;
         for chunk in cached_proofs.chunks(PROOFS_PER_TX) {
+            let current_slot = self.slot_tracker.estimated_current_slot();
+            if current_slot < epoch_info.phases.active.start
+                || current_slot >= consecutive_eligibility_end
+                || Instant::now() >= confirmation_deadline
+            {
+                break;
+            }
+            let light_slot = (current_slot - epoch_info.phases.active.start)
+                / epoch_pda.protocol_config.slot_length;
+            if !self
+                .check_forester_eligibility(
+                    epoch_pda,
+                    light_slot,
+                    &tree_accounts.merkle_tree,
+                    epoch_info.epoch,
+                    epoch_info,
+                )
+                .await?
+            {
+                return Err(ForesterError::NotEligible);
+            }
+            let send_started = Instant::now();
             let mut instructions = Vec::new();
             let mut chunk_items = 0;
 
@@ -3967,7 +4003,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         }
                     }
                 }
-                chunk_items += proof.items;
+                chunk_items += proof.items * zkp_batch_size;
             }
 
             if !instructions.is_empty() {
@@ -3997,22 +4033,33 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 .map_err(RpcError::from)
                 {
                     Ok(sig) => {
+                        cache.confirm(chunk).await;
                         info!(
                             event = "cached_proofs_tx_sent",
                             run_id = %self.run_id,
                             signature = %sig,
                             instruction_count,
+                            queue_items = chunk_items,
                             "Sent cached proofs transaction"
                         );
                         total_items += chunk_items;
+                        self.update_metrics_and_counts(
+                            epoch_info.epoch,
+                            chunk_items,
+                            send_started.elapsed(),
+                        )
+                        .await;
                     }
                     Err(e) => {
                         warn!(
                             event = "cached_proofs_tx_send_failed",
                             run_id = %self.run_id,
                             error = ?e,
-                            "Failed to send cached proofs transaction"
+                            "Cached proof send failed; preserving unconfirmed chain for retry"
                         );
+                        // Stop the dependent chain. In particular, preserve the
+                        // typed 6004 error so process_queue re-finalizes eligibility.
+                        return Err(e.into());
                     }
                 }
             }
@@ -4736,6 +4783,16 @@ mod tests {
         config::{ExternalServicesConfig, GeneralConfig},
         ForesterConfig,
     };
+
+    #[test]
+    fn cached_send_rpc_error_preserves_eligibility_recovery_signal() {
+        let error = RpcError::TransactionError(TransactionError::InstructionError(
+            2,
+            InstructionError::Custom(6004),
+        ));
+        let error = ForesterError::from(error);
+        assert!(error.is_forester_not_eligible());
+    }
 
     fn create_test_config_with_skip_flags(
         skip_v1_state: bool,

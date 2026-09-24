@@ -43,24 +43,25 @@ impl ProofInput {
         }
     }
 
-    fn to_json(&self, tree_id: &str, batch_index: u64) -> String {
+    fn to_json(&self, tree_id: &str) -> String {
+        // The prover hashes the entire payload for deduplication. Local sequence
+        // numbers change across retries/foresters and must stay out of that key.
+        // Keep treeId for fair queuing; jobs within a tree use the prover's FIFO
+        // fallback, while TxSender orders results using the local seq below.
         match self {
             ProofInput::Append(inputs) => BatchAppendInputsJson::from_inputs(inputs)
                 .with_tree_id(tree_id.to_string())
-                .with_batch_index(batch_index)
                 .to_string(),
             ProofInput::Nullify(inputs) => {
                 use light_prover_client::proof_types::batch_update::BatchUpdateProofInputsJson;
                 BatchUpdateProofInputsJson::from_update_inputs(inputs)
                     .with_tree_id(tree_id.to_string())
-                    .with_batch_index(batch_index)
                     .to_string()
             }
             ProofInput::AddressAppend(inputs) => {
                 use light_prover_client::proof_types::batch_address_append::BatchAddressAppendInputsJson;
                 BatchAddressAppendInputsJson::from_inputs(inputs)
                     .with_tree_id(tree_id.to_string())
-                    .with_batch_index(batch_index)
                     .to_string()
             }
         }
@@ -194,8 +195,34 @@ async fn run_proof_pipeline(
     semaphore: Arc<tokio::sync::Semaphore>,
 ) -> crate::Result<()> {
     while let Ok(job) = job_rx.recv().await {
+        if job.result_tx.is_closed() {
+            debug!(
+                "Skipping cancelled proof job seq={}: result channel closed",
+                job.seq
+            );
+            continue;
+        }
+
         let clients = clients.clone();
-        let permit = semaphore.clone().acquire_owned().await;
+        let permit = tokio::select! {
+            permit = semaphore.clone().acquire_owned() => permit,
+            _ = job.result_tx.closed() => {
+                debug!(
+                    "Cancelling queued proof job seq={} while waiting for prover capacity",
+                    job.seq
+                );
+                continue;
+            }
+        };
+
+        if job.result_tx.is_closed() {
+            debug!(
+                "Skipping cancelled proof job seq={}: result channel closed",
+                job.seq
+            );
+            continue;
+        }
+
         // Spawn immediately so we don't block receiving the next job
         // while waiting for HTTP submission. Semaphore bounds concurrency.
         tokio::spawn(async move {
@@ -209,8 +236,7 @@ async fn run_proof_pipeline(
 
 async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
     let client = clients.get_client(&job.inputs);
-    // Use seq as batch_index for ordering in the prover queue
-    let inputs_json = job.inputs.to_json(&job.tree_id, job.seq);
+    let inputs_json = job.inputs.to_json(&job.tree_id);
     let circuit_type = job.inputs.circuit_type();
 
     let round_trip_start = std::time::Instant::now();
@@ -350,7 +376,7 @@ async fn poll_and_send_result(
             );
             tokio::time::sleep(Duration::from_millis(200)).await;
 
-            let inputs_json = inputs.to_json(&tree_id, seq);
+            let inputs_json = inputs.to_json(&tree_id);
             let circuit_type = inputs.circuit_type();
             let Some(submit_result) =
                 submit_with_backpressure(client, &inputs_json, circuit_type, seq, &result_tx).await
@@ -515,6 +541,72 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn proof_requests_keep_stable_inputs_and_exclude_local_sequence_metadata() {
+        let inputs = [
+            ProofInput::Append(BatchAppendsCircuitInputs {
+                public_input_hash: 1.into(),
+                old_root: 2.into(),
+                new_root: 3.into(),
+                leaves_hashchain_hash: 4.into(),
+                start_index: 5,
+                old_leaves: vec![],
+                leaves: vec![],
+                merkle_proofs: vec![],
+                height: 32,
+                batch_size: 500,
+            }),
+            ProofInput::Nullify(BatchUpdateCircuitInputs {
+                public_input_hash: 1.into(),
+                old_root: 2.into(),
+                new_root: 3.into(),
+                leaves_hashchain_hash: 4.into(),
+                tx_hashes: vec![],
+                leaves: vec![],
+                old_leaves: vec![],
+                merkle_proofs: vec![],
+                path_indices: vec![],
+                height: 32,
+                batch_size: 500,
+            }),
+            ProofInput::AddressAppend(BatchAddressAppendInputs {
+                batch_size: 250,
+                hashchain_hash: 4u32.into(),
+                low_element_values: vec![],
+                low_element_indices: vec![],
+                low_element_next_indices: vec![],
+                low_element_next_values: vec![],
+                low_element_proofs: vec![],
+                new_element_values: vec![],
+                new_element_proofs: vec![],
+                new_root: 3u32.into(),
+                old_root: 2u32.into(),
+                public_input_hash: 1u32.into(),
+                start_index: 5,
+                tree_height: 40,
+            }),
+        ];
+        for input in inputs {
+            let (result_tx, _rx) = mpsc::channel(1);
+            let mut job = ProofJob {
+                seq: 1,
+                inputs: input,
+                result_tx,
+                tree_id: "tree-a".into(),
+            };
+            let first = job.inputs.to_json(&job.tree_id);
+            job.seq = 999;
+            let retry = job.inputs.to_json(&job.tree_id);
+            assert_eq!(first, retry);
+            let json: serde_json::Value = serde_json::from_str(&first).unwrap();
+            assert!(json.get("batchIndex").is_none());
+            assert_eq!(json["treeId"], "tree-a");
+            assert!(json.get("oldRoot").is_some());
+            assert!(json.get("newRoot").is_some());
+            assert_ne!(first, job.inputs.to_json("tree-b"));
+        }
+    }
 
     #[test]
     fn queue_full_detection_is_specific() {
