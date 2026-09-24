@@ -5,7 +5,14 @@ use borsh::BorshSerialize;
 const MAX_BUFFER_SIZE: usize = 1000;
 const V2_IXS_PER_TX_WITH_LUT: usize = 5;
 const V2_IXS_PER_TX_WITHOUT_LUT: usize = 4;
-const FLUSH_MARGIN_SLOTS: u64 = 2;
+/// Flush an incomplete transaction with enough time left for confirmation.
+///
+/// `send_transaction_batch` requires at least four slots.  The old two-slot
+/// margin could therefore never send a partial batch: proof results would sit
+/// in `pending_batch` until eligibility ended and then be handed back to the
+/// cache.  Ten slots leaves roughly four seconds on the default slot schedule
+/// and gives the confirmation loop useful headroom.
+const FLUSH_MARGIN_SLOTS: u64 = 10;
 /// Late proofs are an optimization. Do not let a proof job that never releases
 /// its sender keep the tree cache in the warming state indefinitely.
 const LATE_PROOF_COLLECTION_TIMEOUT: Duration = Duration::from_secs(30);
@@ -391,7 +398,27 @@ impl<R: Rpc> TxSender<R> {
             let result = match tokio::time::timeout(Duration::from_secs(1), proof_rx.recv()).await {
                 Ok(Some(r)) => r,
                 Ok(None) => break,
-                Err(_) => continue,
+                Err(_) => {
+                    // A partial batch may have been waiting since the previous
+                    // proof result. Re-check the slot on every receive timeout;
+                    // otherwise it is only flushed when another proof arrives,
+                    // which may be after the eligibility window has ended.
+                    let current_slot = self.context.slot_tracker.estimated_current_slot();
+                    if !self.pending_batch.is_empty()
+                        && self.should_flush_due_to_time_at(current_slot)
+                    {
+                        let batch = std::mem::replace(
+                            &mut self.pending_batch,
+                            Vec::with_capacity(self.ixs_per_tx),
+                        );
+                        let earliest = self.pending_batch_earliest_submit.take();
+
+                        if batch_tx.send((batch, earliest)).is_err() {
+                            break;
+                        }
+                    }
+                    continue;
+                }
             };
 
             let current_slot = self.context.slot_tracker.estimated_current_slot();
