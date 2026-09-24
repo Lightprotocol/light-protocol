@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { defaultSolanaWalletKeypair, programsDirPath } from "../../../src";
-import { Connection, Keypair } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import * as path from "path";
 import * as fs from "fs";
 import { killProcess } from "../../../src/utils/process";
@@ -9,6 +9,140 @@ import { promisify } from "util";
 import { ExecException } from "node:child_process";
 
 const exec = promisify(execCb);
+const accountsDir = path.resolve(__dirname, "../../../accounts");
+
+type BundledAccountExpectation = {
+  filename: string;
+  pubkey: string;
+  batchSizeOffset: number;
+  zkpBatchSizeOffset: number;
+  expectedBatchSize: number;
+  expectedZkpBatchSize: number;
+};
+
+const bundledAccountExpectations: BundledAccountExpectation[] = [
+  {
+    filename:
+      "batch_state_merkle_tree_bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU.json",
+    pubkey: "bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU",
+    batchSizeOffset: 272,
+    zkpBatchSizeOffset: 280,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batch_state_merkle_tree_bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi.json",
+    pubkey: "bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi",
+    batchSizeOffset: 272,
+    zkpBatchSizeOffset: 280,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batch_state_merkle_tree_bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb.json",
+    pubkey: "bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb",
+    batchSizeOffset: 272,
+    zkpBatchSizeOffset: 280,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batch_state_merkle_tree_bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8.json",
+    pubkey: "bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8",
+    batchSizeOffset: 272,
+    zkpBatchSizeOffset: 280,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batch_state_merkle_tree_bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2.json",
+    pubkey: "bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2",
+    batchSizeOffset: 272,
+    zkpBatchSizeOffset: 280,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batched_output_queue_oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto.json",
+    pubkey: "oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto",
+    batchSizeOffset: 240,
+    zkpBatchSizeOffset: 248,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batched_output_queue_oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg.json",
+    pubkey: "oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg",
+    batchSizeOffset: 240,
+    zkpBatchSizeOffset: 248,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batched_output_queue_oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ.json",
+    pubkey: "oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ",
+    batchSizeOffset: 240,
+    zkpBatchSizeOffset: 248,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batched_output_queue_oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq.json",
+    pubkey: "oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq",
+    batchSizeOffset: 240,
+    zkpBatchSizeOffset: 248,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batched_output_queue_oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P.json",
+    pubkey: "oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P",
+    batchSizeOffset: 240,
+    zkpBatchSizeOffset: 248,
+    expectedBatchSize: 15000,
+    expectedZkpBatchSize: 500,
+  },
+  {
+    filename:
+      "batch_address_merkle_tree_amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx.json",
+    pubkey: "amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx",
+    batchSizeOffset: 272,
+    zkpBatchSizeOffset: 280,
+    expectedBatchSize: 30000,
+    expectedZkpBatchSize: 250,
+  },
+];
+
+function readSerializedAccount(filename: string): Buffer {
+  const raw = fs.readFileSync(path.join(accountsDir, filename), "utf8");
+  const parsed = JSON.parse(raw);
+  return Buffer.from(parsed.account.data[0], "base64");
+}
+
+function readU64(buffer: Buffer, offset: number): number {
+  return Number(buffer.readBigUInt64LE(offset));
+}
+
+function expectBatchedAccountSizes(
+  buffer: Buffer,
+  expectation: BundledAccountExpectation,
+) {
+  expect(readU64(buffer, expectation.batchSizeOffset)).to.equal(
+    expectation.expectedBatchSize,
+  );
+  expect(readU64(buffer, expectation.zkpBatchSizeOffset)).to.equal(
+    expectation.expectedZkpBatchSize,
+  );
+}
 
 describe("test-validator command", function () {
   this.timeout(120_000);
@@ -121,6 +255,15 @@ describe("test-validator command", function () {
     await cleanupProcesses();
   });
 
+  it("should bundle release-sized batched tree accounts", function () {
+    for (const expectation of bundledAccountExpectations) {
+      expectBatchedAccountSizes(
+        readSerializedAccount(expectation.filename),
+        expectation,
+      );
+    }
+  });
+
   it("should start validator without indexer and prover", async function () {
     const { stdout } = await exec(
       "./test_bin/dev test-validator --skip-indexer --skip-prover",
@@ -183,6 +326,24 @@ describe("test-validator command", function () {
     } catch (error) {
       console.error("Error during validator checks:", error);
       throw error;
+    }
+  });
+
+  it("should load release-sized batched tree accounts over RPC", async function () {
+    const { stdout } = await exec(
+      "./test_bin/dev test-validator --skip-indexer --skip-prover",
+    );
+    expect(stdout).to.contain("Setup tasks completed successfully");
+
+    const connection = await waitForValidatorReady();
+
+    for (const expectation of bundledAccountExpectations) {
+      const accountInfo = await connection.getAccountInfo(
+        new PublicKey(expectation.pubkey),
+      );
+      expect(accountInfo, `${expectation.pubkey} should be loaded`).to.not.be
+        .null;
+      expectBatchedAccountSizes(accountInfo!.data, expectation);
     }
   });
 

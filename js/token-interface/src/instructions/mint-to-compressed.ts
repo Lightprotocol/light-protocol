@@ -1,7 +1,4 @@
-import {
-    SystemProgram,
-    TransactionInstruction,
-} from '@solana/web3.js';
+import { SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import {
     LIGHT_TOKEN_PROGRAM_ID,
@@ -125,9 +122,17 @@ export function createMintToCompressedInstruction({
                 isSigner: false,
                 isWritable: false,
             },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            {
+                pubkey: SystemProgram.programId,
+                isSigner: false,
+                isWritable: false,
+            },
             { pubkey: outputQueue, isSigner: false, isWritable: true },
-            { pubkey: merkleContext.treeInfo.tree, isSigner: false, isWritable: true },
+            {
+                pubkey: merkleContext.treeInfo.tree,
+                isSigner: false,
+                isWritable: true,
+            },
             {
                 pubkey: merkleContext.treeInfo.queue,
                 isSigner: false,
