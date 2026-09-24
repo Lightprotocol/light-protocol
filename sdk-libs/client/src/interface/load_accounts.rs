@@ -70,7 +70,9 @@ pub enum LoadAccountsError {
     TreeInfoIndexOutOfBounds { index: usize, len: usize },
 }
 
-const MAX_ATAS_PER_IX: usize = 8;
+// Permissionless ATA decompress is strictly gated on-chain to a single-input
+// idempotent ATA decompress shape, so ATA load instructions must stay 1-per-ix.
+const MAX_ATAS_PER_IX: usize = 1;
 const MAX_PDAS_PER_IX: usize = 8;
 const PROOF_FETCH_CONCURRENCY: usize = 8;
 
@@ -443,7 +445,7 @@ fn build_transfer2(
             },
         )?;
 
-        let owner_idx = packed.insert_or_get_config(ctx.wallet_owner, true, false);
+        let owner_idx = packed.insert_or_get_read_only(ctx.wallet_owner);
         let ata_idx = packed.insert_or_get(derive_token_ata(&ctx.wallet_owner, &ctx.mint));
         let mint_idx = packed.insert_or_get(token.mint);
         let delegate_idx = token.delegate.map(|d| packed.insert_or_get(d)).unwrap_or(0);
