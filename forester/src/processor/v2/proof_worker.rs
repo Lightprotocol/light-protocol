@@ -194,8 +194,34 @@ async fn run_proof_pipeline(
     semaphore: Arc<tokio::sync::Semaphore>,
 ) -> crate::Result<()> {
     while let Ok(job) = job_rx.recv().await {
+        if job.result_tx.is_closed() {
+            debug!(
+                "Skipping cancelled proof job seq={}: result channel closed",
+                job.seq
+            );
+            continue;
+        }
+
         let clients = clients.clone();
-        let permit = semaphore.clone().acquire_owned().await;
+        let permit = tokio::select! {
+            permit = semaphore.clone().acquire_owned() => permit,
+            _ = job.result_tx.closed() => {
+                debug!(
+                    "Cancelling queued proof job seq={} while waiting for prover capacity",
+                    job.seq
+                );
+                continue;
+            }
+        };
+
+        if job.result_tx.is_closed() {
+            debug!(
+                "Skipping cancelled proof job seq={}: result channel closed",
+                job.seq
+            );
+            continue;
+        }
+
         // Spawn immediately so we don't block receiving the next job
         // while waiting for HTTP submission. Semaphore bounds concurrency.
         tokio::spawn(async move {
