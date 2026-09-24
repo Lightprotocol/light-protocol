@@ -134,6 +134,15 @@ describe('safely convert json response', async () => {
         });
     });
 
+    it('wraps unsafe numbers inside arrays', () => {
+        const input = '{"values": [1, 9007199254740992, -9007199254740993]}';
+        const output = wrapBigNumbersAsStrings(input);
+
+        expect(output).to.equal(
+            '{"values": [1, "9007199254740992", "-9007199254740993"]}',
+        );
+    });
+
     it('should convert unsafe integer responses safely', async () => {
         const rawResponse = `{
                 "jsonrpc": "2.0",
