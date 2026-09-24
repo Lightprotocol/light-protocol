@@ -25,8 +25,10 @@ use tracing::{debug, info, warn};
 use crate::{
     errors::ForesterError,
     processor::v2::{
-        common::send_transaction_batch, proof_cache::SharedProofCache,
-        proof_worker::ProofJobResult, BatchContext,
+        common::send_transaction_batch,
+        proof_cache::{ProofCacheWarmup, SharedProofCache},
+        proof_worker::ProofJobResult,
+        BatchContext,
     },
 };
 
@@ -517,18 +519,18 @@ impl<R: Rpc> TxSender<R> {
 
         let mut saved = 0;
 
-        cache.start_warming(self.last_seen_root).await;
+        let warmup = cache.start_warming(self.last_seen_root).await;
 
         // Save proofs from pending_batch (already processed but not yet sent)
         for (instruction, seq, old_root, new_root) in self.pending_batch.drain(..) {
-            cache.add_proof(seq, old_root, new_root, instruction).await;
+            warmup.add_proof(seq, old_root, new_root, instruction).await;
             saved += 1;
         }
 
         // Save proofs from the reorder buffer (received but waiting for in-order processing)
         while let Some(entry) = self.buffer.pop_next() {
             let seq = self.buffer.expected_seq() - 1;
-            cache
+            warmup
                 .add_proof(seq, entry.old_root, entry.new_root, entry.instruction)
                 .await;
             saved += 1;
@@ -537,7 +539,7 @@ impl<R: Rpc> TxSender<R> {
         // Save the current result if provided
         if let Some(result) = current_result {
             if let Ok(instruction) = result.result {
-                cache
+                warmup
                     .add_proof(result.seq, result.old_root, result.new_root, instruction)
                     .await;
                 saved += 1;
@@ -547,7 +549,7 @@ impl<R: Rpc> TxSender<R> {
         // Drain remaining proofs from the channel
         while let Ok(result) = proof_rx.try_recv() {
             if let Ok(instruction) = result.result {
-                cache
+                warmup
                     .add_proof(result.seq, result.old_root, result.new_root, instruction)
                     .await;
                 saved += 1;
@@ -569,6 +571,7 @@ impl<R: Rpc> TxSender<R> {
 
         // Dropping the JoinHandle detaches the collector so it can finish warming the cache.
         drop(spawn_late_proof_collector(
+            warmup,
             cache.clone(),
             proof_rx,
             self.context.merkle_tree,
@@ -580,6 +583,7 @@ impl<R: Rpc> TxSender<R> {
 }
 
 fn spawn_late_proof_collector(
+    warmup: ProofCacheWarmup,
     cache: Arc<SharedProofCache>,
     mut proof_rx: mpsc::Receiver<ProofJobResult>,
     tree: solana_sdk::pubkey::Pubkey,
@@ -591,7 +595,7 @@ fn spawn_late_proof_collector(
             while let Some(result) = proof_rx.recv().await {
                 match result.result {
                     Ok(instruction) => {
-                        cache
+                        warmup
                             .add_proof(result.seq, result.old_root, result.new_root, instruction)
                             .await;
                         saved += 1;
@@ -622,7 +626,7 @@ fn spawn_late_proof_collector(
 
         // This must run on channel closure and timeout so a retained sender can
         // never make the tree permanently ineligible for future proof work.
-        cache.finish_warming().await;
+        warmup.finish().await;
         let total_cached_proofs = cache.len().await;
         info!(
             tree = %tree,
@@ -656,10 +660,11 @@ mod tests {
         let base_root = [1u8; 32];
         let next_root = [2u8; 32];
         let cache = Arc::new(SharedProofCache::new(tree));
-        cache.start_warming(base_root).await;
+        let warmup = cache.start_warming(base_root).await;
 
         let (proof_tx, proof_rx) = mpsc::channel(1);
         let collector = spawn_late_proof_collector(
+            warmup,
             cache.clone(),
             proof_rx,
             tree,
@@ -686,10 +691,11 @@ mod tests {
         let tree = solana_sdk::pubkey::Pubkey::new_unique();
         let base_root = [3u8; 32];
         let cache = Arc::new(SharedProofCache::new(tree));
-        cache.start_warming(base_root).await;
+        let warmup = cache.start_warming(base_root).await;
 
         let (proof_tx, proof_rx) = mpsc::channel(1);
         let collector = spawn_late_proof_collector(
+            warmup,
             cache.clone(),
             proof_rx,
             tree,
@@ -719,11 +725,16 @@ mod tests {
         let tree = solana_sdk::pubkey::Pubkey::new_unique();
         let base_root = [5u8; 32];
         let cache = Arc::new(SharedProofCache::new(tree));
-        cache.start_warming(base_root).await;
+        let warmup = cache.start_warming(base_root).await;
 
         let (proof_tx, proof_rx) = mpsc::channel(1);
-        let collector =
-            spawn_late_proof_collector(cache.clone(), proof_rx, tree, Duration::from_millis(20));
+        let collector = spawn_late_proof_collector(
+            warmup,
+            cache.clone(),
+            proof_rx,
+            tree,
+            Duration::from_millis(20),
+        );
 
         assert!(cache.is_warming().await);
         assert_eq!(collector.await.unwrap(), 0);
