@@ -3620,12 +3620,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             return;
         }
 
-        if slots_until_active < 15 {
+        // The remote prover may need 20-35 seconds for an uncached proof. Starting
+        // speculative work with less time than that only leaves orphaned requests
+        // in the prover queue after this timeout expires, delaying active work.
+        const MIN_PREWARM_SLOTS: u64 = 90;
+        if slots_until_active < MIN_PREWARM_SLOTS {
             info!(
                 event = "prewarm_skipped_not_enough_time",
                 run_id = %self.run_id,
                 slots_until_active,
-                min_required_slots = 15,
+                min_required_slots = MIN_PREWARM_SLOTS,
                 "Skipping pre-warming; not enough slots until active phase"
             );
             return;
@@ -3703,7 +3707,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         }
                     };
 
-                    const PREWARM_MAX_BATCHES: usize = 4;
+                    // One speculative batch is sufficient to warm this tree. More
+                    // batches can monopolize a small shared prover deployment.
+                    const PREWARM_MAX_BATCHES: usize = 1;
                     let mut p = processor.lock().await;
                     match p
                         .prewarm_from_indexer(
