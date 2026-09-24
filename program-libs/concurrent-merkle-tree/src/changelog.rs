@@ -4,6 +4,27 @@ use light_bounded_vec::BoundedVec;
 
 use crate::errors::ConcurrentMerkleTreeError;
 
+// Pin the deployed v1 changelog account layout: a node is a tag byte
+// (0 = None, 1 = Some) followed by the 32 value bytes, and `index` is the
+// last u64 of the repr(C) entry.
+const _: () = {
+    use std::mem::{offset_of, size_of};
+
+    assert!(size_of::<Option<[u8; 32]>>() == 33);
+    // SAFETY: The tag byte is always initialized.
+    assert!(unsafe { *(&Some([0u8; 32]) as *const Option<[u8; 32]> as *const u8) } == 1);
+    assert!(unsafe { *(&None::<[u8; 32]> as *const Option<[u8; 32]> as *const u8) } == 0);
+
+    assert!(size_of::<ChangelogEntry<22>>() == 736);
+    assert!(size_of::<ChangelogEntry<26>>() == 872);
+    assert!(size_of::<ChangelogEntry<32>>() == 1064);
+    assert!(size_of::<ChangelogEntry<40>>() == 1328);
+    assert!(offset_of!(ChangelogEntry<22>, index) == 736 - 8);
+    assert!(offset_of!(ChangelogEntry<26>, index) == 872 - 8);
+    assert!(offset_of!(ChangelogEntry<32>, index) == 1064 - 8);
+    assert!(offset_of!(ChangelogEntry<40>, index) == 1328 - 8);
+};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct ChangelogPath<const HEIGHT: usize>(pub [Option<[u8; 32]>; HEIGHT]);
