@@ -257,9 +257,8 @@ where
 
     pub async fn clear_cache(&mut self) {
         self.cached_state = None;
-        if let Some(proof_cache) = &self.proof_cache {
-            proof_cache.clear().await;
-        }
+        // Staging state is optimistic, but completed proofs are independently
+        // root-validated. A staging reset must not erase unconfirmed work.
     }
 
     pub fn update_eligibility(&mut self, end_slot: u64) {
@@ -340,6 +339,15 @@ where
         drop(proof_tx);
 
         let tx_result = match tx_sender_handle.await.map_err(ForesterError::from)? {
+            Err(error) if error.is_forester_not_eligible() => {
+                warn!(
+                    event = "v2_tx_sender_stale_eligibility",
+                    tree = %self.context.merkle_tree,
+                    error = %error,
+                    "Tx sender detected stale forester eligibility"
+                );
+                return Err(error);
+            }
             Err(error) if matches!(&error, ForesterError::V2(v2_error) if v2_error.is_constraint()) =>
             {
                 warn!(
@@ -572,7 +580,7 @@ where
         let num_batches = queue_data.num_batches;
         let num_workers = self.context.num_proof_workers.max(1);
 
-        cache.start_warming(initial_root).await;
+        let warmup = cache.start_warming(initial_root).await;
 
         let (proof_tx, mut proof_rx) = mpsc::channel(num_workers * 2);
 
@@ -618,7 +626,7 @@ where
                         }
                     }
 
-                    cache
+                    warmup
                         .add_proof(result.seq, result.old_root, result.new_root, instruction)
                         .await;
                     proofs_cached += 1;
@@ -635,7 +643,7 @@ where
             }
         }
 
-        cache.finish_warming().await;
+        warmup.finish().await;
 
         if proofs_cached < jobs_sent {
             warn!(
