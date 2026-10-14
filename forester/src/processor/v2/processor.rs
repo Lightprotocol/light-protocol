@@ -581,6 +581,7 @@ where
         let num_workers = self.context.num_proof_workers.max(1);
 
         let warmup = cache.start_warming(initial_root).await;
+        let collection = cache.start_collecting(initial_root);
 
         let (proof_tx, mut proof_rx) = mpsc::channel(num_workers * 2);
 
@@ -626,12 +627,14 @@ where
                         }
                     }
 
+                    collection.record_proof(result.old_root, result.new_root);
                     warmup
                         .add_proof(result.seq, result.old_root, result.new_root, instruction)
                         .await;
                     proofs_cached += 1;
                 }
                 Err(e) => {
+                    collection.record_failure(result.old_root);
                     warn!(
                         event = "v2_prewarm_proof_generation_failed",
                         tree = %self.context.merkle_tree,
@@ -644,6 +647,7 @@ where
         }
 
         warmup.finish().await;
+        drop(collection);
 
         if proofs_cached < jobs_sent {
             warn!(

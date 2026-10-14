@@ -214,7 +214,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     Ok(signature.to_string())
 }
 
-fn map_send_error(tree: Pubkey, error: SmartTransactionError) -> ForesterError {
+pub(crate) fn map_send_error(tree: Pubkey, error: SmartTransactionError) -> ForesterError {
     if let Some(transaction_error) = error.transaction_error() {
         let v2_error = V2Error::from_transaction_error(tree, &transaction_error);
         if v2_error.is_batch_not_ready() {

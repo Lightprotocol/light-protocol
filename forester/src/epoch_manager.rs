@@ -70,6 +70,7 @@ use crate::{
             tx_builder::EpochManagerTransactions,
         },
         v2::{
+            common::map_send_error,
             strategy::{AddressTreeStrategy, StateTreeStrategy},
             BatchContext, BatchInstruction, ProcessingResult, ProverConfig, QueueProcessor,
             SharedProofCache,
@@ -261,6 +262,19 @@ impl WorkItem {
 pub enum MerkleProofType {
     AddressProof(NewAddressProofWithContext),
     StateProof(MerkleProof),
+}
+
+/// On-chain root plus the recent root history used to prune superseded proofs.
+struct TreeRoots {
+    current: [u8; 32],
+    recent: Vec<[u8; 32]>,
+}
+
+enum CachedProofSend {
+    /// Cached proofs were sent, or another task holds the tree's send lock.
+    Progress,
+    /// Nothing was sent. Carries the on-chain roots when they were fetched.
+    Idle(Option<TreeRoots>),
 }
 
 #[derive(Debug)]
@@ -2385,20 +2399,38 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
             // Consume ready prefixes even while later proofs are still arriving.
             // Recheck throughout the slot instead of forfeiting it on a warming cache.
-            if self
+            let tree_roots = match self
                 .try_send_cached_proofs(
                     epoch_info,
                     epoch_pda,
                     tree_accounts,
                     consecutive_eligibility_end,
                 )
-                .await?
-                .is_some()
+                .await
             {
-                tokio::time::sleep(POLL_INTERVAL_MIN).await;
-                estimated_slot = self.slot_tracker.estimated_current_slot();
-                continue;
-            }
+                Ok(CachedProofSend::Progress) => {
+                    tokio::time::sleep(POLL_INTERVAL_MIN).await;
+                    estimated_slot = self.slot_tracker.estimated_current_slot();
+                    continue;
+                }
+                Ok(CachedProofSend::Idle(tree_roots)) => tree_roots,
+                Err(e) if e.is_forester_not_eligible() => return Err(e),
+                Err(e) => {
+                    // Returning would forfeit the rest of the slot. Retry with a
+                    // fresh root check; rejected proofs have already been evicted.
+                    warn!(
+                        event = "cached_proofs_send_retrying",
+                        run_id = %self.run_id,
+                        tree = %tree_pubkey,
+                        error = ?e,
+                        "Cached proof send failed; retrying within the light slot"
+                    );
+                    tokio::time::sleep(poll_interval).await;
+                    poll_interval = (poll_interval * 2).min(POLL_INTERVAL_MAX);
+                    estimated_slot = self.slot_tracker.estimated_current_slot();
+                    continue;
+                }
+            };
 
             let cache = self
                 .proof_caches
@@ -2406,11 +2438,22 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 .map(|cache| cache.clone());
             if let Some(cache) = cache {
                 if cache.has_pending_proofs().await {
-                    // Do not generate another speculative chain for the same tree.
+                    let current_root = match tree_roots {
+                        Some(roots) => Some(roots.current),
+                        None => self
+                            .fetch_tree_roots_pooled(tree_accounts)
+                            .await
+                            .map(|roots| roots.current),
+                    };
+                    // Do not generate another speculative chain while pending work
+                    // can still extend the on-chain root. Pending work on a chain
+                    // the tree has left keeps collecting, but no longer blocks.
                     // Completed prefixes remain eligible for sending on every tick.
-                    tokio::time::sleep(PENDING_PROOF_POLL_INTERVAL).await;
-                    estimated_slot = self.slot_tracker.estimated_current_slot();
-                    continue;
+                    if current_root.is_none_or(|root| cache.awaits_proof_for(&root)) {
+                        tokio::time::sleep(PENDING_PROOF_POLL_INTERVAL).await;
+                        estimated_slot = self.slot_tracker.estimated_current_slot();
+                        continue;
+                    }
                 }
             }
 
@@ -3718,18 +3761,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
                         .clone();
 
-                    if cache.has_pending_proofs().await {
-                        info!(
-                            event = "prewarm_skipped_cache_warming",
-                            run_id = %self_clone.run_id,
-                            tree = %tree_pubkey,
-                            "Tree cache is already collecting proofs; skipping pre-warm"
-                        );
-                        return;
-                    }
-
                     let cache_len = cache.len().await;
-                    if cache_len > 0 && !cache.is_warming().await {
+                    if cache_len > 0 || cache.has_pending_proofs().await {
                         let mut rpc = match self_clone.rpc_pool.get_connection().await {
                             Ok(r) => r,
                             Err(e) => {
@@ -3743,15 +3776,38 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                                 return;
                             }
                         };
-                        if let Ok(current_root) =
-                            self_clone.fetch_current_root(&mut *rpc, &tree_accounts).await
+                        let roots = match self_clone.fetch_tree_roots(&mut *rpc, &tree_accounts).await
                         {
+                            Ok(roots) => roots,
+                            Err(e) => {
+                                warn!(
+                                    event = "prewarm_cache_validation_root_fetch_failed",
+                                    run_id = %self_clone.run_id,
+                                    tree = %tree_pubkey,
+                                    error = ?e,
+                                    "Failed to fetch tree root for cache validation"
+                                );
+                                return;
+                            }
+                        };
+                        drop(rpc);
+                        if cache.awaits_proof_for(&roots.current) {
+                            info!(
+                                event = "prewarm_skipped_cache_warming",
+                                run_id = %self_clone.run_id,
+                                tree = %tree_pubkey,
+                                "Tree cache is already collecting proofs; skipping pre-warm"
+                            );
+                            return;
+                        }
+                        // Only proofs that link to the current root make pre-warming redundant.
+                        if cache.links_to(&roots.current, &roots.recent).await {
                             info!(
                                 event = "prewarm_skipped_cache_already_warm",
                                 run_id = %self_clone.run_id,
                                 tree = %tree_pubkey,
                                 cached_proofs = cache_len,
-                                root_prefix = ?&current_root[..4],
+                                root_prefix = ?&roots.current[..4],
                                 "Tree already has cached proofs from previous epoch; skipping pre-warm"
                             );
                             return;
@@ -3854,7 +3910,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         epoch_pda: &ForesterEpochPda,
         tree_accounts: &TreeAccounts,
         consecutive_eligibility_end: u64,
-    ) -> std::result::Result<Option<usize>, ForesterError> {
+    ) -> std::result::Result<CachedProofSend, ForesterError> {
         let tree_pubkey = tree_accounts.merkle_tree;
 
         // Check eligibility window before attempting to send cached proofs
@@ -3868,7 +3924,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 eligibility_end_slot = consecutive_eligibility_end,
                 "Skipping cached proof send because eligibility window has ended"
             );
-            return Ok(None);
+            return Ok(CachedProofSend::Idle(None));
         }
 
         let Some(confirmation_deadline) = scheduled_confirmation_deadline(
@@ -3882,24 +3938,24 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 eligibility_end_slot = consecutive_eligibility_end,
                 "Skipping cached proofs because not enough eligible slots remain for confirmation"
             );
-            return Ok(None);
+            return Ok(CachedProofSend::Idle(None));
         };
 
         let cache = match self.proof_caches.get(&tree_pubkey) {
             Some(c) => c.clone(),
-            None => return Ok(None),
+            None => return Ok(CachedProofSend::Idle(None)),
         };
 
         if cache.is_empty().await {
-            return Ok(None);
+            return Ok(CachedProofSend::Idle(None));
         }
         let Some(_send_guard) = cache.try_lock_for_sending() else {
-            return Ok(Some(0));
+            return Ok(CachedProofSend::Progress);
         };
 
         let mut rpc = self.rpc_pool.get_connection().await?;
-        let current_root = match self.fetch_current_root(&mut *rpc, tree_accounts).await {
-            Ok(root) => root,
+        let roots = match self.fetch_tree_roots(&mut *rpc, tree_accounts).await {
+            Ok(roots) => roots,
             Err(e) => {
                 warn!(
                     event = "cached_proofs_root_fetch_failed",
@@ -3908,12 +3964,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     error = ?e,
                     "Failed to fetch current root for tree"
                 );
-                return Ok(None);
+                return Ok(CachedProofSend::Idle(None));
             }
         };
 
         drop(rpc);
-        let cached_proofs = match cache.ready_chain(&current_root).await {
+        let current_root = roots.current;
+        let cached_proofs = match cache.ready_chain(&current_root, &roots.recent).await {
             Some(proofs) => proofs,
             None => {
                 debug!(
@@ -3923,12 +3980,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     root_prefix = ?&current_root[..4],
                     "No valid cached proofs for tree"
                 );
-                return Ok(None);
+                return Ok(CachedProofSend::Idle(Some(roots)));
             }
         };
 
         if cached_proofs.is_empty() {
-            return Ok(Some(0));
+            return Ok(CachedProofSend::Progress);
         }
 
         info!(
@@ -3940,26 +3997,45 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             "Sending cached proofs for tree"
         );
 
-        let items_sent = self
-            .send_cached_proofs_as_transactions(
-                epoch_info,
-                epoch_pda,
-                tree_accounts,
-                &cache,
-                cached_proofs,
-                consecutive_eligibility_end,
-                confirmation_deadline,
-            )
-            .await?;
+        self.send_cached_proofs_as_transactions(
+            epoch_info,
+            epoch_pda,
+            tree_accounts,
+            &cache,
+            cached_proofs,
+            consecutive_eligibility_end,
+            confirmation_deadline,
+        )
+        .await?;
 
-        Ok(Some(items_sent))
+        Ok(CachedProofSend::Progress)
     }
 
-    async fn fetch_current_root(
+    async fn fetch_tree_roots_pooled(&self, tree_accounts: &TreeAccounts) -> Option<TreeRoots> {
+        let roots = async {
+            let mut rpc = self.rpc_pool.get_connection().await?;
+            self.fetch_tree_roots(&mut *rpc, tree_accounts).await
+        };
+        match roots.await {
+            Ok(roots) => Some(roots),
+            Err(e) => {
+                warn!(
+                    event = "tree_root_fetch_failed",
+                    run_id = %self.run_id,
+                    tree = %tree_accounts.merkle_tree,
+                    error = ?e,
+                    "Failed to fetch current root for tree"
+                );
+                None
+            }
+        }
+    }
+
+    async fn fetch_tree_roots(
         &self,
         rpc: &mut impl Rpc,
         tree_accounts: &TreeAccounts,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<TreeRoots> {
         use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 
         let mut account = rpc
@@ -3979,8 +4055,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             _ => return Err(anyhow!("Unsupported tree type for root fetch")),
         };
 
-        let root = tree.root_history.last().copied().unwrap_or([0u8; 32]);
-        Ok(root)
+        Ok(TreeRoots {
+            current: tree.root_history.last().copied().unwrap_or([0u8; 32]),
+            recent: tree.root_history.iter().copied().collect(),
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -4103,7 +4181,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     },
                 )
                 .await
-                .map_err(RpcError::from)
+                .map_err(|error| map_send_error(tree_accounts.merkle_tree, error))
                 {
                     Ok(sig) => {
                         cache.confirm(chunk).await;
@@ -4124,15 +4202,21 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         .await;
                     }
                     Err(e) => {
-                        warn!(
-                            event = "cached_proofs_tx_send_failed",
-                            run_id = %self.run_id,
-                            error = ?e,
-                            "Cached proof send failed; preserving unconfirmed chain for retry"
-                        );
+                        if matches!(&e, ForesterError::V2(v2_error) if v2_error.is_constraint()) {
+                            // Retrying a proof the verifier rejected can never succeed
+                            // and would block fresh proofs for this root.
+                            cache.evict(chunk).await;
+                        } else {
+                            warn!(
+                                event = "cached_proofs_tx_send_failed",
+                                run_id = %self.run_id,
+                                error = ?e,
+                                "Cached proof send failed; preserving unconfirmed chain for retry"
+                            );
+                        }
                         // Stop the dependent chain. In particular, preserve the
                         // typed 6004 error so process_queue re-finalizes eligibility.
-                        return Err(e.into());
+                        return Err(e);
                     }
                 }
             }
