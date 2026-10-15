@@ -35,6 +35,9 @@ macro_rules! define_syscall {
 	}
 }
 
+#[cfg(target_feature = "static-syscalls")]
+pub use solana_define_syscall::sys_hash;
+
 define_syscall!(fn sol_sha256(vals: *const u8, val_len: u64, hash_result: *mut u8) -> u64);
 define_syscall!(fn sol_keccak256(vals: *const u8, val_len: u64, hash_result: *mut u8) -> u64);
 define_syscall!(fn sol_poseidon(parameters: u64, endianness: u64, vals: *const u8, val_len: u64, hash_result: *mut u8) -> u64);
