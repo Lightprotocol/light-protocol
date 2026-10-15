@@ -40,6 +40,7 @@ runs:
         echo "pnpm=${PNPM_VERSION}" >> $GITHUB_OUTPUT
         echo "solana=${SOLANA_VERSION}" >> $GITHUB_OUTPUT
         echo "anchor=${ANCHOR_VERSION}" >> $GITHUB_OUTPUT
+        echo "just=${JUST_VERSION}" >> $GITHUB_OUTPUT
         echo "photon=${PHOTON_VERSION}" >> $GITHUB_OUTPUT
         echo "photon_commit=${PHOTON_COMMIT}" >> $GITHUB_OUTPUT
         echo "redis=${REDIS_VERSION}" >> $GITHUB_OUTPUT
@@ -114,6 +115,8 @@ runs:
 
     - name: Install just
       uses: extractions/setup-just@v2
+      with:
+        just-version: ${{ steps.versions.outputs.just }}
 
     - name: Set Light Protocol environment variables
       shell: bash

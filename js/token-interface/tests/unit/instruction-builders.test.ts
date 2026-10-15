@@ -670,7 +670,9 @@ describe('instruction builders', () => {
                 mintSigner: Keypair.generate().publicKey.toBytes(),
                 bump: 255,
             },
-            recipients: [{ recipient: Keypair.generate().publicKey, amount: 42n }],
+            recipients: [
+                { recipient: Keypair.generate().publicKey, amount: 42n },
+            ],
         });
 
         expect(instruction.programId.equals(LIGHT_TOKEN_PROGRAM_ID)).toBe(true);

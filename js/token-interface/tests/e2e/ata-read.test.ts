@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { newAccountWithLamports } from '@lightprotocol/stateless.js';
-import { createAtaInstructions, getAta, getAssociatedTokenAddress } from '../../src';
+import {
+    createAtaInstructions,
+    getAta,
+    getAssociatedTokenAddress,
+} from '../../src';
 import { createMintFixture, sendInstructions } from './helpers';
 
 describe('ata creation and reads', () => {

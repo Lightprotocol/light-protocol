@@ -52,7 +52,12 @@ describe('mint-to-compressed instruction', () => {
             [COMPRESSED_MINT_SEED, mintSigner.publicKey.toBuffer()],
             LIGHT_TOKEN_PROGRAM_ID,
         );
-        const mintInfo = await getMint(rpc, mint, undefined, LIGHT_TOKEN_PROGRAM_ID);
+        const mintInfo = await getMint(
+            rpc,
+            mint,
+            undefined,
+            LIGHT_TOKEN_PROGRAM_ID,
+        );
         if (!mintInfo.merkleContext || !mintInfo.mintContext) {
             throw new Error('Light mint context missing.');
         }
@@ -103,7 +108,12 @@ describe('mint-to-compressed instruction', () => {
             recipientB.publicKey,
             { mint },
         );
-        const mintAfter = await getMint(rpc, mint, undefined, LIGHT_TOKEN_PROGRAM_ID);
+        const mintAfter = await getMint(
+            rpc,
+            mint,
+            undefined,
+            LIGHT_TOKEN_PROGRAM_ID,
+        );
 
         const amountA = aAccounts.items.reduce(
             (sum, account) => sum + BigInt(account.parsed.amount.toString()),
