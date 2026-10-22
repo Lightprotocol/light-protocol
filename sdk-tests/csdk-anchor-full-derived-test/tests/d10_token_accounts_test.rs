@@ -564,13 +564,9 @@ async fn test_d10_single_ata_markonly_lifecycle() {
             .await
             .expect("create_load_instructions should succeed");
 
-    // Execute decompression (ATA owner must sign for decompression)
+    // Execute decompression (ATA owner no longer needs to sign)
     ctx.rpc
-        .create_and_send_transaction(
-            &decompress_instructions,
-            &ctx.payer.pubkey(),
-            &[&ctx.payer, &ata_owner_keypair],
-        )
+        .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .expect("ATA decompression should succeed");
 

@@ -692,11 +692,7 @@ async fn test_amm_full_lifecycle() {
             .expect("create_load_instructions should succeed");
 
     ctx.rpc
-        .create_and_send_transaction(
-            &decompress_ixs,
-            &ctx.payer.pubkey(),
-            &[&ctx.payer, &ctx.creator],
-        )
+        .create_and_send_transaction(&decompress_ixs, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .expect("Decompression should succeed");
 
