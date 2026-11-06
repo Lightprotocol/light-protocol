@@ -1,3 +1,4 @@
+import { findProgramAddressSync } from '../../utils/pda';
 import BN from 'bn.js';
 import {
     PublicKey,
@@ -188,10 +189,7 @@ export class LightSystemProgram {
      */
     static deriveCompressedSolPda(): PublicKey {
         const seeds = [SOL_POOL_PDA_SEED];
-        const [address, _] = PublicKey.findProgramAddressSync(
-            seeds,
-            this.programId,
-        );
+        const [address, _] = findProgramAddressSync(seeds, this.programId);
         return address;
     }
 
