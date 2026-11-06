@@ -17,8 +17,8 @@ idl-build = ["anchor-lang/idl-build", "anchor"]
 pinocchio = ["dep:pinocchio"]
 bytemuck-des = ["bytemuck"]
 new-unique = ["dep:solana-pubkey"]
-profile-program = []
-profile-heap = ["dep:light-heap"]
+profile-program = ["dep:light-program-profiler", "light-program-profiler/profile-program"]
+profile-heap = ["dep:light-heap", "dep:light-program-profiler", "light-program-profiler/profile-heap"]
 poseidon = ["dep:light-poseidon", "light-hasher/poseidon"]
 keccak = ["light-hasher/keccak"]
 sha256 = ["light-hasher/sha256"]
@@ -38,7 +38,7 @@ anchor-lang = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true, features = ["derive"] }
 borsh = { workspace = true, default-features = false }
 solana-pubkey = { workspace = true, optional = true }
-light-program-profiler = { workspace = true }
+light-program-profiler = { workspace = true, optional = true }
 light-heap = { workspace = true, optional = true }
 tinyvec = { workspace = true }
 
