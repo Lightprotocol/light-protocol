@@ -1,3 +1,4 @@
+import { findProgramAddressSync } from './pda';
 import { AccountMeta, PublicKey, SystemProgram } from '@solana/web3.js';
 import { defaultStaticAccountsStruct, featureFlags } from '../constants';
 import { LightSystemProgram } from '../programs';
@@ -169,7 +170,7 @@ export function getLightSystemAccountMetasLegacy(
     config: SystemAccountMetaConfig,
 ): AccountMeta[] {
     let signerSeed = new TextEncoder().encode('cpi_authority');
-    const cpiSigner = PublicKey.findProgramAddressSync(
+    const cpiSigner = findProgramAddressSync(
         [signerSeed],
         config.selfProgram,
     )[0];
@@ -244,7 +245,7 @@ export function getLightSystemAccountMetasV2(
     config: SystemAccountMetaConfig,
 ): AccountMeta[] {
     let signerSeed = new TextEncoder().encode('cpi_authority');
-    const cpiSigner = PublicKey.findProgramAddressSync(
+    const cpiSigner = findProgramAddressSync(
         [signerSeed],
         config.selfProgram,
     )[0];

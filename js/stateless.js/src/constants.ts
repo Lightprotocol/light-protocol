@@ -1,3 +1,4 @@
+import { findProgramAddressSync } from './utils/pda';
 import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
@@ -102,7 +103,7 @@ export const getRegisteredProgramPda = () =>
     new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh');
 
 export const getAccountCompressionAuthority = () =>
-    PublicKey.findProgramAddressSync(
+    findProgramAddressSync(
         [Buffer.from('cpi_authority')],
         new PublicKey(lightSystemProgram),
     )[0];
